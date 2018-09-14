@@ -44,9 +44,13 @@ You should get :
 
 * **Slack** :
 
-![slack](https://raw.githubusercontent.com/issif/falcosidekick/slack.png)
+<p align="left">
+    <img src="slack.png" width="70%"/>
+</p>
 
 * **Datadog** :
 *(Tip: filter on `sources: falco`)*
 
-![datadog](https://raw.githubusercontent.com/issif/falcosidekick/datadog.png)
+<p align="left">
+    <img src="datadog.png" width="100%"/>
+</p>

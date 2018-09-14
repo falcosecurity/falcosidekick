@@ -90,7 +90,7 @@ func newSlackPayload(falcopayload falcoPayload) slackPayload {
 
 	slackPayload := slackPayload{
 		Username:    "Falco Sidekick",
-		IconURL:     "https://raw.githubusercontent.com/issif/falcosidekick/falcosidekick.png",
+		IconURL:     "https://raw.githubusercontent.com/Issif/falcosidekick/master/falcosidekick.png",
 		Attachments: attachments}
 
 	return slackPayload
