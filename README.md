@@ -3,7 +3,7 @@
 </p>
 
 # Falcosidekick
-A simple daemon to help you with falco's outputs.
+A simple daemon to help you with falco's outputs (https://sysdig.com/opensource/falco/).
 
 It takes output from falco and can forward it to :
 * Slack
@@ -12,6 +12,11 @@ It takes output from falco and can forward it to :
 # Usage
 
 Run the daemon as any other daemon in your architecture (systemd, k8s daemonset, ...)
+
+## With docker
+```
+docker run -d -p 2801:2801 -e SLACK_TOKEN=XXXX -e DATADOG_TOKEN=XXXX issif/falcosidekick
+```
 
 ## Falco's config
 
