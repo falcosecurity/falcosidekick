@@ -7,13 +7,10 @@ import (
 )
 
 // Env variables
-var slackToken string
-var datadogToken string
 var port string
 
 func init() {
-	slackToken, _ = os.LookupEnv("SLACK_TOKEN")
-	datadogToken, _ = os.LookupEnv("DATADOG_TOKEN")
+
 	port, _ = os.LookupEnv("LISTEN_PORT")
 	if port == "" {
 		port = "2801"

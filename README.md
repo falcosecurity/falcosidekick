@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="falcosidekick.png" width="30%"/>
+    <img src="imgs/falcosidekick.png" width="30%"/>
 </p>
 
 # Falcosidekick
@@ -45,12 +45,12 @@ You should get :
 * **Slack** :
 
 <p align="left">
-    <img src="slack.png" width="70%"/>
+    <img src="imgs/slack.png" width="70%"/>
 </p>
 
 * **Datadog** :
 *(Tip: filter on `sources: falco`)*
 
 <p align="left">
-    <img src="datadog.png" width="100%"/>
+    <img src="imgs/datadog.png" width="100%"/>
 </p>

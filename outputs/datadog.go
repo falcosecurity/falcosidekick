@@ -1,4 +1,4 @@
-package main
+package outputs
 
 import (
 	"bytes"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"../types"
 )
 
 const (
@@ -20,7 +22,7 @@ type datadogPayload struct {
 	Tags       []string `json:"tags,omitempty"`
 }
 
-func newDatadogPayload(falcopayload falcoPayload) datadogPayload {
+func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 	var ddpayload datadogPayload
 	var tags []string
 
@@ -50,7 +52,7 @@ func newDatadogPayload(falcopayload falcoPayload) datadogPayload {
 	return ddpayload
 }
 
-func datadogPost(falcopayload falcoPayload) {
+func DatadogPost(falcopayload types.FalcoPayload) {
 	datadogPayload := newDatadogPayload(falcopayload)
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(datadogPayload)

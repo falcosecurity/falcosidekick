@@ -1,10 +1,13 @@
-package main
+package outputs
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+
+	"../types"
 )
 
 // Field
@@ -31,7 +34,7 @@ type slackPayload struct {
 	Attachments []slackAttachment `json:"attachments,omitempty"`
 }
 
-func newSlackPayload(falcopayload falcoPayload) slackPayload {
+func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 	var attachments []slackAttachment
 	var attachment slackAttachment
 	var fields []slackAttachmentField
@@ -90,18 +93,18 @@ func newSlackPayload(falcopayload falcoPayload) slackPayload {
 
 	slackPayload := slackPayload{
 		Username:    "Falco Sidekick",
-		IconURL:     "https://raw.githubusercontent.com/Issif/falcosidekick/master/falcosidekick.png",
+		IconURL:     "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png",
 		Attachments: attachments}
 
 	return slackPayload
 }
 
 // slackPost posts event to slack
-func slackPost(falcopayload falcoPayload) {
+func SlackPost(falcopayload types.FalcoPayload) {
 	slackPayload := newSlackPayload(falcopayload)
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(slackPayload)
-	_, err := http.Post(slackToken, "application/json; charset=utf-8", b)
+	_, err := http.Post(os.Getenv("SLACK_TOKEN"), "application/json; charset=utf-8", b)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 	}

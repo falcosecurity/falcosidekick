@@ -5,6 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"os"
+
+	"./outputs"
+	"./types"
 )
 
 // Print falco's payload in stdout (for debug) of daemon
@@ -21,7 +25,7 @@ func payloadHandler(w http.ResponseWriter, r *http.Request) {
 // mainHandler
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 
-	var falcopayload falcoPayload
+	var falcopayload types.FalcoPayload
 
 	if r.Body == nil {
 		http.Error(w, "Please send a valid request body", 400)
@@ -34,11 +38,11 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if slackToken != "" {
-		go slackPost(falcopayload)
+	if os.Getenv("SLACK_TOKEN") != "" {
+		go outputs.SlackPost(falcopayload)
 	}
-	if datadogToken != "" {
-		go datadogPost(falcopayload)
+	if os.Getenv("DATADOG_TOKEN") != "" {
+		go outputs.DatadogPost(falcopayload)
 	}
 }
 

@@ -1,11 +1,11 @@
-package main
+package types
 
 import (
 	"time"
 )
 
 // FalcoPayload
-type falcoPayload struct {
+type FalcoPayload struct {
 	Output       string                 `json:"output"`
 	Priority     string                 `json:"priority"`
 	Rule         string                 `json:"rule"`
