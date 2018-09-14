@@ -1,11 +1,13 @@
+<p align="center">
+    <img src="falcosidekick.png" width="30%"/>
+</p>
+
 # Falcosidekick
 A simple daemon to help you with falco's outputs.
 
 It takes output from falco and can forward it to :
 * Slack
 * Datadog
-
-![falcosidekick](https://raw.githubusercontent.com/issif/falcosidekick/falcosidekick.png)
 
 # Usage
 
