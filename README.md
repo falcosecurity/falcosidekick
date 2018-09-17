@@ -3,15 +3,17 @@
 </p>
 
 # Falcosidekick
-A simple daemon to help you with falco's outputs (https://sysdig.com/opensource/falco/).
+A simple daemon to help you with falco's outputs (https://sysdig.com/opensource/falco/). It takes a falco's event and forwards it to different outputs. 
 
-It takes output from falco and can forward it to :
+# Outputs
+
+Currently available outputs are :
 * Slack
 * Datadog
 
 # Usage
 
-Run the daemon as any other daemon in your architecture (systemd, k8s daemonset, ...)
+Run the daemon as any other daemon in your architecture (systemd, k8s daemonset, swarm service, ...)
 
 ## With docker
 ```
@@ -37,6 +39,18 @@ Configuration of the daemon is made by Env vars :
 * **LISTEN_PORT** : port to listen for daemon (default: 2801)
 * **SLACK_TOKEN** : slack url + token (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ)
 * **DATADOG_TOKEN** : datadog token
+
+# Handlers
+
+Different URI (handlers) are available :
+
+* `/` : main and default handler, your falco config must be configured to use it
+* `/ping` : you will get a  `pong` as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck purpose for example)
+* `/checkpayload` : (for debug only) you will get in response the exact payload which has been received by falcosidekick (no notification are sent to ouputs)
+
+# Logs
+
+All logs are sent to `stdout`.
 
 # Examples
 

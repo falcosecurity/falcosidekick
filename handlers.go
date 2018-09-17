@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
-	"net/http/httputil"
 	"os"
 
 	"./outputs"
@@ -12,14 +12,15 @@ import (
 )
 
 // Print falco's payload in stdout (for debug) of daemon
-func payloadHandler(w http.ResponseWriter, r *http.Request) {
+func checkpayloadHandler(w http.ResponseWriter, r *http.Request) {
 	// Read body
-	requestDump, err := httputil.DumpRequest(r, true)
+	requestDump, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println(err)
+		w.Write([]byte(err.Error() + "\n"))
+		log.Printf("[ERROR] : %v\n", err.Error())
 	}
-	fmt.Println(string(requestDump))
-
+	w.Write([]byte(requestDump))
+	log.Printf("[DEBUG] : Paylod =  %v\n", string(requestDump))
 }
 
 // mainHandler
@@ -34,7 +35,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&falcopayload)
 	if err != nil && err.Error() != "EOF" {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, "Please send a valid request body : "+err.Error(), 400)
 		return
 	}
 

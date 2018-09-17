@@ -3,7 +3,7 @@ package outputs
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -56,8 +56,10 @@ func DatadogPost(falcopayload types.FalcoPayload) {
 	datadogPayload := newDatadogPayload(falcopayload)
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(datadogPayload)
-	_, err := http.Post(datadogURL+"?api_key="+os.Getenv("DATADOG_TOKEN"), "application/json; charset=utf-8", b)
+	resp, err := http.Post(datadogURL+"?api_key="+os.Getenv("DATADOG_TOKEN"), "application/json; charset=utf-8", b)
 	if err != nil {
-		fmt.Printf("%v\n", err)
+		log.Printf("[ERROR] : (Datadog) %v\n", err.Error())
+	} else if resp.StatusCode != 200 {
+		log.Printf("[ERROR] : (Datadog) %v\n", resp)
 	}
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 )
@@ -20,10 +20,10 @@ func init() {
 func main() {
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/ping", pingHandler)
-	http.HandleFunc("/checkPayload", payloadHandler)
+	http.HandleFunc("/checkpayload", checkpayloadHandler)
 
-	fmt.Println("Falco Sidekick is up and listening on port " + port)
+	log.Printf("Falco Sidekick is up and listening on port %v\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		panic(err)
+		log.Fatalf("[ERROR] : %v\n", err.Error())
 	}
 }
