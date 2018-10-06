@@ -1,6 +1,5 @@
-<p align="center">
-    <img src="https://github.com/Issif/falcosidekick/raw/master/imgs/falcosidekick.png" width="30%"/>
-</p>
+![falcosidekick](https://github.com/Issif/falcosidekick/raw/master/imgs/falcosidekick.png)
+
 
 # Falcosidekick
 A simple daemon to help you with falco's outputs (https://sysdig.com/opensource/falco/). It takes a falco's event and forwards it to different outputs. 
@@ -62,14 +61,7 @@ curl "http://localhost:2801/" -d'{"output":"16:31:56.746609046: Error File below
 You should get :
 
 * **Slack** :
-
-<p align="left">
-    <img src="https://github.com/Issif/falcosidekick/raw/master/imgs/slack.png" width="70%"/>
-</p>
-
+![slack example](https://github.com/Issif/falcosidekick/raw/master/imgs/slack.png)
 * **Datadog** :
 *(Tip: filter on `sources: falco`)*
-
-<p align="left">
-    <img src="https://github.com/Issif/falcosidekick/raw/master/imgs/datadog.png" width="100%"/>
-</p>
+![datadog example](https://github.com/Issif/falcosidekick/raw/master/imgs/datadog.png)
