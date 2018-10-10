@@ -8,5 +8,5 @@ FROM alpine:3.8 AS final-stage
 RUN apk add --no-cache ca-certificates
 RUN mkdir /app
 WORKDIR /app
-COPY --from=build-env /src/falcosidekick .
+COPY --from=build-stage /src/falcosidekick .
 ENTRYPOINT ["./falcosidekick"]
