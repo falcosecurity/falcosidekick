@@ -37,6 +37,8 @@ Configuration of the daemon is made by Env vars :
 
 * **LISTEN_PORT** : port to listen for daemon (default: 2801)
 * **SLACK_TOKEN** : slack url + token (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ)
+* **SLACK_FOOTER** : slack footer
+* **SLACK_ICON** : slack icon (avatar)
 * **DATADOG_TOKEN** : datadog token
 
 # Handlers
