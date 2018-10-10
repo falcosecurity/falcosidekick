@@ -45,7 +45,11 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 		case string:
 			field.Title = i
 			field.Value = j.(string)
-			field.Short = true
+			if len([]rune(j.(string))) < 36 {
+				field.Short = true
+			} else {
+				field.Short = false
+			}
 		}
 		fields = append(fields, field)
 	}
@@ -66,7 +70,11 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
 	attachment.PreText = falcopayload.Output
-	attachment.Footer = "https://github.com/Issif/falcosidekick"
+	if os.Getenv("SLACK_FOOTER") != "" {
+		attachment.Footer = os.Getenv("SLACK_FOOTER")
+	} else {
+		attachment.Footer = "https://github.com/Issif/falcosidekick"
+	}
 
 	var color string
 	switch falcopayload.Priority {
@@ -91,9 +99,16 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 
 	attachments = append(attachments, attachment)
 
+	var iconUrl string
+	if os.Getenv("SLACK_ICON") != "" {
+		iconUrl = os.Getenv("SLACK_ICON")
+	} else {
+		iconUrl = "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png"
+	}
+
 	slackPayload := slackPayload{
 		Username:    "Falco Sidekick",
-		IconURL:     "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png",
+		IconURL:     iconUrl,
 		Attachments: attachments}
 
 	return slackPayload
