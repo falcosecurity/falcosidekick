@@ -36,10 +36,10 @@ program_output:
 Configuration of the daemon is made by Env vars :
 
 * **LISTEN_PORT** : port to listen for daemon (default: 2801)
-* **SLACK_TOKEN** : slack url + token (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ)
-* **SLACK_FOOTER** : slack footer
-* **SLACK_ICON** : slack icon (avatar)
-* **DATADOG_TOKEN** : datadog token
+* **SLACK_TOKEN** : Slack URL + token (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
+* **SLACK_FOOTER** : Slack footer
+* **SLACK_ICON** : Slack icon (avatar)
+* **DATADOG_TOKEN** : Datadog token, if not `empty`, Datadog output is *enabled*
 
 # Handlers
 
@@ -52,6 +52,11 @@ Different URI (handlers) are available :
 # Logs
 
 All logs are sent to `stdout`.
+
+```
+2018/10/11 08:53:25 [INFO] : Outputs configuration : Slack=enabled, Datadog=disabled
+2018/10/11 08:53:25 [INFO] : Falco Sidekick is up and listening on port 2801
+```
 
 # Examples
 
