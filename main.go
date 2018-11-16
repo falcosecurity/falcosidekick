@@ -26,9 +26,14 @@ func init() {
 		configText += "Slack=disabled, "
 	}
 	if os.Getenv("DATADOG_TOKEN") != "" {
-		configText += "Datadog=enabled"
+		configText += "Datadog=enabled,"
 	} else {
-		configText += "Datadog=disabled"
+		configText += "Datadog=disabled,"
+	}
+	if os.Getenv("ALERTMANAGER_HOST_PORT") != "" {
+		configText += "AlertManager=enabled"
+	} else {
+		configText += "AlertManager=disabled"
 	}
 	log.Printf("%v\n", configText)
 }
