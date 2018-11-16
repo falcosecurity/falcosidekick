@@ -28,9 +28,12 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerIncid
 	for i, j := range falcopayload.OutputFields {
 		switch j.(type) {
 		case string:
-			alertmanagerincident.Labels[strings.Replace(i, ".", "_", -1)] = j.(string) //AlertManger doesn't support dots in a label name
+			//AlertManger doesn't support dots in a label name
+			alertmanagerincident.Labels[strings.Replace(i, ".", "_", -1)] = j.(string)
 		}
 	}
+	alertmanagerincident.Labels["source"] = "falco"
+	alertmanagerincident.Labels["rule"] = falcopayload.Rule
 
 	alertmanagerincident.Annotations["info"] = falcopayload.Output
 	alertmanagerincident.Annotations["summary"] = falcopayload.Rule
@@ -52,5 +55,7 @@ func AlertmanagerPost(falcopayload types.FalcoPayload) {
 		log.Printf("[ERROR] : (AlertManager) %v\n", err.Error())
 	} else if resp.StatusCode != 200 {
 		log.Printf("[ERROR] : (AlertManager) %v\n", resp)
+	} else {
+		log.Printf("[INFO] : (AlertManager)  Post sent successfully\n")
 	}
 }
