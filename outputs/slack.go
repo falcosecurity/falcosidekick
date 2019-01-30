@@ -124,5 +124,7 @@ func SlackPost(falcopayload types.FalcoPayload) {
 		log.Printf("[ERROR] : (Slack) %v\n", err.Error())
 	} else if resp.StatusCode != 200 {
 		log.Printf("[ERROR] : (Slack) %v\n", resp)
+	} else {
+		log.Printf("[INFO] : (Slack)  Post sent successfully\n")
 	}
 }

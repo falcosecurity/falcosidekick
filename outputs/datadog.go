@@ -61,5 +61,7 @@ func DatadogPost(falcopayload types.FalcoPayload) {
 		log.Printf("[ERROR] : (Datadog) %v\n", err.Error())
 	} else if resp.StatusCode != 202 {
 		log.Printf("[ERROR] : (Datadog) %v\n", resp)
+	} else {
+		log.Printf("[INFO] : (Datadog) Post sent%v\n", resp)
 	}
 }

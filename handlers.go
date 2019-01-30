@@ -45,6 +45,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if os.Getenv("DATADOG_TOKEN") != "" {
 		go outputs.DatadogPost(falcopayload)
 	}
+	if os.Getenv("ALERTMANAGER_HOST_PORT") != "" {
+		go outputs.AlertmanagerPost(falcopayload)
+	}
 }
 
 // pingHandler in a simple handler to test if daemon responds
