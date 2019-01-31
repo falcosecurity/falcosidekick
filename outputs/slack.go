@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"../types"
+	"github.com/Issif/falcosidekick/types"
 )
 
 // Field

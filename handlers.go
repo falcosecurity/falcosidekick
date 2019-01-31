@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
-	"./outputs"
-	"./types"
+	"github.com/Issif/falcosidekick/outputs"
+	"github.com/Issif/falcosidekick/types"
 )
 
 // Print falco's payload in stdout (for debug) of daemon
