@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.4 - 2019-02-01
+#### New
+- Add of **go mod** ([PR#1](https://github.com/Issif/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
+#### Enhancement
+- Use of *go mod* is Dockerfile for build ([PR#1](https://github.com/Issif/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
+- Add email maintener in Dockerfile ([PR#1](https://github.com/Issif/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
+
 ## 1.0.3 - 2019-01-30
 #### New
 - new output  : **Alert Manager**
