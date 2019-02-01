@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"../types"
+	"github.com/Issif/falcosidekick/types"
 )
 
 const (
