@@ -24,4 +24,6 @@ USER falcosidekick
 WORKDIR ${HOME}/app
 COPY --from=build-stage /src/falcosidekick .
 
+EXPOSE 2801
+
 ENTRYPOINT ["./falcosidekick"]
