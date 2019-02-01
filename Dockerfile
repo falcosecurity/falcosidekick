@@ -13,7 +13,7 @@ RUN go build -o falcosidekick
 
 # Final Docker image
 FROM alpine:3.8 AS final-stage
-LABEL MAINTAINER "Thomas Labarussias <email>"
+LABEL MAINTAINER "Thomas Labarussias <issif+falcosidekick@gadz.org>"
 
 RUN apk add --no-cache ca-certificates
 
