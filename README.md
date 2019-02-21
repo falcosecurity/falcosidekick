@@ -1,5 +1,6 @@
 ![falcosidekick](https://github.com/Issif/falcosidekick/raw/master/imgs/falcosidekick.png)
 
+![release](https://flat.badgen.net/github/release/Issif/falcosidekick/latest?color=green) ![last commit](https://flat.badgen.net/github/last-commit/Issif/falcosidekick) ![licence](https://flat.badgen.net/badge/license/MIT/blue) ![docker pulls](https://flat.badgen.net/docker/pulls/issif/falcosidekick?icon=docker)
 
 # Falcosidekick
 A simple daemon to help you with falco's outputs (https://sysdig.com/opensource/falco/). It takes a falco's event and forwards it to different outputs. 
