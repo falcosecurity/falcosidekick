@@ -70,8 +70,12 @@ curl "http://localhost:2801/" -d'{"output":"16:31:56.746609046: Error File below
 
 You should get :
 
-* **Slack** :
+**Slack** :
 ![slack example](https://github.com/Issif/falcosidekick/raw/master/imgs/slack.png)
-* **Datadog** :
+
+**Datadog** :
 *(Tip: filter on `sources: falco`)*
 ![datadog example](https://github.com/Issif/falcosidekick/raw/master/imgs/datadog.png)
+
+**AlertManager** :
+![alertmanager example](https://github.com/Issif/falcosidekick/raw/master/imgs/alertmanager.png)
