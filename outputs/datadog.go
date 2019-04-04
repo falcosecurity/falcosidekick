@@ -56,6 +56,11 @@ func DatadogPost(falcopayload types.FalcoPayload) {
 	datadogPayload := newDatadogPayload(falcopayload)
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(datadogPayload)
+
+	if os.Getenv("DEBUG") == "true" {
+		log.Printf("[DEBUG] : Datadog's payload : %v\n", b)
+	}
+
 	resp, err := http.Post(datadogURL+"?api_key="+os.Getenv("DATADOG_TOKEN"), "application/json; charset=utf-8", b)
 	if err != nil {
 		log.Printf("[ERROR] : Datadog - %v\n", err.Error())
