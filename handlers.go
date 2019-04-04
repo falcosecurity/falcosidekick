@@ -70,14 +70,14 @@ func test(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := http.Post("http://localhost:"+port, "application/json", bytes.NewBuffer([]byte(testEvent)))
 	if err != nil {
-		log.Printf("[DEBUG] : Test Failed. Falcosidekick can't call itself.\n")
+		log.Printf("[DEBUG] : Test Failed. Falcosidekick can't call itself\n")
 	}
 	defer resp.Body.Close()
 
-	log.Printf("[DEBUG] : Test sent.\n")
+	log.Printf("[DEBUG] : Test sent\n")
 	if resp.StatusCode == http.StatusOK {
-		log.Printf("[DEBUG] : Test OK (%v).\n", resp.Status)
+		log.Printf("[DEBUG] : Test OK (%v)\n", resp.Status)
 	} else {
-		log.Printf("[DEBUG] : Test KO (%v).\n", resp.Status)
+		log.Printf("[DEBUG] : Test KO (%v)\n", resp.Status)
 	}
 }

@@ -58,10 +58,10 @@ func DatadogPost(falcopayload types.FalcoPayload) {
 	json.NewEncoder(b).Encode(datadogPayload)
 	resp, err := http.Post(datadogURL+"?api_key="+os.Getenv("DATADOG_TOKEN"), "application/json; charset=utf-8", b)
 	if err != nil {
-		log.Printf("[ERROR] : (Datadog) %v\n", err.Error())
+		log.Printf("[ERROR] : Datadog - %v\n", err.Error())
 	} else if resp.StatusCode != 202 {
-		log.Printf("[ERROR] : (Datadog) %v\n", resp)
+		log.Printf("[ERROR] : Datadog - %v\n", resp)
 	} else {
-		log.Printf("[INFO] : (Datadog) Post sent successfully\n")
+		log.Printf("[INFO] : Datadog - Post sent successfully\n")
 	}
 }

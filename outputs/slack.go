@@ -121,10 +121,10 @@ func SlackPost(falcopayload types.FalcoPayload) {
 	json.NewEncoder(b).Encode(slackPayload)
 	resp, err := http.Post(os.Getenv("SLACK_TOKEN"), "application/json; charset=utf-8", b)
 	if err != nil {
-		log.Printf("[ERROR] : (Slack) %v\n", err.Error())
+		log.Printf("[ERROR] : Slack -  %v\n", err.Error())
 	} else if resp.StatusCode != 200 {
-		log.Printf("[ERROR] : (Slack) %v\n", resp)
+		log.Printf("[ERROR] : Slack - %v\n", resp)
 	} else {
-		log.Printf("[INFO] : (Slack)  Post sent successfully\n")
+		log.Printf("[INFO] : Slack - Post sent successfully\n")
 	}
 }
