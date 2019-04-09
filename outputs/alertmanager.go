@@ -50,12 +50,17 @@ func AlertmanagerPost(falcopayload types.FalcoPayload) {
 	alertmanagerPayload := newAlertmanagerPayload(falcopayload)
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(alertmanagerPayload)
+
+	if os.Getenv("DEBUG") == "true" {
+		log.Printf("[DEBUG] : AlertManager's payload : %v\n", b)
+	}
+
 	resp, err := http.Post(os.Getenv("ALERTMANAGER_HOST_PORT")+alertmanagerURL, "application/json; charset=utf-8", b)
 	if err != nil {
-		log.Printf("[ERROR] : (AlertManager) %v\n", err.Error())
+		log.Printf("[ERROR] : AlertManager - %v\n", err.Error())
 	} else if resp.StatusCode != 200 {
-		log.Printf("[ERROR] : (AlertManager) %v\n", resp)
+		log.Printf("[ERROR] : AlertManager - %v\n", resp)
 	} else {
-		log.Printf("[INFO] : (AlertManager)  Post sent successfully\n")
+		log.Printf("[INFO] : AlertManager - Post sent successfully\n")
 	}
 }

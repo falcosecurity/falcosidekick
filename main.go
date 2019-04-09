@@ -42,6 +42,7 @@ func main() {
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/ping", pingHandler)
 	http.HandleFunc("/checkpayload", checkpayloadHandler)
+	http.HandleFunc("/test", test)
 
 	log.Printf("[INFO] : Falco Sidekick is up and listening on port %v\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
