@@ -1,0 +1,9 @@
+# This is not the full falco.yaml just the program_output config
+program_output:
+  enabled: true
+  keep_alive: false
+  program: "curl -d @- falcosidekick.sysdig-staging.svc.cluster.local:2801/"
+
+# Other Notes:
+# * Don't forget to whitelist proc.cmdline = "curl -d @- falcosidekick.sysdig-staging.svc.cluster.local:2801/" for the rule "Command Ran in Container"
+# * Don't forget to whitelist the falcosidekick container reaching out to datadog CIDRs.
