@@ -30,7 +30,7 @@ json_include_output_property: true
 program_output:
   enabled: true
   keep_alive: false
-  program: "curl -d @- localhost:2801"
+  program: "curl -d @- localhost:2801/"
 ```
 
 ## Env variables 
