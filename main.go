@@ -19,33 +19,36 @@ func init() {
 			log.Fatalf("[ERROR] : Bad port number\n")
 		}
 	}
-	configText := "[INFO] : Outputs configuration : "
+	enableOutputsText := "[INFO] : Enable Outputs : "
+	disableOutputsText := "[INFO] : Disable Outputs : "
 	if os.Getenv("SLACK_TOKEN") != "" {
-		configText += "Slack=enabled, "
+		enableOutputsText += "Slack, "
 	} else {
-		configText += "Slack=disabled, "
+		disableOutputsText += "Slack, "
 	}
 	if os.Getenv("DATADOG_TOKEN") != "" {
-		configText += "Datadog=enabled,"
+		enableOutputsText += "Datadog, "
 	} else {
-		configText += "Datadog=disabled,"
+		disableOutputsText += "Datadog, "
 	}
 	if os.Getenv("ALERTMANAGER_HOST_PORT") != "" {
-		configText += "AlertManager=enabled"
+		enableOutputsText += "AlertManager"
 	} else {
-		configText += "AlertManager=disabled"
+		disableOutputsText += "AlertManager"
 	}
-	log.Printf("%v\n", configText)
+
+	log.Printf("%v\n", enableOutputsText)
+	log.Printf("%v\n", disableOutputsText)
 }
 
 func main() {
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/ping", pingHandler)
-	http.HandleFunc("/checkpayload", checkpayloadHandler)
-	http.HandleFunc("/test", test)
+	http.HandleFunc("/test", testHandler)
 
 	log.Printf("[INFO] : Falco Sidekick is up and listening on port %v\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("[ERROR] : %v\n", err.Error())
+	} else {
 	}
 }

@@ -41,6 +41,7 @@ Configuration of the daemon is made by Env vars :
 * **SLACK_TOKEN** : Slack URL + token (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)
+* **SLACK_HIDE_FIELDS** : if `true`, detailed fields will not be displayed
 * **DATADOG_TOKEN** : Datadog token, if not `empty`, Datadog output is *enabled*
 * **ALERTMANAGER_HOST_PORT** : AlertManager host:port, if not `empty`, AlertManager is *enabled*
 * **DEBUG** : if *true* all outputs will print in stdout the payload they send
@@ -51,7 +52,6 @@ Different URI (handlers) are available :
 
 * `/` : main and default handler, your falco config must be configured to use it
 * `/ping` : you will get a  `pong` as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck purpose for example)
-* `/checkpayload` : (for debug only) you will get in response the exact payload which has been received by falcosidekick (no notification are sent to ouputs)
 * `/test` : (for debug only) send a test event to all enabled outputs.
 
 # Logs
@@ -75,6 +75,7 @@ You should get :
 **Slack** :
 
 ![slack example](https://github.com/Issif/falcosidekick/raw/master/imgs/slack.png)
+![slack no fields example](https://github.com/Issif/falcosidekick/raw/master/imgs/slack_no_fields.png)
 
 **Datadog** :
 
