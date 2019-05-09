@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.7 - 2019-05-09
+
+#### Enhancement
+- Change `SLACK_HIDE_FIELDS` for `SLACK_OUTPUT_FORMAT`, you can now choose how events are displayed in Slack
+
 ## 1.0.6 - 2019-05-09
 #### New
 - Add `SLACK_HIDE_FIELDS` env var, to enable concise output in Slack (fields are not displayed) ([issue #15](https://github.com/Issif/falcosidekick/issues/15))
