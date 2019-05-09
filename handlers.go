@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -12,18 +11,6 @@ import (
 	"github.com/Issif/falcosidekick/outputs"
 	"github.com/Issif/falcosidekick/types"
 )
-
-// checkpayloadHandler prints received falco's payload in stdout (for debug) of daemon
-func checkpayloadHandler(w http.ResponseWriter, r *http.Request) {
-	// Read body
-	requestDump, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		w.Write([]byte(err.Error() + "\n"))
-		log.Printf("[ERROR] : %v\n", err.Error())
-	}
-	w.Write([]byte(requestDump))
-	log.Printf("[DEBUG] : Falco's Payload =  %v\n", string(requestDump))
-}
 
 // mainHandler is Falco Sidekick' main handler (default).
 func mainHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +26,11 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil && err.Error() != "EOF" || len(falcopayload.Output) == 0 {
 		http.Error(w, "Please send a valid request body : "+err.Error(), 400)
 		return
+	}
+
+	if os.Getenv("DEBUG") == "true" {
+		body, _ := json.Marshal(falcopayload)
+		log.Printf("[DEBUG] : Falco's payload : %v", string(body))
 	}
 
 	if os.Getenv("SLACK_TOKEN") != "" {
@@ -57,8 +49,8 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("pong\n"))
 }
 
-// test sends a test event to all enabled outputs.
-func test(w http.ResponseWriter, r *http.Request) {
+// testHandler sends a test event to all enabled outputs.
+func testHandler(w http.ResponseWriter, r *http.Request) {
 	testEvent := `{"output":"This is a test from Falco Sidekick","priority":"Debug","rule":"Test rule", "output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`
 
 	port = "2801"

@@ -21,7 +21,7 @@ type slackAttachmentField struct {
 type slackAttachment struct {
 	Fallback   string                 `json:"fallback"`
 	Color      string                 `json:"color"`
-	PreText    string                 `json:"pretext,omitempty"`
+	Text       string                 `json:"text,omitempty"`
 	Fields     []slackAttachmentField `json:"fields"`
 	Footer     string                 `json:"footer,omitempty"`
 	FooterIcon string                 `json:"footer_icon,omitempty"`
@@ -40,41 +40,44 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 	var fields []slackAttachmentField
 	var field slackAttachmentField
 
-	for i, j := range falcopayload.OutputFields {
-		switch j.(type) {
-		case string:
-			field.Title = i
-			field.Value = j.(string)
-			if len([]rune(j.(string))) < 36 {
-				field.Short = true
-			} else {
-				field.Short = false
+	if os.Getenv("SLACK_HIDE_FIELDS") != "true" {
+		for i, j := range falcopayload.OutputFields {
+			switch j.(type) {
+			case string:
+				field.Title = i
+				field.Value = j.(string)
+				if len([]rune(j.(string))) < 36 {
+					field.Short = true
+				} else {
+					field.Short = false
+				}
 			}
+			fields = append(fields, field)
 		}
-		fields = append(fields, field)
-	}
 
-	field.Title = "rule"
-	field.Value = falcopayload.Rule
-	field.Short = true
-	fields = append(fields, field)
-	field.Title = "priority"
-	field.Value = falcopayload.Priority
-	field.Short = true
-	fields = append(fields, field)
-	field.Title = "time"
-	field.Short = false
-	field.Value = falcopayload.Time.String()
-	fields = append(fields, field)
+		field.Title = "rule"
+		field.Value = falcopayload.Rule
+		field.Short = true
+		fields = append(fields, field)
+		field.Title = "priority"
+		field.Value = falcopayload.Priority
+		field.Short = true
+		fields = append(fields, field)
+		field.Title = "time"
+		field.Short = false
+		field.Value = falcopayload.Time.String()
+		fields = append(fields, field)
+
+		if os.Getenv("SLACK_FOOTER") != "" {
+			attachment.Footer = os.Getenv("SLACK_FOOTER")
+		} else {
+			attachment.Footer = "https://github.com/Issif/falcosidekick"
+		}
+	}
 
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
-	attachment.PreText = falcopayload.Output
-	if os.Getenv("SLACK_FOOTER") != "" {
-		attachment.Footer = os.Getenv("SLACK_FOOTER")
-	} else {
-		attachment.Footer = "https://github.com/Issif/falcosidekick"
-	}
+	attachment.Text = falcopayload.Output
 
 	var color string
 	switch falcopayload.Priority {
@@ -121,7 +124,7 @@ func SlackPost(falcopayload types.FalcoPayload) {
 	json.NewEncoder(b).Encode(slackPayload)
 
 	if os.Getenv("DEBUG") == "true" {
-		log.Printf("[DEBUG] : Slack's payload : %v\n", b)
+		log.Printf("[DEBUG] : Slack's payload : %v", b)
 	}
 
 	resp, err := http.Post(os.Getenv("SLACK_TOKEN"), "application/json; charset=utf-8", b)

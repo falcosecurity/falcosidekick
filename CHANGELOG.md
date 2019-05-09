@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.6 - 2019-05-09
+#### New
+- Add `SLACK_HIDE_FIELDS` env var, to enable concise output in Slack (fields are not displayed) ([issue #15](https://github.com/Issif/falcosidekick/issues/15))
+#### Enhancement
+- Remove `/checkPayload` endpoint, not usefull anymore
+- Change of how enabled/disabled outputs are printed in log (more concise view)
+- Falco's payload is printed in log if `DEBUG=true`
+
+## 1.0.5 - 2019-04-09
+#### New
+- Add a `/test` endpoint which sends a fake event to all enabled outputs
+- Add a `DEBUG` env var, if enabled, payload for enabled outputs will be printed in stdout
+#### Enhancement
+- Reformate some logs outputs to be nicer
+- Add a check on payload's body from falco to avoid to send empty's ones to outputs
+
 ## 1.0.4 - 2019-02-01
 #### New
 - Add of **go mod** ([PR#1](https://github.com/Issif/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
