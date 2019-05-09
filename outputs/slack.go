@@ -40,7 +40,7 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 	var fields []slackAttachmentField
 	var field slackAttachmentField
 
-	if os.Getenv("SLACK_HIDE_FIELDS") != "true" {
+	if os.Getenv("SLACK_OUTPUT_FORMAT") == "all" || os.Getenv("SLACK_OUTPUT_FORMAT") == "fields" || os.Getenv("SLACK_OUTPUT_FORMAT") == "" {
 		for i, j := range falcopayload.OutputFields {
 			switch j.(type) {
 			case string:
@@ -77,7 +77,9 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
-	attachment.Text = falcopayload.Output
+	if os.Getenv("SLACK_OUTPUT_FORMAT") == "all" || os.Getenv("SLACK_OUTPUT_FORMAT") == "text" || os.Getenv("SLACK_OUTPUT_FORMAT") == "" {
+		attachment.Text = falcopayload.Output
+	}
 
 	var color string
 	switch falcopayload.Priority {

@@ -41,7 +41,7 @@ Configuration of the daemon is made by Env vars :
 * **SLACK_TOKEN** : Slack URL + token (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)
-* **SLACK_HIDE_FIELDS** : if `true`, detailed fields will not be displayed
+* **SLACK_OUTPUT_FORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
 * **DATADOG_TOKEN** : Datadog token, if not `empty`, Datadog output is *enabled*
 * **ALERTMANAGER_HOST_PORT** : AlertManager host:port, if not `empty`, AlertManager is *enabled*
 * **DEBUG** : if *true* all outputs will print in stdout the payload they send
