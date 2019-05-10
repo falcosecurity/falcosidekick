@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.10.0 - 2019-05-10
+## 1.1.0 - 2019-05-10
 #### Enhancement
 -  **all outputs use new generic methods (`NewClient()` + `Post()`), new output integration will be easier**
 - :boom: some variables have been renamed to be relevant with their real names in API docs of Outputs
