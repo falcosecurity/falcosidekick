@@ -5,10 +5,13 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/Issif/falcosidekick/outputs"
 )
 
-// Env variables
+// Globale variables
 var port string
+var slackClient, datadogClient *outputs.Client
 
 func init() {
 	port = "2801"
@@ -22,19 +25,31 @@ func init() {
 	enableOutputsText := "[INFO] : Enable Outputs : "
 	disableOutputsText := "[INFO] : Disable Outputs : "
 	if os.Getenv("SLACK_TOKEN") != "" {
-		enableOutputsText += "Slack, "
+		var err error
+		slackClient, err = outputs.NewClient("Slack", os.Getenv("SLACK_TOKEN"))
+		if err != nil {
+			enableOutputsText += "Slack "
+		} else {
+			disableOutputsText += "Slack "
+		}
 	} else {
-		disableOutputsText += "Slack, "
+		disableOutputsText += "Slack "
 	}
 	if os.Getenv("DATADOG_TOKEN") != "" {
-		enableOutputsText += "Datadog, "
+		var err error
+		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?api_key="+os.Getenv("DATADOG_TOKEN"))
+		if err != nil {
+			enableOutputsText += "Datadog "
+		} else {
+			disableOutputsText += "Datadog "
+		}
 	} else {
-		disableOutputsText += "Datadog, "
+		disableOutputsText += "Datadog "
 	}
 	if os.Getenv("ALERTMANAGER_HOST_PORT") != "" {
-		enableOutputsText += "AlertManager"
+		enableOutputsText += "AlertManager "
 	} else {
-		disableOutputsText += "AlertManager"
+		disableOutputsText += "AlertManager "
 	}
 
 	log.Printf("%v\n", enableOutputsText)
@@ -49,6 +64,5 @@ func main() {
 	log.Printf("[INFO] : Falco Sidekick is up and listening on port %v\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("[ERROR] : %v\n", err.Error())
-	} else {
 	}
 }

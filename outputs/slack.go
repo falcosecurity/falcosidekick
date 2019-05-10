@@ -1,10 +1,6 @@
 package outputs
 
 import (
-	"bytes"
-	"encoding/json"
-	"log"
-	"net/http"
 	"os"
 
 	"github.com/Issif/falcosidekick/types"
@@ -119,22 +115,7 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 	return slackPayload
 }
 
-// slackPost posts event to slack
-func SlackPost(falcopayload types.FalcoPayload) {
-	slackPayload := newSlackPayload(falcopayload)
-	b := new(bytes.Buffer)
-	json.NewEncoder(b).Encode(slackPayload)
-
-	if os.Getenv("DEBUG") == "true" {
-		log.Printf("[DEBUG] : Slack's payload : %v", b)
-	}
-
-	resp, err := http.Post(os.Getenv("SLACK_TOKEN"), "application/json; charset=utf-8", b)
-	if err != nil {
-		log.Printf("[ERROR] : Slack -  %v\n", err.Error())
-	} else if resp.StatusCode != 200 {
-		log.Printf("[ERROR] : Slack - %v\n", resp)
-	} else {
-		log.Printf("[INFO] : Slack - Post sent successfully\n")
-	}
+// slackPost posts event to Slack
+func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
+	c.Post(newSlackPayload(falcopayload))
 }

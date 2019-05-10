@@ -34,10 +34,10 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if os.Getenv("SLACK_TOKEN") != "" {
-		go outputs.SlackPost(falcopayload)
+		go slackClient.SlackPost(falcopayload)
 	}
 	if os.Getenv("DATADOG_TOKEN") != "" {
-		go outputs.DatadogPost(falcopayload)
+		go datadogClient.DatadogPost(falcopayload)
 	}
 	if os.Getenv("ALERTMANAGER_HOST_PORT") != "" {
 		go outputs.AlertmanagerPost(falcopayload)
@@ -67,9 +67,7 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	log.Printf("[DEBUG] : Test sent\n")
-	if resp.StatusCode == http.StatusOK {
-		log.Printf("[DEBUG] : Test OK (%v)\n", resp.Status)
-	} else {
+	if resp.StatusCode != http.StatusOK {
 		log.Printf("[DEBUG] : Test KO (%v)\n", resp.Status)
 	}
 }
