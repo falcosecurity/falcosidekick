@@ -7,12 +7,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
-	"github.com/Issif/falcosidekick/outputs"
 	"github.com/Issif/falcosidekick/types"
 )
 
-// mainHandler is Falco Sidekick' main handler (default).
+// mainHandler is Falco Sidekick main handler (default).
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	var falcopayload types.FalcoPayload
@@ -33,14 +33,14 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[DEBUG] : Falco's payload : %v", string(body))
 	}
 
-	if os.Getenv("SLACK_TOKEN") != "" {
+	if os.Getenv("SLACK_WEBHOOK_URL") != "" {
 		go slackClient.SlackPost(falcopayload)
 	}
-	if os.Getenv("DATADOG_TOKEN") != "" {
+	if os.Getenv("DATADOG_API_KEY") != "" {
 		go datadogClient.DatadogPost(falcopayload)
 	}
 	if os.Getenv("ALERTMANAGER_HOST_PORT") != "" {
-		go outputs.AlertmanagerPost(falcopayload)
+		go alertmanagerClient.AlertmanagerPost(falcopayload)
 	}
 }
 
@@ -51,7 +51,7 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 
 // testHandler sends a test event to all enabled outputs.
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	testEvent := `{"output":"This is a test from Falco Sidekick","priority":"Debug","rule":"Test rule", "output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`
+	testEvent := `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"`+time.Now().UTC().Format(time.RFC3339)+`","output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`
 
 	port = "2801"
 	if lport, err := strconv.Atoi(os.Getenv("LISTEN_PORT")); err == nil {

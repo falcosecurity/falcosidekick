@@ -107,12 +107,12 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 		iconUrl = "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png"
 	}
 
-	slackPayload := slackPayload{
+	s := slackPayload{
 		Username:    "Falco Sidekick",
 		IconURL:     iconUrl,
 		Attachments: attachments}
 
-	return slackPayload
+	return s
 }
 
 // slackPost posts event to Slack

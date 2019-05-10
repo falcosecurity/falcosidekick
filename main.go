@@ -11,7 +11,7 @@ import (
 
 // Globale variables
 var port string
-var slackClient, datadogClient *outputs.Client
+var slackClient, datadogClient, alertmanagerClient *outputs.Client
 
 func init() {
 	port = "2801"
@@ -24,32 +24,38 @@ func init() {
 	}
 	enableOutputsText := "[INFO] : Enable Outputs : "
 	disableOutputsText := "[INFO] : Disable Outputs : "
-	if os.Getenv("SLACK_TOKEN") != "" {
+	if os.Getenv("SLACK_WEBHOOK_URL") != "" {
 		var err error
-		slackClient, err = outputs.NewClient("Slack", os.Getenv("SLACK_TOKEN"))
+		slackClient, err = outputs.NewClient("Slack", os.Getenv("SLACK_WEBHOOK_URL"))
 		if err != nil {
-			enableOutputsText += "Slack "
-		} else {
 			disableOutputsText += "Slack "
+		} else {
+			enableOutputsText += "Slack "
 		}
 	} else {
 		disableOutputsText += "Slack "
 	}
-	if os.Getenv("DATADOG_TOKEN") != "" {
+	if os.Getenv("DATADOG_API_KEY") != "" {
 		var err error
-		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?api_key="+os.Getenv("DATADOG_TOKEN"))
+		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?api_key="+os.Getenv("DATADOG_API_KEY"))
 		if err != nil {
-			enableOutputsText += "Datadog "
-		} else {
 			disableOutputsText += "Datadog "
+		} else {
+			enableOutputsText += "Datadog "
 		}
 	} else {
 		disableOutputsText += "Datadog "
 	}
 	if os.Getenv("ALERTMANAGER_HOST_PORT") != "" {
-		enableOutputsText += "AlertManager "
+		var err error
+		alertmanagerClient, err = outputs.NewClient("Alertmanager", os.Getenv("ALERTMANAGER_HOST_PORT")+outputs.AlertmanagerURI)
+		if err != nil {
+			disableOutputsText += "Alertmanager "
+		} else {
+			enableOutputsText += "Alertmanager "
+		}
 	} else {
-		disableOutputsText += "AlertManager "
+		disableOutputsText += "Alertmanager "
 	}
 
 	log.Printf("%v\n", enableOutputsText)

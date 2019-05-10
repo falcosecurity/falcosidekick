@@ -18,7 +18,7 @@ Run the daemon as any other daemon in your architecture (systemd, k8s daemonset,
 
 ## With docker
 ```
-docker run -d -p 2801:2801 -e SLACK_TOKEN=XXXX -e DATADOG_TOKEN=XXXX issif/falcosidekick
+docker run -d -p 2801:2801 -e SLACK_WEBHOOK_URL=XXXX -e DATADOG_API_KEY=XXXX issif/falcosidekick
 ```
 
 ## Falco's config
@@ -38,11 +38,11 @@ program_output:
 Configuration of the daemon is made by Env vars :
 
 * **LISTEN_PORT** : port to listen for daemon (default: 2801)
-* **SLACK_TOKEN** : Slack URL + token (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
+* **SLACK_WEBHOOK_URL** : Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)
 * **SLACK_OUTPUT_FORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
-* **DATADOG_TOKEN** : Datadog token, if not `empty`, Datadog output is *enabled*
+* **DATADOG_API_KEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
 * **ALERTMANAGER_HOST_PORT** : AlertManager host:port, if not `empty`, AlertManager is *enabled*
 * **DEBUG** : if *true* all outputs will print in stdout the payload they send
 
@@ -59,8 +59,8 @@ Different URI (handlers) are available :
 All logs are sent to `stdout`.
 
 ```
-2018/10/11 08:53:25 [INFO] : Outputs configuration : Slack=enabled, Datadog=disabled, Alertmanager=disabled
-2018/10/11 08:53:25 [INFO] : Falco Sidekick is up and listening on port 2801
+2019/05/10 14:32:06 [INFO] : Enable Outputs : Slack Datadog
+2019/05/10 14:32:06 [INFO] : Disable Outputs : AlertManager
 ```
 
 # Examples

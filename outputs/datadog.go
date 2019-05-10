@@ -17,7 +17,7 @@ type datadogPayload struct {
 }
 
 func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
-	var ddpayload datadogPayload
+	var d datadogPayload
 	var tags []string
 
 	for i, j := range falcopayload.OutputFields {
@@ -26,11 +26,11 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 			tags = append(tags, i+":"+j.(string))
 		}
 	}
-	ddpayload.Tags = tags
+	d.Tags = tags
 
-	ddpayload.Title = falcopayload.Rule
-	ddpayload.Text = falcopayload.Output
-	ddpayload.SourceType = "falco"
+	d.Title = falcopayload.Rule
+	d.Text = falcopayload.Output
+	d.SourceType = "falco"
 
 	var status string
 	switch falcopayload.Priority {
@@ -41,9 +41,9 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 	default:
 		status = "info"
 	}
-	ddpayload.AlertType = status
+	d.AlertType = status
 
-	return ddpayload
+	return d
 }
 
 // DatadogPost posts event to Datadog
