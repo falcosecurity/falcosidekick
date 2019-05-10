@@ -1,7 +1,15 @@
 # Changelog
 
-## 1.0.7 - 2019-05-09
+## 1.10.0 - 2019-05-10
+#### Enhancement
+-  **all outputs use new generic methods (`NewClient()` + `Post()`), new output integration will be easier**
+- :boom: some variables have been renamed to be relevant with their real names in API docs of Outputs
+    - `DATADOG_TOKEN` **->** `DATADOG_API_KEY`
+    - `SLACK_TOKEN` **->** `SLACK_WEBHOOK_URL`
+#### Fix
+- `/test` sends an event with a timestamp set at *now*
 
+## 1.0.7 - 2019-05-09
 #### Enhancement
 - Change `SLACK_HIDE_FIELDS` for `SLACK_OUTPUT_FORMAT`, you can now choose how events are displayed in Slack
 
@@ -47,7 +55,6 @@
 - add output status in log to get those which are enabled
 - check of `LISTEN_PORT` in `init()` : port must be an integer between 1 and 65535
 - long string in slack field values are not splitten anymore
-
 #### Fix
 - some log level tags were missing
 - fix cert errors in alpine ([PR#1](https://github.com/Issif/falcosidekick/pull/1) thanks to [@palmerabollo](https://github.com/palmerabollo))
