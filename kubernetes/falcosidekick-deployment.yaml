@@ -41,7 +41,7 @@ spec:
       serviceAccount: falcosidekick
       containers:
         - name: falcosidekick
-          image: issif/falcosidekick:1.0.7
+          image: issif/falcosidekick:1.1.0
           imagePullPolicy: Always
           ports:
           - containerPort: 2081
@@ -50,12 +50,12 @@ spec:
           # CREATE THE K8S SECRETS BEFORE UNCOMMENTING
           # https://kubernetes.io/docs/concepts/configuration/secret/#creating-a-secret-using-kubectl-create-secret
           # Example: kubectl create secret falcosidekick-slack-secret --from-file=./slack-secret.txt 
-          # - name: SLACK_TOKEN
+          # - name: SLACK_WEBHOOK_URL
           #   valueFrom:
           #     secretKeyRef:
           #       name: falcosidekick-slack-secret
           #       key: slack_webhook_url
-          # - name: DATADOG_TOKEN
+          # - name: DATADOG_API_KEY
           #   valueFrom:
           #     secretKeyRef:
           #       name: falcosidekick-datadog-secret
@@ -64,11 +64,11 @@ spec:
             value: ""
           - name: SLACK_ICON
             value: ""
+          - name: SLACK_OUTPUT_FORMAT
+            value: "all"
           - name: DEBUG
             value: "true"
-          args: [ "/falcosidekick",
-                  "-e", "SLACK_TOKEN=$(SLACK_TOKEN)",
-                  "-e", "DATADOG_TOKEN=$(DATADOG_TOKEN)"]
+          args: [ "/falcosidekick"]
           readinessProbe:
             httpGet:
               path: "/ping"
