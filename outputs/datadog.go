@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	// DatadogURL is default URL of Datadog's API
 	DatadogURL string = "https://api.datadoghq.com/api/v1/events"
 )
 

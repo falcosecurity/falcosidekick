@@ -100,22 +100,22 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 
 	attachments = append(attachments, attachment)
 
-	var iconUrl string
+	var iconURL string
 	if os.Getenv("SLACK_ICON") != "" {
-		iconUrl = os.Getenv("SLACK_ICON")
+		iconURL = os.Getenv("SLACK_ICON")
 	} else {
-		iconUrl = "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png"
+		iconURL = "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png"
 	}
 
 	s := slackPayload{
 		Username:    "Falco Sidekick",
-		IconURL:     iconUrl,
+		IconURL:     iconURL,
 		Attachments: attachments}
 
 	return s
 }
 
-// slackPost posts event to Slack
+// SlackPost posts event to Slack
 func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
 	c.Post(newSlackPayload(falcopayload))
 }

@@ -22,44 +22,36 @@ func init() {
 			log.Fatalf("[ERROR] : Bad port number\n")
 		}
 	}
-	enableOutputsText := "[INFO] : Enable Outputs : "
-	disableOutputsText := "[INFO] : Disable Outputs : "
+	enabledOutputsText := "[INFO]  : Enabled Outputs : "
 	if os.Getenv("SLACK_WEBHOOK_URL") != "" {
 		var err error
 		slackClient, err = outputs.NewClient("Slack", os.Getenv("SLACK_WEBHOOK_URL"))
 		if err != nil {
-			disableOutputsText += "Slack "
+			os.Unsetenv("SLACK_WEBHOOK_URL")
 		} else {
-			enableOutputsText += "Slack "
+			enabledOutputsText += "Slack "
 		}
-	} else {
-		disableOutputsText += "Slack "
 	}
 	if os.Getenv("DATADOG_API_KEY") != "" {
 		var err error
 		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?api_key="+os.Getenv("DATADOG_API_KEY"))
 		if err != nil {
-			disableOutputsText += "Datadog "
+			os.Unsetenv("DATADOG_API_KEY")
 		} else {
-			enableOutputsText += "Datadog "
+			enabledOutputsText += "Datadog "
 		}
-	} else {
-		disableOutputsText += "Datadog "
 	}
 	if os.Getenv("ALERTMANAGER_HOST_PORT") != "" {
 		var err error
 		alertmanagerClient, err = outputs.NewClient("Alertmanager", os.Getenv("ALERTMANAGER_HOST_PORT")+outputs.AlertmanagerURI)
 		if err != nil {
-			disableOutputsText += "Alertmanager "
+			os.Unsetenv("ALERTMANAGER_HOST_PORT")
 		} else {
-			enableOutputsText += "Alertmanager "
+			enabledOutputsText += "Alertmanager "
 		}
-	} else {
-		disableOutputsText += "Alertmanager "
 	}
 
-	log.Printf("%v\n", enableOutputsText)
-	log.Printf("%v\n", disableOutputsText)
+	log.Printf("%v\n", enabledOutputsText)
 }
 
 func main() {
@@ -67,7 +59,7 @@ func main() {
 	http.HandleFunc("/ping", pingHandler)
 	http.HandleFunc("/test", testHandler)
 
-	log.Printf("[INFO] : Falco Sidekick is up and listening on port %v\n", port)
+	log.Printf("[INFO]  : Falco Sidekick is up and listening on port %v\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("[ERROR] : %v\n", err.Error())
 	}
