@@ -1,0 +1,14 @@
+listen_port: 2801 #port to listen for daemon (default: 2801)
+debug: true #if true all outputs will print in stdout the payload they send
+
+slack:
+  webhook_url: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  #footer: "" #Slack footer
+  #icon: "" #Slack icon (avatar)
+  output_format: "text" # all (default), text, fields
+
+datadog:
+  api_key: ""  #Datadog API Key, if not empty, Datadog output is enabled
+
+alertmanager:
+  host_port: "" # http://{domain or ip}:{port}

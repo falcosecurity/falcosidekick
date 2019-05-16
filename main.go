@@ -3,51 +3,46 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/Issif/falcosidekick/outputs"
+	"github.com/Issif/falcosidekick/types"
 )
 
 // Globale variables
 var port string
 var slackClient, datadogClient, alertmanagerClient *outputs.Client
+var config *types.Configuration
 
 func init() {
-	port = "2801"
-	if lport, err := strconv.Atoi(os.Getenv("LISTEN_PORT")); err == nil {
-		if lport > 0 && lport < 65536 {
-			port = os.Getenv("LISTEN_PORT")
-		} else {
-			log.Fatalf("[ERROR] : Bad port number\n")
-		}
-	}
+	config = getConfig()
+
 	enabledOutputsText := "[INFO]  : Enabled Outputs : "
-	if os.Getenv("SLACK_WEBHOOK_URL") != "" {
+	if config.Slack.Webhook_URL != "" {
 		var err error
-		slackClient, err = outputs.NewClient("Slack", os.Getenv("SLACK_WEBHOOK_URL"))
+		slackClient, err = outputs.NewClient("Slack", config.Slack.Webhook_URL, config.Debug)
 		if err != nil {
-			os.Unsetenv("SLACK_WEBHOOK_URL")
+			config.Slack.Webhook_URL = ""
 		} else {
 			enabledOutputsText += "Slack "
 		}
 	}
-	if os.Getenv("DATADOG_API_KEY") != "" {
+	if config.Datadog.API_Key != "" {
 		var err error
-		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?api_key="+os.Getenv("DATADOG_API_KEY"))
+		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?api_key="+config.Datadog.API_Key, config.Debug)
 		if err != nil {
-			os.Unsetenv("DATADOG_API_KEY")
+			config.Datadog.API_Key = ""
 		} else {
 			enabledOutputsText += "Datadog "
 		}
 	}
-	if os.Getenv("ALERTMANAGER_HOST_PORT") != "" {
+	if config.Alertmanager.Host_Port != "" {
 		var err error
-		alertmanagerClient, err = outputs.NewClient("Alertmanager", os.Getenv("ALERTMANAGER_HOST_PORT")+outputs.AlertmanagerURI)
+		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.Host_Port+outputs.AlertmanagerURI, config.Debug)
 		if err != nil {
-			os.Unsetenv("ALERTMANAGER_HOST_PORT")
+			config.Alertmanager.Host_Port = ""
 		} else {
-			enabledOutputsText += "Alertmanager "
+			enabledOutputsText += "AlertManager "
 		}
 	}
 
@@ -59,8 +54,9 @@ func main() {
 	http.HandleFunc("/ping", pingHandler)
 	http.HandleFunc("/test", testHandler)
 
-	log.Printf("[INFO]  : Falco Sidekick is up and listening on port %v\n", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	log.Printf("[INFO]  : Falco Sidekick is up and listening on port %v\n", config.Listen_Port)
+	log.Printf("[INFO]  : Debug mode : %v\n", config.Debug)
+	if err := http.ListenAndServe(":"+strconv.Itoa(config.Listen_Port), nil); err != nil {
 		log.Fatalf("[ERROR] : %v\n", err.Error())
 	}
 }

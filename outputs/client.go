@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 )
 
@@ -36,10 +35,11 @@ var ErrClientCreation = errors.New("Client creation Error")
 type Client struct {
 	OutputType  string
 	EndpointURL *url.URL
+	Debug       bool
 }
 
 // NewClient returns a new output.Client for accessing the different API.
-func NewClient(outputType string, defaultEndpointURL string) (*Client, error) {
+func NewClient(outputType string, defaultEndpointURL string, debug bool) (*Client, error) {
 	reg := regexp.MustCompile(`http(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad URL")
@@ -54,7 +54,7 @@ func NewClient(outputType string, defaultEndpointURL string) (*Client, error) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, Debug: debug}, nil
 }
 
 // Post sends event (payload) to Output.
@@ -68,7 +68,7 @@ func (c *Client) Post(payload interface{}) error {
 	body := new(bytes.Buffer)
 	json.NewEncoder(body).Encode(payload)
 
-	if os.Getenv("DEBUG") == "true" {
+	if c.Debug == true {
 		log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
 	}
 
