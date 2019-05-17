@@ -14,11 +14,12 @@ type FalcoPayload struct {
 }
 
 type Configuration struct {
-	Listen_Port  int
-	Debug        bool
-	Slack        slackOutputConfig
-	Datadog      datadogOutputConfig
-	Alertmanager alertmanagerOutputConfig
+	Listen_Port   int
+	Debug         bool
+	Slack         slackOutputConfig
+	Datadog       datadogOutputConfig
+	Alertmanager  alertmanagerOutputConfig
+	Elasticsearch elasticsearchOutputConfig
 }
 
 type slackOutputConfig struct {
@@ -37,4 +38,11 @@ type datadogOutputConfig struct {
 type alertmanagerOutputConfig struct {
 	// Enabled   bool
 	Host_Port string
+}
+
+type elasticsearchOutputConfig struct {
+	// Enabled   bool
+	Host_Port string
+	Index     string
+	Type      string
 }

@@ -21,6 +21,8 @@ func getConfig() *types.Configuration {
 	v := viper.New()
 	v.SetDefault("Listen_Port", 2801)
 	v.SetDefault("Slack_Output_Format", "all")
+	v.SetDefault("Elasticsearch_Index", "falco")
+	v.SetDefault("Elasticsearch_Type", "event")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

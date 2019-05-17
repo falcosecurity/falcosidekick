@@ -15,6 +15,7 @@ Currently available outputs are :
 * **Slack**
 * **Datadog**
 * **AlertManager**
+* **Elasticsearch**
 
 ## Usage
 
@@ -61,7 +62,12 @@ datadog:
   #api_key: ""  #Datadog API Key, if not empty, Datadog output is enabled
 
 alertmanager:
-  # host_port: "" # http://{domain or ip}:{port}
+  # host_port: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
+
+elasticsearch:
+  # host_port: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
+  # index: "falco" # index (default: falco)
+  # type: "event" 
 ```
 
 Usage : 
@@ -87,7 +93,10 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **SLACK_ICON** : Slack icon (avatar)
 * **SLACK_OUTPUT_FORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
 * **DATADOG_API_KEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
-* **ALERTMANAGER_HOST_PORT** : AlertManager host:port, if not `empty`, AlertManager is *enabled*
+* **ALERTMANAGER_HOST_PORT** : AlertManager http://host:port, if not `empty`, AlertManager is *enabled*
+* **ELASTICSEARCH_HOST_PORT** : Elasticsearch http://host:port, if not `empty`, Elasticsearch is *enabled*
+* **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)
+* **ELASTICSEARCH_TYPE** : Elasticsearch document type (default: event)
 
 ## Handlers
 
@@ -110,7 +119,7 @@ All logs are sent to `stdout`.
 Run you daemon and try (from falco's documentation) :
 
 ```bash
-curl "http://localhost:2801/" -d'{"output":"16:31:56.746609046: Error File below a known binary directory opened for writing (user=root command=touch /bin/hack file=/bin/hack)","priority":"Error","rule":"Write below binary dir","time":"2017-10-09T23:31:56.746609046Z", "output_fields": {"evt.time":1507591916746609046,"fd.name":"/bin/hack","proc.cmdline":"touch /bin/hack","user.name":"root"}}'
+curl "http://localhost:2801/" -d'{"output":"16:31:56.746609046: Error File below a known binary directory opened for writing (user=root command=touch /bin/hack file=/bin/hack)","priority":"Error","rule":"Write below binary dir","time":"2019-05-17T15:31:56.746609046Z", "output_fields": {"evt.time":1507591916746609046,"fd.name":"/bin/hack","proc.cmdline":"touch /bin/hack","user.name":"root"}}'
 ```
 
 You should get :

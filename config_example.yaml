@@ -11,4 +11,9 @@ datadog:
   #api_key: ""  #Datadog API Key, if not empty, Datadog output is enabled
 
 alertmanager:
-  # host_port: "" # http://{domain or ip}:{port}
+  # host_port: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
+
+elasticsearch:
+  # host_port: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
+  # index: "falco" # index (default: falco)
+  # type: "event" 

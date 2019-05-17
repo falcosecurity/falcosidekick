@@ -11,7 +11,7 @@ import (
 
 // Globale variables
 var port string
-var slackClient, datadogClient, alertmanagerClient *outputs.Client
+var slackClient, datadogClient, alertmanagerClient, elasticsearchClient *outputs.Client
 var config *types.Configuration
 
 func init() {
@@ -43,6 +43,15 @@ func init() {
 			config.Alertmanager.Host_Port = ""
 		} else {
 			enabledOutputsText += "AlertManager "
+		}
+	}
+	if config.Elasticsearch.Host_Port != "" {
+		var err error
+		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.Host_Port+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config.Debug)
+		if err != nil {
+			config.Elasticsearch.Host_Port = ""
+		} else {
+			enabledOutputsText += "Elasticsearch "
 		}
 	}
 

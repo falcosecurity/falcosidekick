@@ -41,6 +41,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if config.Alertmanager.Host_Port != "" {
 		go alertmanagerClient.AlertmanagerPost(falcopayload)
 	}
+	if config.Elasticsearch.Host_Port != "" {
+		go elasticsearchClient.ElasticsearchPost(falcopayload)
+	}
 }
 
 // pingHandler is a simple handler to test if daemon is UP.
