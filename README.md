@@ -49,7 +49,7 @@ Configuration is made by *file (yaml)* and *env vars*, both can be used but *env
 See **config_example.yaml** :
 
 ```yaml
-#listen_port: 2801 #port to listen for daemon (default: 2801)
+#listenport: 2801 #port to listen for daemon (default: 2801)
 debug: false #if true all outputs will print in stdout the payload they send (default: false)
 
 slack:
