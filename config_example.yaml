@@ -1,5 +1,5 @@
-listen_port: 2801 #port to listen for daemon (default: 2801)
-debug: true #if true all outputs will print in stdout the payload they send
+# listen_port: 2801 #port to listen for daemon (default: 2801)
+debug: false #if true all outputs will print in stdout the payload they send (default: false)
 
 slack:
   webhook_url: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
@@ -8,7 +8,7 @@ slack:
   output_format: "text" # all (default), text, fields
 
 datadog:
-  api_key: ""  #Datadog API Key, if not empty, Datadog output is enabled
+  #api_key: ""  #Datadog API Key, if not empty, Datadog output is enabled
 
 alertmanager:
-  host_port: "" # http://{domain or ip}:{port}
+  # host_port: "" # http://{domain or ip}:{port}
