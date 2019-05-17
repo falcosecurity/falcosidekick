@@ -86,7 +86,7 @@ Configuration of the daemon can be made also by *env vars*, these values overrid
 
 The *env vars* "match" field names in *yaml file with this structure (**take care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 
-* **LISTEN_PORT** : port to listen for daemon (default: 2801)
+* **LISTENPORT** : port to listen for daemon (default: 2801)
 * **DEBUG** : if *true* all outputs will print in stdout the payload they send (default: false)
 * **SLACK_WEBHOOKURL** : Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
 * **SLACK_FOOTER** : Slack footer
