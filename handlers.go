@@ -32,16 +32,16 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[DEBUG] : Falco's payload : %v", string(body))
 	}
 
-	if config.Slack.Webhook_URL != "" {
+	if config.Slack.WebhookURL != "" {
 		go slackClient.SlackPost(falcopayload)
 	}
-	if config.Datadog.API_Key != "" {
+	if config.Datadog.APIKey != "" {
 		go datadogClient.DatadogPost(falcopayload)
 	}
-	if config.Alertmanager.Host_Port != "" {
+	if config.Alertmanager.HostPort != "" {
 		go alertmanagerClient.AlertmanagerPost(falcopayload)
 	}
-	if config.Elasticsearch.Host_Port != "" {
+	if config.Elasticsearch.HostPort != "" {
 		go elasticsearchClient.ElasticsearchPost(falcopayload)
 	}
 }
@@ -53,9 +53,9 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 
 // testHandler sends a test event to all enabled outputs.
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	testEvent := `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"`+time.Now().UTC().Format(time.RFC3339)+`","output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`
+	testEvent := `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"`+time.Now().UTC().Format(time.RFC3339)+`","outputfields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`
 
-	resp, err := http.Post("http://localhost:"+strconv.Itoa(config.Listen_Port), "application/json", bytes.NewBuffer([]byte(testEvent)))
+	resp, err := http.Post("http://localhost:"+strconv.Itoa(config.ListenPort), "application/json", bytes.NewBuffer([]byte(testEvent)))
 	if err != nil {
 		log.Printf("[DEBUG] : Test Failed. Falcosidekick can't call itself\n")
 	}

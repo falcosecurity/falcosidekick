@@ -18,38 +18,38 @@ func init() {
 	config = getConfig()
 
 	enabledOutputsText := "[INFO]  : Enabled Outputs : "
-	if config.Slack.Webhook_URL != "" {
+	if config.Slack.WebhookURL != "" {
 		var err error
-		slackClient, err = outputs.NewClient("Slack", config.Slack.Webhook_URL, config.Debug)
+		slackClient, err = outputs.NewClient("Slack", config.Slack.WebhookURL, config.Debug)
 		if err != nil {
-			config.Slack.Webhook_URL = ""
+			config.Slack.WebhookURL = ""
 		} else {
 			enabledOutputsText += "Slack "
 		}
 	}
-	if config.Datadog.API_Key != "" {
+	if config.Datadog.APIKey != "" {
 		var err error
-		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?api_key="+config.Datadog.API_Key, config.Debug)
+		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?apikey="+config.Datadog.APIKey, config.Debug)
 		if err != nil {
-			config.Datadog.API_Key = ""
+			config.Datadog.APIKey = ""
 		} else {
 			enabledOutputsText += "Datadog "
 		}
 	}
-	if config.Alertmanager.Host_Port != "" {
+	if config.Alertmanager.HostPort != "" {
 		var err error
-		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.Host_Port+outputs.AlertmanagerURI, config.Debug)
+		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.HostPort+outputs.AlertmanagerURI, config.Debug)
 		if err != nil {
-			config.Alertmanager.Host_Port = ""
+			config.Alertmanager.HostPort = ""
 		} else {
 			enabledOutputsText += "AlertManager "
 		}
 	}
-	if config.Elasticsearch.Host_Port != "" {
+	if config.Elasticsearch.HostPort != "" {
 		var err error
-		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.Host_Port+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config.Debug)
+		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.HostPort+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config.Debug)
 		if err != nil {
-			config.Elasticsearch.Host_Port = ""
+			config.Elasticsearch.HostPort = ""
 		} else {
 			enabledOutputsText += "Elasticsearch "
 		}
@@ -63,9 +63,9 @@ func main() {
 	http.HandleFunc("/ping", pingHandler)
 	http.HandleFunc("/test", testHandler)
 
-	log.Printf("[INFO]  : Falco Sidekick is up and listening on port %v\n", config.Listen_Port)
+	log.Printf("[INFO]  : Falco Sidekick is up and listening on port %v\n", config.ListenPort)
 	log.Printf("[INFO]  : Debug mode : %v\n", config.Debug)
-	if err := http.ListenAndServe(":"+strconv.Itoa(config.Listen_Port), nil); err != nil {
+	if err := http.ListenAndServe(":"+strconv.Itoa(config.ListenPort), nil); err != nil {
 		log.Fatalf("[ERROR] : %v\n", err.Error())
 	}
 }

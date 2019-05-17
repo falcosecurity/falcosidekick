@@ -19,10 +19,15 @@ func getConfig() *types.Configuration {
 	kingpin.Parse()
 
 	v := viper.New()
-	v.SetDefault("Listen_Port", 2801)
-	v.SetDefault("Slack_Output_Format", "all")
-	v.SetDefault("Elasticsearch_Index", "falco")
-	v.SetDefault("Elasticsearch_Type", "event")
+	v.SetDefault("ListenPort", 2801)
+	v.SetDefault("Debug", false)
+	v.SetDefault("Slack.WebhookURL", "")
+	v.SetDefault("SlackOutput.OutputFormat", "all")
+	v.SetDefault("Datadog.APIKey", "")
+	v.SetDefault("Alertmanager.HostPort", "")
+	v.SetDefault("Elasticsearch.HostPort", "")
+	v.SetDefault("Elasticsearch.Index", "falco")
+	v.SetDefault("Elasticsearch.Type", "event")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -40,7 +45,7 @@ func getConfig() *types.Configuration {
 	}
 	v.Unmarshal(c)
 
-	if c.Listen_Port == 0 || c.Listen_Port > 65536 {
+	if c.ListenPort == 0 || c.ListenPort > 65536 {
 		log.Fatalf("[ERROR] : Bad port number\n")
 	}
 

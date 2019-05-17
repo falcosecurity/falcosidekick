@@ -49,23 +49,23 @@ Configuration is made by *file (yaml)* and *env vars*, both can be used but *env
 See **config_example.yaml** :
 
 ```yaml
-# listen_port: 2801 #port to listen for daemon (default: 2801)
+#listen_port: 2801 #port to listen for daemon (default: 2801)
 debug: false #if true all outputs will print in stdout the payload they send (default: false)
 
 slack:
-  webhook_url: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
   #footer: "" #Slack footer
   #icon: "" #Slack icon (avatar)
-  output_format: "text" # all (default), text, fields
+  outputformat: "text" # all (default), text, fields
 
 datadog:
-  #api_key: ""  #Datadog API Key, if not empty, Datadog output is enabled
+  #apikey: ""  #Datadog API Key, if not empty, Datadog output is enabled
 
 alertmanager:
-  # host_port: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
 
 elasticsearch:
-  # host_port: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
   # type: "event" 
 ```
@@ -88,13 +88,13 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 
 * **LISTEN_PORT** : port to listen for daemon (default: 2801)
 * **DEBUG** : if *true* all outputs will print in stdout the payload they send (default: false)
-* **SLACK_WEBHOOK_URL** : Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
+* **SLACK_WEBHOOKURL** : Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)
-* **SLACK_OUTPUT_FORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
-* **DATADOG_API_KEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
-* **ALERTMANAGER_HOST_PORT** : AlertManager http://host:port, if not `empty`, AlertManager is *enabled*
-* **ELASTICSEARCH_HOST_PORT** : Elasticsearch http://host:port, if not `empty`, Elasticsearch is *enabled*
+* **SLACK_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
+* **DATADOG_APIKEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
+* **ALERTMANAGER_HOSTPORT** : AlertManager http://host:port, if not `empty`, AlertManager is *enabled*
+* **ELASTICSEARCH_HOSTPORT** : Elasticsearch http://host:port, if not `empty`, Elasticsearch is *enabled*
 * **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)
 * **ELASTICSEARCH_TYPE** : Elasticsearch document type (default: event)
 
