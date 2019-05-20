@@ -63,7 +63,9 @@ func main() {
 	http.HandleFunc("/test", testHandler)
 
 	log.Printf("[INFO]  : Falco Sidekick is up and listening on port %v\n", config.ListenPort)
-	log.Printf("[INFO]  : Debug mode : %v\n", config.Debug)
+	if config.Debug {
+		log.Printf("[INFO]  : Debug mode : %v\n", config.Debug)
+	}
 	if err := http.ListenAndServe(":"+strconv.Itoa(config.ListenPort), nil); err != nil {
 		log.Fatalf("[ERROR] : %v\n", err.Error())
 	}
