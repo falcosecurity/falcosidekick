@@ -1,8 +1,6 @@
 package outputs
 
 import (
-	"os"
-
 	"github.com/Issif/falcosidekick/types"
 )
 
@@ -64,8 +62,8 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		field.Value = falcopayload.Time.String()
 		fields = append(fields, field)
 
-		if os.Getenv("SLACK_FOOTER") != "" {
-			attachment.Footer = os.Getenv("SLACK_FOOTER")
+		if config.Slack.Footer != "" {
+			attachment.Footer = config.Slack.Footer
 		} else {
 			attachment.Footer = "https://github.com/Issif/falcosidekick"
 		}
