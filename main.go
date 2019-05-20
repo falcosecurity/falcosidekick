@@ -10,7 +10,6 @@ import (
 )
 
 // Globale variables
-var port string
 var slackClient, datadogClient, alertmanagerClient, elasticsearchClient *outputs.Client
 var config *types.Configuration
 
@@ -20,7 +19,7 @@ func init() {
 	enabledOutputsText := "[INFO]  : Enabled Outputs : "
 	if config.Slack.WebhookURL != "" {
 		var err error
-		slackClient, err = outputs.NewClient("Slack", config.Slack.WebhookURL, config.Debug)
+		slackClient, err = outputs.NewClient("Slack", config.Slack.WebhookURL, config)
 		if err != nil {
 			config.Slack.WebhookURL = ""
 		} else {
@@ -29,7 +28,7 @@ func init() {
 	}
 	if config.Datadog.APIKey != "" {
 		var err error
-		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?apikey="+config.Datadog.APIKey, config.Debug)
+		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?apikey="+config.Datadog.APIKey, config)
 		if err != nil {
 			config.Datadog.APIKey = ""
 		} else {
@@ -38,7 +37,7 @@ func init() {
 	}
 	if config.Alertmanager.HostPort != "" {
 		var err error
-		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.HostPort+outputs.AlertmanagerURI, config.Debug)
+		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.HostPort+outputs.AlertmanagerURI, config)
 		if err != nil {
 			config.Alertmanager.HostPort = ""
 		} else {
@@ -47,7 +46,7 @@ func init() {
 	}
 	if config.Elasticsearch.HostPort != "" {
 		var err error
-		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.HostPort+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config.Debug)
+		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.HostPort+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config)
 		if err != nil {
 			config.Elasticsearch.HostPort = ""
 		} else {

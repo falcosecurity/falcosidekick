@@ -13,7 +13,7 @@ func TestNewSlackPayload(t *testing.T) {
 
 	var f types.FalcoPayload
 	json.Unmarshal([]byte(falcoTestInput), &f)
-	s, _ := json.Marshal(newSlackPayload(f))
+	s, _ := json.Marshal(newSlackPayload(f, &types.Configuration{}))
 
 	var o1, o2 slackPayload
 	json.Unmarshal([]byte(expectedOutput), &o1)

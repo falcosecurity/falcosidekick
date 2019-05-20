@@ -22,6 +22,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("ListenPort", 2801)
 	v.SetDefault("Debug", false)
 	v.SetDefault("Slack.WebhookURL", "")
+	v.SetDefault("Slack.Footer", "https://github.com/Issif/falcosidekick")
+	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png")
 	v.SetDefault("SlackOutput.OutputFormat", "all")
 	v.SetDefault("Datadog.APIKey", "")
 	v.SetDefault("Alertmanager.HostPort", "")

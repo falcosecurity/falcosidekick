@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+
+	"github.com/Issif/falcosidekick/types"
 )
 
 // ErrHeaderMissing = 400
@@ -35,11 +37,11 @@ var ErrClientCreation = errors.New("Client creation Error")
 type Client struct {
 	OutputType  string
 	EndpointURL *url.URL
-	Debug       bool
+	Config      *types.Configuration
 }
 
 // NewClient returns a new output.Client for accessing the different API.
-func NewClient(outputType string, defaultEndpointURL string, debug bool) (*Client, error) {
+func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration) (*Client, error) {
 	reg := regexp.MustCompile(`http(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad URL")
@@ -54,7 +56,7 @@ func NewClient(outputType string, defaultEndpointURL string, debug bool) (*Clien
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, Debug: debug}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config}, nil
 }
 
 // Post sends event (payload) to Output.
@@ -68,7 +70,7 @@ func (c *Client) Post(payload interface{}) error {
 	body := new(bytes.Buffer)
 	json.NewEncoder(body).Encode(payload)
 
-	if c.Debug == true {
+	if c.Config.Debug == true {
 		log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
 	}
 

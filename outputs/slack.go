@@ -30,13 +30,13 @@ type slackPayload struct {
 	Attachments []slackAttachment `json:"attachments,omitempty"`
 }
 
-func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
+func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
 	var attachments []slackAttachment
 	var attachment slackAttachment
 	var fields []slackAttachmentField
 	var field slackAttachmentField
 
-	if os.Getenv("SLACK_OUTPUT_FORMAT") == "all" || os.Getenv("SLACK_OUTPUT_FORMAT") == "fields" || os.Getenv("SLACK_OUTPUT_FORMAT") == "" {
+	if config.Slack.OutputFormat == "all" || config.Slack.OutputFormat == "fields" || config.Slack.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
 			switch j.(type) {
 			case string:
@@ -73,7 +73,7 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
-	if os.Getenv("SLACK_OUTPUT_FORMAT") == "all" || os.Getenv("SLACK_OUTPUT_FORMAT") == "text" || os.Getenv("SLACK_OUTPUT_FORMAT") == "" {
+	if config.Slack.OutputFormat == "all" || config.Slack.OutputFormat == "text" || config.Slack.OutputFormat == "" {
 		attachment.Text = falcopayload.Output
 	}
 
@@ -101,8 +101,8 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 	attachments = append(attachments, attachment)
 
 	var iconURL string
-	if os.Getenv("SLACK_ICON") != "" {
-		iconURL = os.Getenv("SLACK_ICON")
+	if config.Slack.Icon != "" {
+		iconURL = config.Slack.Icon
 	} else {
 		iconURL = "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png"
 	}
@@ -117,5 +117,5 @@ func newSlackPayload(falcopayload types.FalcoPayload) slackPayload {
 
 // SlackPost posts event to Slack
 func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
-	c.Post(newSlackPayload(falcopayload))
+	c.Post(newSlackPayload(falcopayload, c.Config))
 }
