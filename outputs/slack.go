@@ -115,5 +115,11 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 
 // SlackPost posts event to Slack
 func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
-	c.Post(newSlackPayload(falcopayload, c.Config))
+	err := c.Post(newSlackPayload(falcopayload, c.Config))
+	if err != nil {
+		c.Stats.Slack.Add("error", 1)
+	} else {
+		c.Stats.Slack.Add("sent", 1)
+	}
+	c.Stats.Slack.Add("total", 1)
 }

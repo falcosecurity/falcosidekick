@@ -105,6 +105,7 @@ Different URI (handlers) are available :
 * `/` : main and default handler, your falco config must be configured to use it
 * `/ping` : you will get a  `pong` as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck purpose for example)
 * `/test` : (for debug only) send a test event to all enabled outputs.
+* `/debug/vars` : get statistics from daemon (in JSON format), it uses classic `expvar` package and some custom values are added 
 
 ## Logs
 
@@ -113,6 +114,13 @@ All logs are sent to `stdout`.
 ```bash
 2019/05/10 14:32:06 [INFO] : Enabled Outputs : Slack Datadog
 ```
+
+## Metrics
+
+The daemon exposes the common *Golang* metrics and some custom values in JSON format. It's useful for monitoring purpose.
+
+![expvar json](https://github.com/Issif/falcosidekick/raw/master/imgs/expvar_json.png)
+![expvarmon](https://github.com/Issif/falcosidekick/raw/master/imgs/expvarmon.png)
 
 ## Examples
 
@@ -139,6 +147,10 @@ You should get :
 ### AlertManager
 
 ![alertmanager example](https://github.com/Issif/falcosidekick/raw/master/imgs/alertmanager.png)
+
+### Elasticsearch (with Kibana)
+
+![kibana example](https://github.com/Issif/falcosidekick/raw/master/imgs/kibana.png)
 
 ## Development
 

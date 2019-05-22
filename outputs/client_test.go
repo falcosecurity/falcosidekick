@@ -16,12 +16,13 @@ var falcoTestInput = `{"output":"This is a test from falcosidekick","priority":"
 func TestNewClient(t *testing.T) {
 	u, _ := url.Parse("http://localhost")
 	config := &types.Configuration{}
-	testClientOutput := Client{OutputType: "test", EndpointURL: u, Config: config}
-	_, err := NewClient("test", "localhost/%*$¨^!/:;", config)
+	stats := &types.Statistics{}
+	testClientOutput := Client{OutputType: "test", EndpointURL: u, Config: config, Stats: stats}
+	_, err := NewClient("test", "localhost/%*$¨^!/:;", config, stats)
 	if err == nil {
 		t.Fatalf("error while creating client object : %v\n", err)
 	}
-	nc, _ := NewClient("test", "http://localhost", config)
+	nc, _ := NewClient("test", "http://localhost", config, stats)
 	if !reflect.DeepEqual(&testClientOutput, nc) {
 		t.Fatalf("expected: %v, got: %v\n", testClientOutput, nc)
 	}
@@ -51,10 +52,11 @@ func TestPost(t *testing.T) {
 			w.WriteHeader(http.StatusBadGateway)
 		}
 	}))
-	// os.Setenv("DEBUG", "true")
-	nc, _ := NewClient("", "", &types.Configuration{})
+
+	nc, _ := NewClient("", "", &types.Configuration{}, &types.Statistics{})
+
 	for i, j := range map[string]error{"/200": nil, "/400": ErrHeaderMissing, "/401": ErrClientAuthenticationError, "/403": ErrForbidden, "/404": ErrNotFound, "/422": ErrUnprocessableEntityError, "/429": ErrTooManyRequest, "/502": errors.New("502 Bad Gateway")} {
-		nc, _ = NewClient("", ts.URL+i, &types.Configuration{})
+		nc, _ = NewClient("", ts.URL+i, &types.Configuration{}, &types.Statistics{})
 		err := nc.Post("")
 		if !reflect.DeepEqual(err, j) {
 			t.Fatalf("expected error: %v, got: %v\n", j, err)

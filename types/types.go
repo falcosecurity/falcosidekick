@@ -1,6 +1,7 @@
 package types
 
 import (
+	"expvar"
 	"time"
 )
 
@@ -20,6 +21,14 @@ type Configuration struct {
 	Datadog       datadogOutputConfig
 	Alertmanager  alertmanagerOutputConfig
 	Elasticsearch elasticsearchOutputConfig
+}
+
+type Statistics struct {
+	Requests      *expvar.Map
+	Slack         *expvar.Map
+	Datadog       *expvar.Map
+	Alertmanager  *expvar.Map
+	Elasticsearch *expvar.Map
 }
 
 type slackOutputConfig struct {

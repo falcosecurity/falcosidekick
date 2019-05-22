@@ -43,5 +43,11 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 
 // AlertmanagerPost posts event to AlertManager
 func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
-	c.Post(newAlertmanagerPayload(falcopayload))
+	err := c.Post(newAlertmanagerPayload(falcopayload))
+	if err != nil {
+		c.Stats.Alertmanager.Add("error", 1)
+	} else {
+		c.Stats.Alertmanager.Add("sent", 1)
+	}
+	c.Stats.Alertmanager.Add("total", 1)
 }

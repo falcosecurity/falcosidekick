@@ -15,17 +15,23 @@ import (
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	var falcopayload types.FalcoPayload
-
+	
+	stats.Requests.Add("total", 1)
+	
 	if r.Body == nil {
 		http.Error(w, "Please send a valid request body", 400)
+		stats.Requests.Add("rejected", 1)
 		return
 	}
-
+	
 	err := json.NewDecoder(r.Body).Decode(&falcopayload)
 	if err != nil && err.Error() != "EOF" || len(falcopayload.Output) == 0 {
 		http.Error(w, "Please send a valid request body : "+err.Error(), 400)
+		stats.Requests.Add("rejected", 1)
 		return
 	}
+	
+	stats.Requests.Add("accepted", 1)
 
 	if config.Debug == true {
 		body, _ := json.Marshal(falcopayload)

@@ -38,10 +38,11 @@ type Client struct {
 	OutputType  string
 	EndpointURL *url.URL
 	Config      *types.Configuration
+	Stats       *types.Statistics
 }
 
 // NewClient returns a new output.Client for accessing the different API.
-func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration) (*Client, error) {
+func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration, stats *types.Statistics) (*Client, error) {
 	reg := regexp.MustCompile(`http(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad URL")
@@ -56,7 +57,7 @@ func NewClient(outputType string, defaultEndpointURL string, config *types.Confi
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config, Stats: stats}, nil
 }
 
 // Post sends event (payload) to Output.
