@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0 - 2019-05-23
+#### New 
+- New output : **Elasticsearch** ([issue #14](https://github.com/Issif/falcosidekick/issues/14))
+- **New configuration method : we can now use a config file in YAML and/or env vars** (see *README*) ([issue #17](https://github.com/Issif/falcosidekick/issues/17))
+- New endpoint : `/debug/vars` gives access to Golang + Custom metrics (see *README*) ([issue #17](https://github.com/Issif/falcosidekick/issues/17))
+#### Enhancement
+- Add a lot of unit tests for code coverage ([issue #17](https://github.com/Issif/falcosidekick/issues/17))
+- Some log outputs have been reformated
+- :boom: Some env variables have been renamed again to match fields in YAML config files (*see README*)
+#### Fix
+- Panic are now catched to avoid crashes
+
 ## 1.1.0 - 2019-05-10
 #### Enhancement
 -  **all outputs use new generic methods (`NewClient()` + `Post()`), new output integration will be easier**
