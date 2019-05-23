@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	// DatadogURL is default URL of Datadog's API
 	DatadogURL string = "https://api.datadoghq.com/api/v1/events"
 )
 
@@ -48,5 +49,11 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 
 // DatadogPost posts event to Datadog
 func (c *Client) DatadogPost(falcopayload types.FalcoPayload) {
-	c.Post(newDatadogPayload(falcopayload))
+	err := c.Post(newDatadogPayload(falcopayload))
+	if err != nil {
+		c.Stats.Datadog.Add("error", 1)
+	} else {
+		c.Stats.Datadog.Add("sent", 1)
+	}
+	c.Stats.Datadog.Add("total", 1)
 }
