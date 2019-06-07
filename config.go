@@ -24,7 +24,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Slack.WebhookURL", "")
 	v.SetDefault("Slack.Footer", "https://github.com/Issif/falcosidekick")
 	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png")
-	v.SetDefault("SlackOutput.OutputFormat", "all")
+	v.SetDefault("Slack.OutputFormat", "all")
 	v.SetDefault("Datadog.APIKey", "")
 	v.SetDefault("Alertmanager.HostPort", "")
 	v.SetDefault("Elasticsearch.HostPort", "")
