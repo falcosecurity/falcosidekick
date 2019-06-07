@@ -1,0 +1,8 @@
+apiVersion: v1
+appVersion: "2.0.0"
+description: A simple daemon to help you with falco's outputs
+icon: https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png
+name: falcosidekick
+version: 0.1.0
+maintainers:
+  - name: SweetOps
