@@ -30,7 +30,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Elasticsearch.HostPort", "")
 	v.SetDefault("Elasticsearch.Index", "falco")
 	v.SetDefault("Elasticsearch.Type", "event")
-
+	v.SetDefault("Cluster", "")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {

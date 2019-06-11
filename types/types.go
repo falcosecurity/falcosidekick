@@ -17,6 +17,7 @@ type FalcoPayload struct {
 type Configuration struct {
 	ListenPort    int
 	Debug         bool
+	Cluster       string
 	Slack         slackOutputConfig
 	Datadog       datadogOutputConfig
 	Alertmanager  alertmanagerOutputConfig

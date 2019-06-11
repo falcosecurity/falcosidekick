@@ -61,7 +61,12 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		field.Short = false
 		field.Value = falcopayload.Time.String()
 		fields = append(fields, field)
-
+		if config.Cluster != "" {
+			field.Title = "cluster"
+			field.Value = config.Cluster
+			field.Short = true
+			fields = append(fields, field)
+		}
 		if config.Slack.Footer != "" {
 			attachment.Footer = config.Slack.Footer
 		} else {
