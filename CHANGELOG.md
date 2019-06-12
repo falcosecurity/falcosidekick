@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0 - 2019-06-12
+#### New 
+- Custom fields can be added to falco events (see README) ([PR#26](https://github.com/Issif/falcosidekick/pull/26) thanks to [@zetaab](https://github.com/zetaab))
+#### Fix
+- Fix `Slack.Output` in config.go ([PR#24](https://github.com/Issif/falcosidekick/pull/24) thanks to [@SweetOps](https://github.com/SweetOps))
+
 ## 2.0.0 - 2019-05-23
 #### New 
 - New output : **Elasticsearch** ([issue #14](https://github.com/Issif/falcosidekick/issues/14))
