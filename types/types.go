@@ -21,14 +21,7 @@ type Configuration struct {
 	Datadog       datadogOutputConfig
 	Alertmanager  alertmanagerOutputConfig
 	Elasticsearch elasticsearchOutputConfig
-}
-
-type Statistics struct {
-	Requests      *expvar.Map
-	Slack         *expvar.Map
-	Datadog       *expvar.Map
-	Alertmanager  *expvar.Map
-	Elasticsearch *expvar.Map
+	Customfields  map[string]interface{}
 }
 
 type slackOutputConfig struct {
@@ -54,4 +47,12 @@ type elasticsearchOutputConfig struct {
 	HostPort string
 	Index    string
 	Type     string
+}
+
+type Statistics struct {
+	Requests      *expvar.Map
+	Slack         *expvar.Map
+	Datadog       *expvar.Map
+	Alertmanager  *expvar.Map
+	Elasticsearch *expvar.Map
 }

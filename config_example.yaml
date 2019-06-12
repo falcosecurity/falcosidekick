@@ -1,5 +1,9 @@
 # listenport: 2801 #port to listen for daemon (default: 2801)
 debug: false #if true all outputs will print in stdout the payload they send (default: false)
+customfields: #custom fields are added to falco events
+  Akey: "AValue"
+  Bkey: "BValue"
+  Ckey: "CValue"
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
@@ -16,4 +20,4 @@ alertmanager:
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
-  # type: "event" 
+  # type: "event"

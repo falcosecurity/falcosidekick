@@ -24,7 +24,7 @@ Run the daemon as any other daemon in your architecture (systemd, k8s daemonset,
 ### With docker
 
 ```bash
-docker run -d -p 2801:2801 -e SLACK_WEBHOOK_URL=XXXX -e DATADOG_API_KEY=XXXX issif/falcosidekick
+docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX issif/falcosidekick
 ```
 
 ### Falco's config
@@ -49,14 +49,18 @@ Configuration is made by *file (yaml)* and *env vars*, both can be used but *env
 See **config_example.yaml** :
 
 ```yaml
-#listenport: 2801 #port to listen for daemon (default: 2801)
+# listenport: 2801 #port to listen for daemon (default: 2801)
 debug: false #if true all outputs will print in stdout the payload they send (default: false)
+customfields: #custom fields are added to falco events
+  Akey: "AValue"
+  Bkey: "BValue"
+  Ckey: "CValue"
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
   #footer: "" #Slack footer
   #icon: "" #Slack icon (avatar)
-  outputformat: "text" # all (default), text, fields
+  outputformat: "all" # all (default), text, fields
 
 datadog:
   #apikey: ""  #Datadog API Key, if not empty, Datadog output is enabled
@@ -67,7 +71,7 @@ alertmanager:
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
-  # type: "event" 
+  # type: "event"  
 ```
 
 Usage : 
@@ -88,6 +92,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 
 * **LISTENPORT** : port to listen for daemon (default: 2801)
 * **DEBUG** : if *true* all outputs will print in stdout the payload they send (default: false)
+* **CUSTOMFIELDS** : a list of comma separated custom fields to add to falco events, syntax is "key:value,key:value"
 * **SLACK_WEBHOOKURL** : Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)

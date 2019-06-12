@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,7 @@ import (
 )
 
 func getConfig() *types.Configuration {
-	c := &types.Configuration{}
+	c := &types.Configuration{Customfields: make(map[string]interface{})}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
 	kingpin.Parse()
@@ -30,6 +31,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Elasticsearch.HostPort", "")
 	v.SetDefault("Elasticsearch.Index", "falco")
 	v.SetDefault("Elasticsearch.Type", "event")
+	v.SetDefault("Customfields", map[string]string{})
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -45,7 +47,18 @@ func getConfig() *types.Configuration {
 			log.Printf("Error when reading config file: %v\n", err)
 		}
 	}
+	v.GetStringMapString("customfields")
 	v.Unmarshal(c)
+
+	if value, present := os.LookupEnv("CUSTOMFIELDS"); present {
+		customfields := strings.Split(value, ",")
+		for _, label := range customfields {
+			tagkeys := strings.Split(label, ":")
+			if len(tagkeys) == 2 {
+				c.Customfields[tagkeys[0]] = tagkeys[1]
+			}
+		}
+	}
 
 	if c.ListenPort == 0 || c.ListenPort > 65536 {
 		log.Fatalf("[ERROR] : Bad port number\n")

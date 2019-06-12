@@ -30,6 +30,13 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		stats.Requests.Add("rejected", 1)
 		return
 	}
+
+	falcopayload.OutputFields = make(map[string]interface{})
+	if len(config.Customfields) > 0 {
+		for key,value := range config.Customfields {
+			falcopayload.OutputFields[key] = value
+		}
+	}
 	
 	stats.Requests.Add("accepted", 1)
 
