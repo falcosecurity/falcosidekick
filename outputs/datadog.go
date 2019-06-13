@@ -1,6 +1,8 @@
 package outputs
 
 import (
+	"strings"
+
 	"github.com/Issif/falcosidekick/types"
 )
 
@@ -34,10 +36,10 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 	d.SourceType = "falco"
 
 	var status string
-	switch falcopayload.Priority {
-	case "Emergency", "Alert", "Critical", "Error":
+	switch strings.ToLower(falcopayload.Priority) {
+	case "emergency", "alert", "critical", "error":
 		status = "error"
-	case "Warning":
+	case "warning":
 		status = "warning"
 	default:
 		status = "info"

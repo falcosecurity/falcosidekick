@@ -1,4 +1,4 @@
-# listenport: 2801 #port to listen for daemon (default: 2801)
+#listenport: 2801 #port to listen for daemon (default: 2801)
 debug: false #if true all outputs will print in stdout the payload they send (default: false)
 customfields: #custom fields are added to falco events
   Akey: "AValue"
@@ -6,18 +6,22 @@ customfields: #custom fields are added to falco events
   Ckey: "CValue"
 
 slack:
-  webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  webhookurl: "" #Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
   #footer: "" #Slack footer
   #icon: "" #Slack icon (avatar)
-  outputformat: "text" # all (default), text, fields
+  outputformat: "text" #all (default), text, fields
+  minimumpriority: "debug" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 datadog:
   #apikey: ""  #Datadog API Key, if not empty, Datadog output is enabled
+  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 alertmanager:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
+  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
   # type: "event"
+  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)

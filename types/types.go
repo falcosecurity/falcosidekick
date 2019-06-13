@@ -26,27 +26,31 @@ type Configuration struct {
 
 type slackOutputConfig struct {
 	// Enabled       bool
-	WebhookURL   string
-	Footer       string
-	Icon         string
-	OutputFormat string
+	WebhookURL      string
+	Footer          string
+	Icon            string
+	OutputFormat    string
+	MinimumPriority string
 }
 
 type datadogOutputConfig struct {
 	// Enabled bool
-	APIKey string
+	APIKey          string
+	MinimumPriority string
 }
 
 type alertmanagerOutputConfig struct {
 	// Enabled   bool
-	HostPort string
+	HostPort        string
+	MinimumPriority string
 }
 
 type elasticsearchOutputConfig struct {
 	// Enabled   bool
-	HostPort string
-	Index    string
-	Type     string
+	HostPort        string
+	Index           string
+	Type            string
+	MinimumPriority string
 }
 
 type Statistics struct {

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/Issif/falcosidekick/types"
@@ -26,11 +28,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Slack.Footer", "https://github.com/Issif/falcosidekick")
 	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png")
 	v.SetDefault("Slack.OutputFormat", "all")
+	v.SetDefault("Slack.MinimumPriority", "")
 	v.SetDefault("Datadog.APIKey", "")
+	v.SetDefault("Datadog.MinimumPriority", "")
 	v.SetDefault("Alertmanager.HostPort", "")
+	v.SetDefault("Alertmanager.MinimumPriority", "")
 	v.SetDefault("Elasticsearch.HostPort", "")
 	v.SetDefault("Elasticsearch.Index", "falco")
 	v.SetDefault("Elasticsearch.Type", "event")
+	v.SetDefault("Elasticsearch.MinimumPriority", "")
 	v.SetDefault("Customfields", map[string]string{})
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -63,6 +69,10 @@ func getConfig() *types.Configuration {
 	if c.ListenPort == 0 || c.ListenPort > 65536 {
 		log.Fatalf("[ERROR] : Bad port number\n")
 	}
+	if match, _ := regexp.MatchString("(?i)(emergency|alert|critical|error|warning|notice|informationnal|debug)", c.Slack.MinimumPriority); !match {
+		c.Slack.MinimumPriority = ""
+	}
 
+	fmt.Println(c.Slack)
 	return c
 }

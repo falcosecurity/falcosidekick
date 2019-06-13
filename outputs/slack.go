@@ -1,6 +1,8 @@
 package outputs
 
 import (
+	"strings"
+
 	"github.com/Issif/falcosidekick/types"
 )
 
@@ -76,22 +78,22 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	}
 
 	var color string
-	switch falcopayload.Priority {
-	case "Emergency":
+	switch strings.ToLower(falcopayload.Priority) {
+	case "emergency":
 		color = "#e20b0b"
-	case "Alert":
+	case "alert":
 		color = "#ff5400"
-	case "Critical":
+	case "critical":
 		color = "#ff9000"
-	case "Error":
+	case "error":
 		color = "#ffc700"
-	case "Warning":
+	case "warning":
 		color = "#ffff00"
-	case "Notice":
+	case "notice":
 		color = "#5bffb5"
-	case "Informationnal":
+	case "informationnal":
 		color = "#68c2ff"
-	case "Debug":
+	case "debug":
 		color = "#ccfff2"
 	}
 	attachment.Color = color

@@ -49,7 +49,7 @@ Configuration is made by *file (yaml)* and *env vars*, both can be used but *env
 See **config_example.yaml** :
 
 ```yaml
-# listenport: 2801 #port to listen for daemon (default: 2801)
+#listenport: 2801 #port to listen for daemon (default: 2801)
 debug: false #if true all outputs will print in stdout the payload they send (default: false)
 customfields: #custom fields are added to falco events
   Akey: "AValue"
@@ -57,21 +57,25 @@ customfields: #custom fields are added to falco events
   Ckey: "CValue"
 
 slack:
-  webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  webhookurl: "" #Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
   #footer: "" #Slack footer
   #icon: "" #Slack icon (avatar)
-  outputformat: "all" # all (default), text, fields
+  outputformat: "text" #all (default), text, fields
+  minimumpriority: "debug" #minimum priority of event to use this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default).
 
 datadog:
   #apikey: ""  #Datadog API Key, if not empty, Datadog output is enabled
+  # minimumpriority: "" #minimum priority of event to use this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default).
 
 alertmanager:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
+  # minimumpriority: "" #minimum priority of event to use this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default).
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
-  # type: "event"  
+  # type: "event"
+  # minimumpriority: "" #minimum priority of event to use this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default).
 ```
 
 Usage : 
@@ -97,11 +101,15 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)
 * **SLACK_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
+* **SLACK_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 * **DATADOG_APIKEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
+* **DATADOG_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 * **ALERTMANAGER_HOSTPORT** : AlertManager http://host:port, if not `empty`, AlertManager is *enabled*
+* **ALERTMANAGER_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 * **ELASTICSEARCH_HOSTPORT** : Elasticsearch http://host:port, if not `empty`, Elasticsearch is *enabled*
 * **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)
 * **ELASTICSEARCH_TYPE** : Elasticsearch document type (default: event)
+* **ELASTICSEARCH_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 
 ## Handlers
 
