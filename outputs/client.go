@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -69,7 +70,12 @@ func (c *Client) Post(payload interface{}) error {
 	}()
 
 	body := new(bytes.Buffer)
-	json.NewEncoder(body).Encode(payload)
+	switch payload.(type) {
+	case influxdbPayload:
+		fmt.Fprintf(body, "%v", payload)
+	default:
+		json.NewEncoder(body).Encode(payload)
+	}
 
 	if c.Config.Debug == true {
 		log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -37,6 +36,11 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Elasticsearch.Index", "falco")
 	v.SetDefault("Elasticsearch.Type", "event")
 	v.SetDefault("Elasticsearch.MinimumPriority", "")
+	v.SetDefault("Influxdb.HostPort", "")
+	v.SetDefault("Influxdb.Database", "falco")
+	v.SetDefault("Influxdb.User", "")
+	v.SetDefault("Influxdb.Password", "")
+	v.SetDefault("Influxdb.MinimumPriority", "")
 	v.SetDefault("Customfields", map[string]string{})
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -73,6 +77,5 @@ func getConfig() *types.Configuration {
 		c.Slack.MinimumPriority = ""
 	}
 
-	fmt.Println(c.Slack)
 	return c
 }

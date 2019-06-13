@@ -61,21 +61,28 @@ slack:
   #footer: "" #Slack footer
   #icon: "" #Slack icon (avatar)
   outputformat: "text" #all (default), text, fields
-  minimumpriority: "debug" #minimum priority of event to use this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default).
+  minimumpriority: "debug" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 datadog:
   #apikey: ""  #Datadog API Key, if not empty, Datadog output is enabled
-  # minimumpriority: "" #minimum priority of event to use this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default).
+  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 alertmanager:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
-  # minimumpriority: "" #minimum priority of event to use this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default).
+  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
   # type: "event"
-  # minimumpriority: "" #minimum priority of event to use this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default).
+  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
+influxdb:
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
+  # database: "falco" # Influxdb database (default: falco)
+  # user: "" # user to use if auth is enabled in Influxdb
+  # password: "" # pasword to use if auth is enabled in Influxdb
+  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 ```
 
 Usage : 
@@ -110,6 +117,11 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)
 * **ELASTICSEARCH_TYPE** : Elasticsearch document type (default: event)
 * **ELASTICSEARCH_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **INFLUXDB_HOSTPORT** : Influxdb http://host:port, if not `empty`, Influxdb is *enabled*
+* **INFLUXDB_DATABASE** : Influxdb database (default: falco)
+* **INFLUXDB_USER** : user to use if auth is enabled in Influxdb
+* **INFLUXDB_PASSWORD** : user to use if auth is enabled in Influxdb
+* **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 
 ## Handlers
 
@@ -164,6 +176,24 @@ You should get :
 ### Elasticsearch (with Kibana)
 
 ![kibana example](https://github.com/Issif/falcosidekick/raw/master/imgs/kibana.png)
+
+### Influxdb
+
+```
+> use falco
+Using database falco
+> show series
+key
+---
+events,akey=AValue,bkey=BValue,ckey=CValue,priority=Debug,rule=Testrule
+events,akey=A_Value,bkey=B_Value,ckey=C_Value,priority=Debug,rule=Test_rule
+> select * from events
+name: events
+time                akey    bkey    ckey    priority rule      value
+----                ----    ----    ----    -------- ----      -----
+1560433816893368400 AValue  BValue  CValue  Debug    Testrule  This is a test from falcosidekick
+1560441359119741800 A_Value B_Value C_Value Debug    Test_rule This is a test from falcosidekick
+```
 
 ## Development
 

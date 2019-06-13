@@ -10,7 +10,7 @@ import (
 )
 
 // Globale variables
-var slackClient, datadogClient, alertmanagerClient, elasticsearchClient *outputs.Client
+var slackClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient *outputs.Client
 var config *types.Configuration
 var stats *types.Statistics
 
@@ -53,6 +53,19 @@ func init() {
 			config.Elasticsearch.HostPort = ""
 		} else {
 			enabledOutputsText += "Elasticsearch "
+		}
+	}
+	if config.Influxdb.HostPort != "" {
+		var credentials string
+		if config.Influxdb.User != "" && config.Influxdb.Password != "" {
+			credentials = "&u=" + config.Influxdb.User + "&p=" + config.Influxdb.Password
+		}
+		var err error
+		influxdbClient, err = outputs.NewClient("Influxdb", config.Influxdb.HostPort+"/write?db="+config.Influxdb.Database+credentials, config, stats)
+		if err != nil {
+			config.Influxdb.HostPort = ""
+		} else {
+			enabledOutputsText += "Influxdb "
 		}
 	}
 

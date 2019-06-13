@@ -46,7 +46,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	falcopayload.OutputFields = make(map[string]interface{})
+	// falcopayload.OutputFields = make(map[string]interface{})
 	if len(config.Customfields) > 0 {
 		for key, value := range config.Customfields {
 			falcopayload.OutputFields[key] = value
@@ -73,6 +73,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if config.Elasticsearch.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Elasticsearch.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go elasticsearchClient.ElasticsearchPost(falcopayload)
+	}
+	if config.Influxdb.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Influxdb.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go influxdbClient.InfluxdbPost(falcopayload)
 	}
 }
 

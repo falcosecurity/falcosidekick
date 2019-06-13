@@ -25,3 +25,10 @@ elasticsearch:
   # index: "falco" # index (default: falco)
   # type: "event"
   # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
+influxdb:
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
+  # database: "falco" # Influxdb database (default: falco)
+  # user: "" # user to use if auth is enabled in Influxdb
+  # password: "" # pasword to use if auth is enabled in Influxdb
+  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)

@@ -21,6 +21,7 @@ type Configuration struct {
 	Datadog       datadogOutputConfig
 	Alertmanager  alertmanagerOutputConfig
 	Elasticsearch elasticsearchOutputConfig
+	Influxdb      InfluxdbOutputConfig
 	Customfields  map[string]interface{}
 }
 
@@ -53,10 +54,20 @@ type elasticsearchOutputConfig struct {
 	MinimumPriority string
 }
 
+type InfluxdbOutputConfig struct {
+	// Enabled   bool
+	HostPort        string
+	Database        string
+	User            string
+	Password        string
+	MinimumPriority string
+}
+
 type Statistics struct {
 	Requests      *expvar.Map
 	Slack         *expvar.Map
 	Datadog       *expvar.Map
 	Alertmanager  *expvar.Map
 	Elasticsearch *expvar.Map
+	Influxdb      *expvar.Map
 }
