@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0 - 2019-06-13
+#### New 
+- A minimum priority for each output can be set
+- New output : **Influxdb** ([issue #4](https://github.com/Issif/falcosidekick/issues/4))
+#### Fix
+- Panic happened when trying to add `customfields` but falco event hadn't
+
 ## 2.1.0 - 2019-06-12
 #### New 
 - Custom fields can be added to falco events (see README) ([PR#26](https://github.com/Issif/falcosidekick/pull/26) thanks to [@zetaab](https://github.com/zetaab))
