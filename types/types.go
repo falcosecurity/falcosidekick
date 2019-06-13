@@ -22,7 +22,7 @@ type Configuration struct {
 	Alertmanager  alertmanagerOutputConfig
 	Elasticsearch elasticsearchOutputConfig
 	Influxdb      InfluxdbOutputConfig
-	Customfields  map[string]interface{}
+	Customfields  map[string]string
 }
 
 type slackOutputConfig struct {

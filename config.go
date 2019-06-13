@@ -15,7 +15,7 @@ import (
 )
 
 func getConfig() *types.Configuration {
-	c := &types.Configuration{Customfields: make(map[string]interface{})}
+	c := &types.Configuration{Customfields: make(map[string]string)}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
 	kingpin.Parse()

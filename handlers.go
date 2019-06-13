@@ -2,10 +2,11 @@ package main
 
 import (
 	"bytes"
+	"strconv"
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
+	// "strconv"
 	"strings"
 	"time"
 
@@ -48,6 +49,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	// falcopayload.OutputFields = make(map[string]interface{})
 	if len(config.Customfields) > 0 {
+		if falcopayload.OutputFields == nil {
+			falcopayload.OutputFields = make(map[string]interface{})
+		}
 		for key, value := range config.Customfields {
 			falcopayload.OutputFields[key] = value
 		}
