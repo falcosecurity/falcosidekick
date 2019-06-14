@@ -16,6 +16,7 @@ Currently available outputs are :
 * **Datadog**
 * **AlertManager**
 * **Elasticsearch**
+* **Influxdb**
 
 ## Usage
 
