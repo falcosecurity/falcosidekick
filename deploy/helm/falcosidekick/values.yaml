@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: issif/falcosidekick
-  tag: 2.0.0
+  tag: 2.2.0
   pullPolicy: IfNotPresent
 
 nameOverride: ""
@@ -15,6 +15,9 @@ fullnameOverride: ""
 config:
 
   debug: false
+  ##
+  ## a list of comma separated custom fields to add to falco events, syntax is "key:value,key:value"
+  customfields: ""
 
   slack:
     webhookurl: ""
@@ -32,6 +35,14 @@ config:
     hostport: ""
     index: "falco"
     type: "event"
+    minimumpriority: ""
+
+  influxdb:
+    hostport: ""
+    database: "falco"
+    user: ""
+    password: ""
+    minimumpriority: ""
 
 service:
   type: ClusterIP

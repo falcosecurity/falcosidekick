@@ -43,6 +43,8 @@ spec:
           env:
             - name: DEBUG
               value: {{ .Values.config.debug | quote }}
+            - name: CUSTOMFIELDS
+              value: {{ .Values.config.customfields | quote }}
             {{- if .Values.config.slack.webhookurl }}
             - name: SLACK_WEBHOOKURL
               valueFrom:
@@ -76,12 +78,29 @@ spec:
                 secretKeyRef:
                   name: {{ include "falcosidekick.fullname" . }}
                   key: elasticsearch-hostport
-            - name: ELASTICSEARCH_HOSTPORT
-              value: {{ .Values.config.elasticsearch.hostport | quote }}
             - name: ELASTICSEARCH_INDEX
               value: {{ .Values.config.elasticsearch.index | quote }}
             - name: ELASTICSEARCH_TYPE
               value: {{ .Values.config.elasticsearch.type | quote }}
+            - name: ELASTICSEARCH_MINIMUMPRIORITY
+              value: {{ .Values.config.elasticsearch.minimumpriority | quote }}
+            {{- end }}
+            {{- if .Values.config.influxdb.hostport }}
+            - name: INFLUXDB_HOSTPORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: influxdb-hostport
+            - name: INFLUXDB_MINIMUMPRIORITY
+              value: {{ .Values.config.influxdb.minimumpriority | quote }}
+            - name: INFLUXDB_DATABASE
+              value: {{ .Values.config.influxdb.database | quote }}
+            {{- end }}
+            {{- if and .Values.config.influxdb.user .Values.config.influxdb.password }}
+            - name: INFLUXDB_USER
+              value: {{ .Values.config.influxdb.user | quote }}
+            - name: INFLUXDB_PASSWORD
+              value: {{ .Values.config.influxdb.password | quote }}
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
