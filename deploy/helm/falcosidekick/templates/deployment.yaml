@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "falcosidekick.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "falcosidekick.name" . }}
+    helm.sh/chart: {{ include "falcosidekick.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "falcosidekick.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "falcosidekick.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ include "falcosidekick.fullname" . }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 2801
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          env:
+            - name: DEBUG
+              value: {{ .Values.config.debug | quote }}
+            - name: CUSTOMFIELDS
+              value: {{ .Values.config.customfields | quote }}
+            {{- if .Values.config.slack.webhookurl }}
+            - name: SLACK_WEBHOOKURL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: slack-webhookurl
+            - name: SLACK_OUTPUTFORMAT
+              value: {{ .Values.config.slack.outputformat | quote }}
+            - name: SLACK_FOOTER
+              value: {{ .Values.config.slack.footer | quote }}
+            - name: SLACK_ICON
+              value: {{ .Values.config.slack.icon | quote }}
+            {{- end }}
+            {{- if .Values.config.datadog.apikey }}
+            - name: DATADOG_APIKEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: datadog-apikey
+            {{- end }}
+            {{- if .Values.config.alertmanager.hostport }}
+            - name: ALERTMANAGER_HOSTPORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: alertmanager-hostport
+            {{- end }}
+            {{- if .Values.config.elasticsearch.hostport }}
+            - name: ELASTICSEARCH_HOSTPORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: elasticsearch-hostport
+            - name: ELASTICSEARCH_INDEX
+              value: {{ .Values.config.elasticsearch.index | quote }}
+            - name: ELASTICSEARCH_TYPE
+              value: {{ .Values.config.elasticsearch.type | quote }}
+            - name: ELASTICSEARCH_MINIMUMPRIORITY
+              value: {{ .Values.config.elasticsearch.minimumpriority | quote }}
+            {{- end }}
+            {{- if .Values.config.influxdb.hostport }}
+            - name: INFLUXDB_HOSTPORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: influxdb-hostport
+            - name: INFLUXDB_MINIMUMPRIORITY
+              value: {{ .Values.config.influxdb.minimumpriority | quote }}
+            - name: INFLUXDB_DATABASE
+              value: {{ .Values.config.influxdb.database | quote }}
+            {{- end }}
+            {{- if and .Values.config.influxdb.user .Values.config.influxdb.password }}
+            - name: INFLUXDB_USER
+              value: {{ .Values.config.influxdb.user | quote }}
+            - name: INFLUXDB_PASSWORD
+              value: {{ .Values.config.influxdb.password | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
