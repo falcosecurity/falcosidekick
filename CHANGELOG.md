@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.0 - 2019-06-17
+#### New
+- Falcosidekick can now be deployed with Helm (see [README](https://github.com/Issif/falcosidekick/blob/master/README.md)) ([PR#25](https://github.com/Issif/falcosidekick/pull/25) thanks to [@SweetOps](https://github.com/SweetOps))
+
 ## 2.2.0 - 2019-06-13
 #### New 
 - A minimum priority for each output can be set
@@ -9,7 +13,7 @@
 
 ## 2.1.0 - 2019-06-12
 #### New 
-- Custom fields can be added to falco events (see README) ([PR#26](https://github.com/Issif/falcosidekick/pull/26) thanks to [@zetaab](https://github.com/zetaab))
+- Custom fields can be added to falco events (see [README](https://github.com/Issif/falcosidekick/blob/master/README.md)) ([PR#26](https://github.com/Issif/falcosidekick/pull/26) thanks to [@zetaab](https://github.com/zetaab))
 #### Fix
 - Fix `Slack.Output` in config.go ([PR#24](https://github.com/Issif/falcosidekick/pull/24) thanks to [@SweetOps](https://github.com/SweetOps))
 

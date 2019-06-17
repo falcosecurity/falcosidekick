@@ -28,6 +28,15 @@ Run the daemon as any other daemon in your architecture (systemd, k8s daemonset,
 docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX issif/falcosidekick
 ```
 
+### With Helm
+
+```bash
+
+git clone https://github.com/Issif/falcosidekick.git
+cd ./falcosidekick/deploy/helm/falcosidekick/
+helm install --name falcosidekick .
+```
+
 ### Falco's config
 
 Add this (adapted to your environment) in your *falco.yaml* :
