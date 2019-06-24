@@ -52,6 +52,7 @@ type elasticsearchOutputConfig struct {
 	Index           string
 	Type            string
 	MinimumPriority string
+	Suffix          string
 }
 
 type InfluxdbOutputConfig struct {

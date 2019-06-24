@@ -86,6 +86,8 @@ elasticsearch:
   # index: "falco" # index (default: falco)
   # type: "event"
   # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+    # suffix: "daily" #date suffix for index rotation : daily (default), monthly, annually, none 
+
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
@@ -127,6 +129,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)
 * **ELASTICSEARCH_TYPE** : Elasticsearch document type (default: event)
 * **ELASTICSEARCH_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **ELASTICSEARCH_SUFFIX** : date suffix for index rotation : `daily` (default), `monthly`, `annually`, `none`
 * **INFLUXDB_HOSTPORT** : Influxdb http://host:port, if not `empty`, Influxdb is *enabled*
 * **INFLUXDB_DATABASE** : Influxdb database (default: falco)
 * **INFLUXDB_USER** : user to use if auth is enabled in Influxdb

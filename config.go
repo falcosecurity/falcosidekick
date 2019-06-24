@@ -36,6 +36,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Elasticsearch.Index", "falco")
 	v.SetDefault("Elasticsearch.Type", "event")
 	v.SetDefault("Elasticsearch.MinimumPriority", "")
+	v.SetDefault("Elasticsearch.Suffix", "daily")
 	v.SetDefault("Influxdb.HostPort", "")
 	v.SetDefault("Influxdb.Database", "falco")
 	v.SetDefault("Influxdb.User", "")
