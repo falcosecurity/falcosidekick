@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.0 - 2019-06-26
+#### Enhancement
+- Elasticsearch : An index suffix can be set for rotation (see [README](https://github.com/Issif/falcosidekick/blob/master/README.md)) ([issue #27](https://github.com/Issif/falcosidekick/issues/27) thanks to [@ariguillegp](https://github.com/ariguillegp))
+
 ## 2.3.0 - 2019-06-17
 #### New
 - Falcosidekick can now be deployed with Helm (see [README](https://github.com/Issif/falcosidekick/blob/master/README.md)) ([PR#25](https://github.com/Issif/falcosidekick/pull/25) thanks to [@SweetOps](https://github.com/SweetOps))

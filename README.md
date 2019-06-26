@@ -86,7 +86,7 @@ elasticsearch:
   # index: "falco" # index (default: falco)
   # type: "event"
   # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
-    # suffix: "daily" #date suffix for index rotation : daily (default), monthly, annually, none 
+  # suffix: "daily" #date suffix for index rotation : daily (default), monthly, annually, none 
 
 
 influxdb:
