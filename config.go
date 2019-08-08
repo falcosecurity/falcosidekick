@@ -42,6 +42,12 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Influxdb.User", "")
 	v.SetDefault("Influxdb.Password", "")
 	v.SetDefault("Influxdb.MinimumPriority", "")
+	v.SetDefault("AWS.AccessKeyID", "")
+	v.SetDefault("AWS.SecretAccessKey", "")
+	v.SetDefault("AWS.Region", "")
+	v.SetDefault("AWS.Lambda.FunctionName", "")
+	v.SetDefault("AWS.Lambda.InvocationType", "RequestResponse")
+	v.SetDefault("AWS.Lambda.Logtype", "Tail")
 	v.SetDefault("Customfields", map[string]string{})
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -55,7 +61,7 @@ func getConfig() *types.Configuration {
 		v.AddConfigPath(d)
 		err := v.ReadInConfig()
 		if err != nil {
-			log.Printf("Error when reading config file: %v\n", err)
+			log.Printf("[ERROR] : Error when reading config file : %v\n", err)
 		}
 	}
 	v.GetStringMapString("customfields")

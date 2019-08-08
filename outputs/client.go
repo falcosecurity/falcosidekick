@@ -11,6 +11,7 @@ import (
 	"regexp"
 
 	"github.com/Issif/falcosidekick/types"
+	"github.com/aws/aws-sdk-go/aws/session"
 )
 
 // ErrHeaderMissing = 400
@@ -40,6 +41,7 @@ type Client struct {
 	EndpointURL *url.URL
 	Config      *types.Configuration
 	Stats       *types.Statistics
+	AWSSession  *session.Session
 }
 
 // NewClient returns a new output.Client for accessing the different API.

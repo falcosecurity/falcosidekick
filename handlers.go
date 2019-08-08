@@ -2,11 +2,10 @@ package main
 
 import (
 	"bytes"
-	"strconv"
 	"encoding/json"
 	"log"
 	"net/http"
-	// "strconv"
+	"strconv"
 	"strings"
 	"time"
 
@@ -80,6 +79,11 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if config.Influxdb.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Influxdb.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go influxdbClient.InfluxdbPost(falcopayload)
+	}
+	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
+		if priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Elasticsearch.MinimumPriority)] || falcopayload.Rule == "Test rule" {
+			go awsClient.InvokeLambda(falcopayload)
+		}
 	}
 }
 

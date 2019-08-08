@@ -17,6 +17,7 @@ Currently available outputs are :
 * **AlertManager**
 * **Elasticsearch**
 * **Influxdb**
+* **AWS Lambda**
 
 ## Usage
 
@@ -88,13 +89,20 @@ elasticsearch:
   # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
   # suffix: "daily" #date suffix for index rotation : daily (default), monthly, annually, none 
 
-
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
   # database: "falco" # Influxdb database (default: falco)
   # user: "" # user to use if auth is enabled in Influxdb
   # password: "" # pasword to use if auth is enabled in Influxdb
   # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
+aws:
+  # accesskeyid: "" # aws access key
+  # secretaccesskey: "" # aws secret access key
+  # region : "" #aws region
+  lambda:
+    # functionname : "" # Lambda function name
+    # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 ```
 
 Usage : 
@@ -135,6 +143,11 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **INFLUXDB_USER** : user to use if auth is enabled in Influxdb
 * **INFLUXDB_PASSWORD** : user to use if auth is enabled in Influxdb
 * **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **AWS_ACCESSKEYID** : AWS Access Key Id, mandatory to enable different AWS outputs
+* **AWS_SECRETACCESSKEY** : AWS Secret Access Key, mandatory to enable different AWS outputs
+* **AWS_REGION** : AWS Region, mandatory to enable different AWS outputs
+* **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name
+* **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 
 ## Handlers
 

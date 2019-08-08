@@ -10,7 +10,7 @@ import (
 )
 
 // Globale variables
-var slackClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient *outputs.Client
+var slackClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, awsClient *outputs.Client
 var config *types.Configuration
 var stats *types.Statistics
 
@@ -66,6 +66,19 @@ func init() {
 			config.Influxdb.HostPort = ""
 		} else {
 			enabledOutputsText += "Influxdb "
+		}
+	}
+	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
+		var err error
+		awsClient, err = outputs.NewAWSClient("AWS Lambda", config, stats)
+		if err != nil {
+			config.AWS.AccessKeyID = ""
+			config.AWS.SecretAccessKey = ""
+			config.AWS.Region = ""
+		} else {
+			if config.AWS.Lambda.FunctionName != "" {
+				enabledOutputsText += "AWSLambda"
+			}
 		}
 	}
 

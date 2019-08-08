@@ -21,12 +21,12 @@ type Configuration struct {
 	Datadog       datadogOutputConfig
 	Alertmanager  alertmanagerOutputConfig
 	Elasticsearch elasticsearchOutputConfig
-	Influxdb      InfluxdbOutputConfig
+	Influxdb      influxdbOutputConfig
+	AWS           awsOutputConfig
 	Customfields  map[string]string
 }
 
 type slackOutputConfig struct {
-	// Enabled       bool
 	WebhookURL      string
 	Footer          string
 	Icon            string
@@ -35,19 +35,16 @@ type slackOutputConfig struct {
 }
 
 type datadogOutputConfig struct {
-	// Enabled bool
 	APIKey          string
 	MinimumPriority string
 }
 
 type alertmanagerOutputConfig struct {
-	// Enabled   bool
 	HostPort        string
 	MinimumPriority string
 }
 
 type elasticsearchOutputConfig struct {
-	// Enabled   bool
 	HostPort        string
 	Index           string
 	Type            string
@@ -55,12 +52,25 @@ type elasticsearchOutputConfig struct {
 	Suffix          string
 }
 
-type InfluxdbOutputConfig struct {
-	// Enabled   bool
+type influxdbOutputConfig struct {
 	HostPort        string
 	Database        string
 	User            string
 	Password        string
+	MinimumPriority string
+}
+
+type awsOutputConfig struct {
+	Region          string
+	AccessKeyID     string
+	SecretAccessKey string
+	Lambda          AWSLambdaConfig
+}
+
+type AWSLambdaConfig struct {
+	FunctionName    string
+	InvocationType  string
+	LogType         string
 	MinimumPriority string
 }
 
@@ -71,4 +81,7 @@ type Statistics struct {
 	Alertmanager  *expvar.Map
 	Elasticsearch *expvar.Map
 	Influxdb      *expvar.Map
+	AWSLambda     *expvar.Map
+	AWSSQS        *expvar.Map
+	// AWSSNS        *expvar.Map
 }
