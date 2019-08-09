@@ -70,14 +70,17 @@ func init() {
 	}
 	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
 		var err error
-		awsClient, err = outputs.NewAWSClient("AWS Lambda", config, stats)
+		awsClient, err = outputs.NewAWSClient("AWS", config, stats)
 		if err != nil {
 			config.AWS.AccessKeyID = ""
 			config.AWS.SecretAccessKey = ""
 			config.AWS.Region = ""
 		} else {
 			if config.AWS.Lambda.FunctionName != "" {
-				enabledOutputsText += "AWSLambda"
+				enabledOutputsText += "AWSLambda "
+			}
+			if config.AWS.SQS.URL != "" {
+				enabledOutputsText += "AWSSQS "
 			}
 		}
 	}

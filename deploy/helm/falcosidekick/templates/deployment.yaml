@@ -102,17 +102,25 @@ spec:
             - name: INFLUXDB_PASSWORD
               value: {{ .Values.config.influxdb.password | quote }}
             {{- end }}
-            {{- if and .Values.config.aws.accesskeyid .Values.config.influxdb.secretaccesskey .Values.config.aws.region .Values.config.aws.lambda.functionname }}
+            {{- if and .Values.config.aws.accesskeyid .Values.config.influxdb.secretaccesskey .Values.config.aws.region }}
             - name: AWS_ACCESSKEYID
               value: {{ .Values.config.aws.accesskeyid | quote }}
             - name: AWS_SECRETACCESSKEY
               value: {{ .Values.config.aws.secretaccesskey | quote }}
             - name: AWS_REGION
               value: {{ .Values.config.aws.region | quote }}
+            {{- if .Values.config.aws.lambda.functionname }}
             - name: AWS_LAMBDA_FUNCTIONNAME
               value: {{ .Values.config.aws.lambda.functionname | quote }}
             - name: AWS_LAMBDA_MINIMUMPRIORITY
               value: {{ .Values.config.aws.lambda.minimumpriority | quote }}
+            {{- end }}
+            {{- if .Values.config.aws.sqs.url }}
+            - name: AWS_SQS_URL
+              value: {{ .Values.config.aws.sqs.functionname | quote }}
+            - name: AWS_SQS_MINIMUMPRIORITY
+              value: {{ .Values.config.aws.sqs.minimumpriority | quote }}
+            {{- end }}
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

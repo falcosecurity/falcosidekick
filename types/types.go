@@ -64,13 +64,19 @@ type awsOutputConfig struct {
 	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
-	Lambda          AWSLambdaConfig
+	Lambda          awsLambdaConfig
+	SQS             awsSQSConfig
 }
 
-type AWSLambdaConfig struct {
+type awsLambdaConfig struct {
 	FunctionName    string
 	InvocationType  string
 	LogType         string
+	MinimumPriority string
+}
+
+type awsSQSConfig struct {
+	URL             string
 	MinimumPriority string
 }
 

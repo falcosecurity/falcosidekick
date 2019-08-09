@@ -51,6 +51,9 @@ config:
     lambda:
       functionname : ""
       minimumpriority: ""
+    sqs:
+      url : ""
+      minimumpriority: ""
 
 service:
   type: ClusterIP

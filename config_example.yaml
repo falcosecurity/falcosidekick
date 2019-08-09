@@ -40,4 +40,7 @@ aws:
   # region : "" #aws region
   lambda:
     # functionname : "" # Lambda function name
-    # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  sqs:
+    # url : "" # SQS Queue URL
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)

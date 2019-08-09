@@ -81,8 +81,11 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		go influxdbClient.InfluxdbPost(falcopayload)
 	}
 	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
-		if priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Elasticsearch.MinimumPriority)] || falcopayload.Rule == "Test rule" {
+		if config.AWS.Lambda.FunctionName != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.Lambda.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 			go awsClient.InvokeLambda(falcopayload)
+		}
+		if config.AWS.SQS.URL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.SQS.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+			go awsClient.SendMessage(falcopayload)
 		}
 	}
 }

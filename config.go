@@ -48,6 +48,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.Lambda.FunctionName", "")
 	v.SetDefault("AWS.Lambda.InvocationType", "RequestResponse")
 	v.SetDefault("AWS.Lambda.Logtype", "Tail")
+	v.SetDefault("AWS.Lambda.MinimumPriority", "")
+	v.SetDefault("AWS.SQS.URL", "")
+	v.SetDefault("AWS.SQS.MinimumPriority", "")
 	v.SetDefault("Customfields", map[string]string{})
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

@@ -15,6 +15,7 @@ func getInitStats() *types.Statistics {
 		Elasticsearch: expvar.NewMap("outputs.elasticsearch"),
 		Influxdb:      expvar.NewMap("outputs.influxdb"),
 		AWSLambda:     expvar.NewMap("outputs.awslambda"),
+		AWSSQS:        expvar.NewMap("outputs.awssqs"),
 	}
 	stats.Requests.Add("total", 0)
 	stats.Requests.Add("rejected", 0)
@@ -37,6 +38,9 @@ func getInitStats() *types.Statistics {
 	stats.AWSLambda.Add("total", 0)
 	stats.AWSLambda.Add("error", 0)
 	stats.AWSLambda.Add("sent", 0)
+	stats.AWSSQS.Add("total", 0)
+	stats.AWSSQS.Add("error", 0)
+	stats.AWSSQS.Add("sent", 0)
 
 	return stats
 }

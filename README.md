@@ -18,6 +18,7 @@ Currently available outputs are :
 * **Elasticsearch**
 * **Influxdb**
 * **AWS Lambda**
+* **AWS SQS**
 
 ## Usage
 
@@ -103,6 +104,9 @@ aws:
   lambda:
     # functionname : "" # Lambda function name
     # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  sqs:
+    # url : "" # SQS Queue URL
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 ```
 
 Usage : 
@@ -148,6 +152,8 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AWS_REGION** : AWS Region, mandatory to enable different AWS outputs
 * **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name
 * **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **AWS_SQS_URL** : AWS SQS Queue URL
+* **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 
 ## Handlers
 
@@ -220,6 +226,10 @@ time                akey    bkey    ckey    priority rule      value
 1560433816893368400 AValue  BValue  CValue  Debug    Testrule  This is a test from falcosidekick
 1560441359119741800 A_Value B_Value C_Value Debug    Test_rule This is a test from falcosidekick
 ```
+
+### AWS SQS
+
+![aws sqs example](https://github.com/Issif/falcosidekick/raw/master/imgs/aws_sqs.png)
 
 ## Development
 
