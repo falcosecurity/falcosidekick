@@ -61,41 +61,41 @@ Configuration is made by *file (yaml)* and *env vars*, both can be used but *env
 See **config_example.yaml** :
 
 ```yaml
-#listenport: 2801 #port to listen for daemon (default: 2801)
-debug: false #if true all outputs will print in stdout the payload they send (default: false)
-customfields: #custom fields are added to falco events
+#listenport: 2801 # port to listen for daemon (default: 2801)
+debug: false # if true all outputs will print in stdout the payload they send (default: false)
+customfields: # custom fields are added to falco events
   Akey: "AValue"
   Bkey: "BValue"
   Ckey: "CValue"
 
 slack:
-  webhookurl: "" #Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
-  #footer: "" #Slack footer
-  #icon: "" #Slack icon (avatar)
-  outputformat: "text" #all (default), text, fields
-  minimumpriority: "debug" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  #footer: "" # Slack footer
+  #icon: "" # Slack icon (avatar)
+  outputformat: "text" # all (default), text, fields
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 datadog:
-  #apikey: ""  #Datadog API Key, if not empty, Datadog output is enabled
-  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  #apikey: ""  # Datadog API Key, if not empty, Datadog output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 alertmanager:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
-  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
   # type: "event"
-  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
-  # suffix: "daily" #date suffix for index rotation : daily (default), monthly, annually, none 
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
   # database: "falco" # Influxdb database (default: falco)
   # user: "" # user to use if auth is enabled in Influxdb
   # password: "" # pasword to use if auth is enabled in Influxdb
-  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 aws:
   # accesskeyid: "" # aws access key
@@ -103,13 +103,13 @@ aws:
   # region : "" #aws region
   lambda:
     # functionname : "" # Lambda function name
-    # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
   sqs:
     # url : "" # SQS Queue URL
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 ```
 
-Usage : 
+Usage :
 
 ```bash
 usage: falcosidekick [<flags>]
@@ -162,7 +162,7 @@ Different URI (handlers) are available :
 * `/` : main and default handler, your falco config must be configured to use it
 * `/ping` : you will get a  `pong` as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck purpose for example)
 * `/test` : (for debug only) send a test event to all enabled outputs.
-* `/debug/vars` : get statistics from daemon (in JSON format), it uses classic `expvar` package and some custom values are added 
+* `/debug/vars` : get statistics from daemon (in JSON format), it uses classic `expvar` package and some custom values are added
 
 ## Logs
 
@@ -211,7 +211,7 @@ You should get :
 
 ### Influxdb
 
-```
+```bash
 > use falco
 Using database falco
 > show series
