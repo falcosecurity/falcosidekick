@@ -44,6 +44,14 @@ config:
     password: ""
     minimumpriority: ""
 
+  aws:
+    accesskeyid: ""
+    secretaccesskey: ""
+    region : ""
+    lambda:
+      functionname : ""
+      minimumpriority: ""
+
 service:
   type: ClusterIP
   port: 2801
