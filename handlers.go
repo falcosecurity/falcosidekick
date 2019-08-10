@@ -68,6 +68,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if config.Slack.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Slack.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go slackClient.SlackPost(falcopayload)
 	}
+	if config.Teams.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Teams.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go teamsClient.TeamsPost(falcopayload)
+	}
 	if config.Datadog.APIKey != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Datadog.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go datadogClient.DatadogPost(falcopayload)
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 // Globale variables
-var slackClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, awsClient *outputs.Client
+var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, awsClient *outputs.Client
 var config *types.Configuration
 var stats *types.Statistics
 
@@ -26,6 +26,15 @@ func init() {
 			config.Slack.WebhookURL = ""
 		} else {
 			enabledOutputsText += "Slack "
+		}
+	}
+	if config.Teams.WebhookURL != "" {
+		var err error
+		teamsClient, err = outputs.NewClient("Teams", config.Teams.WebhookURL, config, stats)
+		if err != nil {
+			config.Teams.WebhookURL = ""
+		} else {
+			enabledOutputsText += "Teams "
 		}
 	}
 	if config.Datadog.APIKey != "" {

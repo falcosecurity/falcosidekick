@@ -10,6 +10,7 @@ func getInitStats() *types.Statistics {
 	stats = &types.Statistics{
 		Requests:      expvar.NewMap("requests"),
 		Slack:         expvar.NewMap("outputs.slack"),
+		Teams:         expvar.NewMap("outputs.teams"),
 		Datadog:       expvar.NewMap("outputs.datadog"),
 		Alertmanager:  expvar.NewMap("outputs.alertmanager"),
 		Elasticsearch: expvar.NewMap("outputs.elasticsearch"),
@@ -23,6 +24,9 @@ func getInitStats() *types.Statistics {
 	stats.Slack.Add("total", 0)
 	stats.Slack.Add("error", 0)
 	stats.Slack.Add("sent", 0)
+	stats.Teams.Add("total", 0)
+	stats.Teams.Add("error", 0)
+	stats.Teams.Add("sent", 0)
 	stats.Datadog.Add("total", 0)
 	stats.Datadog.Add("error", 0)
 	stats.Datadog.Add("sent", 0)
