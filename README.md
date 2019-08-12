@@ -102,10 +102,10 @@ aws:
   # secretaccesskey: "" # aws secret access key
   # region : "" #aws region
   lambda:
-    # functionname : "" # Lambda function name
+    # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
   sqs:
-    # url : "" # SQS Queue URL
+    # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 ```
 
@@ -147,12 +147,12 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **INFLUXDB_USER** : user to use if auth is enabled in Influxdb
 * **INFLUXDB_PASSWORD** : user to use if auth is enabled in Influxdb
 * **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
-* **AWS_ACCESSKEYID** : AWS Access Key Id, mandatory to enable different AWS outputs
-* **AWS_SECRETACCESSKEY** : AWS Secret Access Key, mandatory to enable different AWS outputs
-* **AWS_REGION** : AWS Region, mandatory to enable different AWS outputs
-* **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name
+* **AWS_ACCESSKEYID** : AWS Access Key Id (optionnal if you use EC2 Instance Profile)
+* **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optionnal if you use EC2 Instance Profile)
+* **AWS_REGION** : AWS Region (optionnal if you use EC2 Instance Profile)
+* **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name, if not empty, AWS Lambda output is enabled
 * **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
-* **AWS_SQS_URL** : AWS SQS Queue URL
+* **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is enabled
 * **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 
 ## Handlers

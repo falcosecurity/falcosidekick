@@ -68,13 +68,15 @@ func init() {
 			enabledOutputsText += "Influxdb "
 		}
 	}
-	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
+	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" {
 		var err error
 		awsClient, err = outputs.NewAWSClient("AWS", config, stats)
 		if err != nil {
 			config.AWS.AccessKeyID = ""
 			config.AWS.SecretAccessKey = ""
 			config.AWS.Region = ""
+			config.AWS.Lambda.FunctionName = ""
+			config.AWS.SQS.URL = ""
 		} else {
 			if config.AWS.Lambda.FunctionName != "" {
 				enabledOutputsText += "AWSLambda "
