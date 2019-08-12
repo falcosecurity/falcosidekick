@@ -13,6 +13,7 @@ A simple daemon to help you with falco's outputs (https://sysdig.com/opensource/
 Currently available outputs are :
 
 * **Slack**
+* **Teams**
 * **Datadog**
 * **AlertManager**
 * **Elasticsearch**
