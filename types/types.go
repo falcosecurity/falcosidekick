@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// FalcoPayload
+// FalcoPayload is a struct to map falco event json
 type FalcoPayload struct {
 	Output       string                 `json:"output"`
 	Priority     string                 `json:"priority"`
@@ -14,19 +14,21 @@ type FalcoPayload struct {
 	OutputFields map[string]interface{} `json:"output_fields"`
 }
 
+// Configuration is a struct to store configuration
 type Configuration struct {
 	ListenPort    int
 	Debug         bool
 	Slack         slackOutputConfig
+	Teams         teamsOutputConfig
 	Datadog       datadogOutputConfig
 	Alertmanager  alertmanagerOutputConfig
 	Elasticsearch elasticsearchOutputConfig
-	Influxdb      InfluxdbOutputConfig
+	Influxdb      influxdbOutputConfig
+	AWS           awsOutputConfig
 	Customfields  map[string]string
 }
 
 type slackOutputConfig struct {
-	// Enabled       bool
 	WebhookURL      string
 	Footer          string
 	Icon            string
@@ -34,20 +36,24 @@ type slackOutputConfig struct {
 	MinimumPriority string
 }
 
+type teamsOutputConfig struct {
+	WebhookURL      string
+	ActivityImage   string
+	OutputFormat    string
+	MinimumPriority string
+}
+
 type datadogOutputConfig struct {
-	// Enabled bool
 	APIKey          string
 	MinimumPriority string
 }
 
 type alertmanagerOutputConfig struct {
-	// Enabled   bool
 	HostPort        string
 	MinimumPriority string
 }
 
 type elasticsearchOutputConfig struct {
-	// Enabled   bool
 	HostPort        string
 	Index           string
 	Type            string
@@ -55,8 +61,7 @@ type elasticsearchOutputConfig struct {
 	Suffix          string
 }
 
-type InfluxdbOutputConfig struct {
-	// Enabled   bool
+type influxdbOutputConfig struct {
 	HostPort        string
 	Database        string
 	User            string
@@ -64,11 +69,36 @@ type InfluxdbOutputConfig struct {
 	MinimumPriority string
 }
 
+type awsOutputConfig struct {
+	Region          string
+	AccessKeyID     string
+	SecretAccessKey string
+	Lambda          awsLambdaConfig
+	SQS             awsSQSConfig
+}
+
+type awsLambdaConfig struct {
+	FunctionName    string
+	InvocationType  string
+	LogType         string
+	MinimumPriority string
+}
+
+type awsSQSConfig struct {
+	URL             string
+	MinimumPriority string
+}
+
+// Statistics is a struct to store stastics
 type Statistics struct {
 	Requests      *expvar.Map
 	Slack         *expvar.Map
+	Teams         *expvar.Map
 	Datadog       *expvar.Map
 	Alertmanager  *expvar.Map
 	Elasticsearch *expvar.Map
 	Influxdb      *expvar.Map
+	AWSLambda     *expvar.Map
+	AWSSQS        *expvar.Map
+	// AWSSNS        *expvar.Map
 }

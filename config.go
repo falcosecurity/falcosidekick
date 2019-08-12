@@ -28,6 +28,10 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png")
 	v.SetDefault("Slack.OutputFormat", "all")
 	v.SetDefault("Slack.MinimumPriority", "")
+	v.SetDefault("Teams.WebhookURL", "")
+	v.SetDefault("Teams.ActivityImage", "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png")
+	v.SetDefault("Teams.OutputFormat", "all")
+	v.SetDefault("Teams.MinimumPriority", "")
 	v.SetDefault("Datadog.APIKey", "")
 	v.SetDefault("Datadog.MinimumPriority", "")
 	v.SetDefault("Alertmanager.HostPort", "")
@@ -42,6 +46,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Influxdb.User", "")
 	v.SetDefault("Influxdb.Password", "")
 	v.SetDefault("Influxdb.MinimumPriority", "")
+	v.SetDefault("AWS.AccessKeyID", "")
+	v.SetDefault("AWS.SecretAccessKey", "")
+	v.SetDefault("AWS.Region", "")
+	v.SetDefault("AWS.Lambda.FunctionName", "")
+	v.SetDefault("AWS.Lambda.InvocationType", "RequestResponse")
+	v.SetDefault("AWS.Lambda.Logtype", "Tail")
+	v.SetDefault("AWS.Lambda.MinimumPriority", "")
+	v.SetDefault("AWS.SQS.URL", "")
+	v.SetDefault("AWS.SQS.MinimumPriority", "")
 	v.SetDefault("Customfields", map[string]string{})
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -55,7 +68,7 @@ func getConfig() *types.Configuration {
 		v.AddConfigPath(d)
 		err := v.ReadInConfig()
 		if err != nil {
-			log.Printf("Error when reading config file: %v\n", err)
+			log.Printf("[ERROR] : Error when reading config file : %v\n", err)
 		}
 	}
 	v.GetStringMapString("customfields")

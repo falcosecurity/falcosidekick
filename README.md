@@ -17,6 +17,8 @@ Currently available outputs are :
 * **AlertManager**
 * **Elasticsearch**
 * **Influxdb**
+* **AWS Lambda**
+* **AWS SQS**
 
 ## Usage
 
@@ -59,45 +61,61 @@ Configuration is made by *file (yaml)* and *env vars*, both can be used but *env
 See **config_example.yaml** :
 
 ```yaml
-#listenport: 2801 #port to listen for daemon (default: 2801)
-debug: false #if true all outputs will print in stdout the payload they send (default: false)
-customfields: #custom fields are added to falco events
+#listenport: 2801 # port to listen for daemon (default: 2801)
+debug: false # if true all outputs will print in stdout the payload they send (default: false)
+customfields: # custom fields are added to falco events
   Akey: "AValue"
   Bkey: "BValue"
   Ckey: "CValue"
 
 slack:
-  webhookurl: "" #Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
-  #footer: "" #Slack footer
-  #icon: "" #Slack icon (avatar)
-  outputformat: "text" #all (default), text, fields
-  minimumpriority: "debug" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  #footer: "" # Slack footer
+  #icon: "" # Slack icon (avatar)
+  outputformat: "text" # all (default), text, fields
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
+teams:
+  webhookurl: "" # Teams WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Teams output is enabled
+  #activityimage: "" # Image for message section
+  outputformat: "text" # all (default), text, facts
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 datadog:
-  #apikey: ""  #Datadog API Key, if not empty, Datadog output is enabled
-  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  #apikey: ""  # Datadog API Key, if not empty, Datadog output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 alertmanager:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
-  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
   # type: "event"
-  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
-  # suffix: "daily" #date suffix for index rotation : daily (default), monthly, annually, none 
-
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
   # database: "falco" # Influxdb database (default: falco)
   # user: "" # user to use if auth is enabled in Influxdb
   # password: "" # pasword to use if auth is enabled in Influxdb
-  # minimumpriority: "" #minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
+aws:
+  # accesskeyid: "" # aws access key (optionnal if you use EC2 Instance Profile)
+  # secretaccesskey: "" # aws secret access key (optionnal if you use EC2 Instance Profile)
+  # region : "" # aws region (optionnal if you use EC2 Instance Profile)
+  lambda:
+    # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  sqs:
+    # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 ```
 
-Usage : 
+Usage :
 
 ```bash
 usage: falcosidekick [<flags>]
@@ -116,11 +134,15 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **LISTENPORT** : port to listen for daemon (default: 2801)
 * **DEBUG** : if *true* all outputs will print in stdout the payload they send (default: false)
 * **CUSTOMFIELDS** : a list of comma separated custom fields to add to falco events, syntax is "key:value,key:value"
-* **SLACK_WEBHOOKURL** : Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
+* **SLACK_WEBHOOKURL** : Slack Webhook URL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)
 * **SLACK_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
 * **SLACK_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **TEAMS_WEBHOOKURL** : Teams Webhook URL (ex: https://outlook.office.com/webhook/XXXXXX/IncomingWebhook/YYYYYY"), if not `empty`, Teams output is *enabled*
+* **TEAMS_ACTIVITYIMAGE** : Teams section image
+* **TEAMS_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Teams), `facts` (only facts are displayed in Teams)
+* **TEAMS_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 * **DATADOG_APIKEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
 * **DATADOG_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 * **ALERTMANAGER_HOSTPORT** : AlertManager http://host:port, if not `empty`, AlertManager is *enabled*
@@ -135,6 +157,13 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **INFLUXDB_USER** : user to use if auth is enabled in Influxdb
 * **INFLUXDB_PASSWORD** : user to use if auth is enabled in Influxdb
 * **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **AWS_ACCESSKEYID** : AWS Access Key Id (optionnal if you use EC2 Instance Profile)
+* **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optionnal if you use EC2 Instance Profile)
+* **AWS_REGION** : AWS Region (optionnal if you use EC2 Instance Profile)
+* **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name, if not empty, AWS Lambda output is enabled
+* **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is enabled
+* **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 
 ## Handlers
 
@@ -143,7 +172,7 @@ Different URI (handlers) are available :
 * `/` : main and default handler, your falco config must be configured to use it
 * `/ping` : you will get a  `pong` as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck purpose for example)
 * `/test` : (for debug only) send a test event to all enabled outputs.
-* `/debug/vars` : get statistics from daemon (in JSON format), it uses classic `expvar` package and some custom values are added 
+* `/debug/vars` : get statistics from daemon (in JSON format), it uses classic `expvar` package and some custom values are added
 
 ## Logs
 
@@ -172,10 +201,17 @@ You should get :
 
 ### Slack
 
-(SLACK_OUTPUT_FORMAT="all")
+(SLACK_OUTPUTFORMAT="**all**")
 ![slack example](https://github.com/Issif/falcosidekick/raw/master/imgs/slack.png)
-(SLACK_OUTPUT_FORMAT="fields")
+(SLACK_OUTPUTFORMAT="**text**")
 ![slack no fields example](https://github.com/Issif/falcosidekick/raw/master/imgs/slack_no_fields.png)
+
+### Teams
+
+(TEAMS_OUTPUTFORMAT="**all**")
+![teams example](https://github.com/Issif/falcosidekick/raw/master/imgs/teams.png)
+(TEAMS_OUTPUTFORMAT="**text**")
+![teams facts only](https://github.com/Issif/falcosidekick/raw/master/imgs/teams_facts_only.png)
 
 ### Datadog
 
@@ -192,7 +228,7 @@ You should get :
 
 ### Influxdb
 
-```
+```bash
 > use falco
 Using database falco
 > show series
@@ -207,6 +243,10 @@ time                akey    bkey    ckey    priority rule      value
 1560433816893368400 AValue  BValue  CValue  Debug    Testrule  This is a test from falcosidekick
 1560441359119741800 A_Value B_Value C_Value Debug    Test_rule This is a test from falcosidekick
 ```
+
+### AWS SQS
+
+![aws sqs example](https://github.com/Issif/falcosidekick/raw/master/imgs/aws_sqs.png)
 
 ## Development
 

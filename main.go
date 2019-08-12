@@ -10,7 +10,7 @@ import (
 )
 
 // Globale variables
-var slackClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient *outputs.Client
+var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, awsClient *outputs.Client
 var config *types.Configuration
 var stats *types.Statistics
 
@@ -26,6 +26,15 @@ func init() {
 			config.Slack.WebhookURL = ""
 		} else {
 			enabledOutputsText += "Slack "
+		}
+	}
+	if config.Teams.WebhookURL != "" {
+		var err error
+		teamsClient, err = outputs.NewClient("Teams", config.Teams.WebhookURL, config, stats)
+		if err != nil {
+			config.Teams.WebhookURL = ""
+		} else {
+			enabledOutputsText += "Teams "
 		}
 	}
 	if config.Datadog.APIKey != "" {
@@ -66,6 +75,24 @@ func init() {
 			config.Influxdb.HostPort = ""
 		} else {
 			enabledOutputsText += "Influxdb "
+		}
+	}
+	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" {
+		var err error
+		awsClient, err = outputs.NewAWSClient("AWS", config, stats)
+		if err != nil {
+			config.AWS.AccessKeyID = ""
+			config.AWS.SecretAccessKey = ""
+			config.AWS.Region = ""
+			config.AWS.Lambda.FunctionName = ""
+			config.AWS.SQS.URL = ""
+		} else {
+			if config.AWS.Lambda.FunctionName != "" {
+				enabledOutputsText += "AWSLambda "
+			}
+			if config.AWS.SQS.URL != "" {
+				enabledOutputsText += "AWSSQS "
+			}
 		}
 	}
 

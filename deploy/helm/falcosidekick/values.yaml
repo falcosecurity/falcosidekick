@@ -24,9 +24,17 @@ config:
     footer: ""
     icon: ""
     outputformat: "all"
+    minimumpriority: ""
+
+  teams:
+    webhookurl: ""
+    activityimage: ""
+    outputformat: "all"
+    minimumpriority: ""
 
   datadog:
     apikey: ""
+    minimumpriority: ""
 
   alertmanager:
     hostport: ""
@@ -43,6 +51,17 @@ config:
     user: ""
     password: ""
     minimumpriority: ""
+
+  aws:
+    accesskeyid: ""
+    secretaccesskey: ""
+    region : ""
+    lambda:
+      functionname : ""
+      minimumpriority: ""
+    sqs:
+      url : ""
+      minimumpriority: ""
 
 service:
   type: ClusterIP

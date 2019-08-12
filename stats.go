@@ -10,10 +10,13 @@ func getInitStats() *types.Statistics {
 	stats = &types.Statistics{
 		Requests:      expvar.NewMap("requests"),
 		Slack:         expvar.NewMap("outputs.slack"),
+		Teams:         expvar.NewMap("outputs.teams"),
 		Datadog:       expvar.NewMap("outputs.datadog"),
 		Alertmanager:  expvar.NewMap("outputs.alertmanager"),
 		Elasticsearch: expvar.NewMap("outputs.elasticsearch"),
 		Influxdb:      expvar.NewMap("outputs.influxdb"),
+		AWSLambda:     expvar.NewMap("outputs.awslambda"),
+		AWSSQS:        expvar.NewMap("outputs.awssqs"),
 	}
 	stats.Requests.Add("total", 0)
 	stats.Requests.Add("rejected", 0)
@@ -21,6 +24,9 @@ func getInitStats() *types.Statistics {
 	stats.Slack.Add("total", 0)
 	stats.Slack.Add("error", 0)
 	stats.Slack.Add("sent", 0)
+	stats.Teams.Add("total", 0)
+	stats.Teams.Add("error", 0)
+	stats.Teams.Add("sent", 0)
 	stats.Datadog.Add("total", 0)
 	stats.Datadog.Add("error", 0)
 	stats.Datadog.Add("sent", 0)
@@ -33,6 +39,12 @@ func getInitStats() *types.Statistics {
 	stats.Influxdb.Add("total", 0)
 	stats.Influxdb.Add("error", 0)
 	stats.Influxdb.Add("sent", 0)
+	stats.AWSLambda.Add("total", 0)
+	stats.AWSLambda.Add("error", 0)
+	stats.AWSLambda.Add("sent", 0)
+	stats.AWSSQS.Add("total", 0)
+	stats.AWSSQS.Add("error", 0)
+	stats.AWSSQS.Add("sent", 0)
 
 	return stats
 }
