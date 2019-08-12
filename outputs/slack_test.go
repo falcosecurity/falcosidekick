@@ -9,18 +9,50 @@ import (
 )
 
 func TestNewSlackPayload(t *testing.T) {
-	expectedOutput := `{"username":"Falco Sidekick","icon_url":"https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png","attachments":[{"fallback":"This is a test from falcosidekick","color":"#ccfff2","text":"This is a test from falcosidekick","fields":[{"title":"proc.name","value":"falcosidekick","short":true},{"title":"user.name","value":"falcosidekick","short":true},{"title":"rule","value":"Test rule","short":true},{"title":"priority","value":"Debug","short":true},{"title":"time","value":"2001-01-01 01:10:00 +0000 UTC","short":false}],"footer":"https://github.com/Issif/falcosidekick"}]}`
+	expectedOutput := slackPayload{
+		Username: "Falco Sidekick",
+		IconURL:  "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png",
+		Attachments: []slackAttachment{
+			slackAttachment{
+				Fallback: "This is a test from falcosidekick",
+				Color:    "#ccfff2",
+				Text:     "This is a test from falcosidekick",
+				Footer:   "https://github.com/Issif/falcosidekick",
+				Fields: []slackAttachmentField{
+					slackAttachmentField{
+						Title: "proc.name",
+						Value: "falcosidekick",
+						Short: true,
+					},
+					slackAttachmentField{
+						Title: "user.name",
+						Value: "falcosidekick",
+						Short: true,
+					},
+					slackAttachmentField{
+						Title: "rule",
+						Value: "Test rule",
+						Short: true,
+					},
+					slackAttachmentField{
+						Title: "priority",
+						Value: "Debug",
+						Short: true,
+					},
+					slackAttachmentField{
+						Title: "time",
+						Value: "2001-01-01 01:10:00 +0000 UTC",
+						Short: false,
+					},
+				},
+			},
+		},
+	}
 
 	var f types.FalcoPayload
 	json.Unmarshal([]byte(falcoTestInput), &f)
-	s, _ := json.Marshal(newSlackPayload(f, &types.Configuration{}))
-
-	var o1, o2 slackPayload
-	json.Unmarshal([]byte(expectedOutput), &o1)
-	json.Unmarshal([]byte(s), &o2)
-
-	if !reflect.DeepEqual(o1, o2) {
-		// t.Fatalf("\nexpected payload: \n%v\ngot: \n%v\n", o1, o2)
-		t.Fatalf("\nexpected payload: \n%v\ngot: \n%v\n", expectedOutput, string(s))
+	output := newSlackPayload(f, &types.Configuration{})
+	if !reflect.DeepEqual(output, expectedOutput) {
+		t.Fatalf("\nexpected payload: \n%#v\ngot: \n%#v\n", expectedOutput, output)
 	}
 }
