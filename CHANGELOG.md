@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.5.0 - 2019-08-12
+#### New
+- New output : **AWS Lambda**
+- New output : **AWS SQS** ([issue #5](https://github.com/Issif/falcosidekick/issues/5))
+- New output : **Teams** ([issue #30](https://github.com/Issif/falcosidekick/issues/30))
+- A github page has been created : https://issif.github.io/falcosidekick/
+
+#### Enhancement
+- Slack tests are now consistant (order of fields in JSON output wasn't always the same, tests failed sometimes for that)
+- README : clean up of several typos
+
 ## 2.4.0 - 2019-06-26
 #### Enhancement
 - Elasticsearch : An index suffix can be set for rotation (see [README](https://github.com/Issif/falcosidekick/blob/master/README.md)) ([issue #27](https://github.com/Issif/falcosidekick/issues/27) thanks to [@ariguillegp](https://github.com/ariguillegp))

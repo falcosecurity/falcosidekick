@@ -104,9 +104,9 @@ influxdb:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 aws:
-  # accesskeyid: "" # aws access key
-  # secretaccesskey: "" # aws secret access key
-  # region : "" #aws region
+  # accesskeyid: "" # aws access key (optionnal if you use EC2 Instance Profile)
+  # secretaccesskey: "" # aws secret access key (optionnal if you use EC2 Instance Profile)
+  # region : "" # aws region (optionnal if you use EC2 Instance Profile)
   lambda:
     # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
