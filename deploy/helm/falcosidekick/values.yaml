@@ -24,9 +24,17 @@ config:
     footer: ""
     icon: ""
     outputformat: "all"
+    minimumpriority: ""
+
+  teams:
+    webhookurl: ""
+    activityimage: ""
+    outputformat: "all"
+    minimumpriority: ""
 
   datadog:
     apikey: ""
+    minimumpriority: ""
 
   alertmanager:
     hostport: ""

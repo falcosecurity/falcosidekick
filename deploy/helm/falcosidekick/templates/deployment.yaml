@@ -57,6 +57,21 @@ spec:
               value: {{ .Values.config.slack.footer | quote }}
             - name: SLACK_ICON
               value: {{ .Values.config.slack.icon | quote }}
+            - name: SLACK_MINIMUMPRIORITY
+              value: {{ .Values.config.slack.minimumpriority | quote }}
+            {{- end }}
+            {{- if .Values.config.teams.webhookurl }}
+            - name: TEAMS_WEBHOOKURL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: teams-webhookurl
+            - name: TEAMS_OUTPUTFORMAT
+              value: {{ .Values.config.teams.outputformat | quote }}
+            - name: TEAMS_ACTIVITYIMAGE
+              value: {{ .Values.config.teams.activityimage | quote }}
+            - name: TEAMS_MINIMUMPRIORITY
+              value: {{ .Values.config.teams.minimumpriority | quote }}
             {{- end }}
             {{- if .Values.config.datadog.apikey }}
             - name: DATADOG_APIKEY
@@ -64,6 +79,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "falcosidekick.fullname" . }}
                   key: datadog-apikey
+            - name: DATADOG_MINIMUMPRIORITY
+              value: {{ .Values.config.datadog.minimumpriority | quote }}
             {{- end }}
             {{- if .Values.config.alertmanager.hostport }}
             - name: ALERTMANAGER_HOSTPORT
@@ -71,6 +88,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "falcosidekick.fullname" . }}
                   key: alertmanager-hostport
+            - name: ALERTMANAGER_MINIMUMPRIORITY
+              value: {{ .Values.config.alertmanager.minimumpriority | quote }}
             {{- end }}
             {{- if .Values.config.elasticsearch.hostport }}
             - name: ELASTICSEARCH_HOSTPORT
@@ -100,13 +119,22 @@ spec:
             - name: INFLUXDB_USER
               value: {{ .Values.config.influxdb.user | quote }}
             - name: INFLUXDB_PASSWORD
-              value: {{ .Values.config.influxdb.password | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: influxbd-password
             {{- end }}
             {{- if and .Values.config.aws.accesskeyid .Values.config.influxdb.secretaccesskey .Values.config.aws.region }}
             - name: AWS_ACCESSKEYID
-              value: {{ .Values.config.aws.accesskeyid | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: aws-accesskeyid
             - name: AWS_SECRETACCESSKEY
-              value: {{ .Values.config.aws.secretaccesskey | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: aws-secretaccesskey
             - name: AWS_REGION
               value: {{ .Values.config.aws.region | quote }}
             {{- if .Values.config.aws.lambda.functionname }}
