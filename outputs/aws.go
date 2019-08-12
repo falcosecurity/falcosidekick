@@ -13,14 +13,17 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sts"
 )
 
 // NewAWSClient returns a new output.Client for accessing the AWS API.
 func NewAWSClient(outputType string, config *types.Configuration, stats *types.Statistics) (*Client, error) {
 
-	os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
-	os.Setenv("AWS_SECRET_ACCESS_KEY", config.AWS.SecretAccessKey)
-	os.Setenv("AWS_DEFAULT_REGION", config.AWS.Region)
+	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
+		os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", config.AWS.SecretAccessKey)
+		os.Setenv("AWS_DEFAULT_REGION", config.AWS.Region)
+	}
 
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(config.AWS.Region)},
@@ -28,6 +31,12 @@ func NewAWSClient(outputType string, config *types.Configuration, stats *types.S
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Error while creating AWS Session")
 		return nil, errors.New("Error while creating AWS Session")
+	}
+
+	_, err = sts.New(session.New()).GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		log.Printf("[ERROR] : %v - %v\n", outputType, "Error while getting AWS Token")
+		return nil, errors.New("Error while getting AWS Token")
 	}
 
 	var endpointURL *url.URL

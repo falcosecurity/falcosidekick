@@ -45,8 +45,8 @@ aws:
   # secretaccesskey: "" # aws secret access key
   # region : "" # aws region
   lambda:
-    # functionname : "" # Lambda function name
+    # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
   sqs:
-    # url : "" # SQS Queue URL
+    # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
