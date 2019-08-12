@@ -118,6 +118,11 @@ spec:
             {{- if and .Values.config.influxdb.user .Values.config.influxdb.password }}
             - name: INFLUXDB_USER
               value: {{ .Values.config.influxdb.user | quote }}
+            - name: INFLUXDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: influxbd-user
             - name: INFLUXDB_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -137,6 +142,7 @@ spec:
                   key: aws-secretaccesskey
             - name: AWS_REGION
               value: {{ .Values.config.aws.region | quote }}
+            {{- end }}
             {{- if .Values.config.aws.lambda.functionname }}
             - name: AWS_LAMBDA_FUNCTIONNAME
               value: {{ .Values.config.aws.lambda.functionname | quote }}
@@ -148,7 +154,6 @@ spec:
               value: {{ .Values.config.aws.sqs.functionname | quote }}
             - name: AWS_SQS_MINIMUMPRIORITY
               value: {{ .Values.config.aws.sqs.minimumpriority | quote }}
-            {{- end }}
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
