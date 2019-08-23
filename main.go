@@ -10,7 +10,7 @@ import (
 )
 
 // Globale variables
-var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, awsClient *outputs.Client
+var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, awsClient, smtpClient *outputs.Client
 var config *types.Configuration
 var stats *types.Statistics
 
@@ -93,6 +93,15 @@ func init() {
 			if config.AWS.SQS.URL != "" {
 				enabledOutputsText += "AWSSQS "
 			}
+		}
+	}
+	if config.SMTP.ServerPort != "" && config.SMTP.From != "" && config.SMTP.To != "" {
+		var err error
+		smtpClient, err = outputs.NewSMTPClient("SMTP", config, stats)
+		if err != nil {
+			config.SMTP.ServerPort = ""
+		} else {
+			enabledOutputsText += "SMTP "
 		}
 	}
 

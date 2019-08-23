@@ -20,6 +20,7 @@ Currently available outputs are :
 * **Influxdb**
 * **AWS Lambda**
 * **AWS SQS**
+* **SMTP** (email)
 
 ## Usage
 
@@ -114,6 +115,15 @@ aws:
   sqs:
     # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
+smtp:
+  # serverport: "" # server:port address of SMTP server, if not empty, SMTP output is enabled
+  # user: "" # user to access SMTP server
+  # password: "" # password to access SMTP server
+  # from: "" # Sender address (mandatory if SMTP output is enabled)
+  # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
+  # outputformat: "" # html (default), text
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)  
 ```
 
 Usage :
@@ -165,6 +175,13 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 * **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is enabled
 * **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **SMTP_SERVERPORT** :  server:port address of SMTP server, if not empty, SMTP output is enabled
+* **SMTP_USER** : user to access SMTP server
+* **SMTP_PASSWORD** : password to access SMTP server
+* **SMTP_FROM** : Sender address (mandatory if SMTP output is enabled)
+* **SMTP_FO** : comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
+* **SMTP_OUTPUTFORMAT** : "" # html (default), text
+* **SMTP_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 
 ## Handlers
 
@@ -248,6 +265,13 @@ time                akey    bkey    ckey    priority rule      value
 ### AWS SQS
 
 ![aws sqs example](https://github.com/Issif/falcosidekick/raw/master/imgs/aws_sqs.png)
+
+### SMTP
+
+(SMTP_OUTPUTFORMAT="**html**")
+![smtp html example](https://github.com/Issif/falcosidekick/raw/master/imgs/smtp_html.png)
+(SMTP_OUTPUTFORMAT="**text**")
+![smtp plaintext example](https://github.com/Issif/falcosidekick/raw/master/imgs/smtp_plaintext.png)
 
 ## Development
 

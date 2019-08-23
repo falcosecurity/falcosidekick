@@ -155,6 +155,30 @@ spec:
             - name: AWS_SQS_MINIMUMPRIORITY
               value: {{ .Values.config.aws.sqs.minimumpriority | quote }}
             {{- end }}
+            {{- if and .Values.config.smtp.serverport .Values.config.smtp.from .Values.config.smtp.to }}
+            - name: SMTP_SERVERPORT
+              value: {{ .Values.config.smtp.serverport | quote }}
+            - name: SMTP_FROM
+              value: {{ .Values.config.smtp.from | quote }}
+            - name: SMTP_TO
+              value: {{ .Values.config.smtp.to | quote }}
+            - name: SMTP_OUTPUTFORMAT
+              value: {{ .Values.config.smtp.outputformat | quote }}
+            - name: SMTP_MINIMUMPRIORITY
+              value: {{ .Values.config.smtp.minimumpriority | quote }}
+            {{- end }}
+            {{- if and .Values.config.smtp.user .Values.config.smtp.password }}
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: smtp-user
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: smtp-password
+            {{- end }}  
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

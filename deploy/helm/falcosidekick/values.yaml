@@ -63,6 +63,15 @@ config:
       url : ""
       minimumpriority: ""
 
+  smtp:
+    serverport: ""
+    user: ""
+    password: ""
+    from: ""
+    to: ""
+    outputformat: "html"
+    minimumpriority: ""
+
 service:
   type: ClusterIP
   port: 2801

@@ -25,6 +25,7 @@ type Configuration struct {
 	Elasticsearch elasticsearchOutputConfig
 	Influxdb      influxdbOutputConfig
 	AWS           awsOutputConfig
+	SMTP          smtpOutputConfig
 	Customfields  map[string]string
 }
 
@@ -89,6 +90,16 @@ type awsSQSConfig struct {
 	MinimumPriority string
 }
 
+type smtpOutputConfig struct {
+	ServerPort      string
+	User            string
+	Password        string
+	From            string
+	To              string
+	OutputFormat    string
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests      *expvar.Map
@@ -100,5 +111,5 @@ type Statistics struct {
 	Influxdb      *expvar.Map
 	AWSLambda     *expvar.Map
 	AWSSQS        *expvar.Map
-	// AWSSNS        *expvar.Map
+	SMTP          *expvar.Map
 }
