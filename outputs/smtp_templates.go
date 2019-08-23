@@ -64,7 +64,7 @@ var htmlTmpl = `
 <table cellpadding="3" cellspacing="0" style="font-family:arial,helvetica,sans-serif; height:2px; width:700px; font-size:13px">
     <tbody>
         <tr>
-            <td style="background-color: #858585;text-align:center;"><span style="font-size:12px; color:#fff;"><strong>Fields</strong></span></td>
+            <td style="background-color: #858585; width:700px; text-align:center;"><span style="font-size:12px; color:#fff;"><strong>Fields</strong></span></td>
         </tr>
     </tbody>
 </table>
