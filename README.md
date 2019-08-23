@@ -179,7 +179,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **SMTP_USER** : user to access SMTP server
 * **SMTP_PASSWORD** : password to access SMTP server
 * **SMTP_FROM** : Sender address (mandatory if SMTP output is enabled)
-* **SMTP_FO** : comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
+* **SMTP_TO** : comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
 * **SMTP_OUTPUTFORMAT** : "" # html (default), text
 * **SMTP_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 
