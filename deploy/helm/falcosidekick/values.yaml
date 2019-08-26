@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: issif/falcosidekick
-  tag: 2.3.0
+  tag: 2.6.0
   pullPolicy: IfNotPresent
 
 nameOverride: ""
