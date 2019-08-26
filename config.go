@@ -55,7 +55,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.Lambda.MinimumPriority", "")
 	v.SetDefault("AWS.SQS.URL", "")
 	v.SetDefault("AWS.SQS.MinimumPriority", "")
-	v.SetDefault("SMTP.ServerPort", "")
+	v.SetDefault("SMTP.HostPort", "")
 	v.SetDefault("SMTP.User", "")
 	v.SetDefault("SMTP.Password", "")
 	v.SetDefault("SMTP.From", "")

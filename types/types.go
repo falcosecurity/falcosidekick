@@ -91,7 +91,7 @@ type awsSQSConfig struct {
 }
 
 type smtpOutputConfig struct {
-	ServerPort      string
+	HostPort        string
 	User            string
 	Password        string
 	From            string

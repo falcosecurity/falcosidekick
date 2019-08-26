@@ -64,7 +64,7 @@ config:
       minimumpriority: ""
 
   smtp:
-    serverport: ""
+    hostport: ""
     user: ""
     password: ""
     from: ""

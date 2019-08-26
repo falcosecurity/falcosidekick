@@ -89,7 +89,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if config.AWS.SQS.URL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.SQS.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go awsClient.SendMessage(falcopayload)
 	}
-	if config.SMTP.ServerPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.SMTP.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+	if config.SMTP.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.SMTP.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go smtpClient.SendMail(falcopayload)
 	}
 }

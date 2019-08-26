@@ -95,11 +95,11 @@ func init() {
 			}
 		}
 	}
-	if config.SMTP.ServerPort != "" && config.SMTP.From != "" && config.SMTP.To != "" {
+	if config.SMTP.HostPort != "" && config.SMTP.From != "" && config.SMTP.To != "" {
 		var err error
 		smtpClient, err = outputs.NewSMTPClient("SMTP", config, stats)
 		if err != nil {
-			config.SMTP.ServerPort = ""
+			config.SMTP.HostPort = ""
 		} else {
 			enabledOutputsText += "SMTP "
 		}

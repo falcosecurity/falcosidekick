@@ -23,8 +23,8 @@ type SMTPPayload struct {
 // NewSMTPClient returns a new output.Client for accessing a SMTP server.
 func NewSMTPClient(outputType string, config *types.Configuration, stats *types.Statistics) (*Client, error) {
 	reg := regexp.MustCompile(`.*:[0-9]+`)
-	if !reg.MatchString(config.SMTP.ServerPort) {
-		log.Printf("[ERROR] : SMTP - Bad Server:Port\n")
+	if !reg.MatchString(config.SMTP.HostPort) {
+		log.Printf("[ERROR] : SMTP - Bad Host:Port\n")
 		return nil, ErrClientCreation
 	}
 
@@ -87,12 +87,10 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 	body := sp.To + "\n" + sp.Subject + "\n" + sp.Body
 
 	if c.Config.Debug == true {
-		log.Printf("[DEBUG] : SMTP payload : \nServeur: %v\nFrom: %v\nTo: %v\nSubject: %v\n", c.Config.SMTP.ServerPort, c.Config.SMTP.From, sp.To, sp.Subject)
+		log.Printf("[DEBUG] : SMTP payload : \nServeur: %v\nFrom: %v\nTo: %v\nSubject: %v\n", c.Config.SMTP.HostPort, c.Config.SMTP.From, sp.To, sp.Subject)
 	}
 
-	log.Println(body)
-
-	err := smtp.SendMail(c.Config.SMTP.ServerPort, auth, c.Config.SMTP.From, to, strings.NewReader(body))
+	err := smtp.SendMail(c.Config.SMTP.HostPort, auth, c.Config.SMTP.From, to, strings.NewReader(body))
 	if err != nil {
 		log.Printf("[ERROR] : SMTP - %v\n", err)
 		return

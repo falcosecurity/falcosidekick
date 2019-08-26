@@ -52,7 +52,7 @@ aws:
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
 smtp:
-  # serverport: "" # server:port address of SMTP server, if not empty, SMTP output is enabled
+  # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
   # user: "" # user to access SMTP server
   # password: "" # password to access SMTP server
   # from: "" # Sender address (mandatory if SMTP output is enabled)
