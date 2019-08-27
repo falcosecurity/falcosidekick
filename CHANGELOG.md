@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.0 - 2019-08-27
+#### New
+- New output : **Loki**
+
 ## 2.6.0 - 2019-08-26
 #### New
 - New output : **SMTP** (email)
