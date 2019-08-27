@@ -52,6 +52,10 @@ config:
     password: ""
     minimumpriority: ""
 
+  loki:
+    hostport: ""
+    minimumpriority: ""
+
   aws:
     accesskeyid: ""
     secretaccesskey: ""

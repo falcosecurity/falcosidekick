@@ -84,19 +84,13 @@ spec:
             {{- end }}
             {{- if .Values.config.alertmanager.hostport }}
             - name: ALERTMANAGER_HOSTPORT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "falcosidekick.fullname" . }}
-                  key: alertmanager-hostport
+              value: {{ .Values.config.alertmanager.hostport | quote }}
             - name: ALERTMANAGER_MINIMUMPRIORITY
               value: {{ .Values.config.alertmanager.minimumpriority | quote }}
             {{- end }}
             {{- if .Values.config.elasticsearch.hostport }}
             - name: ELASTICSEARCH_HOSTPORT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "falcosidekick.fullname" . }}
-                  key: elasticsearch-hostport
+              value: {{ .Values.config.hostport.hostport | quote }}
             - name: ELASTICSEARCH_INDEX
               value: {{ .Values.config.elasticsearch.index | quote }}
             - name: ELASTICSEARCH_TYPE
@@ -106,18 +100,13 @@ spec:
             {{- end }}
             {{- if .Values.config.influxdb.hostport }}
             - name: INFLUXDB_HOSTPORT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "falcosidekick.fullname" . }}
-                  key: influxdb-hostport
+              value: {{ .Values.config.influxdb.hostport | quote }}
             - name: INFLUXDB_MINIMUMPRIORITY
               value: {{ .Values.config.influxdb.minimumpriority | quote }}
             - name: INFLUXDB_DATABASE
               value: {{ .Values.config.influxdb.database | quote }}
             {{- end }}
             {{- if and .Values.config.influxdb.user .Values.config.influxdb.password }}
-            - name: INFLUXDB_USER
-              value: {{ .Values.config.influxdb.user | quote }}
             - name: INFLUXDB_USER
               valueFrom:
                 secretKeyRef:
@@ -129,6 +118,12 @@ spec:
                   name: {{ include "falcosidekick.fullname" . }}
                   key: influxbd-password
             {{- end }}
+            {{- if .Values.config.loki.hostport }}
+            - name: LOKI_HOSTPORT
+              value: {{ .Values.config.loki.hostport | quote }}
+            - name: LOKI_MINIMUMPRIORITY
+              value: {{ .Values.config.loki.minimumpriority | quote }}
+            {{ end }}
             {{- if and .Values.config.aws.accesskeyid .Values.config.influxdb.secretaccesskey .Values.config.aws.region }}
             - name: AWS_ACCESSKEYID
               valueFrom:

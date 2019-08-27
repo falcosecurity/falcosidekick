@@ -83,6 +83,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if config.Influxdb.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Influxdb.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go influxdbClient.InfluxdbPost(falcopayload)
 	}
+	if config.Loki.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Loki.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go lokiClient.LokiPost(falcopayload)
+	}
 	if config.AWS.Lambda.FunctionName != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.Lambda.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go awsClient.InvokeLambda(falcopayload)
 	}

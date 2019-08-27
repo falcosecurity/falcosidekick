@@ -17,6 +17,7 @@ Currently available outputs are :
 * **Datadog**
 * **AlertManager**
 * **Elasticsearch**
+* **Loki**
 * **Influxdb**
 * **AWS Lambda**
 * **AWS SQS**
@@ -105,6 +106,10 @@ influxdb:
   # password: "" # pasword to use if auth is enabled in Influxdb
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
+loki:
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
 aws:
   # accesskeyid: "" # aws access key (optionnal if you use EC2 Instance Profile)
   # secretaccesskey: "" # aws secret access key (optionnal if you use EC2 Instance Profile)
@@ -168,6 +173,8 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **INFLUXDB_USER** : user to use if auth is enabled in Influxdb
 * **INFLUXDB_PASSWORD** : user to use if auth is enabled in Influxdb
 * **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **LOKI_HOSTPORT** : Loki http://host:port, if not `empty`, Loki is *enabled*
+* **LOKI_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 * **AWS_ACCESSKEYID** : AWS Access Key Id (optionnal if you use EC2 Instance Profile)
 * **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optionnal if you use EC2 Instance Profile)
 * **AWS_REGION** : AWS Region (optionnal if you use EC2 Instance Profile)
@@ -261,6 +268,10 @@ time                akey    bkey    ckey    priority rule      value
 1560433816893368400 AValue  BValue  CValue  Debug    Testrule  This is a test from falcosidekick
 1560441359119741800 A_Value B_Value C_Value Debug    Test_rule This is a test from falcosidekick
 ```
+
+### Loki (with Grafana)
+
+![loki example](https://github.com/Issif/falcosidekick/raw/master/imgs/loki.png)
 
 ### AWS SQS
 

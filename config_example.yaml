@@ -40,6 +40,10 @@ influxdb:
   # password: "" # pasword to use if auth is enabled in Influxdb
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
+loki:
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
 aws:
   # accesskeyid: "" # aws access key (optionnal if you use EC2 Instance Profile)
   # secretaccesskey: "" # aws secret access key (optionnal if you use EC2 Instance Profile)

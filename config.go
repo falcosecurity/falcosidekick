@@ -46,6 +46,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Influxdb.User", "")
 	v.SetDefault("Influxdb.Password", "")
 	v.SetDefault("Influxdb.MinimumPriority", "")
+	v.SetDefault("Loki.HostPort", "")
+	v.SetDefault("Loki.MinimumPriority", "")
 	v.SetDefault("AWS.AccessKeyID", "")
 	v.SetDefault("AWS.SecretAccessKey", "")
 	v.SetDefault("AWS.Region", "")

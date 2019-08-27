@@ -10,7 +10,7 @@ import (
 )
 
 // Globale variables
-var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, awsClient, smtpClient *outputs.Client
+var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, lokiClient, awsClient, smtpClient *outputs.Client
 var config *types.Configuration
 var stats *types.Statistics
 
@@ -62,6 +62,15 @@ func init() {
 			config.Elasticsearch.HostPort = ""
 		} else {
 			enabledOutputsText += "Elasticsearch "
+		}
+	}
+	if config.Loki.HostPort != "" {
+		var err error
+		lokiClient, err = outputs.NewClient("Loki", config.Loki.HostPort+"/api/prom/push", config, stats)
+		if err != nil {
+			config.Loki.HostPort = ""
+		} else {
+			enabledOutputsText += "Loki "
 		}
 	}
 	if config.Influxdb.HostPort != "" {

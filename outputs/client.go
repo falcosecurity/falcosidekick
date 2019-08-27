@@ -83,7 +83,11 @@ func (c *Client) Post(payload interface{}) error {
 		log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
 	}
 
-	resp, err := http.Post(c.EndpointURL.String(), "application/json; charset=utf-8", body)
+	contentType := "application/json; charset=utf-8"
+	if c.OutputType == "Loki" {
+		contentType = "application/json"
+	}
+	resp, err := http.Post(c.EndpointURL.String(), contentType, body)
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 	}
@@ -94,25 +98,25 @@ func (c *Client) Post(payload interface{}) error {
 		log.Printf("[INFO]  : %v - Post OK (%v)\n", c.OutputType, resp.StatusCode)
 		return nil
 	case http.StatusBadRequest: //400
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, ErrHeaderMissing)
+		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrHeaderMissing, resp.StatusCode)
 		return ErrHeaderMissing
 	case http.StatusUnauthorized: //401
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, ErrClientAuthenticationError)
+		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode)
 		return ErrClientAuthenticationError
 	case http.StatusForbidden: //403
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, ErrForbidden)
+		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrForbidden, resp.StatusCode)
 		return ErrForbidden
 	case http.StatusNotFound: //404
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, ErrNotFound)
+		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrNotFound, resp.StatusCode)
 		return ErrNotFound
 	case http.StatusUnprocessableEntity: //422
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, ErrUnprocessableEntityError)
+		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrUnprocessableEntityError, resp.StatusCode)
 		return ErrUnprocessableEntityError
 	case http.StatusTooManyRequests: //429
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, ErrTooManyRequest)
+		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
 		return ErrTooManyRequest
 	default:
-		log.Printf("[ERROR] : %v - Unexpected Response\n", c.OutputType)
+		log.Printf("[ERROR] : %v - Unexpected Response  (%v)\n", c.OutputType, resp.StatusCode)
 		return errors.New(resp.Status)
 	}
 }

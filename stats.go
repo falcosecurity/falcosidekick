@@ -14,6 +14,7 @@ func getInitStats() *types.Statistics {
 		Datadog:       expvar.NewMap("outputs.datadog"),
 		Alertmanager:  expvar.NewMap("outputs.alertmanager"),
 		Elasticsearch: expvar.NewMap("outputs.elasticsearch"),
+		Loki:          expvar.NewMap("outputs.loki"),
 		Influxdb:      expvar.NewMap("outputs.influxdb"),
 		AWSLambda:     expvar.NewMap("outputs.awslambda"),
 		AWSSQS:        expvar.NewMap("outputs.awssqs"),
@@ -40,6 +41,9 @@ func getInitStats() *types.Statistics {
 	stats.Influxdb.Add("total", 0)
 	stats.Influxdb.Add("error", 0)
 	stats.Influxdb.Add("sent", 0)
+	stats.Loki.Add("total", 0)
+	stats.Loki.Add("error", 0)
+	stats.Loki.Add("sent", 0)
 	stats.AWSLambda.Add("total", 0)
 	stats.AWSLambda.Add("error", 0)
 	stats.AWSLambda.Add("sent", 0)
