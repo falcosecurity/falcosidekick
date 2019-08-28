@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.1 - 2019-08-28
+#### Enhancement
+- update of Dockerfile : golang 1.12 + alpine 3.10
+
 ## 2.7.0 - 2019-08-27
 #### New
 - New output : **Loki**
