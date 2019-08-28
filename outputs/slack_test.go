@@ -5,19 +5,19 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func TestNewSlackPayload(t *testing.T) {
 	expectedOutput := slackPayload{
 		Username: "Falco Sidekick",
-		IconURL:  "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png",
+		IconURL:  "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png",
 		Attachments: []slackAttachment{
 			slackAttachment{
 				Fallback: "This is a test from falcosidekick",
 				Color:    "#ccfff2",
 				Text:     "This is a test from falcosidekick",
-				Footer:   "https://github.com/Issif/falcosidekick",
+				Footer:   "https://github.com/falcosecurity/falcosidekick",
 				Fields: []slackAttachmentField{
 					slackAttachmentField{
 						Title: "proc.name",

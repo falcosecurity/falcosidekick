@@ -3,7 +3,7 @@ package outputs
 import (
 	"strings"
 
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // Field
@@ -67,7 +67,7 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		if config.Slack.Footer != "" {
 			attachment.Footer = config.Slack.Footer
 		} else {
-			attachment.Footer = "https://github.com/Issif/falcosidekick"
+			attachment.Footer = "https://github.com/falcosecurity/falcosidekick"
 		}
 	}
 
@@ -104,7 +104,7 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	if config.Slack.Icon != "" {
 		iconURL = config.Slack.Icon
 	} else {
-		iconURL = "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png"
+		iconURL = "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png"
 	}
 
 	s := slackPayload{

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func TestNewTeamsPayload(t *testing.T) {

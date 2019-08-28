@@ -1,7 +1,7 @@
 package outputs
 
 import (
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/types"
 	"strings"
 	"time"
 )

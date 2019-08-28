@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.2 - 2019-08-28
+#### Enhancement
+- all referencies to previous repository are replaced, falcosidekick is now in falcosecurity organization
+
 ## 2.7.1 - 2019-08-28
 #### Enhancement
 - update of Dockerfile : golang 1.12 + alpine 3.10
@@ -15,9 +19,9 @@
 ## 2.5.0 - 2019-08-12
 #### New
 - New output : **AWS Lambda**
-- New output : **AWS SQS** ([issue #5](https://github.com/Issif/falcosidekick/issues/5))
-- New output : **Teams** ([issue #30](https://github.com/Issif/falcosidekick/issues/30))
-- A github page has been created : https://issif.github.io/falcosidekick/
+- New output : **AWS SQS** ([issue #5](https://github.com/falcosecurity/falcosidekick/issues/5))
+- New output : **Teams** ([issue #30](https://github.com/falcosecurity/falcosidekick/issues/30))
+- A github page has been created : https://falcosecurity.github.io/falcosidekick/
 
 #### Enhancement
 - Slack tests are now consistant (order of fields in JSON output wasn't always the same, tests failed sometimes for that)
@@ -25,32 +29,32 @@
 
 ## 2.4.0 - 2019-06-26
 #### Enhancement
-- Elasticsearch : An index suffix can be set for rotation (see [README](https://github.com/Issif/falcosidekick/blob/master/README.md)) ([issue #27](https://github.com/Issif/falcosidekick/issues/27) thanks to [@ariguillegp](https://github.com/ariguillegp))
+- Elasticsearch : An index suffix can be set for rotation (see [README](https://github.com/falcosecurity/falcosidekick/blob/master/README.md)) ([issue #27](https://github.com/falcosecurity/falcosidekick/issues/27) thanks to [@ariguillegp](https://github.com/ariguillegp))
 
 ## 2.3.0 - 2019-06-17
 #### New
-- Falcosidekick can now be deployed with Helm (see [README](https://github.com/Issif/falcosidekick/blob/master/README.md)) ([PR#25](https://github.com/Issif/falcosidekick/pull/25) thanks to [@SweetOps](https://github.com/SweetOps))
+- Falcosidekick can now be deployed with Helm (see [README](https://github.com/falcosecurity/falcosidekick/blob/master/README.md)) ([PR#25](https://github.com/falcosecurity/falcosidekick/pull/25) thanks to [@SweetOps](https://github.com/SweetOps))
 
 ## 2.2.0 - 2019-06-13
 #### New 
 - A minimum priority for each output can be set
-- New output : **Influxdb** ([issue #4](https://github.com/Issif/falcosidekick/issues/4))
+- New output : **Influxdb** ([issue #4](https://github.com/falcosecurity/falcosidekick/issues/4))
 #### Fix
 - Panic happened when trying to add `customfields` but falco event hadn't
 
 ## 2.1.0 - 2019-06-12
 #### New 
-- Custom fields can be added to falco events (see [README](https://github.com/Issif/falcosidekick/blob/master/README.md)) ([PR#26](https://github.com/Issif/falcosidekick/pull/26) thanks to [@zetaab](https://github.com/zetaab))
+- Custom fields can be added to falco events (see [README](https://github.com/falcosecurity/falcosidekick/blob/master/README.md)) ([PR#26](https://github.com/falcosecurity/falcosidekick/pull/26) thanks to [@zetaab](https://github.com/zetaab))
 #### Fix
-- Fix `Slack.Output` in config.go ([PR#24](https://github.com/Issif/falcosidekick/pull/24) thanks to [@SweetOps](https://github.com/SweetOps))
+- Fix `Slack.Output` in config.go ([PR#24](https://github.com/falcosecurity/falcosidekick/pull/24) thanks to [@SweetOps](https://github.com/SweetOps))
 
 ## 2.0.0 - 2019-05-23
 #### New 
-- New output : **Elasticsearch** ([issue #14](https://github.com/Issif/falcosidekick/issues/14))
-- **New configuration method : we can now use a config file in YAML and/or env vars** (see *README*) ([issue #17](https://github.com/Issif/falcosidekick/issues/17))
-- New endpoint : `/debug/vars` gives access to Golang + Custom metrics (see *README*) ([issue #17](https://github.com/Issif/falcosidekick/issues/17))
+- New output : **Elasticsearch** ([issue #14](https://github.com/falcosecurity/falcosidekick/issues/14))
+- **New configuration method : we can now use a config file in YAML and/or env vars** (see *README*) ([issue #17](https://github.com/falcosecurity/falcosidekick/issues/17))
+- New endpoint : `/debug/vars` gives access to Golang + Custom metrics (see *README*) ([issue #17](https://github.com/falcosecurity/falcosidekick/issues/17))
 #### Enhancement
-- Add a lot of unit tests for code coverage ([issue #17](https://github.com/Issif/falcosidekick/issues/17))
+- Add a lot of unit tests for code coverage ([issue #17](https://github.com/falcosecurity/falcosidekick/issues/17))
 - Some log outputs have been reformated
 - :boom: Some env variables have been renamed again to match fields in YAML config files (*see README*)
 #### Fix
@@ -71,7 +75,7 @@
 
 ## 1.0.6 - 2019-05-09
 #### New
-- Add `SLACK_HIDE_FIELDS` env var, to enable concise output in Slack (fields are not displayed) ([issue #15](https://github.com/Issif/falcosidekick/issues/15))
+- Add `SLACK_HIDE_FIELDS` env var, to enable concise output in Slack (fields are not displayed) ([issue #15](https://github.com/falcosecurity/falcosidekick/issues/15))
 #### Enhancement
 - Remove `/checkPayload` endpoint, not usefull anymore
 - Change of how enabled/disabled outputs are printed in log (more concise view)
@@ -87,10 +91,10 @@
 
 ## 1.0.4 - 2019-02-01
 #### New
-- Add of **go mod** ([PR#1](https://github.com/Issif/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
+- Add of **go mod** ([PR#1](https://github.com/falcosecurity/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
 #### Enhancement
-- Use of *go mod* is Dockerfile for build ([PR#1](https://github.com/Issif/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
-- Add email maintener in Dockerfile ([PR#1](https://github.com/Issif/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
+- Use of *go mod* is Dockerfile for build ([PR#1](https://github.com/falcosecurity/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
+- Add email maintener in Dockerfile ([PR#1](https://github.com/falcosecurity/falcosidekick/pull/9) thanks to [@perriea](https://github.com/perriea))
 
 ## 1.0.3 - 2019-01-30
 #### New
@@ -113,7 +117,7 @@
 - long string in slack field values are not splitten anymore
 #### Fix
 - some log level tags were missing
-- fix cert errors in alpine ([PR#1](https://github.com/Issif/falcosidekick/pull/1) thanks to [@palmerabollo](https://github.com/palmerabollo))
+- fix cert errors in alpine ([PR#1](https://github.com/falcosecurity/falcosidekick/pull/1) thanks to [@palmerabollo](https://github.com/palmerabollo))
 
 ## 1.0.0 - 2018-10-10
 - First tagged release

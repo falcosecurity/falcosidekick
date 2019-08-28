@@ -3,7 +3,7 @@ package outputs
 import (
 	"strings"
 
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type teamsFact struct {
@@ -106,32 +106,3 @@ func (c *Client) TeamsPost(falcopayload types.FalcoPayload) {
 	}
 	c.Stats.Teams.Add("total", 1)
 }
-
-// {
-// 	"@type": "MessageCard",
-// 	"@context": "https://schema.org/extensions",
-// 	"summary": "Issue 176715375",
-// 	"themeColor": "EE0000",
-// 	"sections": [
-// 		{
-// 			"activityTitle": "Falco Sidekick",
-// 			"activitySubtitle": "2019-05-17T15:31:56.746609046Z",
-// 			"activityImage": "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png",
-// 			"facts": [
-// 				{
-// 					"name": "fd.name",
-// 					"value": "/bin/hack"
-// 				},
-// 				{
-// 					"name": "proc.cmdline",
-// 					"value": "touch /bin/hack"
-// 				},
-// 				{
-// 					"name": "user.name",
-// 					"value": "root"
-// 				}
-// 			],
-// 			"text": "Error File below a known binary directory opened for writing (user=root command=touch /bin/hack file=/bin/hack)"
-// 		}
-// 	]
-// }

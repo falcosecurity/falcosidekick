@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func getPriorityMap() map[string]int {

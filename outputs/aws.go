@@ -8,12 +8,12 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/Issif/falcosidekick/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewAWSClient returns a new output.Client for accessing the AWS API.

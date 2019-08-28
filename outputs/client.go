@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/Issif/falcosidekick/types"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // ErrHeaderMissing = 400

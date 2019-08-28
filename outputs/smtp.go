@@ -8,9 +8,9 @@ import (
 	"strings"
 	textTemplate "text/template"
 
-	"github.com/Issif/falcosidekick/types"
 	sasl "github.com/emersion/go-sasl"
 	smtp "github.com/emersion/go-smtp"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // SMTPPayload is payload for SMTP Output

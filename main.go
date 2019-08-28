@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Issif/falcosidekick/outputs"
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/outputs"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // Globale variables

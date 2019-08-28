@@ -3,7 +3,7 @@ package main
 import (
 	"expvar"
 
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func getInitStats() *types.Statistics {

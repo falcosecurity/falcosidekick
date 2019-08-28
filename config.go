@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/types"
 
 	"github.com/spf13/viper"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -24,12 +24,12 @@ func getConfig() *types.Configuration {
 	v.SetDefault("ListenPort", 2801)
 	v.SetDefault("Debug", false)
 	v.SetDefault("Slack.WebhookURL", "")
-	v.SetDefault("Slack.Footer", "https://github.com/Issif/falcosidekick")
-	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png")
+	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")
+	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png")
 	v.SetDefault("Slack.OutputFormat", "all")
 	v.SetDefault("Slack.MinimumPriority", "")
 	v.SetDefault("Teams.WebhookURL", "")
-	v.SetDefault("Teams.ActivityImage", "https://raw.githubusercontent.com/Issif/falcosidekick/master/imgs/falcosidekick.png")
+	v.SetDefault("Teams.ActivityImage", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png")
 	v.SetDefault("Teams.OutputFormat", "all")
 	v.SetDefault("Teams.MinimumPriority", "")
 	v.SetDefault("Datadog.APIKey", "")

@@ -1,8 +1,8 @@
 # Falcosidekick
 
-![falcosidekick](https://github.com/Issif/falcosidekick/raw/master/imgs/falcosidekick.png)
+![falcosidekick](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/falcosidekick.png)
 
-![release](https://flat.badgen.net/github/release/Issif/falcosidekick/latest?color=green) ![last commit](https://flat.badgen.net/github/last-commit/Issif/falcosidekick) ![licence](https://flat.badgen.net/badge/license/MIT/blue) ![docker pulls](https://flat.badgen.net/docker/pulls/issif/falcosidekick?icon=docker)
+![release](https://flat.badgen.net/github/release/falcosecurity/falcosidekick/latest?color=green) ![last commit](https://flat.badgen.net/github/last-commit/falcosecurity/falcosidekick) ![licence](https://flat.badgen.net/badge/license/MIT/blue) ![docker pulls](https://flat.badgen.net/docker/pulls/falcosecurity/falcosidekick?icon=docker)
 
 ## Description
 
@@ -30,14 +30,14 @@ Run the daemon as any other daemon in your architecture (systemd, k8s daemonset,
 ### With docker
 
 ```bash
-docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX issif/falcosidekick
+docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX falcosecurity/falcosidekick
 ```
 
 ### With Helm
 
 ```bash
 
-git clone https://github.com/Issif/falcosidekick.git
+git clone https://github.com/falcosecurity/falcosidekick.git
 cd ./falcosidekick/deploy/helm/falcosidekick/
 helm install --name falcosidekick .
 ```
@@ -211,8 +211,8 @@ All logs are sent to `stdout`.
 
 The daemon exposes the common *Golang* metrics and some custom values in JSON format. It's useful for monitoring purpose.
 
-![expvar json](https://github.com/Issif/falcosidekick/raw/master/imgs/expvar_json.png)
-![expvarmon](https://github.com/Issif/falcosidekick/raw/master/imgs/expvarmon.png)
+![expvar json](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/expvar_json.png)
+![expvarmon](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/expvarmon.png)
 
 ## Examples
 
@@ -227,29 +227,29 @@ You should get :
 ### Slack
 
 (SLACK_OUTPUTFORMAT="**all**")
-![slack example](https://github.com/Issif/falcosidekick/raw/master/imgs/slack.png)
+![slack example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack.png)
 (SLACK_OUTPUTFORMAT="**text**")
-![slack no fields example](https://github.com/Issif/falcosidekick/raw/master/imgs/slack_no_fields.png)
+![slack no fields example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_no_fields.png)
 
 ### Teams
 
 (TEAMS_OUTPUTFORMAT="**all**")
-![teams example](https://github.com/Issif/falcosidekick/raw/master/imgs/teams.png)
+![teams example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/teams.png)
 (TEAMS_OUTPUTFORMAT="**text**")
-![teams facts only](https://github.com/Issif/falcosidekick/raw/master/imgs/teams_facts_only.png)
+![teams facts only](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/teams_facts_only.png)
 
 ### Datadog
 
 *(Tip: filter on `sources: falco`)*
-![datadog example](https://github.com/Issif/falcosidekick/raw/master/imgs/datadog.png)
+![datadog example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/datadog.png)
 
 ### AlertManager
 
-![alertmanager example](https://github.com/Issif/falcosidekick/raw/master/imgs/alertmanager.png)
+![alertmanager example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/alertmanager.png)
 
 ### Elasticsearch (with Kibana)
 
-![kibana example](https://github.com/Issif/falcosidekick/raw/master/imgs/kibana.png)
+![kibana example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/kibana.png)
 
 ### Influxdb
 
@@ -271,18 +271,18 @@ time                akey    bkey    ckey    priority rule      value
 
 ### Loki (with Grafana)
 
-![loki example](https://github.com/Issif/falcosidekick/raw/master/imgs/loki.png)
+![loki example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/loki.png)
 
 ### AWS SQS
 
-![aws sqs example](https://github.com/Issif/falcosidekick/raw/master/imgs/aws_sqs.png)
+![aws sqs example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/aws_sqs.png)
 
 ### SMTP
 
 (SMTP_OUTPUTFORMAT="**html**")
-![smtp html example](https://github.com/Issif/falcosidekick/raw/master/imgs/smtp_html.png)
+![smtp html example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/smtp_html.png)
 (SMTP_OUTPUTFORMAT="**text**")
-![smtp plaintext example](https://github.com/Issif/falcosidekick/raw/master/imgs/smtp_plaintext.png)
+![smtp plaintext example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/smtp_plaintext.png)
 
 ## Development
 

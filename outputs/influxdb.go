@@ -3,7 +3,7 @@ package outputs
 import (
 	"strings"
 
-	"github.com/Issif/falcosidekick/types"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type influxdbPayload string
