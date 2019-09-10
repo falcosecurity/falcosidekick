@@ -46,9 +46,9 @@ type Client struct {
 
 // NewClient returns a new output.Client for accessing the different API.
 func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration, stats *types.Statistics) (*Client, error) {
-	reg := regexp.MustCompile(`http(s?)://.*`)
+	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
-		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad URL")
+		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad Endpoint")
 		return nil, ErrClientCreation
 	}
 	if _, err := url.ParseRequestURI(defaultEndpointURL); err != nil {
