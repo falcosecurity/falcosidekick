@@ -1,12 +1,16 @@
 # Changelog
 
+## 2.8.0 - 2019-09-11
+#### New
+- New output : **NATS**
+
 ## 2.7.2 - 2019-08-28
 #### Enhancement
-- all referencies to previous repository are replaced, falcosidekick is now in falcosecurity organization
+- All referencies to previous repository are replaced, falcosidekick is now in falcosecurity organization
 
 ## 2.7.1 - 2019-08-28
 #### Enhancement
-- update of Dockerfile : golang 1.12 + alpine 3.10
+- Update of Dockerfile : golang 1.12 + alpine 3.10
 
 ## 2.7.0 - 2019-08-27
 #### New
@@ -62,7 +66,7 @@
 
 ## 1.1.0 - 2019-05-10
 #### Enhancement
--  **all outputs use new generic methods (`NewClient()` + `Post()`), new output integration will be easier**
+-  **All outputs use new generic methods (`NewClient()` + `Post()`), new output integration will be easier**
 - :boom: some variables have been renamed to be relevant with their real names in API docs of Outputs
     - `DATADOG_TOKEN` **->** `DATADOG_API_KEY`
     - `SLACK_TOKEN` **->** `SLACK_WEBHOOK_URL`
@@ -98,26 +102,26 @@
 
 ## 1.0.3 - 2019-01-30
 #### New
-- new output  : **Alert Manager**
+- New output  : **Alert Manager**
 #### Enhancement
-- add status of posts to Outputs in logs (stdout)
+- Add status of posts to Outputs in logs (stdout)
 
 ## 1.0.2 - 2018-10-10
 #### Enhancement
-- update changelog
-- update README with new Slack Options + more info 
+- Update changelog
+- Update README with new Slack Options + more info 
 
 ## 1.0.1 - 2018-10-10
 #### New
-- new Slack Options : `SLACK_FOOTER`, `SLACK_ICON`
+- New Slack Options : `SLACK_FOOTER`, `SLACK_ICON`
 #### Enhancements
-- new Slack Options : `SLACK_FOOTER`, `SLACK_ICON`
-- add output status in log to get those which are enabled
-- check of `LISTEN_PORT` in `init()` : port must be an integer between 1 and 65535
-- long string in slack field values are not splitten anymore
+- New Slack Options : `SLACK_FOOTER`, `SLACK_ICON`
+- Add output status in log to get those which are enabled
+- Check of `LISTEN_PORT` in `init()` : port must be an integer between 1 and 65535
+- Long string in slack field values are not splitten anymore
 #### Fix
-- some log level tags were missing
-- fix cert errors in alpine ([PR#1](https://github.com/falcosecurity/falcosidekick/pull/1) thanks to [@palmerabollo](https://github.com/palmerabollo))
+- Some log level tags were missing
+- Fix cert errors in alpine ([PR#1](https://github.com/falcosecurity/falcosidekick/pull/1) thanks to [@palmerabollo](https://github.com/palmerabollo))
 
 ## 1.0.0 - 2018-10-10
 - First tagged release

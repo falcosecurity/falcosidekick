@@ -18,6 +18,7 @@ Currently available outputs are :
 * **AlertManager**
 * **Elasticsearch**
 * **Loki**
+* **NATS**
 * **Influxdb**
 * **AWS Lambda**
 * **AWS SQS**
@@ -110,6 +111,10 @@ loki:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 
+nats:
+  # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
 aws:
   # accesskeyid: "" # aws access key (optionnal if you use EC2 Instance Profile)
   # secretaccesskey: "" # aws secret access key (optionnal if you use EC2 Instance Profile)
@@ -175,6 +180,8 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 * **LOKI_HOSTPORT** : Loki http://host:port, if not `empty`, Loki is *enabled*
 * **LOKI_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **NATS_HOSTPORT** : NATS nats://host:port, if not `empty`, NATS is *enabled*
+* **NATS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 * **AWS_ACCESSKEYID** : AWS Access Key Id (optionnal if you use EC2 Instance Profile)
 * **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optionnal if you use EC2 Instance Profile)
 * **AWS_REGION** : AWS Region (optionnal if you use EC2 Instance Profile)

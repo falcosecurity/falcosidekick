@@ -25,6 +25,7 @@ type Configuration struct {
 	Elasticsearch elasticsearchOutputConfig
 	Influxdb      influxdbOutputConfig
 	Loki          lokiOutputConfig
+	Nats          natsOutputConfig
 	AWS           awsOutputConfig
 	SMTP          smtpOutputConfig
 	Customfields  map[string]string
@@ -76,6 +77,11 @@ type lokiOutputConfig struct {
 	MinimumPriority string
 }
 
+type natsOutputConfig struct {
+	HostPort        string
+	MinimumPriority string
+}
+
 type awsOutputConfig struct {
 	Region          string
 	AccessKeyID     string
@@ -115,6 +121,7 @@ type Statistics struct {
 	Alertmanager  *expvar.Map
 	Elasticsearch *expvar.Map
 	Loki          *expvar.Map
+	Nats          *expvar.Map
 	Influxdb      *expvar.Map
 	AWSLambda     *expvar.Map
 	AWSSQS        *expvar.Map

@@ -124,6 +124,12 @@ spec:
             - name: LOKI_MINIMUMPRIORITY
               value: {{ .Values.config.loki.minimumpriority | quote }}
             {{ end }}
+            {{- if .Values.config.nats.hostport }}
+            - name: NATS_HOSTPORT
+              value: {{ .Values.config.nats.hostport | quote }}
+            - name: NATS_MINIMUMPRIORITY
+              value: {{ .Values.config.nats.minimumpriority | quote }}
+            {{ end }}
             {{- if and .Values.config.aws.accesskeyid .Values.config.influxdb.secretaccesskey .Values.config.aws.region }}
             - name: AWS_ACCESSKEYID
               valueFrom:
