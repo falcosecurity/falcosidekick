@@ -47,6 +47,8 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 				} else {
 					field.Short = false
 				}
+			default:
+				continue
 			}
 			fields = append(fields, field)
 		}
