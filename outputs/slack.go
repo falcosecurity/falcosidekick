@@ -108,7 +108,7 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	}
 
 	s := slackPayload{
-		Username:    "Falco Sidekick",
+		Username:    "Falcosidekick",
 		IconURL:     iconURL,
 		Attachments: attachments}
 
