@@ -5,7 +5,7 @@
 - New output : **Opsgenie**
 
 #### Enhancement
-- New avatar : with colors and in squared
+- New avatar : with colors and squared
 
 ## 2.8.0 - 2019-09-11
 #### New
