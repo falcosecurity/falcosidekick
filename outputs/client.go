@@ -83,11 +83,25 @@ func (c *Client) Post(payload interface{}) error {
 		log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
 	}
 
+	client := &http.Client{}
+
+	req, err := http.NewRequest("POST", c.EndpointURL.String(), body)
+	if err != nil {
+		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+	}
 	contentType := "application/json; charset=utf-8"
 	if c.OutputType == "Loki" {
 		contentType = "application/json"
 	}
-	resp, err := http.Post(c.EndpointURL.String(), contentType, body)
+	req.Header.Add("Content-Type", contentType)
+
+	if c.OutputType == "Opsgenie" {
+		req.Header.Add("Authorization", "GenieKey "+c.Config.Opsgenie.APIKey)
+	}
+
+	req.Header.Add("User-Agent", "Falcosidekick")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 	}

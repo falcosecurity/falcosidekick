@@ -20,6 +20,7 @@ func getInitStats() *types.Statistics {
 		AWSLambda:     expvar.NewMap("outputs.awslambda"),
 		AWSSQS:        expvar.NewMap("outputs.awssqs"),
 		SMTP:          expvar.NewMap("outputs.smtp"),
+		Opsgenie:      expvar.NewMap("outputs.opsgenie"),
 	}
 	stats.Requests.Add("total", 0)
 	stats.Requests.Add("rejected", 0)
@@ -57,6 +58,9 @@ func getInitStats() *types.Statistics {
 	stats.SMTP.Add("total", 0)
 	stats.SMTP.Add("error", 0)
 	stats.SMTP.Add("sent", 0)
+	stats.Opsgenie.Add("total", 0)
+	stats.Opsgenie.Add("error", 0)
+	stats.Opsgenie.Add("sent", 0)
 
 	return stats
 }

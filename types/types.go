@@ -28,6 +28,7 @@ type Configuration struct {
 	Nats          natsOutputConfig
 	AWS           awsOutputConfig
 	SMTP          smtpOutputConfig
+	Opsgenie      opsgenieOutputConfig
 	Customfields  map[string]string
 }
 
@@ -112,6 +113,12 @@ type smtpOutputConfig struct {
 	MinimumPriority string
 }
 
+type opsgenieOutputConfig struct {
+	Region          string
+	APIKey          string
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests      *expvar.Map
@@ -126,4 +133,5 @@ type Statistics struct {
 	AWSLambda     *expvar.Map
 	AWSSQS        *expvar.Map
 	SMTP          *expvar.Map
+	Opsgenie      *expvar.Map
 }

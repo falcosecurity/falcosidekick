@@ -1,6 +1,6 @@
 # Falcosidekick
 
-![falcosidekick](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/falcosidekick.png)
+![falcosidekick](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/falcosidekick_color.png)
 
 ![release](https://flat.badgen.net/github/release/falcosecurity/falcosidekick/latest?color=green) ![last commit](https://flat.badgen.net/github/last-commit/falcosecurity/falcosidekick) ![licence](https://flat.badgen.net/badge/license/MIT/blue) ![docker pulls](https://flat.badgen.net/docker/pulls/falcosecurity/falcosidekick?icon=docker)
 
@@ -23,6 +23,7 @@ Currently available outputs are :
 * **AWS Lambda**
 * **AWS SQS**
 * **SMTP** (email)
+* **Opsgenie**
 
 ## Usage
 
@@ -133,7 +134,12 @@ smtp:
   # from: "" # Sender address (mandatory if SMTP output is enabled)
   # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
   # outputformat: "" # html (default), text
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)  
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
+opsgenie:
+  # apikey: "" # Opsgenie API Key, if not empty, Opsgenie output is enabled
+  # region: "eu" # (us|eu) region of your domain (default is 'us')
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
 ```
 
 Usage :
@@ -196,6 +202,9 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **SMTP_TO** : comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
 * **SMTP_OUTPUTFORMAT** : "" # html (default), text
 * **SMTP_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **OPSGENIE_APIKEY** : Opsgenie API Key, if not empty, Opsgenie output is enabled
+* **OPSGENIE_REGION** : "" # (us|eu) region of your domain (default is 'us')
+* **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
 
 ## Handlers
 
@@ -290,6 +299,10 @@ time                akey    bkey    ckey    priority rule      value
 ![smtp html example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/smtp_html.png)
 (SMTP_OUTPUTFORMAT="**text**")
 ![smtp plaintext example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/smtp_plaintext.png)
+
+### Opsgenie
+
+![opsgenie example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/opsgenie.png)
 
 ## Development
 

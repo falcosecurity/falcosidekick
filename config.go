@@ -64,7 +64,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("SMTP.To", "")
 	v.SetDefault("SMTP.OutputFormat", "html")
 	v.SetDefault("SMTP.MinimumPriority", "")
-	v.SetDefault("AWS.SQS.MinimumPriority", "")
+	v.SetDefault("Opsgenie.Region", "us")
+	v.SetDefault("Opsgenie.APIKey", "")
+	v.SetDefault("Opsgenie.MinimumPriority", "")
 	v.SetDefault("Customfields", map[string]string{})
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -99,6 +101,7 @@ func getConfig() *types.Configuration {
 	}
 	if match, _ := regexp.MatchString("(?i)(emergency|alert|critical|error|warning|notice|informationnal|debug)", c.Slack.MinimumPriority); !match {
 		c.Slack.MinimumPriority = ""
+		c.Teams.MinimumPriority = ""
 	}
 
 	return c
