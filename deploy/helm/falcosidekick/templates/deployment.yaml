@@ -180,6 +180,17 @@ spec:
                   key: smtp-password
             {{- end }}  
             {{- end }}
+            {{- if .Values.opsgenie.datadog.apikey }}
+            - name: OPSGENIE_APIKEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: opsgenie-apikey
+            - name: OPSGENIE_REGION
+              value: {{ .Values.config.opsgenie.region | quote }}
+            - name: OPSGENIE_MINIMUMPRIORITY
+              value: {{ .Values.config.opsgenie.minimumpriority | quote }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.9.0 - 2019-09-11
+#### New
+- New output : **Opsgenie**
+
+#### Enhancement
+- New avatar : with colors and in a squared
+
 ## 2.8.0 - 2019-09-11
 #### New
 - New output : **NATS**

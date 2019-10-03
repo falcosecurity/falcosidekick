@@ -67,3 +67,8 @@ smtp:
   # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
   # outputformat: "" # html (default), text
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+
+opsgenie:
+  # apikey: "" # Opsgenie API Key, if not empty, Opsgenie output is enabled
+  # region: "eu" # (us|eu) region of your domain
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)

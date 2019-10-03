@@ -4,13 +4,14 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/falcosecurity/falcosidekick/outputs"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // Globale variables
-var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, lokiClient, natsClient, awsClient, smtpClient *outputs.Client
+var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, lokiClient, natsClient, awsClient, smtpClient, opsgenieClient *outputs.Client
 var config *types.Configuration
 var stats *types.Statistics
 
@@ -120,6 +121,19 @@ func init() {
 			config.SMTP.HostPort = ""
 		} else {
 			enabledOutputsText += "SMTP "
+		}
+	}
+	if config.Opsgenie.APIKey != "" {
+		var err error
+		url := "https://api.opsgenie.com/v2/alerts"
+		if strings.ToLower(config.Opsgenie.Region) == "eu" {
+			url = "https://api.eu.opsgenie.com/v2/alerts"
+		}
+		opsgenieClient, err = outputs.NewClient("Opsgenie", url, config, stats)
+		if err != nil {
+			config.Opsgenie.APIKey = ""
+		} else {
+			enabledOutputsText += "Opsgenie "
 		}
 	}
 
