@@ -3,9 +3,10 @@
 ## 2.9.0 - 2019-09-11
 #### New
 - New output : **Opsgenie**
-
 #### Enhancement
 - New avatar : with colors and squared
+#### Fix
+- Duplicated entries when events have non-string fields ([PR#38](https://github.com/falcosecurity/falcosidekick/pull/38) thanks to [@actgardner](https://github.com/actgardner))
 
 ## 2.8.0 - 2019-09-11
 #### New
