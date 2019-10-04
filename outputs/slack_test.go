@@ -10,7 +10,7 @@ import (
 
 func TestNewSlackPayload(t *testing.T) {
 	expectedOutput := slackPayload{
-		Username: "Falco Sidekick",
+		Username: "Falcosidekick",
 		IconURL:  "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png",
 		Attachments: []slackAttachment{
 			slackAttachment{
@@ -21,11 +21,6 @@ func TestNewSlackPayload(t *testing.T) {
 				Fields: []slackAttachmentField{
 					slackAttachmentField{
 						Title: "proc.name",
-						Value: "falcosidekick",
-						Short: true,
-					},
-					slackAttachmentField{
-						Title: "user.name",
 						Value: "falcosidekick",
 						Short: true,
 					},

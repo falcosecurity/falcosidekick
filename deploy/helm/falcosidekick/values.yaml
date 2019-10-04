@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: falcosecurity/falcosidekick
-  tag: 2.7.2
+  tag: 2.9.0
   pullPolicy: IfNotPresent
 
 nameOverride: ""
@@ -78,6 +78,11 @@ config:
     from: ""
     to: ""
     outputformat: "html"
+    minimumpriority: ""
+
+  opsgenie:
+    aipkey: ""
+    region: ""
     minimumpriority: ""
 
 service:

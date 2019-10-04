@@ -25,11 +25,11 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Debug", false)
 	v.SetDefault("Slack.WebhookURL", "")
 	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")
-	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png")
+	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
 	v.SetDefault("Slack.OutputFormat", "all")
 	v.SetDefault("Slack.MinimumPriority", "")
 	v.SetDefault("Teams.WebhookURL", "")
-	v.SetDefault("Teams.ActivityImage", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png")
+	v.SetDefault("Teams.ActivityImage", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
 	v.SetDefault("Teams.OutputFormat", "all")
 	v.SetDefault("Teams.MinimumPriority", "")
 	v.SetDefault("Datadog.APIKey", "")
@@ -64,7 +64,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("SMTP.To", "")
 	v.SetDefault("SMTP.OutputFormat", "html")
 	v.SetDefault("SMTP.MinimumPriority", "")
-	v.SetDefault("AWS.SQS.MinimumPriority", "")
+	v.SetDefault("Opsgenie.Region", "us")
+	v.SetDefault("Opsgenie.APIKey", "")
+	v.SetDefault("Opsgenie.MinimumPriority", "")
 	v.SetDefault("Customfields", map[string]string{})
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -99,6 +101,7 @@ func getConfig() *types.Configuration {
 	}
 	if match, _ := regexp.MatchString("(?i)(emergency|alert|critical|error|warning|notice|informationnal|debug)", c.Slack.MinimumPriority); !match {
 		c.Slack.MinimumPriority = ""
+		c.Teams.MinimumPriority = ""
 	}
 
 	return c

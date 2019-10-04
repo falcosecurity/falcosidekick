@@ -98,6 +98,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if config.SMTP.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.SMTP.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go smtpClient.SendMail(falcopayload)
 	}
+	if config.Opsgenie.APIKey != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Opsgenie.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go opsgenieClient.OpsgeniePost(falcopayload)
+	}
 }
 
 // pingHandler is a simple handler to test if daemon is UP.

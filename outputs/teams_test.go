@@ -25,10 +25,6 @@ func TestNewTeamsPayload(t *testing.T) {
 						Value: "falcosidekick",
 					},
 					teamsFact{
-						Name:  "user.name",
-						Value: "falcosidekick",
-					},
-					teamsFact{
 						Name:  "rule",
 						Value: "Test rule",
 					},

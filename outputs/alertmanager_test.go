@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewAlertmanagerPayload(t *testing.T) {
-	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","rule":"Test rule","source":"falco","user_name":"falcosidekick"},"annotations":{"info":"This is a test from falcosidekick","summary":"Test rule"}}]`
+	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","rule":"Test rule","source":"falco"},"annotations":{"info":"This is a test from falcosidekick","summary":"Test rule"}}]`
 
 	var f types.FalcoPayload
 	json.Unmarshal([]byte(falcoTestInput), &f)

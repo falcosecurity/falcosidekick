@@ -17,6 +17,8 @@ func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configura
 		switch j.(type) {
 		case string:
 			s += "," + i + "=" + strings.Replace(j.(string), " ", "_", -1)
+		default:
+			continue
 		}
 	}
 
