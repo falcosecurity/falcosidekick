@@ -50,6 +50,8 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 			case string:
 				fact.Name = i
 				fact.Value = j.(string)
+			default:
+				continue
 			}
 			facts = append(facts, fact)
 		}

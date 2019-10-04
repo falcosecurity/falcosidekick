@@ -26,6 +26,8 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 		case string:
 			//AlertManger doesn't support dots in a label name
 			amPayload.Labels[strings.Replace(i, ".", "_", -1)] = j.(string)
+		default:
+			continue
 		}
 	}
 	amPayload.Labels["source"] = "falco"
