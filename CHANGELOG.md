@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.9.0 - 2019-09-11
+## 2.9.0 - 2019-10-04
 #### New
 - New output : **Opsgenie**
 #### Enhancement
