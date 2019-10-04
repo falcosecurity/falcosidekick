@@ -30,6 +30,8 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		switch j.(type) {
 		case string:
 			s += strings.Replace(strings.Replace(strings.Replace(i, ".", "", -1), "]", "", -1), "[", "", -1) + "=\"" + j.(string) + "\","
+		default:
+			continue
 		}
 	}
 	s += "rule=\"" + falcopayload.Rule + "\","

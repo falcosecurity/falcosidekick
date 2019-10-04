@@ -7,7 +7,7 @@ import (
 
 type opsgeniePayload struct {
 	Message     string            `json:"message"`
-	User        string            `json:"entity,omitempty"`
+	Entity      string            `json:"entity,omitempty"`
 	Description string            `json:"description,omitempty"`
 	Details     map[string]string `json:"details,omitempty"`
 	Priority    string            `json:"priority,omitempty"`
@@ -19,31 +19,32 @@ func newOpsgeniePayload(falcopayload types.FalcoPayload, config *types.Configura
 		switch j.(type) {
 		case string:
 			details[i] = j.(string)
+		default:
+			continue
 		}
 	}
 
 	var prio string
 	switch strings.ToLower(falcopayload.Priority) {
-	case "emergency", "alert", "critical":
+	case "emergency", "alert":
 		prio = "P1"
-	case "error":
+	case "critical":
 		prio = "P2"
-	case "warning":
+	case "error":
 		prio = "P3"
-	case "notice", "informationnal":
+	case "warning":
 		prio = "P4"
 	default:
 		prio = "P5"
 	}
 
-	ogpayload := opsgeniePayload{
+	return opsgeniePayload{
 		Message:     falcopayload.Output,
-		User:        "Falcosidekick",
+		Entity:      "Falcosidekick",
 		Description: falcopayload.Rule,
 		Details:     details,
 		Priority:    prio,
 	}
-	return ogpayload
 }
 
 // OpsgeniePost posts event to OpsGenie
