@@ -11,6 +11,7 @@ slack:
   #icon: "" # Slack icon (avatar)
   outputformat: "text" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  messageformat: "Alert for rule '{{ .Rule }}' from process {{ index .OutputFields \"proc.name\" }} " # a Go template to format Slack messages, see Slack Message Formatting in the README for details
 
 teams:
   webhookurl: "" # Teams WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Teams output is enabled
