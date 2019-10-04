@@ -27,6 +27,8 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 		switch j.(type) {
 		case string:
 			tags = append(tags, i+":"+j.(string))
+		default:
+			continue
 		}
 	}
 	d.Tags = tags

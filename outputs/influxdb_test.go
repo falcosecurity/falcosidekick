@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewInfluxdbPayload(t *testing.T) {
-	expectedOutput := `"events,rule=Test_rule,priority=Debug,proc.name=falcosidekick,user.name=falcosidekick value=\"This is a test from falcosidekick\""`
+	expectedOutput := `"events,rule=Test_rule,priority=Debug,proc.name=falcosidekick value=\"This is a test from falcosidekick\""`
 
 	var f types.FalcoPayload
 	json.Unmarshal([]byte(falcoTestInput), &f)
