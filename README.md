@@ -79,7 +79,7 @@ slack:
   #icon: "" # Slack icon (avatar)
   outputformat: "text" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
-  messageformat: "Alert for rule '{{ .Rule }}' from process {{ index .OutputFields \"proc.name\" }} " # a Go template to format Slack messages, see Slack Message Formatting in the README for details
+  messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 
 teams:
   webhookurl: "" # Teams WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Teams output is enabled
@@ -167,7 +167,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **SLACK_ICON** : Slack icon (avatar)
 * **SLACK_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
 * **SLACK_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
-* **SLACK_MESSAGEFORMAT** : a Go template to format Slack alert messages. This is displayed in addition to the output from `SLACK_OUTPUTFORMAT`. See [Slack Message Formatting](#slack-message-formatting) for details.
+* **SLACK_MESSAGEFORMAT** : a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 * **TEAMS_WEBHOOKURL** : Teams Webhook URL (ex: https://outlook.office.com/webhook/XXXXXX/IncomingWebhook/YYYYYY"), if not `empty`, Teams output is *enabled*
 * **TEAMS_ACTIVITYIMAGE** : Teams section image
 * **TEAMS_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Teams), `facts` (only facts are displayed in Teams)
