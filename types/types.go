@@ -2,6 +2,7 @@ package types
 
 import (
 	"expvar"
+	"text/template"
 	"time"
 )
 
@@ -33,11 +34,13 @@ type Configuration struct {
 }
 
 type slackOutputConfig struct {
-	WebhookURL      string
-	Footer          string
-	Icon            string
-	OutputFormat    string
-	MinimumPriority string
+	WebhookURL            string
+	Footer                string
+	Icon                  string
+	OutputFormat          string
+	MinimumPriority       string
+	MessageFormat         string
+	MessageFormatTemplate *template.Template
 }
 
 type teamsOutputConfig struct {

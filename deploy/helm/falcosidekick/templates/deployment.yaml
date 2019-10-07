@@ -59,6 +59,8 @@ spec:
               value: {{ .Values.config.slack.icon | quote }}
             - name: SLACK_MINIMUMPRIORITY
               value: {{ .Values.config.slack.minimumpriority | quote }}
+            - name: SLACK_MESSAGEFORMAAT
+              value: {{ .Values.config.slack.messageformat | quote }}
             {{- end }}
             {{- if .Values.config.teams.webhookurl }}
             - name: TEAMS_WEBHOOKURL

@@ -1,6 +1,8 @@
 package outputs
 
 import (
+	"bytes"
+	"log"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -25,12 +27,14 @@ type slackAttachment struct {
 
 // Payload
 type slackPayload struct {
+	Text        string            `json:"text,omitempty"`
 	Username    string            `json:"username,omitempty"`
 	IconURL     string            `json:"icon_url,omitempty"`
 	Attachments []slackAttachment `json:"attachments,omitempty"`
 }
 
 func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
+	var messageText string
 	var attachments []slackAttachment
 	var attachment slackAttachment
 	var fields []slackAttachmentField
@@ -79,6 +83,15 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		attachment.Text = falcopayload.Output
 	}
 
+	if config.Slack.MessageFormatTemplate != nil {
+		buf := &bytes.Buffer{}
+		if err := config.Slack.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
+			log.Printf("[ERROR] : Error expanding Slack message template: %v", err)
+		} else {
+			messageText = buf.String()
+		}
+	}
+
 	var color string
 	switch strings.ToLower(falcopayload.Priority) {
 	case "emergency":
@@ -110,6 +123,7 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	}
 
 	s := slackPayload{
+		Text:        messageText,
 		Username:    "Falcosidekick",
 		IconURL:     iconURL,
 		Attachments: attachments}

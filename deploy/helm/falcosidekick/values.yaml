@@ -25,6 +25,7 @@ config:
     icon: ""
     outputformat: "all"
     minimumpriority: ""
+    messageformat: ""
 
   teams:
     webhookurl: ""

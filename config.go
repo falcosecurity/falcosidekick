@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/falcosecurity/falcosidekick/types"
 
@@ -27,6 +28,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")
 	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
 	v.SetDefault("Slack.OutputFormat", "all")
+	v.SetDefault("Slack.MessageFormat", "")
 	v.SetDefault("Slack.MinimumPriority", "")
 	v.SetDefault("Teams.WebhookURL", "")
 	v.SetDefault("Teams.ActivityImage", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
@@ -102,6 +104,14 @@ func getConfig() *types.Configuration {
 	if match, _ := regexp.MatchString("(?i)(emergency|alert|critical|error|warning|notice|informationnal|debug)", c.Slack.MinimumPriority); !match {
 		c.Slack.MinimumPriority = ""
 		c.Teams.MinimumPriority = ""
+	}
+
+	if c.Slack.MessageFormat != "" {
+		var err error
+		c.Slack.MessageFormatTemplate, err = template.New("slack").Parse(c.Slack.MessageFormat)
+		if err != nil {
+			log.Printf("[ERROR] : Error compiling Slack messsage template: %v", err)
+		}
 	}
 
 	return c
