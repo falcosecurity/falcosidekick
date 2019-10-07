@@ -263,7 +263,7 @@ You should get :
 (SLACK_OUTPUTFORMAT="**text**")
 ![slack no fields example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_no_fields.png)
 (SLACK_OUTPUTFORMAT="**fields**" and SLACK_MESSAGEFORMAT="**Alert : rule \*{{ .Rule }}\* triggered by user \*{{ index .OutputFields \"user.name\" }}\***")
-![slack message format example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_fields_message_format.png)
+![slack message format example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_fields_messageformat.png)
 
 ### Teams
 
