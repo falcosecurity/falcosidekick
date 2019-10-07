@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.1 - 2019-10-07
+#### Enhancement
+- Add formatted Text in Slack message ([PR#40](https://github.com/falcosecurity/falcosidekick/pull/40) thanks to [@actgardner](https://github.com/actgardner))
+
 ## 2.9.0 - 2019-10-04
 #### New
 - New output : **Opsgenie**

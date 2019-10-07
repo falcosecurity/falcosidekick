@@ -12,18 +12,18 @@ A simple daemon to help you with falco's outputs (https://sysdig.com/opensource/
 
 Currently available outputs are :
 
-* **Slack**
-* **Teams**
-* **Datadog**
-* **AlertManager**
-* **Elasticsearch**
-* **Loki**
-* **NATS**
-* **Influxdb**
-* **AWS Lambda**
-* **AWS SQS**
+* [**Slack**](https://slack.com)
+* [**Teams**](https://products.office.com/en-us/microsoft-teams/group-chat-software)
+* [**Datadog**](https://www.datadoghq.com/)
+* [**AlertManager**](https://prometheus.io/docs/alerting/alertmanager/)
+* [**Elasticsearch**](https://www.elastic.co/)
+* [**Loki**](https://grafana.com/oss/loki)
+* [**NATS**](https://nats.io/)
+* [**Influxdb**](https://www.influxdata.com/products/influxdb-overview/)
+* [**AWS Lambda**](https://aws.amazon.com/lambda/features/)
+* [**AWS SQS**](https://aws.amazon.com/sqs/features/)
 * **SMTP** (email)
-* **Opsgenie**
+* [**Opsgenie**](https://www.opsgenie.com/)
 
 ## Usage
 
@@ -262,13 +262,15 @@ You should get :
 ![slack example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack.png)
 (SLACK_OUTPUTFORMAT="**text**")
 ![slack no fields example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_no_fields.png)
+(SLACK_OUTPUTFORMAT="**fields**" and SLACK_MESSAGEFORMAT="**Alert : rule \*{{ .Rule }}\* triggered by user \*{{ index .OutputFields \"user.name\" }}\***")
+![slack message format example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_fields_message_format.png)
 
 ### Teams
 
 (TEAMS_OUTPUTFORMAT="**all**")
 ![teams example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/teams.png)
 (TEAMS_OUTPUTFORMAT="**text**")
-![teams facts only](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/teams_facts_only.png)
+![teams facts only](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/teams_text.png)
 
 ### Datadog
 
