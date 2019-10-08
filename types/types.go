@@ -125,6 +125,7 @@ type opsgenieOutputConfig struct {
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests      *expvar.Map
+	Falco         *expvar.Map
 	Slack         *expvar.Map
 	Teams         *expvar.Map
 	Datadog       *expvar.Map

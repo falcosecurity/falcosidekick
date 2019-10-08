@@ -57,6 +57,10 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	stats.Requests.Add("accepted", 1)
+	switch strings.ToLower(falcopayload.Priority) {
+	case "emergency", "alert", "critical", "error", "warning", "notice", "informationnal", "debug":
+		stats.Falco.Add(strings.ToLower(falcopayload.Priority), 1)
+	}
 
 	if config.Debug == true {
 		body, _ := json.Marshal(falcopayload)

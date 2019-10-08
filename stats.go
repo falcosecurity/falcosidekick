@@ -9,6 +9,7 @@ import (
 func getInitStats() *types.Statistics {
 	stats = &types.Statistics{
 		Requests:      expvar.NewMap("requests"),
+		Falco:         expvar.NewMap("outputs.falco"),
 		Slack:         expvar.NewMap("outputs.slack"),
 		Teams:         expvar.NewMap("outputs.teams"),
 		Datadog:       expvar.NewMap("outputs.datadog"),
@@ -25,6 +26,14 @@ func getInitStats() *types.Statistics {
 	stats.Requests.Add("total", 0)
 	stats.Requests.Add("rejected", 0)
 	stats.Requests.Add("accepted", 0)
+	stats.Falco.Add("emergency", 0)
+	stats.Falco.Add("alert", 0)
+	stats.Falco.Add("critical", 0)
+	stats.Falco.Add("error", 0)
+	stats.Falco.Add("warning", 0)
+	stats.Falco.Add("notice", 0)
+	stats.Falco.Add("informationnal", 0)
+	stats.Falco.Add("debug", 0)
 	stats.Slack.Add("total", 0)
 	stats.Slack.Add("error", 0)
 	stats.Slack.Add("sent", 0)
