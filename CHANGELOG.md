@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.2 - 2019-10-11
+#### Enhancement
+- Add formatted Text in Slack message ([PR#40](https://github.com/falcosecurity/falcosidekick/pull/40) thanks to [@actgardner](https://github.com/actgardner))
+#### Fix
+- Fix Opgenie config in helm template ([PR#41](https://github.com/falcosecurity/falcosidekick/pull/41) thanks to [@kamirendawkins](https://github.com/kamirendawkins))
+
 ## 2.9.1 - 2019-10-07
 #### Enhancement
 - Add formatted Text in Slack message ([PR#40](https://github.com/falcosecurity/falcosidekick/pull/40) thanks to [@actgardner](https://github.com/actgardner))
