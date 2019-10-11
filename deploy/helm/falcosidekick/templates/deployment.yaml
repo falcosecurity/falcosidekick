@@ -182,7 +182,7 @@ spec:
                   key: smtp-password
             {{- end }}  
             {{- end }}
-            {{- if .Values.opsgenie.datadog.apikey }}
+            {{- if .Values.config.opsgenie.apikey }}
             - name: OPSGENIE_APIKEY
               valueFrom:
                 secretKeyRef:
