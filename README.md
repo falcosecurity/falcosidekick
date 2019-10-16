@@ -78,28 +78,28 @@ slack:
   #footer: "" # Slack footer
   #icon: "" # Slack icon (avatar)
   outputformat: "text" # all (default), text, fields
-  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 
 teams:
   webhookurl: "" # Teams WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Teams output is enabled
   #activityimage: "" # Image for message section
   outputformat: "text" # all (default), text, facts
-  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 datadog:
   #apikey: ""  # Datadog API Key, if not empty, Datadog output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 alertmanager:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
   # type: "event"
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
 
 influxdb:
@@ -107,15 +107,15 @@ influxdb:
   # database: "falco" # Influxdb database (default: falco)
   # user: "" # user to use if auth is enabled in Influxdb
   # password: "" # pasword to use if auth is enabled in Influxdb
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 loki:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 nats:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 aws:
   # accesskeyid: "" # aws access key (optionnal if you use EC2 Instance Profile)
@@ -123,10 +123,10 @@ aws:
   # region : "" # aws region (optionnal if you use EC2 Instance Profile)
   lambda:
     # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
-    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sqs:
     # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
-    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
@@ -135,12 +135,12 @@ smtp:
   # from: "" # Sender address (mandatory if SMTP output is enabled)
   # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
   # outputformat: "" # html (default), text
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 opsgenie:
   # apikey: "" # Opsgenie API Key, if not empty, Opsgenie output is enabled
   # region: "eu" # (us|eu) region of your domain (default is 'us')
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -166,47 +166,47 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)
 * **SLACK_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
-* **SLACK_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **SLACK_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **SLACK_MESSAGEFORMAT** : a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 * **TEAMS_WEBHOOKURL** : Teams Webhook URL (ex: https://outlook.office.com/webhook/XXXXXX/IncomingWebhook/YYYYYY"), if not `empty`, Teams output is *enabled*
 * **TEAMS_ACTIVITYIMAGE** : Teams section image
 * **TEAMS_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Teams), `facts` (only facts are displayed in Teams)
-* **TEAMS_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **TEAMS_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **DATADOG_APIKEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
-* **DATADOG_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **DATADOG_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **ALERTMANAGER_HOSTPORT** : AlertManager http://host:port, if not `empty`, AlertManager is *enabled*
-* **ALERTMANAGER_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **ALERTMANAGER_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **ELASTICSEARCH_HOSTPORT** : Elasticsearch http://host:port, if not `empty`, Elasticsearch is *enabled*
 * **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)
 * **ELASTICSEARCH_TYPE** : Elasticsearch document type (default: event)
-* **ELASTICSEARCH_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **ELASTICSEARCH_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **ELASTICSEARCH_SUFFIX** : date suffix for index rotation : `daily` (default), `monthly`, `annually`, `none`
 * **INFLUXDB_HOSTPORT** : Influxdb http://host:port, if not `empty`, Influxdb is *enabled*
 * **INFLUXDB_DATABASE** : Influxdb database (default: falco)
 * **INFLUXDB_USER** : user to use if auth is enabled in Influxdb
 * **INFLUXDB_PASSWORD** : user to use if auth is enabled in Influxdb
-* **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **LOKI_HOSTPORT** : Loki http://host:port, if not `empty`, Loki is *enabled*
-* **LOKI_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **LOKI_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **NATS_HOSTPORT** : NATS nats://host:port, if not `empty`, NATS is *enabled*
-* **NATS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **NATS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AWS_ACCESSKEYID** : AWS Access Key Id (optionnal if you use EC2 Instance Profile)
 * **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optionnal if you use EC2 Instance Profile)
 * **AWS_REGION** : AWS Region (optionnal if you use EC2 Instance Profile)
 * **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name, if not empty, AWS Lambda output is enabled
-* **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is enabled
-* **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **SMTP_HOSTPORT** :  host:port address of SMTP server, if not empty, SMTP output is enabled
 * **SMTP_USER** : user to access SMTP server
 * **SMTP_PASSWORD** : password to access SMTP server
 * **SMTP_FROM** : Sender address (mandatory if SMTP output is enabled)
 * **SMTP_TO** : comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
 * **SMTP_OUTPUTFORMAT** : "" # html (default), text
-* **SMTP_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **SMTP_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **OPSGENIE_APIKEY** : Opsgenie API Key, if not empty, Opsgenie output is enabled
 * **OPSGENIE_REGION** : "" # (us|eu) region of your domain (default is 'us')
-* **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informationnal|debug or "" (default)`
+* **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
 #### Slack Message Formatting
 
