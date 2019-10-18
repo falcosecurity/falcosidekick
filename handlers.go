@@ -32,16 +32,19 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	var falcopayload types.FalcoPayload
 
 	stats.Requests.Add("total", 1)
+	countMetric("inputs", 1, []string{})
 
 	if r.Body == nil {
 		http.Error(w, "Please send a valid request body", 400)
 		stats.Requests.Add("rejected", 1)
+		countMetric("rejected", 1, []string{"error:nobody"})
 		return
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&falcopayload)
 	if err != nil && err.Error() != "EOF" || len(falcopayload.Output) == 0 {
 		http.Error(w, "Please send a valid request body : "+err.Error(), 400)
+		countMetric("rejected", 1, []string{"error:invalidjson"})
 		stats.Requests.Add("rejected", 1)
 		return
 	}
@@ -57,7 +60,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	stats.Requests.Add("accepted", 1)
-	switch strings.ToLower(falcopayload.Priority) {
+	priority := strings.ToLower(falcopayload.Priority)
+	countMetric("accepted", 1, []string{"priority:" + priority})
+	switch priority {
 	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
 		stats.Falco.Add(strings.ToLower(falcopayload.Priority), 1)
 	}
@@ -126,4 +131,11 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("[DEBUG] : Test KO (%v)\n", resp.Status)
 	}
+}
+
+func countMetric(metric string, value int64, tags []string) {
+	if statsdClient == nil {
+		return
+	}
+	statsdClient.Count(metric, value, tags, 1.0)
 }

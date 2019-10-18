@@ -8,8 +8,10 @@ import (
 	"strings"
 	textTemplate "text/template"
 
+	"github.com/DataDog/datadog-go/statsd"
 	sasl "github.com/emersion/go-sasl"
 	smtp "github.com/emersion/go-smtp"
+
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -21,7 +23,7 @@ type SMTPPayload struct {
 }
 
 // NewSMTPClient returns a new output.Client for accessing a SMTP server.
-func NewSMTPClient(outputType string, config *types.Configuration, stats *types.Statistics) (*Client, error) {
+func NewSMTPClient(outputType string, config *types.Configuration, stats *types.Statistics, statsdClient *statsd.Client) (*Client, error) {
 	reg := regexp.MustCompile(`.*:[0-9]+`)
 	if !reg.MatchString(config.SMTP.HostPort) {
 		log.Printf("[ERROR] : SMTP - Bad Host:Port\n")
@@ -29,9 +31,10 @@ func NewSMTPClient(outputType string, config *types.Configuration, stats *types.
 	}
 
 	return &Client{
-		OutputType: outputType,
-		Config:     config,
-		Stats:      stats,
+		OutputType:   outputType,
+		Config:       config,
+		Stats:        stats,
+		StatsdClient: statsdClient,
 	}, nil
 }
 
@@ -99,8 +102,10 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 	log.Printf("[INFO]  : SMTP - Sent OK\n")
 
 	if err != nil {
+		c.CountMetric("outputs", 1, []string{"output:" + c.OutputType, "status:error"})
 		c.Stats.SMTP.Add("error", 1)
 	} else {
+		c.CountMetric("outputs", 1, []string{"output:" + c.OutputType, "status:sent"})
 		c.Stats.SMTP.Add("sent", 1)
 	}
 	c.Stats.SMTP.Add("total", 1)

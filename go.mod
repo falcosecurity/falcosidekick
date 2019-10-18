@@ -3,6 +3,7 @@ module github.com/falcosecurity/falcosidekick
 go 1.12
 
 require (
+	github.com/DataDog/datadog-go v2.3.0+incompatible
 	github.com/aws/aws-sdk-go v1.23.10
 	github.com/emersion/go-sasl v0.0.0-20190817083125-240c8404624e
 	github.com/emersion/go-smtp v0.11.2

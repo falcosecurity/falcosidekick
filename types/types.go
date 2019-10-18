@@ -30,6 +30,7 @@ type Configuration struct {
 	AWS           awsOutputConfig
 	SMTP          smtpOutputConfig
 	Opsgenie      opsgenieOutputConfig
+	Statsd        statsdConfig
 	Customfields  map[string]string
 }
 
@@ -120,6 +121,12 @@ type opsgenieOutputConfig struct {
 	Region          string
 	APIKey          string
 	MinimumPriority string
+}
+
+type statsdConfig struct {
+	Forwarder string
+	Namespace string
+	Tags      []string
 }
 
 // Statistics is a struct to store stastics
