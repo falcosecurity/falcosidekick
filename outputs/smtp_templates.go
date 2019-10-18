@@ -19,7 +19,7 @@ var htmlTmpl = `
 {{ if or (eq .Priority "Error") (eq .Priority "error") }}{{ $color = "#ffc700" }}{{ end }}
 {{ if or (eq .Priority "Warning") (eq .Priority "warning") }}{{ $color = "#ffff00" }}{{ end }}
 {{ if or (eq .Priority "Notice") (eq .Priority "notice") }}{{ $color = "#5bffb5" }}{{ end }}
-{{ if or (eq .Priority "Informationnal") (eq .Priority "informationnal") }}{{ $color = "#68c2ff" }}{{ end }}
+{{ if or (eq .Priority "Informational") (eq .Priority "informational") }}{{ $color = "#68c2ff" }}{{ end }}
 {{ if or (eq .Priority "Debug") (eq .Priority "debug") }}{{ $color = "#ccfff2" }}{{ end }}
 
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">

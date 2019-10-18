@@ -101,7 +101,7 @@ func getConfig() *types.Configuration {
 	if c.ListenPort == 0 || c.ListenPort > 65536 {
 		log.Fatalf("[ERROR] : Bad port number\n")
 	}
-	if match, _ := regexp.MatchString("(?i)(emergency|alert|critical|error|warning|notice|informationnal|debug)", c.Slack.MinimumPriority); !match {
+	if match, _ := regexp.MatchString("(?i)(emergency|alert|critical|error|warning|notice|informational|debug)", c.Slack.MinimumPriority); !match {
 		c.Slack.MinimumPriority = ""
 		c.Teams.MinimumPriority = ""
 	}

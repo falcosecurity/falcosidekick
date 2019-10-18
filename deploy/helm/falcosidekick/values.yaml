@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: falcosecurity/falcosidekick
-  tag: 2.9.2
+  tag: 2.9.3
   pullPolicy: IfNotPresent
 
 nameOverride: ""

@@ -14,15 +14,15 @@ import (
 
 func getPriorityMap() map[string]int {
 	return map[string]int{
-		"emergency":      8,
-		"alert":          7,
-		"critical":       6,
-		"error":          5,
-		"warning":        4,
-		"notice":         3,
-		"informationnal": 2,
-		"debug":          1,
-		"":               0,
+		"emergency":     8,
+		"alert":         7,
+		"critical":      6,
+		"error":         5,
+		"warning":       4,
+		"notice":        3,
+		"informational": 2,
+		"debug":         1,
+		"":              0,
 	}
 }
 
@@ -58,7 +58,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	stats.Requests.Add("accepted", 1)
 	switch strings.ToLower(falcopayload.Priority) {
-	case "emergency", "alert", "critical", "error", "warning", "notice", "informationnal", "debug":
+	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
 		stats.Falco.Add(strings.ToLower(falcopayload.Priority), 1)
 	}
 

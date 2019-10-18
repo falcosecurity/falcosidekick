@@ -32,7 +32,7 @@ func getInitStats() *types.Statistics {
 	stats.Falco.Add("error", 0)
 	stats.Falco.Add("warning", 0)
 	stats.Falco.Add("notice", 0)
-	stats.Falco.Add("informationnal", 0)
+	stats.Falco.Add("informational", 0)
 	stats.Falco.Add("debug", 0)
 	stats.Slack.Add("total", 0)
 	stats.Slack.Add("error", 0)

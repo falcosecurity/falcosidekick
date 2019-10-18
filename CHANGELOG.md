@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.3 - 2019-10-18
+#### Fix
+- Fix typo in priority check ([PR#42](https://github.com/falcosecurity/falcosidekick/pull/42) thanks to [@palmerabollo](https://github.com/palmerabollo))
+
 ## 2.9.2 - 2019-10-11
 #### Enhancement
 - Add formatted Text in Slack message ([PR#40](https://github.com/falcosecurity/falcosidekick/pull/40) thanks to [@actgardner](https://github.com/actgardner))

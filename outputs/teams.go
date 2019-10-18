@@ -80,7 +80,7 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		color = "ffff00"
 	case "notice":
 		color = "5bffb5"
-	case "informationnal":
+	case "informational":
 		color = "68c2ff"
 	case "debug":
 		color = "ccfff2"
