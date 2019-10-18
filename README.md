@@ -141,6 +141,11 @@ opsgenie:
   # apikey: "" # Opsgenie API Key, if not empty, Opsgenie output is enabled
   # region: "eu" # (us|eu) region of your domain (default is 'us')
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+statsd:
+  # forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
+  # namespace: "falcosidekick" # A prefix for all metrics
+  # tags: "" # A comma-separated list of tags to add to all metrics
 ```
 
 Usage :
@@ -207,6 +212,9 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **OPSGENIE_APIKEY** : Opsgenie API Key, if not empty, Opsgenie output is enabled
 * **OPSGENIE_REGION** : "" # (us|eu) region of your domain (default is 'us')
 * **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **STATSD_FORWARDER**: The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
+* **STATSD_NAMESPACE**: A prefix for all metrics
+* **STATSD_TAGS**: A comma-separated list of tags to add to all metrics
 
 #### Slack Message Formatting
 

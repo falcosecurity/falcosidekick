@@ -86,6 +86,11 @@ config:
     region: ""
     minimumpriority: ""
 
+  statsd:
+    forwarder: ""
+    namespace: "falcosidekick"
+    tags: ""
+
 service:
   type: ClusterIP
   port: 2801

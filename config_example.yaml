@@ -73,3 +73,8 @@ opsgenie:
   # apikey: "" # Opsgenie API Key, if not empty, Opsgenie output is enabled
   # region: "eu" # (us|eu) region of your domain
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+statsd:
+  # forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
+  # namespace: "falcosidekick" # A prefix for all metrics
+  # tags: "" # A comma-separated list of tags to add to all metrics
