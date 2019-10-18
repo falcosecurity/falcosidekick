@@ -25,7 +25,7 @@ func init() {
 		var err error
 		statsdClient, err = statsd.New(config.Statsd.Forwarder, statsd.WithNamespace(config.Statsd.Namespace), statsd.WithTags(config.Statsd.Tags))
 		if err != nil {
-			log.Printf("[EROR]  : Can't configure StatsD client for %v - %v", config.Statsd.Forwarder, err)
+			log.Printf("[ERROR]  : Can't configure StatsD client for %v - %v", config.Statsd.Forwarder, err)
 		} else {
 			log.Printf("[INFO]  : Emitting StatsD metrics to %v", config.Statsd.Forwarder)
 		}

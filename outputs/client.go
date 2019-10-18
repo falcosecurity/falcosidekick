@@ -144,5 +144,7 @@ func (c *Client) CountMetric(name string, value int64, tags []string) {
 		return
 	}
 
-	c.StatsdClient.Count(name, value, tags, 1)
+	if err := c.StatsdClient.Count(name, value, tags, 1); err != nil {
+		log.Printf("[ERROR] : Unable to send metric to StatsD - %v", err)
+	}
 }
