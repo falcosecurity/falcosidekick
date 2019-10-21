@@ -65,7 +65,15 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	switch priority {
 	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
 		stats.Falco.Add(strings.ToLower(falcopayload.Priority), 1)
-	}
+priority := strings.ToLower(falcopayload.Priority)
+switch priority {
+case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
+	countMetric("accepted", 1, []string{"priority:" + priority})
+	stats.Falco.Add(strings.ToLower(falcopayload.Priority), 1)
+default:
+	countMetric("accepted", 1, []string{"priority:unknownpriority"})
+	stats.Falco.Add("unknownpriority", 1)
+}
 
 	if config.Debug == true {
 		body, _ := json.Marshal(falcopayload)
