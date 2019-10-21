@@ -44,8 +44,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&falcopayload)
 	if err != nil && err.Error() != "EOF" || len(falcopayload.Output) == 0 {
 		http.Error(w, "Please send a valid request body : "+err.Error(), 400)
-		countMetric("rejected", 1, []string{"error:invalidjson"})
 		stats.Requests.Add("rejected", 1)
+		countMetric("rejected", 1, []string{"error:invalidjson"})
 		return
 	}
 
@@ -64,16 +64,12 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	countMetric("accepted", 1, []string{"priority:" + priority})
 	switch priority {
 	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
+		countMetric("accepted", 1, []string{"priority:" + priority})
 		stats.Falco.Add(strings.ToLower(falcopayload.Priority), 1)
-priority := strings.ToLower(falcopayload.Priority)
-switch priority {
-case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
-	countMetric("accepted", 1, []string{"priority:" + priority})
-	stats.Falco.Add(strings.ToLower(falcopayload.Priority), 1)
-default:
-	countMetric("accepted", 1, []string{"priority:unknownpriority"})
-	stats.Falco.Add("unknownpriority", 1)
-}
+	default:
+		countMetric("accepted", 1, []string{"priority:unknownpriority"})
+		stats.Falco.Add("unknownpriority", 1)
+	}
 
 	if config.Debug == true {
 		body, _ := json.Marshal(falcopayload)
