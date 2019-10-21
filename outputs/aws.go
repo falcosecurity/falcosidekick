@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
@@ -100,10 +101,11 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	}
 
 	c.Stats.AWSSQS.Add("total", 1)
+	outputTag := strings.ToLower(c.OutputType)
 
 	resp, err := svc.SendMessage(input)
 	if err != nil {
-		c.CountMetric("outputs", 1, []string{"output:" + c.OutputType, "status:error"})
+		c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:error"})
 		c.Stats.AWSSQS.Add("error", 1)
 		log.Printf("[ERROR] : %v SQS - %v\n", c.OutputType, err.Error())
 		return
@@ -114,6 +116,6 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	}
 
 	log.Printf("[INFO]  : %v SQS - Send Message OK (%v)\n", c.OutputType, *resp.MessageId)
-	c.CountMetric("outputs", 1, []string{"output:" + c.OutputType, "status:ok"})
+	c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:ok"})
 	c.Stats.AWSSQS.Add("sent", 1)
 }

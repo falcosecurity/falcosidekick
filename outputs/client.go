@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -109,7 +110,8 @@ func (c *Client) Post(payload interface{}) error {
 	}
 	defer resp.Body.Close()
 
-	c.CountMetric("outputs", 1, []string{"output:" + c.OutputType, "status:" + http.StatusText(resp.StatusCode)})
+	outputTag := strings.ToLower(c.OutputType)
+	c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:" + http.StatusText(resp.StatusCode)})
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
 		log.Printf("[INFO]  : %v - Post OK (%v)\n", c.OutputType, resp.StatusCode)

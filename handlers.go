@@ -32,7 +32,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	var falcopayload types.FalcoPayload
 
 	stats.Requests.Add("total", 1)
-	countMetric("inputs", 1, []string{})
+	countMetric("total", 1, []string{})
 
 	if r.Body == nil {
 		http.Error(w, "Please send a valid request body", 400)

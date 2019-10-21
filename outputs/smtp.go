@@ -83,6 +83,7 @@ func newSMTPPayload(falcopayload types.FalcoPayload, config *types.Configuration
 
 // SendMail sends email to SMTP server
 func (c *Client) SendMail(falcopayload types.FalcoPayload) {
+	outputTag := strings.ToLower(c.OutputType)
 	sp := newSMTPPayload(falcopayload, c.Config)
 
 	to := strings.Split(strings.Replace(c.Config.SMTP.To, " ", "", -1), ",")
@@ -93,20 +94,18 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 		log.Printf("[DEBUG] : SMTP payload : \nServeur: %v\nFrom: %v\nTo: %v\nSubject: %v\n", c.Config.SMTP.HostPort, c.Config.SMTP.From, sp.To, sp.Subject)
 	}
 
+	c.Stats.SMTP.Add("total", 1)
 	err := smtp.SendMail(c.Config.SMTP.HostPort, auth, c.Config.SMTP.From, to, strings.NewReader(body))
 	if err != nil {
+		c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:error"})
+		c.Stats.SMTP.Add("error", 1)
+
 		log.Printf("[ERROR] : SMTP - %v\n", err)
 		return
 	}
 
 	log.Printf("[INFO]  : SMTP - Sent OK\n")
 
-	if err != nil {
-		c.CountMetric("outputs", 1, []string{"output:" + c.OutputType, "status:error"})
-		c.Stats.SMTP.Add("error", 1)
-	} else {
-		c.CountMetric("outputs", 1, []string{"output:" + c.OutputType, "status:sent"})
-		c.Stats.SMTP.Add("sent", 1)
-	}
-	c.Stats.SMTP.Add("total", 1)
+	c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:sent"})
+	c.Stats.SMTP.Add("sent", 1)
 }
