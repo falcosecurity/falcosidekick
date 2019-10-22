@@ -24,6 +24,7 @@ Currently available outputs are :
 * [**AWS SQS**](https://aws.amazon.com/sqs/features/)
 * **SMTP** (email)
 * [**Opsgenie**](https://www.opsgenie.com/)
+* [*StatsD**](https://github.com/statsd/statsd) (for monitoring of `falcosidekick`)
 
 ## Usage
 
@@ -47,6 +48,16 @@ helm install --name falcosidekick .
 ### Falco's config
 
 Add this (adapted to your environment) in your *falco.yaml* :
+
+```bash
+json_output: true
+json_include_output_property: true
+http_output:
+  enabled: true
+  url: http://localhost:2801/"
+```
+
+or
 
 ```bash
 json_output: true
@@ -193,7 +204,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **LOKI_HOSTPORT** : Loki http://host:port, if not `empty`, Loki is *enabled*
 * **LOKI_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **NATS_HOSTPORT** : NATS nats://host:port, if not `empty`, NATS is *enabled*
+* **NATS_HOSTPORT** : NATS "nats://host:port", if not `empty`, NATS is *enabled*
 * **NATS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AWS_ACCESSKEYID** : AWS Access Key Id (optionnal if you use EC2 Instance Profile)
 * **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optionnal if you use EC2 Instance Profile)
@@ -202,7 +213,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is enabled
 * **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **SMTP_HOSTPORT** :  host:port address of SMTP server, if not empty, SMTP output is enabled
+* **SMTP_HOSTPORT** :  "host:port" address of SMTP server, if not empty, SMTP output is enabled
 * **SMTP_USER** : user to access SMTP server
 * **SMTP_PASSWORD** : password to access SMTP server
 * **SMTP_FROM** : Sender address (mandatory if SMTP output is enabled)
@@ -212,7 +223,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **OPSGENIE_APIKEY** : Opsgenie API Key, if not empty, Opsgenie output is enabled
 * **OPSGENIE_REGION** : "" # (us|eu) region of your domain (default is 'us')
 * **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **STATSD_FORWARDER**: The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
+* **STATSD_FORWARDER**: The address for the StatsD forwarder, in the form http://host:port, if not empty StatsD is enabled
 * **STATSD_NAMESPACE**: A prefix for all metrics
 * **STATSD_TAGS**: A comma-separated list of tags to add to all metrics
 
@@ -249,10 +260,16 @@ All logs are sent to `stdout`.
 
 ## Metrics
 
+### Golang ExpVar
+
 The daemon exposes the common *Golang* metrics and some custom values in JSON format. It's useful for monitoring purpose.
 
 ![expvar json](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/expvar_json.png)
 ![expvarmon](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/expvarmon.png)
+
+### StatsD
+
+The daemon is able to push its metrics to a StatsD server. See [Configuration](https://github.com/falcosecurity/falcosidekick#configuration) section for how-to.
 
 ## Examples
 
