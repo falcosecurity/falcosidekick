@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/outputs"
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -14,15 +15,26 @@ import (
 var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, lokiClient, natsClient, awsClient, smtpClient, opsgenieClient *outputs.Client
 var config *types.Configuration
 var stats *types.Statistics
+var statsdClient *statsd.Client
 
 func init() {
 	config = getConfig()
 	stats = getInitStats()
 
+	if config.Statsd.Forwarder != "" {
+		var err error
+		statsdClient, err = statsd.New(config.Statsd.Forwarder, statsd.WithNamespace(config.Statsd.Namespace), statsd.WithTags(config.Statsd.Tags))
+		if err != nil {
+			log.Printf("[ERROR]  : Can't configure StatsD client for %v - %v", config.Statsd.Forwarder, err)
+		} else {
+			log.Printf("[INFO]  : Emitting StatsD metrics to %v", config.Statsd.Forwarder)
+		}
+	}
+
 	enabledOutputsText := "[INFO]  : Enabled Outputs : "
 	if config.Slack.WebhookURL != "" {
 		var err error
-		slackClient, err = outputs.NewClient("Slack", config.Slack.WebhookURL, config, stats)
+		slackClient, err = outputs.NewClient("Slack", config.Slack.WebhookURL, config, stats, statsdClient)
 		if err != nil {
 			config.Slack.WebhookURL = ""
 		} else {
@@ -31,7 +43,7 @@ func init() {
 	}
 	if config.Teams.WebhookURL != "" {
 		var err error
-		teamsClient, err = outputs.NewClient("Teams", config.Teams.WebhookURL, config, stats)
+		teamsClient, err = outputs.NewClient("Teams", config.Teams.WebhookURL, config, stats, statsdClient)
 		if err != nil {
 			config.Teams.WebhookURL = ""
 		} else {
@@ -40,7 +52,7 @@ func init() {
 	}
 	if config.Datadog.APIKey != "" {
 		var err error
-		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?apikey="+config.Datadog.APIKey, config, stats)
+		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?apikey="+config.Datadog.APIKey, config, stats, statsdClient)
 		if err != nil {
 			config.Datadog.APIKey = ""
 		} else {
@@ -49,7 +61,7 @@ func init() {
 	}
 	if config.Alertmanager.HostPort != "" {
 		var err error
-		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.HostPort+outputs.AlertmanagerURI, config, stats)
+		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.HostPort+outputs.AlertmanagerURI, config, stats, statsdClient)
 		if err != nil {
 			config.Alertmanager.HostPort = ""
 		} else {
@@ -58,7 +70,7 @@ func init() {
 	}
 	if config.Elasticsearch.HostPort != "" {
 		var err error
-		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.HostPort+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config, stats)
+		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.HostPort+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config, stats, statsdClient)
 		if err != nil {
 			config.Elasticsearch.HostPort = ""
 		} else {
@@ -67,7 +79,7 @@ func init() {
 	}
 	if config.Loki.HostPort != "" {
 		var err error
-		lokiClient, err = outputs.NewClient("Loki", config.Loki.HostPort+"/api/prom/push", config, stats)
+		lokiClient, err = outputs.NewClient("Loki", config.Loki.HostPort+"/api/prom/push", config, stats, statsdClient)
 		if err != nil {
 			config.Loki.HostPort = ""
 		} else {
@@ -76,7 +88,7 @@ func init() {
 	}
 	if config.Nats.HostPort != "" {
 		var err error
-		natsClient, err = outputs.NewClient("NATS", config.Nats.HostPort, config, stats)
+		natsClient, err = outputs.NewClient("NATS", config.Nats.HostPort, config, stats, statsdClient)
 		if err != nil {
 			config.Nats.HostPort = ""
 		} else {
@@ -89,7 +101,7 @@ func init() {
 			credentials = "&u=" + config.Influxdb.User + "&p=" + config.Influxdb.Password
 		}
 		var err error
-		influxdbClient, err = outputs.NewClient("Influxdb", config.Influxdb.HostPort+"/write?db="+config.Influxdb.Database+credentials, config, stats)
+		influxdbClient, err = outputs.NewClient("Influxdb", config.Influxdb.HostPort+"/write?db="+config.Influxdb.Database+credentials, config, stats, statsdClient)
 		if err != nil {
 			config.Influxdb.HostPort = ""
 		} else {
@@ -98,7 +110,7 @@ func init() {
 	}
 	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" {
 		var err error
-		awsClient, err = outputs.NewAWSClient("AWS", config, stats)
+		awsClient, err = outputs.NewAWSClient("AWS", config, stats, statsdClient)
 		if err != nil {
 			config.AWS.AccessKeyID = ""
 			config.AWS.SecretAccessKey = ""
@@ -116,7 +128,7 @@ func init() {
 	}
 	if config.SMTP.HostPort != "" && config.SMTP.From != "" && config.SMTP.To != "" {
 		var err error
-		smtpClient, err = outputs.NewSMTPClient("SMTP", config, stats)
+		smtpClient, err = outputs.NewSMTPClient("SMTP", config, stats, statsdClient)
 		if err != nil {
 			config.SMTP.HostPort = ""
 		} else {
@@ -129,7 +141,7 @@ func init() {
 		if strings.ToLower(config.Opsgenie.Region) == "eu" {
 			url = "https://api.eu.opsgenie.com/v2/alerts"
 		}
-		opsgenieClient, err = outputs.NewClient("Opsgenie", url, config, stats)
+		opsgenieClient, err = outputs.NewClient("Opsgenie", url, config, stats, statsdClient)
 		if err != nil {
 			config.Opsgenie.APIKey = ""
 		} else {

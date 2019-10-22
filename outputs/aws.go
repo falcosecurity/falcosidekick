@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
@@ -17,7 +19,7 @@ import (
 )
 
 // NewAWSClient returns a new output.Client for accessing the AWS API.
-func NewAWSClient(outputType string, config *types.Configuration, stats *types.Statistics) (*Client, error) {
+func NewAWSClient(outputType string, config *types.Configuration, stats *types.Statistics, statsdClient *statsd.Client) (*Client, error) {
 
 	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
 		os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
@@ -47,11 +49,12 @@ func NewAWSClient(outputType string, config *types.Configuration, stats *types.S
 	}
 
 	return &Client{
-		OutputType:  outputType,
-		EndpointURL: endpointURL,
-		Config:      config,
-		AWSSession:  sess,
-		Stats:       stats,
+		OutputType:   outputType,
+		EndpointURL:  endpointURL,
+		Config:       config,
+		AWSSession:   sess,
+		Stats:        stats,
+		StatsdClient: statsdClient,
 	}, nil
 }
 
@@ -98,9 +101,11 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	}
 
 	c.Stats.AWSSQS.Add("total", 1)
+	outputTag := strings.ToLower(c.OutputType)
 
 	resp, err := svc.SendMessage(input)
 	if err != nil {
+		c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:error"})
 		c.Stats.AWSSQS.Add("error", 1)
 		log.Printf("[ERROR] : %v SQS - %v\n", c.OutputType, err.Error())
 		return
@@ -111,5 +116,6 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	}
 
 	log.Printf("[INFO]  : %v SQS - Send Message OK (%v)\n", c.OutputType, *resp.MessageId)
+	c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:ok"})
 	c.Stats.AWSSQS.Add("sent", 1)
 }

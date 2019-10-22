@@ -193,6 +193,15 @@ spec:
             - name: OPSGENIE_MINIMUMPRIORITY
               value: {{ .Values.config.opsgenie.minimumpriority | quote }}
             {{- end }}
+            {{- if .Values.config.statsd.forwarder }}
+            - name: STATSD_FORWARDER
+              value: {{ .Values.config.statsd.forwarder | quote }}
+            - name: STATSD_NAMESPACE
+              value: {{ .Values.config.statsd.namespace | quote }}
+            - name: STATSD_TAGS
+              value: {{ .Values.config.statsd.tags | quote }}
+            {{- end }}
+
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

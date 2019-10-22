@@ -8,8 +8,10 @@ import (
 	"strings"
 	textTemplate "text/template"
 
+	"github.com/DataDog/datadog-go/statsd"
 	sasl "github.com/emersion/go-sasl"
 	smtp "github.com/emersion/go-smtp"
+
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -21,7 +23,7 @@ type SMTPPayload struct {
 }
 
 // NewSMTPClient returns a new output.Client for accessing a SMTP server.
-func NewSMTPClient(outputType string, config *types.Configuration, stats *types.Statistics) (*Client, error) {
+func NewSMTPClient(outputType string, config *types.Configuration, stats *types.Statistics, statsdClient *statsd.Client) (*Client, error) {
 	reg := regexp.MustCompile(`.*:[0-9]+`)
 	if !reg.MatchString(config.SMTP.HostPort) {
 		log.Printf("[ERROR] : SMTP - Bad Host:Port\n")
@@ -29,9 +31,10 @@ func NewSMTPClient(outputType string, config *types.Configuration, stats *types.
 	}
 
 	return &Client{
-		OutputType: outputType,
-		Config:     config,
-		Stats:      stats,
+		OutputType:   outputType,
+		Config:       config,
+		Stats:        stats,
+		StatsdClient: statsdClient,
 	}, nil
 }
 
@@ -80,6 +83,7 @@ func newSMTPPayload(falcopayload types.FalcoPayload, config *types.Configuration
 
 // SendMail sends email to SMTP server
 func (c *Client) SendMail(falcopayload types.FalcoPayload) {
+	outputTag := strings.ToLower(c.OutputType)
 	sp := newSMTPPayload(falcopayload, c.Config)
 
 	to := strings.Split(strings.Replace(c.Config.SMTP.To, " ", "", -1), ",")
@@ -90,18 +94,18 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 		log.Printf("[DEBUG] : SMTP payload : \nServeur: %v\nFrom: %v\nTo: %v\nSubject: %v\n", c.Config.SMTP.HostPort, c.Config.SMTP.From, sp.To, sp.Subject)
 	}
 
+	c.Stats.SMTP.Add("total", 1)
 	err := smtp.SendMail(c.Config.SMTP.HostPort, auth, c.Config.SMTP.From, to, strings.NewReader(body))
 	if err != nil {
+		c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:error"})
+		c.Stats.SMTP.Add("error", 1)
+
 		log.Printf("[ERROR] : SMTP - %v\n", err)
 		return
 	}
 
 	log.Printf("[INFO]  : SMTP - Sent OK\n")
 
-	if err != nil {
-		c.Stats.SMTP.Add("error", 1)
-	} else {
-		c.Stats.SMTP.Add("sent", 1)
-	}
-	c.Stats.SMTP.Add("total", 1)
+	c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:sent"})
+	c.Stats.SMTP.Add("sent", 1)
 }

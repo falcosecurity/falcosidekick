@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -37,15 +39,16 @@ var ErrClientCreation = errors.New("Client creation Error")
 
 // Client communicates with the different API.
 type Client struct {
-	OutputType  string
-	EndpointURL *url.URL
-	Config      *types.Configuration
-	Stats       *types.Statistics
-	AWSSession  *session.Session
+	OutputType   string
+	EndpointURL  *url.URL
+	Config       *types.Configuration
+	Stats        *types.Statistics
+	AWSSession   *session.Session
+	StatsdClient *statsd.Client
 }
 
 // NewClient returns a new output.Client for accessing the different API.
-func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration, stats *types.Statistics) (*Client, error) {
+func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration, stats *types.Statistics, statsdClient *statsd.Client) (*Client, error) {
 	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad Endpoint")
@@ -60,7 +63,7 @@ func NewClient(outputType string, defaultEndpointURL string, config *types.Confi
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config, Stats: stats}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config, Stats: stats, StatsdClient: statsdClient}, nil
 }
 
 // Post sends event (payload) to Output.
@@ -107,6 +110,8 @@ func (c *Client) Post(payload interface{}) error {
 	}
 	defer resp.Body.Close()
 
+	outputTag := strings.ToLower(c.OutputType)
+	c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:" + http.StatusText(resp.StatusCode)})
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
 		log.Printf("[INFO]  : %v - Post OK (%v)\n", c.OutputType, resp.StatusCode)
@@ -132,5 +137,16 @@ func (c *Client) Post(payload interface{}) error {
 	default:
 		log.Printf("[ERROR] : %v - Unexpected Response  (%v)\n", c.OutputType, resp.StatusCode)
 		return errors.New(resp.Status)
+	}
+}
+
+func (c *Client) CountMetric(name string, value int64, tags []string) {
+	// No-op if statsd metrics aren't configured
+	if c.StatsdClient == nil {
+		return
+	}
+
+	if err := c.StatsdClient.Count(name, value, tags, 1); err != nil {
+		log.Printf("[ERROR] : Unable to send metric to StatsD - %v", err)
 	}
 }

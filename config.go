@@ -69,6 +69,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Opsgenie.Region", "us")
 	v.SetDefault("Opsgenie.APIKey", "")
 	v.SetDefault("Opsgenie.MinimumPriority", "")
+	v.SetDefault("Statsd.Forwarder", "")
+	v.SetDefault("Statsd.Namespace", "falcosidekick.")
+	v.SetDefault("Statsd.Tags", []string{})
 	v.SetDefault("Customfields", map[string]string{})
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
