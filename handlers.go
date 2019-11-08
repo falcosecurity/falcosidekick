@@ -114,6 +114,9 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if config.Opsgenie.APIKey != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Opsgenie.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go opsgenieClient.OpsgeniePost(falcopayload)
 	}
+	if config.Webhook.Address != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Webhook.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go webhookClient.WebhookPost(falcopayload)
+	}
 }
 
 // pingHandler is a simple handler to test if daemon is UP.

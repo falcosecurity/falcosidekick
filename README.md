@@ -24,7 +24,8 @@ Currently available outputs are :
 * [**AWS SQS**](https://aws.amazon.com/sqs/features/)
 * **SMTP** (email)
 * [**Opsgenie**](https://www.opsgenie.com/)
-* [*StatsD**](https://github.com/statsd/statsd) (for monitoring of `falcosidekick`)
+* [**StatsD**](https://github.com/statsd/statsd) (for monitoring of `falcosidekick`)
+* [**Webhook**]
 
 ## Usage
 
@@ -157,6 +158,10 @@ statsd:
   # forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
   # namespace: "falcosidekick" # A prefix for all metrics
   # tags: "" # A comma-separated list of tags to add to all metrics
+
+webhook:
+  # address: "" # Webhook address, if not empty, Webhook output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -226,6 +231,8 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **STATSD_FORWARDER**: The address for the StatsD forwarder, in the form http://host:port, if not empty StatsD is enabled
 * **STATSD_NAMESPACE**: A prefix for all metrics
 * **STATSD_TAGS**: A comma-separated list of tags to add to all metrics
+* **WEBHOOK_ADDRESS** : "" # Webhook address, if not empty, Webhook output is enabled
+* **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
 #### Slack Message Formatting
 

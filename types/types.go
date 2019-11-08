@@ -31,6 +31,7 @@ type Configuration struct {
 	SMTP          smtpOutputConfig
 	Opsgenie      opsgenieOutputConfig
 	Statsd        statsdConfig
+	Webhook       webhookConfig
 	Customfields  map[string]string
 }
 
@@ -123,6 +124,11 @@ type opsgenieOutputConfig struct {
 	MinimumPriority string
 }
 
+type webhookConfig struct {
+	Address         string
+	MinimumPriority string
+}
+
 type statsdConfig struct {
 	Forwarder string
 	Namespace string
@@ -145,4 +151,5 @@ type Statistics struct {
 	AWSSQS        *expvar.Map
 	SMTP          *expvar.Map
 	Opsgenie      *expvar.Map
+	Webhook       *expvar.Map
 }

@@ -73,6 +73,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Statsd.Namespace", "falcosidekick.")
 	v.SetDefault("Statsd.Tags", []string{})
 	v.SetDefault("Customfields", map[string]string{})
+	v.SetDefault("Webhook.Address", "")
+	v.SetDefault("Webhook.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
