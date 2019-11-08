@@ -201,6 +201,12 @@ spec:
             - name: STATSD_TAGS
               value: {{ .Values.config.statsd.tags | quote }}
             {{- end }}
+            {{- if .Values.config.webhook.address }}
+            - name: WEBHOOK_ADDRESS
+              value: {{ .Values.config.webhook.address | quote }}
+            - name: WEBHOOK_MINIMUMPRIORITY
+              value: {{ .Values.config.webhook.minimumpriority | quote }}
+            {{- end }}
 
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

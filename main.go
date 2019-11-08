@@ -12,7 +12,7 @@ import (
 )
 
 // Globale variables
-var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, lokiClient, natsClient, awsClient, smtpClient, opsgenieClient *outputs.Client
+var slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, lokiClient, natsClient, awsClient, smtpClient, opsgenieClient, webhookClient *outputs.Client
 var config *types.Configuration
 var stats *types.Statistics
 var statsdClient *statsd.Client
@@ -146,6 +146,15 @@ func init() {
 			config.Opsgenie.APIKey = ""
 		} else {
 			enabledOutputsText += "Opsgenie "
+		}
+	}
+	if config.Webhook.Address != "" {
+		var err error
+		webhookClient, err = outputs.NewClient("Webhook", config.Webhook.Address, config, stats, statsdClient)
+		if err != nil {
+			config.Webhook.Address = ""
+		} else {
+			enabledOutputsText += "Webhook "
 		}
 	}
 

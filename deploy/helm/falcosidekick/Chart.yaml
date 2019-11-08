@@ -1,9 +1,9 @@
 apiVersion: v1
-appVersion: "2.10.0"
+appVersion: "2.11.0"
 description: A simple daemon to help you with falco's outputs
 icon: https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png
 name: falcosidekick
-version: 0.1.9
+version: 0.1.10
 maintainers:
   - name: SweetOps
   - name: Issif

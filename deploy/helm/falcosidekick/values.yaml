@@ -91,6 +91,10 @@ config:
     namespace: "falcosidekick."
     tags: ""
 
+  webhook:
+    address: ""
+    minimumpriority: ""
+
 service:
   type: ClusterIP
   port: 2801

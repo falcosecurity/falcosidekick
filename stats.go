@@ -22,6 +22,7 @@ func getInitStats() *types.Statistics {
 		AWSSQS:        expvar.NewMap("outputs.awssqs"),
 		SMTP:          expvar.NewMap("outputs.smtp"),
 		Opsgenie:      expvar.NewMap("outputs.opsgenie"),
+		Webhook:       expvar.NewMap("outputs.webhook"),
 	}
 	stats.Requests.Add("total", 0)
 	stats.Requests.Add("rejected", 0)
@@ -70,6 +71,9 @@ func getInitStats() *types.Statistics {
 	stats.Opsgenie.Add("total", 0)
 	stats.Opsgenie.Add("error", 0)
 	stats.Opsgenie.Add("sent", 0)
+	stats.Webhook.Add("total", 0)
+	stats.Webhook.Add("error", 0)
+	stats.Webhook.Add("sent", 0)
 
 	return stats
 }
