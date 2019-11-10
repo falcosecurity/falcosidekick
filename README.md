@@ -25,6 +25,7 @@ Currently available outputs are :
 * **SMTP** (email)
 * [**Opsgenie**](https://www.opsgenie.com/)
 * [**StatsD**](https://github.com/statsd/statsd) (for monitoring of `falcosidekick`)
+* [**DogStatsD**](https://docs.datadoghq.com/developers/dogstatsd/?tab=go) (for monitoring of `falcosidekick`)
 * [**Webhook**]
 
 ## Usage
@@ -155,9 +156,14 @@ opsgenie:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 statsd:
-  # forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
-  # namespace: "falcosidekick" # A prefix for all metrics
-  # tags: "" # A comma-separated list of tags to add to all metrics
+  forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
+  namespace: "falcosidekick." # A prefix for all metrics (default: "falcosidekick.")
+
+dogstatsd:
+  forwarder: "" # The address for the DogStatsD forwarder, in the form "host:port", if not empty DogStatsD is enabled
+  namespace: "falcosidekick." # A prefix for all metrics (default: "falcosidekick.")
+  # tag :
+  #   key: "value"
 
 webhook:
   # address: "" # Webhook address, if not empty, Webhook output is enabled
@@ -229,8 +235,10 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **OPSGENIE_REGION** : "" # (us|eu) region of your domain (default is 'us')
 * **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **STATSD_FORWARDER**: The address for the StatsD forwarder, in the form http://host:port, if not empty StatsD is enabled
-* **STATSD_NAMESPACE**: A prefix for all metrics
-* **STATSD_TAGS**: A comma-separated list of tags to add to all metrics
+* **STATSD_NAMESPACE**: A prefix for all metrics (default: "falcosidekick.")
+* **DOGSTATSD_FORWARDER**: The address for the DogStatsD forwarder, in the form http://host:port, if not empty DogStatsD is enabled
+* **DOGSTATSD_NAMESPACE**: A prefix for all metrics (default: falcosidekick."")
+* **DOGSTATSD_TAGS**: A comma-separated list of tags to add to all metrics
 * **WEBHOOK_ADDRESS** : "" # Webhook address, if not empty, Webhook output is enabled
 * **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 

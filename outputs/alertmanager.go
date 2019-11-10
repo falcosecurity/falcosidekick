@@ -49,7 +49,7 @@ func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	if err != nil {
 		c.Stats.Alertmanager.Add("error", 1)
 	} else {
-		c.Stats.Alertmanager.Add("sent", 1)
+		c.Stats.Alertmanager.Add("ok", 1)
 	}
 	c.Stats.Alertmanager.Add("total", 1)
 }

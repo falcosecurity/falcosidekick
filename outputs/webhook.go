@@ -10,7 +10,7 @@ func (c *Client) WebhookPost(falcopayload types.FalcoPayload) {
 	if err != nil {
 		c.Stats.Webhook.Add("error", 1)
 	} else {
-		c.Stats.Webhook.Add("sent", 1)
+		c.Stats.Webhook.Add("ok", 1)
 	}
 	c.Stats.Webhook.Add("total", 1)
 }

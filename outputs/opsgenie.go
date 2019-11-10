@@ -53,7 +53,7 @@ func (c *Client) OpsgeniePost(falcopayload types.FalcoPayload) {
 	if err != nil {
 		c.Stats.Opsgenie.Add("error", 1)
 	} else {
-		c.Stats.Opsgenie.Add("sent", 1)
+		c.Stats.Opsgenie.Add("ok", 1)
 	}
 	c.Stats.Opsgenie.Add("total", 1)
 }

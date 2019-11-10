@@ -31,6 +31,7 @@ type Configuration struct {
 	SMTP          smtpOutputConfig
 	Opsgenie      opsgenieOutputConfig
 	Statsd        statsdConfig
+	Dogstatsd     statsdConfig
 	Webhook       webhookConfig
 	Customfields  map[string]string
 }
@@ -151,5 +152,7 @@ type Statistics struct {
 	AWSSQS        *expvar.Map
 	SMTP          *expvar.Map
 	Opsgenie      *expvar.Map
+	Statsd        *expvar.Map
+	Dogstatsd     *expvar.Map
 	Webhook       *expvar.Map
 }

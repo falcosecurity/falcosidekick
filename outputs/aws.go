@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
@@ -19,7 +18,7 @@ import (
 )
 
 // NewAWSClient returns a new output.Client for accessing the AWS API.
-func NewAWSClient(outputType string, config *types.Configuration, stats *types.Statistics, statsdClient *statsd.Client) (*Client, error) {
+func NewAWSClient(config *types.Configuration, stats *types.Statistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
 		os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
@@ -31,25 +30,25 @@ func NewAWSClient(outputType string, config *types.Configuration, stats *types.S
 		Region: aws.String(config.AWS.Region)},
 	)
 	if err != nil {
-		log.Printf("[ERROR] : %v - %v\n", outputType, "Error while creating AWS Session")
+		log.Printf("[ERROR] : AWS - %v\n", "Error while creating AWS Session")
 		return nil, errors.New("Error while creating AWS Session")
 	}
 
 	_, err = sts.New(session.New()).GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
-		log.Printf("[ERROR] : %v - %v\n", outputType, "Error while getting AWS Token")
+		log.Printf("[ERROR] : AWS - %v\n", "Error while getting AWS Token")
 		return nil, errors.New("Error while getting AWS Token")
 	}
 
 	var endpointURL *url.URL
 	endpointURL, err = url.Parse(config.AWS.SQS.URL)
 	if err != nil {
-		log.Printf("[ERROR] : %v SQS - %v\n", outputType, err.Error())
+		log.Printf("[ERROR] : AWS SQS - %v\n", err.Error())
 		return nil, ErrClientCreation
 	}
 
 	return &Client{
-		OutputType:   outputType,
+		OutputType:   "AWS",
 		EndpointURL:  endpointURL,
 		Config:       config,
 		AWSSession:   sess,
@@ -75,6 +74,7 @@ func (c *Client) InvokeLambda(falcopayload types.FalcoPayload) {
 
 	resp, err := svc.Invoke(input)
 	if err != nil {
+		go c.CountMetric("outputs", 1, []string{"output:awslambda", "status:error"})
 		c.Stats.AWSLambda.Add("error", 1)
 		log.Printf("[ERROR] : %v Lambda - %v\n", c.OutputType, err.Error())
 		return
@@ -86,7 +86,8 @@ func (c *Client) InvokeLambda(falcopayload types.FalcoPayload) {
 	}
 
 	log.Printf("[INFO]  : %v Lambda - Invoke OK (%v)\n", c.OutputType, *resp.StatusCode)
-	c.Stats.AWSLambda.Add("sent", 1)
+	go c.CountMetric("outputs", 1, []string{"output:awslambda", "status:ok"})
+	c.Stats.AWSLambda.Add("ok", 1)
 }
 
 // SendMessage sends a message to SQS Queue
@@ -101,11 +102,10 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	}
 
 	c.Stats.AWSSQS.Add("total", 1)
-	outputTag := strings.ToLower(c.OutputType)
 
 	resp, err := svc.SendMessage(input)
 	if err != nil {
-		c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:error"})
+		go c.CountMetric("outputs", 1, []string{"output:awssqs", "status:error"})
 		c.Stats.AWSSQS.Add("error", 1)
 		log.Printf("[ERROR] : %v SQS - %v\n", c.OutputType, err.Error())
 		return
@@ -116,6 +116,6 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	}
 
 	log.Printf("[INFO]  : %v SQS - Send Message OK (%v)\n", c.OutputType, *resp.MessageId)
-	c.CountMetric("outputs", 1, []string{"output:" + outputTag, "status:ok"})
-	c.Stats.AWSSQS.Add("sent", 1)
+	go c.CountMetric("outputs", 1, []string{"output:awssqs", "status:ok"})
+	c.Stats.AWSSQS.Add("ok", 1)
 }

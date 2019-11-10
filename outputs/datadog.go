@@ -57,7 +57,7 @@ func (c *Client) DatadogPost(falcopayload types.FalcoPayload) {
 	if err != nil {
 		c.Stats.Datadog.Add("error", 1)
 	} else {
-		c.Stats.Datadog.Add("sent", 1)
+		c.Stats.Datadog.Add("ok", 1)
 	}
 	c.Stats.Datadog.Add("total", 1)
 }

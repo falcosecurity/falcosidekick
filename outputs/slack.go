@@ -137,7 +137,7 @@ func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
 	if err != nil {
 		c.Stats.Slack.Add("error", 1)
 	} else {
-		c.Stats.Slack.Add("sent", 1)
+		c.Stats.Slack.Add("ok", 1)
 	}
 	c.Stats.Slack.Add("total", 1)
 }
