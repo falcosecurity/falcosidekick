@@ -31,9 +31,11 @@ func NewSMTPClient(config *types.Configuration, stats *types.Statistics, statsdC
 	}
 
 	return &Client{
-		OutputType: "SMTP",
-		Config:     config,
-		Stats:      stats,
+		OutputType:      "SMTP",
+		Config:          config,
+		Stats:           stats,
+		StatsdClient:    statsdClient,
+		DogstatsdClient: dogstatsdClient,
 	}, nil
 }
 

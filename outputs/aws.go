@@ -48,12 +48,13 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, statsdCl
 	}
 
 	return &Client{
-		OutputType:   "AWS",
-		EndpointURL:  endpointURL,
-		Config:       config,
-		AWSSession:   sess,
-		Stats:        stats,
-		StatsdClient: statsdClient,
+		OutputType:      "AWS",
+		EndpointURL:     endpointURL,
+		Config:          config,
+		AWSSession:      sess,
+		Stats:           stats,
+		StatsdClient:    statsdClient,
+		DogstatsdClient: dogstatsdClient,
 	}, nil
 }
 
