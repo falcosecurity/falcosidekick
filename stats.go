@@ -17,8 +17,10 @@ func getInitStats() *types.Statistics {
 	}))
 
 	stats = &types.Statistics{
-		Requests:      expvar.NewMap("requests"),
-		Falco:         expvar.NewMap("outputs.falco"),
+		Requests:      expvar.NewMap("inputs.requests"),
+		FIFO:          expvar.NewMap("inputs.fifo"),
+		GRPC:          expvar.NewMap("inputs.grpc"),
+		Falco:         expvar.NewMap("falco.priority"),
 		Slack:         expvar.NewMap("outputs.slack"),
 		Teams:         expvar.NewMap("outputs.teams"),
 		Datadog:       expvar.NewMap("outputs.datadog"),
@@ -38,6 +40,12 @@ func getInitStats() *types.Statistics {
 	stats.Requests.Add("total", 0)
 	stats.Requests.Add("rejected", 0)
 	stats.Requests.Add("accepted", 0)
+	stats.FIFO.Add("total", 0)
+	stats.FIFO.Add("rejected", 0)
+	stats.FIFO.Add("accepted", 0)
+	stats.GRPC.Add("total", 0)
+	stats.GRPC.Add("rejected", 0)
+	stats.GRPC.Add("accepted", 0)
 	stats.Falco.Add("emergency", 0)
 	stats.Falco.Add("alert", 0)
 	stats.Falco.Add("critical", 0)

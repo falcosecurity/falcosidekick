@@ -25,12 +25,6 @@ func init() {
 
 	enabledOutputsText := "[INFO]  : Enabled Outputs : "
 
-	nullClient = &outputs.Client{
-		OutputType: "null",
-		Config:     config,
-		Stats:      stats,
-	}
-
 	if config.Statsd.Forwarder != "" {
 		var err error
 		statsdClient, err = outputs.NewStatsdClient("StatsD", config, stats)
@@ -50,6 +44,15 @@ func init() {
 			nullClient.DogstatsdClient = dogstatsdClient
 		}
 	}
+
+	nullClient = &outputs.Client{
+		OutputType:      "null",
+		Config:          config,
+		Stats:           stats,
+		StatsdClient:    statsdClient,
+		DogstatsdClient: dogstatsdClient,
+	}
+
 	if config.Slack.WebhookURL != "" {
 		var err error
 		slackClient, err = outputs.NewClient("Slack", config.Slack.WebhookURL, config, stats, statsdClient, dogstatsdClient)

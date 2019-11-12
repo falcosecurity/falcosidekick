@@ -35,18 +35,20 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		http.Error(w, "Please send a valid request body", 400)
 		stats.Requests.Add("rejected", 1)
-		nullClient.CountMetric("rejected", 1, []string{"error:nobody"})
+		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:nobody"})
 		return
 	}
 
 	falcopayload, err := newFalcoPayload(r.Body)
-	if err != nil && err.Error() != "EOF" || len(falcopayload.Output) == 0 {
-		http.Error(w, "Please send a valid request body : "+err.Error(), 400)
+	if err != nil || len(falcopayload.Output) == 0 {
+		http.Error(w, "Please send a valid request body", 400)
 		stats.Requests.Add("rejected", 1)
-		nullClient.CountMetric("rejected", 1, []string{"error:invalidjson"})
+		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:invalidjson"})
 		return
 	}
 
+	nullClient.CountMetric("inputs.requests.accepted", 1, []string{})
+	stats.Requests.Add("accepted", 1)
 	forwardEvent(falcopayload)
 }
 
@@ -89,16 +91,14 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
-	nullClient.CountMetric("accepted", 1, []string{})
-	stats.Requests.Add("accepted", 1)
 	priority := strings.ToLower(falcopayload.Priority)
 	switch priority {
 	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
 		nullClient.CountMetric("accepted", 1, []string{"priority:" + priority})
 		stats.Falco.Add(priority, 1)
 	default:
-		nullClient.CountMetric("accepted", 1, []string{"priority:unknownpriority"})
-		stats.Falco.Add("unknownpriority", 1)
+		nullClient.CountMetric("accepted", 1, []string{"priority:unknown"})
+		stats.Falco.Add("unknown", 1)
 	}
 
 	if config.Debug == true {

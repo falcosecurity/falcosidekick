@@ -27,7 +27,7 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 		if len(tags) != 0 {
 			for _, i := range tags {
 				s := strings.Split(i, ":")
-				t += "." + s[1]
+				t += "." + strings.Replace(s[1], " ", "", -1)
 			}
 		}
 		if err := c.StatsdClient.Count(metric+t, value, []string{}, 1); err != nil {

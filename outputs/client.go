@@ -49,7 +49,7 @@ type Client struct {
 }
 
 // NewClient returns a new output.Client for accessing the different API.
-func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration, stats *types.Statistics, statsdClient, DogStatsdClient *statsd.Client) (*Client, error) {
+func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration, stats *types.Statistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad Endpoint")
@@ -64,7 +64,7 @@ func NewClient(outputType string, defaultEndpointURL string, config *types.Confi
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config, Stats: stats, StatsdClient: statsdClient}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config, Stats: stats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
 }
 
 // Post sends event (payload) to Output.

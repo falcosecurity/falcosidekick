@@ -139,6 +139,8 @@ type statsdConfig struct {
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests      *expvar.Map
+	FIFO          *expvar.Map
+	GRPC          *expvar.Map
 	Falco         *expvar.Map
 	Slack         *expvar.Map
 	Teams         *expvar.Map
