@@ -94,10 +94,10 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	priority := strings.ToLower(falcopayload.Priority)
 	switch priority {
 	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
-		nullClient.CountMetric("accepted", 1, []string{"priority:" + priority})
+		nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + priority})
 		stats.Falco.Add(priority, 1)
 	default:
-		nullClient.CountMetric("accepted", 1, []string{"priority:unknown"})
+		nullClient.CountMetric("falco.accepted", 1, []string{"priority:unknown"})
 		stats.Falco.Add("unknown", 1)
 	}
 
