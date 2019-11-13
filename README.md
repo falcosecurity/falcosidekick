@@ -26,7 +26,7 @@ Currently available outputs are :
 * [**Opsgenie**](https://www.opsgenie.com/)
 * [**StatsD**](https://github.com/statsd/statsd) (for monitoring of `falcosidekick`)
 * [**DogStatsD**](https://docs.datadoghq.com/developers/dogstatsd/?tab=go) (for monitoring of `falcosidekick`)
-* [**Webhook**]
+* **Webhook**
 
 ## Usage
 

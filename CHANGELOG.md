@@ -2,6 +2,7 @@
 
 ## 2.11.0 - 2019-11-13
 #### New
+- New output : **Webhook**
 - New output : **DogStatsD**
 - New metrics : *running goroutines*, *number of used CPU*
 #### Enhancement
