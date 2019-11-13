@@ -104,7 +104,7 @@ func (c *Client) TeamsPost(falcopayload types.FalcoPayload) {
 	if err != nil {
 		c.Stats.Teams.Add("error", 1)
 	} else {
-		c.Stats.Teams.Add("sent", 1)
+		c.Stats.Teams.Add("ok", 1)
 	}
 	c.Stats.Teams.Add("total", 1)
 }

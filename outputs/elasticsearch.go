@@ -31,7 +31,7 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 	if err != nil {
 		c.Stats.Elasticsearch.Add("error", 1)
 	} else {
-		c.Stats.Elasticsearch.Add("sent", 1)
+		c.Stats.Elasticsearch.Add("ok", 1)
 	}
 	c.Stats.Elasticsearch.Add("total", 1)
 }

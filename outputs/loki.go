@@ -48,7 +48,7 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	if err != nil {
 		c.Stats.Loki.Add("error", 1)
 	} else {
-		c.Stats.Loki.Add("sent", 1)
+		c.Stats.Loki.Add("ok", 1)
 	}
 	c.Stats.Loki.Add("total", 1)
 }

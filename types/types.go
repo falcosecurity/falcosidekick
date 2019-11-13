@@ -31,6 +31,7 @@ type Configuration struct {
 	SMTP          smtpOutputConfig
 	Opsgenie      opsgenieOutputConfig
 	Statsd        statsdConfig
+	Dogstatsd     statsdConfig
 	Webhook       webhookConfig
 	Customfields  map[string]string
 }
@@ -138,6 +139,8 @@ type statsdConfig struct {
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests      *expvar.Map
+	FIFO          *expvar.Map
+	GRPC          *expvar.Map
 	Falco         *expvar.Map
 	Slack         *expvar.Map
 	Teams         *expvar.Map
@@ -151,5 +154,7 @@ type Statistics struct {
 	AWSSQS        *expvar.Map
 	SMTP          *expvar.Map
 	Opsgenie      *expvar.Map
+	Statsd        *expvar.Map
+	Dogstatsd     *expvar.Map
 	Webhook       *expvar.Map
 }

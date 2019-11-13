@@ -198,8 +198,14 @@ spec:
               value: {{ .Values.config.statsd.forwarder | quote }}
             - name: STATSD_NAMESPACE
               value: {{ .Values.config.statsd.namespace | quote }}
-            - name: STATSD_TAGS
-              value: {{ .Values.config.statsd.tags | quote }}
+            {{- end }}
+            {{- if .Values.config.statsd.forwarder }}
+            - name: DOGSTATSD_FORWARDER
+              value: {{ .Values.config.dogstatsd.forwarder | quote }}
+            - name: DOGSTATSD_NAMESPACE
+              value: {{ .Values.config.dogstatsd.namespace | quote }}
+            - name: DOGSTATSD_TAGS
+              value: {{ .Values.config.dogstatsd.tags | quote }}
             {{- end }}
             {{- if .Values.config.webhook.address }}
             - name: WEBHOOK_ADDRESS

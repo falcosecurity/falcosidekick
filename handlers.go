@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -28,25 +29,56 @@ func getPriorityMap() map[string]int {
 
 // mainHandler is Falco Sidekick main handler (default).
 func mainHandler(w http.ResponseWriter, r *http.Request) {
-
-	var falcopayload types.FalcoPayload
-
 	stats.Requests.Add("total", 1)
-	countMetric("total", 1, []string{})
+	nullClient.CountMetric("total", 1, []string{})
 
 	if r.Body == nil {
 		http.Error(w, "Please send a valid request body", 400)
 		stats.Requests.Add("rejected", 1)
-		countMetric("rejected", 1, []string{"error:nobody"})
+		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:nobody"})
 		return
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&falcopayload)
-	if err != nil && err.Error() != "EOF" || len(falcopayload.Output) == 0 {
-		http.Error(w, "Please send a valid request body : "+err.Error(), 400)
+	falcopayload, err := newFalcoPayload(r.Body)
+	if err != nil || len(falcopayload.Output) == 0 {
+		http.Error(w, "Please send a valid request body", 400)
 		stats.Requests.Add("rejected", 1)
-		countMetric("rejected", 1, []string{"error:invalidjson"})
+		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:invalidjson"})
 		return
+	}
+
+	nullClient.CountMetric("inputs.requests.accepted", 1, []string{})
+	stats.Requests.Add("accepted", 1)
+	forwardEvent(falcopayload)
+}
+
+// pingHandler is a simple handler to test if daemon is UP.
+func pingHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("pong\n"))
+}
+
+// testHandler sends a test event to all enabled outputs.
+func testHandler(w http.ResponseWriter, r *http.Request) {
+	testEvent := `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","outputfields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`
+
+	resp, err := http.Post("http://localhost:"+strconv.Itoa(config.ListenPort), "application/json", bytes.NewBuffer([]byte(testEvent)))
+	if err != nil {
+		log.Printf("[DEBUG] : Test Failed. Falcosidekick can't call itself\n")
+	}
+	defer resp.Body.Close()
+
+	log.Printf("[DEBUG] : Test sent\n")
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("[DEBUG] : Test KO (%v)\n", resp.Status)
+	}
+}
+
+func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
+	var falcopayload types.FalcoPayload
+
+	err := json.NewDecoder(payload).Decode(&falcopayload)
+	if err != nil {
+		return types.FalcoPayload{}, err
 	}
 
 	// falcopayload.OutputFields = make(map[string]interface{})
@@ -59,16 +91,14 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	stats.Requests.Add("accepted", 1)
 	priority := strings.ToLower(falcopayload.Priority)
-	countMetric("accepted", 1, []string{"priority:" + priority})
 	switch priority {
 	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
-		countMetric("accepted", 1, []string{"priority:" + priority})
-		stats.Falco.Add(strings.ToLower(falcopayload.Priority), 1)
+		nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + priority})
+		stats.Falco.Add(priority, 1)
 	default:
-		countMetric("accepted", 1, []string{"priority:unknownpriority"})
-		stats.Falco.Add("unknownpriority", 1)
+		nullClient.CountMetric("falco.accepted", 1, []string{"priority:unknown"})
+		stats.Falco.Add("unknown", 1)
 	}
 
 	if config.Debug == true {
@@ -76,8 +106,10 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[DEBUG] : Falco's payload : %v", string(body))
 	}
 
-	priorityMap := getPriorityMap()
+	return falcopayload, nil
+}
 
+func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Slack.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Slack.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go slackClient.SlackPost(falcopayload)
 	}
@@ -116,35 +148,5 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if config.Webhook.Address != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Webhook.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go webhookClient.WebhookPost(falcopayload)
-	}
-}
-
-// pingHandler is a simple handler to test if daemon is UP.
-func pingHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("pong\n"))
-}
-
-// testHandler sends a test event to all enabled outputs.
-func testHandler(w http.ResponseWriter, r *http.Request) {
-	testEvent := `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","outputfields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`
-
-	resp, err := http.Post("http://localhost:"+strconv.Itoa(config.ListenPort), "application/json", bytes.NewBuffer([]byte(testEvent)))
-	if err != nil {
-		log.Printf("[DEBUG] : Test Failed. Falcosidekick can't call itself\n")
-	}
-	defer resp.Body.Close()
-
-	log.Printf("[DEBUG] : Test sent\n")
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("[DEBUG] : Test KO (%v)\n", resp.Status)
-	}
-}
-
-func countMetric(metric string, value int64, tags []string) {
-	if statsdClient == nil {
-		return
-	}
-	if err := statsdClient.Count(metric, value, tags, 1); err != nil {
-		log.Printf("[ERROR] : Unable to send metric to StatsD - %v", err)
 	}
 }

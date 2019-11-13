@@ -89,6 +89,10 @@ config:
   statsd:
     forwarder: ""
     namespace: "falcosidekick."
+    
+  dogstatsd:
+    forwarder: ""
+    namespace: "falcosidekick."
     tags: ""
 
   webhook:
