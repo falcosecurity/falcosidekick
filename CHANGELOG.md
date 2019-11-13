@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.11.0 - 2019-11-13
+#### New
+- New output : **DogStatsD**
+- New metrics : *running goroutines*, *number of used CPU*
+#### Enhancement
+- :boom: Standardization of metric names (to be consistent between *expar* and *(Dog)StatsD*) 
+- :boom: New namespace for metrics (*inputs*), will be used for future *inputs* (*fifo*, *gRPC*)
+#### Fix
+- *StatsD* implementation worked only with *DogStatsD* ([issue #49](https://github.com/falcosecurity/falcosidekick/issues/49))
+- Fix *panic* when payload from *Falco* is empty
+
 ## 2.10.0 - 2019-10-22
 #### New
 - New output : **StatsD** ([PR#43](https://github.com/falcosecurity/falcosidekick/pull/40) thanks to [@actgardner](https://github.com/actgardner))
