@@ -92,7 +92,7 @@ spec:
             {{- end }}
             {{- if .Values.config.elasticsearch.hostport }}
             - name: ELASTICSEARCH_HOSTPORT
-              value: {{ .Values.config.hostport.hostport | quote }}
+              value: {{ .Values.config.elasticsearch.hostport | quote }}
             - name: ELASTICSEARCH_INDEX
               value: {{ .Values.config.elasticsearch.index | quote }}
             - name: ELASTICSEARCH_TYPE
