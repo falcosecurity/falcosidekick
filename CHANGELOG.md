@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.11.1 - 2020-01-06
+#### Fix
+- Wrong value reference for Elasticsearch output in deployment.yaml
+
 ## 2.11.0 - 2019-11-13
 #### New
 - New output : **Webhook**
