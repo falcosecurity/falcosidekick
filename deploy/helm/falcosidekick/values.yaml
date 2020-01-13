@@ -12,6 +12,9 @@ image:
 nameOverride: ""
 fullnameOverride: ""
 
+podSecurityPolicy:
+  create: false
+  
 config:
 
   debug: false
