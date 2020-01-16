@@ -18,8 +18,10 @@ LABEL MAINTAINER "Thomas Labarussias <issif+falcosidekick@gadz.org>"
 RUN apk add --no-cache ca-certificates
 
 # Create user falcosidekick
-RUN addgroup -S falcosidekick && adduser -S falcosidekick -G falcosidekick
-USER falcosidekick
+RUN addgroup -S falcosidekick && adduser -u 1234 -S falcosidekick -G falcosidekick
+# must be numeric to work with Pod Security Policies:
+# https://kubernetes.io/docs/concepts/policy/pod-security-policy/#users-and-groups
+USER 1234
 
 WORKDIR ${HOME}/app
 COPY --from=build-stage /src/falcosidekick .
