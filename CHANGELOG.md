@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.12.0 - 2020-11-16
+#### Enhancement
+- Add Pod Security Policy to helm chart ([PR#54](https://github.com/falcosecurity/falcosidekick/pull/54) thanks to [@czunker](https://github.com/czunker))
+
 ## 2.11.1 - 2020-01-06
 #### Fix
 - Wrong value reference for Elasticsearch output in deployment.yaml
