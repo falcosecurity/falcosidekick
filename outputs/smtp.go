@@ -91,7 +91,7 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 	body := sp.To + "\n" + sp.Subject + "\n" + sp.Body
 
 	if c.Config.Debug == true {
-		log.Printf("[DEBUG] : SMTP payload : \nServeur: %v\nFrom: %v\nTo: %v\nSubject: %v\n", c.Config.SMTP.HostPort, c.Config.SMTP.From, sp.To, sp.Subject)
+		log.Printf("[DEBUG] : SMTP payload : \nServer: %v\nFrom: %v\nTo: %v\nSubject: %v\n", c.Config.SMTP.HostPort, c.Config.SMTP.From, sp.To, sp.Subject)
 	}
 
 	c.Stats.SMTP.Add("total", 1)
