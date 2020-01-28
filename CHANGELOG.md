@@ -1,6 +1,10 @@
 # Changelog
 
-## 2.12.0 - 2020-11-16
+## 2.12.1 - 2020-01-28
+#### Fix
+- Typo in SMTP output logs ([PR#56](https://github.com/falcosecurity/falcosidekick/pull/56) thanks to [@cartyc](https://github.com/cartyc))
+
+## 2.12.0 - 2020-01-16
 #### Enhancement
 - Add Pod Security Policy to helm chart ([PR#54](https://github.com/falcosecurity/falcosidekick/pull/54) thanks to [@czunker](https://github.com/czunker))
 
