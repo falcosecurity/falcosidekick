@@ -20,7 +20,8 @@ teams:
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 datadog:
-  #apikey: ""  # Datadog API Key, if not empty, Datadog output is enabled
+  # apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
+  # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 alertmanager:
@@ -32,7 +33,7 @@ elasticsearch:
   # index: "falco" # index (default: falco)
   # type: "event"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none 
+  # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
@@ -67,11 +68,6 @@ smtp:
   # from: "" # Sender address (mandatory if SMTP output is enabled)
   # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
   # outputformat: "" # html (default), text
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-
-opsgenie:
-  # apikey: "" # Opsgenie API Key, if not empty, Opsgenie output is enabled
-  # region: "eu" # (us|eu) region of your domain
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 statsd:

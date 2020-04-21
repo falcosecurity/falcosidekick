@@ -101,7 +101,8 @@ teams:
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 datadog:
-  #apikey: ""  # Datadog API Key, if not empty, Datadog output is enabled
+  # apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
+  # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 alertmanager:
@@ -200,6 +201,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **TEAMS_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Teams), `facts` (only facts are displayed in Teams)
 * **TEAMS_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **DATADOG_APIKEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
+* **DATADOG_HOST** : Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
 * **DATADOG_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **ALERTMANAGER_HOSTPORT** : AlertManager http://host:port, if not `empty`, AlertManager is *enabled*
 * **ALERTMANAGER_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
@@ -245,7 +247,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 #### Slack Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML value accept a [Go template](https://golang.org/pkg/text/template/) which can be used to format the text of a slack alert. These templates are evaluated on the JSON data from each Falco event - the following fields are available:
-                                                                                                                   
+
 | Template Syntax                              | Description      |
 |----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `{{ .Output }}`                              | A formatted string from Falco describing the event.                                                                                                      |

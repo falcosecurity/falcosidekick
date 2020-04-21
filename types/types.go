@@ -55,6 +55,7 @@ type teamsOutputConfig struct {
 
 type datadogOutputConfig struct {
 	APIKey          string
+	Host            string
 	MinimumPriority string
 }
 
