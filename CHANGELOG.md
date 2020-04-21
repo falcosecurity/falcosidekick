@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.12.2 - 2020-04-21
+#### Fix
+- Typo in query to Datadog ([PR#58](https://github.com/falcosecurity/falcosidekick/pull/58) thanks to [@DrPhil](https://github.com/DrPhil))
+
 ## 2.12.1 - 2020-01-28
 #### Fix
 - Typo in SMTP output logs ([PR#56](https://github.com/falcosecurity/falcosidekick/pull/56) thanks to [@cartyc](https://github.com/cartyc))
