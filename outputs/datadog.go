@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	// DatadogURL is default URL of Datadog's API
-	DatadogURL string = "https://api.datadoghq.com/api/v1/events"
+	// DatadogPath is the path of Datadog's event API
+	DatadogPath string = "/api/v1/events"
 )
 
 type datadogPayload struct {

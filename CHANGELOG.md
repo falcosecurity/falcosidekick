@@ -1,5 +1,9 @@
 # Changelog
 
+# 2.12.3 - 2020-04-21
+#### Enhancement
+- Allow using Datadog EU site by specifying new configuration *datadog.host*.
+
 ## 2.12.2 - 2020-04-21
 #### Fix
 - Typo in query to Datadog ([PR#58](https://github.com/falcosecurity/falcosidekick/pull/58) thanks to [@DrPhil](https://github.com/DrPhil))

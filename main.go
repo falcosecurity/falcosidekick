@@ -73,7 +73,7 @@ func init() {
 	}
 	if config.Datadog.APIKey != "" {
 		var err error
-		datadogClient, err = outputs.NewClient("Datadog", outputs.DatadogURL+"?api_key="+config.Datadog.APIKey, config, stats, statsdClient, dogstatsdClient)
+		datadogClient, err = outputs.NewClient("Datadog", config.Datadog.Host+outputs.DatadogPath+"?api_key="+config.Datadog.APIKey, config, stats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Datadog.APIKey = ""
 		} else {

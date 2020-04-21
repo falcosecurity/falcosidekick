@@ -35,6 +35,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Teams.OutputFormat", "all")
 	v.SetDefault("Teams.MinimumPriority", "")
 	v.SetDefault("Datadog.APIKey", "")
+	v.SetDefault("Datadog.Host", "https://api.datadoghq.com")
 	v.SetDefault("Datadog.MinimumPriority", "")
 	v.SetDefault("Alertmanager.HostPort", "")
 	v.SetDefault("Alertmanager.MinimumPriority", "")
