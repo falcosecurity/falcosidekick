@@ -1,5 +1,5 @@
 # Build image (Golang)
-FROM golang:1.12-alpine3.10 AS build-stage
+FROM golang:alpine AS build-stage
 ENV GO111MODULE on
 ENV CGO_ENABLED 0
 
@@ -12,7 +12,7 @@ RUN go mod download
 RUN go build -o falcosidekick
 
 # Final Docker image
-FROM alpine:3.10 AS final-stage
+FROM alpine AS final-stage
 LABEL MAINTAINER "Thomas Labarussias <issif+falcosidekick@gadz.org>"
 
 RUN apk add --no-cache ca-certificates

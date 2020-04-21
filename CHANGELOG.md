@@ -2,7 +2,8 @@
 
 # 2.12.3 - 2020-04-21
 #### Enhancement
-- Allow using Datadog EU site by specifying new configuration *datadog.host*.
+- Allow using Datadog EU site by specifying new variable **datadog.host**/**DATADOG_HOST** ([PR#59](https://github.com/falcosecurity/falcosidekick/pull/59) thanks to [@DrPhil](https://github.com/DrPhil))
+- Docker Image is based now on last Golang and Alpine images
 
 ## 2.12.2 - 2020-04-21
 #### Fix
