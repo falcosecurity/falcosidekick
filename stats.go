@@ -26,6 +26,7 @@ func getInitStats() *types.Statistics {
 		Mattermost:    expvar.NewMap("outputs.mattermost"),
 		Teams:         expvar.NewMap("outputs.teams"),
 		Datadog:       expvar.NewMap("outputs.datadog"),
+		Discord:       expvar.NewMap("outputs.discord"),
 		Alertmanager:  expvar.NewMap("outputs.alertmanager"),
 		Elasticsearch: expvar.NewMap("outputs.elasticsearch"),
 		Loki:          expvar.NewMap("outputs.loki"),
@@ -72,6 +73,9 @@ func getInitStats() *types.Statistics {
 	stats.Datadog.Add("total", 0)
 	stats.Datadog.Add("error", 0)
 	stats.Datadog.Add("ok", 0)
+	stats.Discord.Add("total", 0)
+	stats.Discord.Add("error", 0)
+	stats.Discord.Add("ok", 0)
 	stats.Alertmanager.Add("total", 0)
 	stats.Alertmanager.Add("error", 0)
 	stats.Alertmanager.Add("ok", 0)

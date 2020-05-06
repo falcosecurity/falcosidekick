@@ -17,6 +17,7 @@ Currently available outputs are :
 * [**Mattermost**](https://mattermost.com/)
 * [**Teams**](https://products.office.com/en-us/microsoft-teams/group-chat-software)
 * [**Datadog**](https://www.datadoghq.com/)
+* [**Discord**](https://www.discord.com/)
 * [**AlertManager**](https://prometheus.io/docs/alerting/alertmanager/)
 * [**Elasticsearch**](https://www.elastic.co/)
 * [**Loki**](https://grafana.com/oss/loki)
@@ -194,6 +195,11 @@ azure:
     # namespace: "" # The name of the space the Hub is part of
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
+discord:
+  webhookurl: "" # discord WebhookURL (ex: https://discord.com/api/webhooks/xxxxxxxxxx...), if not empty, Discord output is enabled
+  #icon: "" # Discord icon (avatar)
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 ```
 
 Usage :
@@ -239,6 +245,9 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **DATADOG_APIKEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
 * **DATADOG_HOST** : Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
 * **DATADOG_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **DISCORD_WEBHOOKURL** : Discord WebhookURL (ex: https://discord.com/api/webhooks/xxxxxxxxxx...), if not empty, Discord output is enabled
+* **DISCORD_ICON** : Discord icon (avatar)
+* **DISCORD_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **ALERTMANAGER_HOSTPORT** : AlertManager http://host:port, if not `empty`, AlertManager is *enabled*
 * **ALERTMANAGER_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **ELASTICSEARCH_HOSTPORT** : Elasticsearch http://host:port, if not `empty`, Elasticsearch is *enabled*
@@ -407,12 +416,24 @@ time                akey    bkey    ckey    priority rule      value
 
 ![opsgenie example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/opsgenie.png)
 
+### Discord
+
+![discord example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/discord_example.png)
+
 ## Development
 
 ### Build
 
 ```bash
 go build
+```
+
+### Quicktest
+
+Create a debug event
+
+```bash
+curl -H "Content-Type: application/json" -H "Accept: application/json" localhost:2801/test
 ```
 
 ### Test & Coverage

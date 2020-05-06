@@ -125,6 +125,9 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Datadog.APIKey != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Datadog.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go datadogClient.DatadogPost(falcopayload)
 	}
+	if config.Discord.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Discord.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go discordClient.DiscordPost(falcopayload)
+	}
 	if config.Alertmanager.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Alertmanager.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go alertmanagerClient.AlertmanagerPost(falcopayload)
 	}
