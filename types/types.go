@@ -24,6 +24,7 @@ type Configuration struct {
 	Rocketchat    rocketchatOutputConfig
 	Teams         teamsOutputConfig
 	Datadog       datadogOutputConfig
+	Discord       discordOutputConfig
 	Alertmanager  alertmanagerOutputConfig
 	Elasticsearch elasticsearchOutputConfig
 	Influxdb      influxdbOutputConfig
@@ -80,6 +81,12 @@ type datadogOutputConfig struct {
 	APIKey          string
 	Host            string
 	MinimumPriority string
+}
+
+type discordOutputConfig struct {
+	WebhookURL      string
+	MinimumPriority string
+	Icon            string
 }
 
 type alertmanagerOutputConfig struct {
@@ -181,6 +188,7 @@ type Statistics struct {
 	Rocketchat    *expvar.Map
 	Teams         *expvar.Map
 	Datadog       *expvar.Map
+	Discord       *expvar.Map
 	Alertmanager  *expvar.Map
 	Elasticsearch *expvar.Map
 	Loki          *expvar.Map

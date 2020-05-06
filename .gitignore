@@ -16,3 +16,4 @@ config.yaml
 .env
 .vscode
 .idea
+*.swp
