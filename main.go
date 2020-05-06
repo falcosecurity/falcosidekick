@@ -19,6 +19,7 @@ var (
 	mattermostClient    *outputs.Client
 	teamsClient         *outputs.Client
 	datadogClient       *outputs.Client
+	discordClient       *outputs.Client
 	alertmanagerClient  *outputs.Client
 	elasticsearchClient *outputs.Client
 	influxdbClient      *outputs.Client
@@ -30,7 +31,6 @@ var (
 	webhookClient       *outputs.Client
 	azureClient         *outputs.Client
 )
-
 var statsdClient, dogstatsdClient *statsd.Client
 var config *types.Configuration
 var stats *types.Statistics
@@ -114,6 +114,15 @@ func init() {
 			config.Datadog.APIKey = ""
 		} else {
 			enabledOutputsText += "Datadog "
+		}
+	}
+	if config.Discord.WebhookURL != "" {
+		var err error
+		discordClient, err = outputs.NewClient("Discord", config.Discord.WebhookURL, config, stats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Discord.WebhookURL = ""
+		} else {
+			enabledOutputsText += "Discord "
 		}
 	}
 	if config.Alertmanager.HostPort != "" {
