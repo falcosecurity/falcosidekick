@@ -20,6 +20,8 @@ type Configuration struct {
 	ListenPort    int
 	Debug         bool
 	Slack         slackOutputConfig
+	Mattermost    mattermostOutputConfig
+	Rocketchat    rocketchatOutputConfig
 	Teams         teamsOutputConfig
 	Datadog       datadogOutputConfig
 	Alertmanager  alertmanagerOutputConfig
@@ -37,6 +39,26 @@ type Configuration struct {
 }
 
 type slackOutputConfig struct {
+	WebhookURL            string
+	Footer                string
+	Icon                  string
+	OutputFormat          string
+	MinimumPriority       string
+	MessageFormat         string
+	MessageFormatTemplate *template.Template
+}
+
+type rocketchatOutputConfig struct {
+	WebhookURL            string
+	Footer                string
+	Icon                  string
+	OutputFormat          string
+	MinimumPriority       string
+	MessageFormat         string
+	MessageFormatTemplate *template.Template
+}
+
+type mattermostOutputConfig struct {
 	WebhookURL            string
 	Footer                string
 	Icon                  string
@@ -144,6 +166,8 @@ type Statistics struct {
 	GRPC          *expvar.Map
 	Falco         *expvar.Map
 	Slack         *expvar.Map
+	Mattermost    *expvar.Map
+	Rocketchat    *expvar.Map
 	Teams         *expvar.Map
 	Datadog       *expvar.Map
 	Alertmanager  *expvar.Map

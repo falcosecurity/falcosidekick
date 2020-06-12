@@ -113,6 +113,12 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Slack.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Slack.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go slackClient.SlackPost(falcopayload)
 	}
+	if config.Rocketchat.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Rocketchat.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go rocketchatClient.RocketchatPost(falcopayload)
+	}
+	if config.Mattermost.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Mattermost.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go mattermostClient.MattermostPost(falcopayload)
+	}
 	if config.Teams.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Teams.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go teamsClient.TeamsPost(falcopayload)
 	}
