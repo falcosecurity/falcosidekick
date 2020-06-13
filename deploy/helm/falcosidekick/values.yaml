@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: falcosecurity/falcosidekick
-  tag: 2.12.3
+  tag: 2.13.0
   pullPolicy: IfNotPresent
 
 nameOverride: ""
@@ -23,6 +23,21 @@ config:
   customfields: ""
 
   slack:
+    webhookurl: ""
+    footer: ""
+    icon: ""
+    outputformat: "all"
+    minimumpriority: ""
+    messageformat: ""
+
+  rocketchat:
+    webhookurl: ""
+    icon: ""
+    outputformat: "all"
+    minimumpriority: ""
+    messageformat: ""
+
+  mattermost:
     webhookurl: ""
     footer: ""
     icon: ""

@@ -70,23 +70,22 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		field.Value = falcopayload.Time.String()
 		fields = append(fields, field)
 
+		attachment.Footer = "https://github.com/falcosecurity/falcosidekick"
 		if config.Slack.Footer != "" {
 			attachment.Footer = config.Slack.Footer
-		} else {
-			attachment.Footer = "https://github.com/falcosecurity/falcosidekick"
 		}
 	}
 
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
-	if config.Slack.OutputFormat == "all" || config.Slack.OutputFormat == "text" || config.Slack.OutputFormat == "" {
+	if config.Slack.OutputFormat == "all" || config.Slack.OutputFormat == "fields" || config.Slack.OutputFormat == "" {
 		attachment.Text = falcopayload.Output
 	}
 
 	if config.Slack.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
 		if err := config.Slack.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
-			log.Printf("[ERROR] : Error expanding Slack message template: %v", err)
+			log.Printf("[ERROR] : Error expanding Slack message %v", err)
 		} else {
 			messageText = buf.String()
 		}
@@ -115,11 +114,9 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 
 	attachments = append(attachments, attachment)
 
-	var iconURL string
+	iconURL := "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png"
 	if config.Slack.Icon != "" {
 		iconURL = config.Slack.Icon
-	} else {
-		iconURL = "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png"
 	}
 
 	s := slackPayload{

@@ -22,6 +22,8 @@ func getInitStats() *types.Statistics {
 		GRPC:          expvar.NewMap("inputs.grpc"),
 		Falco:         expvar.NewMap("falco.priority"),
 		Slack:         expvar.NewMap("outputs.slack"),
+		Rocketchat:    expvar.NewMap("outputs.rocketchat"),
+		Mattermost:    expvar.NewMap("outputs.mattermost"),
 		Teams:         expvar.NewMap("outputs.teams"),
 		Datadog:       expvar.NewMap("outputs.datadog"),
 		Alertmanager:  expvar.NewMap("outputs.alertmanager"),
@@ -57,6 +59,12 @@ func getInitStats() *types.Statistics {
 	stats.Slack.Add("total", 0)
 	stats.Slack.Add("error", 0)
 	stats.Slack.Add("ok", 0)
+	stats.Rocketchat.Add("total", 0)
+	stats.Rocketchat.Add("error", 0)
+	stats.Rocketchat.Add("ok", 0)
+	stats.Mattermost.Add("total", 0)
+	stats.Mattermost.Add("error", 0)
+	stats.Mattermost.Add("ok", 0)
 	stats.Teams.Add("total", 0)
 	stats.Teams.Add("error", 0)
 	stats.Teams.Add("ok", 0)

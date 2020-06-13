@@ -90,9 +90,24 @@ slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
   #footer: "" # Slack footer
   #icon: "" # Slack icon (avatar)
-  outputformat: "text" # all (default), text, fields
+  outputformat: "all" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+
+rocketchat:
+  webhookurl: "" # Rocketchat WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Slack output is enabled
+  #icon: "" # Rocketchat icon (avatar)
+  outputformat: "all" # all (default), text, fields
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Rockatchat Text above Attachment, displayed in addition to the output from `ROCKETCHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+
+mattermost:
+  webhookurl: "" # Mattermost WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Slack output is enabled
+  #footer: "" # Mattermost footer
+  #icon: "" # Mattermost icon (avatar)
+  outputformat: "all" # all (default), text, fields
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # messageformat: "Alert : rule **{{ .Rule }}** triggered by user **{{ index .OutputFields \"user.name\" }}**" # a Go template to format Mattermost Text above Attachment, displayed in addition to the output from `MATTERMOST_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 
 teams:
   webhookurl: "" # Teams WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Teams output is enabled
@@ -151,11 +166,6 @@ smtp:
   # outputformat: "" # html (default), text
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
-opsgenie:
-  # apikey: "" # Opsgenie API Key, if not empty, Opsgenie output is enabled
-  # region: "eu" # (us|eu) region of your domain (default is 'us')
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-
 statsd:
   forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
   namespace: "falcosidekick." # A prefix for all metrics (default: "falcosidekick.")
@@ -165,6 +175,11 @@ dogstatsd:
   namespace: "falcosidekick." # A prefix for all metrics (default: "falcosidekick.")
   # tag :
   #   key: "value"
+
+opsgenie:
+  # apikey: "2c771471-e2af-4dc6-bd35-e7f6ff479b64" # Opsgenie API Key, if not empty, Opsgenie output is enabled
+  region: "eu" # (us|eu) region of your domain
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 webhook:
   # address: "" # Webhook address, if not empty, Webhook output is enabled

@@ -153,13 +153,13 @@ func checkPriority(prio string) string {
 }
 
 func getMessageFormatTemplate(output, temp string) *template.Template {
-	t := new(template.Template)
 	if temp != "" {
 		var err error
-		t, err = template.New(output).Parse(temp)
+		t, err := template.New(output).Parse(temp)
 		if err != nil {
-			log.Fatalf("[ERROR] : Error compiling %v message template: %v\n", output, err)
+			log.Fatalf("[ERROR] : Error compiling %v message template : %v\n", output, err)
 		}
+		return t
 	}
-	return t
+	return nil
 }

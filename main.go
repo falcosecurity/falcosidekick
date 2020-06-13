@@ -12,7 +12,24 @@ import (
 )
 
 // Globale variables
-var nullClient, slackClient, rocketchatClient, mattermostClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, lokiClient, natsClient, awsClient, smtpClient, opsgenieClient, webhookClient *outputs.Client
+var (
+	nullClient          *outputs.Client
+	slackClient         *outputs.Client
+	rocketchatClient    *outputs.Client
+	mattermostClient    *outputs.Client
+	teamsClient         *outputs.Client
+	datadogClient       *outputs.Client
+	alertmanagerClient  *outputs.Client
+	elasticsearchClient *outputs.Client
+	influxdbClient      *outputs.Client
+	lokiClient          *outputs.Client
+	natsClient          *outputs.Client
+	awsClient           *outputs.Client
+	smtpClient          *outputs.Client
+	opsgenieClient      *outputs.Client
+	webhookClient       *outputs.Client
+)
+
 var statsdClient, dogstatsdClient *statsd.Client
 var config *types.Configuration
 var stats *types.Statistics
@@ -212,5 +229,4 @@ func main() {
 	if err := http.ListenAndServe(":"+strconv.Itoa(config.ListenPort), nil); err != nil {
 		log.Fatalf("[ERROR] : %v\n", err.Error())
 	}
-
 }

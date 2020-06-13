@@ -62,6 +62,38 @@ spec:
             - name: SLACK_MESSAGEFORMAT
               value: {{ .Values.config.slack.messageformat | quote }}
             {{- end }}
+            {{- if .Values.config.rocketchat.webhookurl }}
+            - name: ROCKETCHAT_WEBHOOKURL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: rocketchat-webhookurl
+            - name: ROCKETCHAT_OUTPUTFORMAT
+              value: {{ .Values.config.rocketchat.outputformat | quote }}
+            - name: ROCKETCHAT_ICON
+              value: {{ .Values.config.rocketchat.icon | quote }}
+            - name: ROCKETCHAT_MINIMUMPRIORITY
+              value: {{ .Values.config.rocketchat.minimumpriority | quote }}
+            - name: ROCKETCHAT_MESSAGEFORMAT
+              value: {{ .Values.config.rocketchat.messageformat | quote }}
+            {{- end }}
+            {{- if .Values.config.mattermost.webhookurl }}
+            - name: MATTERMOST_WEBHOOKURL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: mattermost-webhookurl
+            - name: MATTERMOST_OUTPUTFORMAT
+              value: {{ .Values.config.mattermost.outputformat | quote }}
+            - name: MATTERMOST_FOOTER
+              value: {{ .Values.config.mattermost.footer | quote }}
+            - name: MATTERMOST_ICON
+              value: {{ .Values.config.mattermost.icon | quote }}
+            - name: MATTERMOST_MINIMUMPRIORITY
+              value: {{ .Values.config.mattermost.minimumpriority | quote }}
+            - name: MATTERMOST_MESSAGEFORMAT
+              value: {{ .Values.config.mattermost.messageformat | quote }}
+            {{- end }}
             {{- if .Values.config.teams.webhookurl }}
             - name: TEAMS_WEBHOOKURL
               valueFrom:
