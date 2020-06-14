@@ -8,39 +8,14 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-// Field
-type slackAttachmentField struct {
-	Title string `json:"title"`
-	Value string `json:"value"`
-	Short bool   `json:"short"`
-}
-
-//Attachment
-type slackAttachment struct {
-	Fallback   string                 `json:"fallback"`
-	Color      string                 `json:"color"`
-	Text       string                 `json:"text,omitempty"`
-	Fields     []slackAttachmentField `json:"fields"`
-	Footer     string                 `json:"footer,omitempty"`
-	FooterIcon string                 `json:"footer_icon,omitempty"`
-}
-
-// Payload
-type slackPayload struct {
-	Text        string            `json:"text,omitempty"`
-	Username    string            `json:"username,omitempty"`
-	IconURL     string            `json:"icon_url,omitempty"`
-	Attachments []slackAttachment `json:"attachments,omitempty"`
-}
-
-func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
+func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
 	var messageText string
 	var attachments []slackAttachment
 	var attachment slackAttachment
 	var fields []slackAttachmentField
 	var field slackAttachmentField
 
-	if config.Slack.OutputFormat == "all" || config.Slack.OutputFormat == "fields" || config.Slack.OutputFormat == "" {
+	if config.Mattermost.OutputFormat == "all" || config.Mattermost.OutputFormat == "fields" || config.Mattermost.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
 			switch j.(type) {
 			case string:
@@ -69,22 +44,17 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		field.Short = false
 		field.Value = falcopayload.Time.String()
 		fields = append(fields, field)
-
-		attachment.Footer = "https://github.com/falcosecurity/falcosidekick"
-		if config.Slack.Footer != "" {
-			attachment.Footer = config.Slack.Footer
-		}
 	}
 
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
-	if config.Slack.OutputFormat == "all" || config.Slack.OutputFormat == "fields" || config.Slack.OutputFormat == "" {
+	if config.Mattermost.OutputFormat == "all" || config.Mattermost.OutputFormat == "fields" || config.Mattermost.OutputFormat == "" {
 		attachment.Text = falcopayload.Output
 	}
 
-	if config.Slack.MessageFormatTemplate != nil {
+	if config.Mattermost.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
-		if err := config.Slack.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
+		if err := config.Mattermost.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
 			log.Printf("[ERROR] : Error expanding Slack message %v", err)
 		} else {
 			messageText = buf.String()
@@ -115,8 +85,8 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	attachments = append(attachments, attachment)
 
 	iconURL := "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png"
-	if config.Slack.Icon != "" {
-		iconURL = config.Slack.Icon
+	if config.Mattermost.Icon != "" {
+		iconURL = config.Mattermost.Icon
 	}
 
 	s := slackPayload{
@@ -128,13 +98,13 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	return s
 }
 
-// SlackPost posts event to Slack
-func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
-	err := c.Post(newSlackPayload(falcopayload, c.Config))
+// RocketchatPost posts event to Rocketchat
+func (c *Client) RocketchatPost(falcopayload types.FalcoPayload) {
+	err := c.Post(newMattermostPayload(falcopayload, c.Config))
 	if err != nil {
-		c.Stats.Slack.Add("error", 1)
+		c.Stats.Rocketchat.Add("error", 1)
 	} else {
-		c.Stats.Slack.Add("ok", 1)
+		c.Stats.Rocketchat.Add("ok", 1)
 	}
-	c.Stats.Slack.Add("total", 1)
+	c.Stats.Rocketchat.Add("total", 1)
 }

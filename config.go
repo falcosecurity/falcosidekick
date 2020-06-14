@@ -30,6 +30,18 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Slack.OutputFormat", "all")
 	v.SetDefault("Slack.MessageFormat", "")
 	v.SetDefault("Slack.MinimumPriority", "")
+	v.SetDefault("Rocketchat.WebhookURL", "")
+	v.SetDefault("Rocketchat.Footer", "https://github.com/falcosecurity/falcosidekick")
+	v.SetDefault("Rocketchat.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
+	v.SetDefault("Rocketchat.OutputFormat", "all")
+	v.SetDefault("Rocketchat.MessageFormat", "")
+	v.SetDefault("Rocketchat.MinimumPriority", "")
+	v.SetDefault("Mattermost.WebhookURL", "")
+	v.SetDefault("Mattermost.Footer", "https://github.com/falcosecurity/falcosidekick")
+	v.SetDefault("Mattermost.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
+	v.SetDefault("Mattermost.OutputFormat", "all")
+	v.SetDefault("Mattermost.MessageFormat", "")
+	v.SetDefault("Mattermost.MinimumPriority", "")
 	v.SetDefault("Teams.WebhookURL", "")
 	v.SetDefault("Teams.ActivityImage", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
 	v.SetDefault("Teams.OutputFormat", "all")
@@ -109,18 +121,45 @@ func getConfig() *types.Configuration {
 	if c.ListenPort == 0 || c.ListenPort > 65536 {
 		log.Fatalf("[ERROR] : Bad port number\n")
 	}
-	if match, _ := regexp.MatchString("(?i)(emergency|alert|critical|error|warning|notice|informational|debug)", c.Slack.MinimumPriority); !match {
-		c.Slack.MinimumPriority = ""
-		c.Teams.MinimumPriority = ""
-	}
 
-	if c.Slack.MessageFormat != "" {
-		var err error
-		c.Slack.MessageFormatTemplate, err = template.New("slack").Parse(c.Slack.MessageFormat)
-		if err != nil {
-			log.Printf("[ERROR] : Error compiling Slack messsage template: %v", err)
-		}
-	}
+	c.Slack.MinimumPriority = checkPriority(c.Slack.MinimumPriority)
+	c.Rocketchat.MinimumPriority = checkPriority(c.Rocketchat.MinimumPriority)
+	c.Mattermost.MinimumPriority = checkPriority(c.Mattermost.MinimumPriority)
+	c.Teams.MinimumPriority = checkPriority(c.Teams.MinimumPriority)
+	c.Datadog.MinimumPriority = checkPriority(c.Datadog.MinimumPriority)
+	c.Alertmanager.MinimumPriority = checkPriority(c.Alertmanager.MinimumPriority)
+	c.Elasticsearch.MinimumPriority = checkPriority(c.Elasticsearch.MinimumPriority)
+	c.Influxdb.MinimumPriority = checkPriority(c.Influxdb.MinimumPriority)
+	c.Loki.MinimumPriority = checkPriority(c.Loki.MinimumPriority)
+	c.Nats.MinimumPriority = checkPriority(c.Nats.MinimumPriority)
+	c.AWS.Lambda.MinimumPriority = checkPriority(c.AWS.Lambda.MinimumPriority)
+	c.AWS.SQS.MinimumPriority = checkPriority(c.AWS.SQS.MinimumPriority)
+	c.Opsgenie.MinimumPriority = checkPriority(c.Opsgenie.MinimumPriority)
+	c.Webhook.MinimumPriority = checkPriority(c.Webhook.MinimumPriority)
+
+	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
+	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
+	c.Mattermost.MessageFormatTemplate = getMessageFormatTemplate("Mattermost", c.Mattermost.MessageFormat)
 
 	return c
+}
+
+func checkPriority(prio string) string {
+	match, _ := regexp.MatchString("(?i)(emergency|alert|critical|error|warning|notice|informational|debug)", prio)
+	if match {
+		return prio
+	}
+	return ""
+}
+
+func getMessageFormatTemplate(output, temp string) *template.Template {
+	if temp != "" {
+		var err error
+		t, err := template.New(output).Parse(temp)
+		if err != nil {
+			log.Fatalf("[ERROR] : Error compiling %v message template : %v\n", output, err)
+		}
+		return t
+	}
+	return nil
 }

@@ -12,7 +12,24 @@ import (
 )
 
 // Globale variables
-var nullClient, slackClient, teamsClient, datadogClient, alertmanagerClient, elasticsearchClient, influxdbClient, lokiClient, natsClient, awsClient, smtpClient, opsgenieClient, webhookClient *outputs.Client
+var (
+	nullClient          *outputs.Client
+	slackClient         *outputs.Client
+	rocketchatClient    *outputs.Client
+	mattermostClient    *outputs.Client
+	teamsClient         *outputs.Client
+	datadogClient       *outputs.Client
+	alertmanagerClient  *outputs.Client
+	elasticsearchClient *outputs.Client
+	influxdbClient      *outputs.Client
+	lokiClient          *outputs.Client
+	natsClient          *outputs.Client
+	awsClient           *outputs.Client
+	smtpClient          *outputs.Client
+	opsgenieClient      *outputs.Client
+	webhookClient       *outputs.Client
+)
+
 var statsdClient, dogstatsdClient *statsd.Client
 var config *types.Configuration
 var stats *types.Statistics
@@ -60,6 +77,24 @@ func init() {
 			config.Slack.WebhookURL = ""
 		} else {
 			enabledOutputsText += "Slack "
+		}
+	}
+	if config.Rocketchat.WebhookURL != "" {
+		var err error
+		rocketchatClient, err = outputs.NewClient("Rocketchat", config.Rocketchat.WebhookURL, config, stats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Rocketchat.WebhookURL = ""
+		} else {
+			enabledOutputsText += "Rocketchat "
+		}
+	}
+	if config.Mattermost.WebhookURL != "" {
+		var err error
+		mattermostClient, err = outputs.NewClient("Mattermost", config.Mattermost.WebhookURL, config, stats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Mattermost.WebhookURL = ""
+		} else {
+			enabledOutputsText += "Mattermost "
 		}
 	}
 	if config.Teams.WebhookURL != "" {
@@ -194,5 +229,4 @@ func main() {
 	if err := http.ListenAndServe(":"+strconv.Itoa(config.ListenPort), nil); err != nil {
 		log.Fatalf("[ERROR] : %v\n", err.Error())
 	}
-
 }
