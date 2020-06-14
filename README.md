@@ -13,6 +13,8 @@ A simple daemon to help you with falco's outputs (https://sysdig.com/opensource/
 Currently available outputs are :
 
 * [**Slack**](https://slack.com)
+* [**Rocketchat**](https://rocket.chat/)
+* [**Mattermost**](https://mattermost.com/)
 * [**Teams**](https://products.office.com/en-us/microsoft-teams/group-chat-software)
 * [**Datadog**](https://www.datadoghq.com/)
 * [**AlertManager**](https://prometheus.io/docs/alerting/alertmanager/)
@@ -95,14 +97,14 @@ slack:
   messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 
 rocketchat:
-  webhookurl: "" # Rocketchat WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Slack output is enabled
+  webhookurl: "" # Rocketchat WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Rocketchat output is enabled
   #icon: "" # Rocketchat icon (avatar)
   outputformat: "all" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Rockatchat Text above Attachment, displayed in addition to the output from `ROCKETCHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 
 mattermost:
-  webhookurl: "" # Mattermost WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Slack output is enabled
+  webhookurl: "" # Mattermost WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Mattermost output is enabled
   #footer: "" # Mattermost footer
   #icon: "" # Mattermost icon (avatar)
   outputformat: "all" # all (default), text, fields
@@ -211,6 +213,17 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **SLACK_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
 * **SLACK_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **SLACK_MESSAGEFORMAT** : a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+* **ROCKETCHAT_WEBHOOKURL** : Rocketchat Webhook URL (ex: https://XXXX/hooks/YYYY), if not `empty`, Rocketchat output is *enabled*
+* **ROCKETCHAT_ICON** : Rocketchat icon (avatar)
+* **ROCKETCHAT_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Rocketchat), `fields` (only fields are displayed in Rocketchat)
+* **ROCKETCHAT_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **ROCKETCHAT_MESSAGEFORMAT** : a Go template to format Rocketchat Text above Attachment, displayed in addition to the output from `ROCKETCHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+* **MATTERMOST_WEBHOOKURL** : Mattermost Webhook URL (ex: https://XXXX/hooks/YYYY), if not `empty`, Mattermost output is *enabled*
+* **MATTERMOST_FOOTER** : Mattermost footer
+* **MATTERMOST_ICON** : Mattermost icon (avatar)
+* **MATTERMOST_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Mattermost), `fields` (only fields are displayed in Mattermost)
+* **MATTERMOST_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **MATTERMOST_MESSAGEFORMAT** : a Go template to format Mattermost Text above Attachment, displayed in addition to the output from `MATTERMOST_OUTPUTFORMAT`, see [Mattermost Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 * **TEAMS_WEBHOOKURL** : Teams Webhook URL (ex: https://outlook.office.com/webhook/XXXXXX/IncomingWebhook/YYYYYY"), if not `empty`, Teams output is *enabled*
 * **TEAMS_ACTIVITYIMAGE** : Teams section image
 * **TEAMS_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Teams), `facts` (only facts are displayed in Teams)
@@ -259,7 +272,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **WEBHOOK_ADDRESS** : "" # Webhook address, if not empty, Webhook output is enabled
 * **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
-#### Slack Message Formatting
+#### Mattermost Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML value accept a [Go template](https://golang.org/pkg/text/template/) which can be used to format the text of a slack alert. These templates are evaluated on the JSON data from each Falco event - the following fields are available:
 
@@ -321,6 +334,10 @@ You should get :
 ![slack no fields example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_no_fields.png)
 (SLACK_OUTPUTFORMAT="**fields**" and SLACK_MESSAGEFORMAT="**Alert : rule \*{{ .Rule }}\* triggered by user \*{{ index .OutputFields \"user.name\" }}\***")
 ![slack message format example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_fields_messageformat.png)
+
+### Mattermost
+
+![mattermost example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/mattermost.png)
 
 ### Teams
 
