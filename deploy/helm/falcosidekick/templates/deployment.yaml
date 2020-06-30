@@ -18,8 +18,12 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "falcosidekick.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
+        aadpodidbinding: {{ include "falcosidekick.fullname" . }}
     spec:
       serviceAccountName: {{ include "falcosidekick.fullname" . }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: "{{ .Values.priorityClassName }}"
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -244,6 +248,14 @@ spec:
               value: {{ .Values.config.webhook.address | quote }}
             - name: WEBHOOK_MINIMUMPRIORITY
               value: {{ .Values.config.webhook.minimumpriority | quote }}
+            {{- end }}
+            {{- if .Values.config.azure.eventHub.name }}
+            - name: AZURE_EVENTHUB_NAME
+              value: {{ .Values.config.azure.eventHub.name | quote }}
+            - name: AZURE_EVENTHUB_NAMESPACE
+              value: {{ .Values.config.azure.eventHub.namespace | quote }}
+            - name: AZURE_EVENTHUB_MINIMUMPRIORITY
+              value: {{ .Values.config.azure.eventHub.minimumpriority | quote }}
             {{- end }}
 
           resources:

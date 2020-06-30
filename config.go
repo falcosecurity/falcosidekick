@@ -90,6 +90,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Customfields", map[string]string{})
 	v.SetDefault("Webhook.Address", "")
 	v.SetDefault("Webhook.MinimumPriority", "")
+	v.SetDefault("Azure.eventHub.Namespace", "")
+	v.SetDefault("Azure.eventHub.Name", "")
+	v.SetDefault("Azure.eventHub.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -136,6 +139,7 @@ func getConfig() *types.Configuration {
 	c.AWS.SQS.MinimumPriority = checkPriority(c.AWS.SQS.MinimumPriority)
 	c.Opsgenie.MinimumPriority = checkPriority(c.Opsgenie.MinimumPriority)
 	c.Webhook.MinimumPriority = checkPriority(c.Webhook.MinimumPriority)
+	c.Azure.EventHub.MinimumPriority = checkPriority(c.Azure.EventHub.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

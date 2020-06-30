@@ -155,4 +155,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Webhook.Address != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Webhook.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go webhookClient.WebhookPost(falcopayload)
 	}
+	if config.Azure.EventHub.Name != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Azure.EventHub.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go azureClient.EventHubPost(falcopayload)
+	}
 }

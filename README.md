@@ -29,6 +29,7 @@ Currently available outputs are :
 * [**StatsD**](https://github.com/statsd/statsd) (for monitoring of `falcosidekick`)
 * [**DogStatsD**](https://docs.datadoghq.com/developers/dogstatsd/?tab=go) (for monitoring of `falcosidekick`)
 * **Webhook**
+* [**Azure Event Hubs**](https://azure.microsoft.com/en-in/services/event-hubs/)
 
 ## Usage
 
@@ -186,6 +187,13 @@ opsgenie:
 webhook:
   # address: "" # Webhook address, if not empty, Webhook output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+azure:
+  # eventHub:
+    # name: "" # The name of the Hub
+    # namespace: "" # The name of the space the Hub is part of
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 ```
 
 Usage :
@@ -271,6 +279,9 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **DOGSTATSD_TAGS**: A comma-separated list of tags to add to all metrics
 * **WEBHOOK_ADDRESS** : "" # Webhook address, if not empty, Webhook output is enabled
 * **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **AZURE_EVENTHUB_NAME**: Name of the Hub
+* **AZURE_EVENTHUB_NAMESPACE**: Name of the space the Hub is in
+* **AZURE_EVENTHUB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
 #### Mattermost Message Formatting
 
