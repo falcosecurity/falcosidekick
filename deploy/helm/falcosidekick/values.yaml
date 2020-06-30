@@ -14,6 +14,8 @@ fullnameOverride: ""
 
 podSecurityPolicy:
   create: false
+
+priorityClassName: ""
   
 config:
 
@@ -116,6 +118,16 @@ config:
   webhook:
     address: ""
     minimumpriority: ""
+
+  azure:
+    subscriptionID: ""
+    resourceGroupName: ""
+    podIdentityClientID: ""
+    podIdentityName: ""
+    eventHub:
+      namespace: ""
+      name: ""
+      minimumpriority: ""
 
 service:
   type: ClusterIP

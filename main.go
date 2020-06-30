@@ -28,6 +28,7 @@ var (
 	smtpClient          *outputs.Client
 	opsgenieClient      *outputs.Client
 	webhookClient       *outputs.Client
+	azureClient         *outputs.Client
 )
 
 var statsdClient, dogstatsdClient *statsd.Client
@@ -211,6 +212,18 @@ func init() {
 			config.Webhook.Address = ""
 		} else {
 			enabledOutputsText += "Webhook "
+		}
+	}
+	if config.Azure.EventHub.Name != "" {
+		var err error
+		azureClient, err = outputs.NewEventHubClient(config, stats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Azure.EventHub.Name = ""
+			config.Azure.EventHub.Namespace = ""
+		} else {
+			if config.Azure.EventHub.Name != "" {
+				enabledOutputsText += "EventHub "
+			}
 		}
 	}
 

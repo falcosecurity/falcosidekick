@@ -103,3 +103,9 @@ opsgenie:
 webhook:
   # address: "" # Webhook address, if not empty, Webhook output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+azure:
+  eventHub:
+    name: ""
+    namespace: ""
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

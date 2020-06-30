@@ -35,6 +35,7 @@ type Configuration struct {
 	Statsd        statsdConfig
 	Dogstatsd     statsdConfig
 	Webhook       webhookConfig
+	Azure         azureConfig
 	Customfields  map[string]string
 }
 
@@ -159,6 +160,16 @@ type statsdConfig struct {
 	Tags      []string
 }
 
+type azureConfig struct {
+	EventHub eventHub
+}
+
+type eventHub struct {
+	Namespace       string
+	Name            string
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests      *expvar.Map
@@ -182,4 +193,5 @@ type Statistics struct {
 	Statsd        *expvar.Map
 	Dogstatsd     *expvar.Map
 	Webhook       *expvar.Map
+	AzureEventHub *expvar.Map
 }
