@@ -18,7 +18,7 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "falcosidekick.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
-        {{- if and .Values.config.azure.podIdentityClientID .Values.config.azure.podIdentityName -}}
+        {{- if and .Values.config.azure.podIdentityClientID .Values.config.azure.podIdentityName }}
         aadpodidbinding: {{ include "falcosidekick.fullname" . }}
         {{- end }}
     spec:
