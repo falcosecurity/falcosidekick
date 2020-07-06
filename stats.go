@@ -38,7 +38,7 @@ func getInitStats() *types.Statistics {
 		Statsd:        expvar.NewMap("outputs.statsd"),
 		Dogstatsd:     expvar.NewMap("outputs.dogstatsd"),
 		Webhook:       expvar.NewMap("outputs.webhook"),
-		AzureEventHub: expvar.NewMap("outputs.eventhub"),
+		AzureEventHub: expvar.NewMap("outputs.azureeventhub"),
 	}
 	stats.Requests.Add("total", 0)
 	stats.Requests.Add("rejected", 0)
