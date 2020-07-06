@@ -24,14 +24,14 @@ func NewEventHubClient(config *types.Configuration, stats *types.Statistics, sta
 
 // EventHubPost posts event to Azure Event Hub
 func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
-	log.Printf("[INFO] : Try sending event")
+	log.Printf("[INFO]  : Try sending event")
 	hub, err := eventhub.NewHubWithNamespaceNameAndEnvironment(c.Config.Azure.EventHub.Namespace, c.Config.Azure.EventHub.Name)
 	if err != nil {
 		c.Stats.AzureEventHub.Add("error", 1)
 		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
 		return
 	}
-	log.Printf("[INFO] : %v EventHub - Hub client created\n", c.OutputType)
+	log.Printf("[INFO]  : %v EventHub - Hub client created\n", c.OutputType)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 
 	defer cancel()
@@ -48,7 +48,7 @@ func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 		return
 	} else {
 		c.Stats.AzureEventHub.Add("ok", 1)
-		log.Printf("[INFO] : Succesfully sent event")
+		log.Printf("[INFO]  : Succesfully sent event")
 	}
 	c.Stats.AzureEventHub.Add("total", 1)
 }

@@ -20,7 +20,9 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         aadpodidbinding: {{ include "falcosidekick.fullname" . }}
     spec:
+      {{- if and .Values.config.azure.podIdentityClientID .Values.config.azure.podIdentityName -}}
       serviceAccountName: {{ include "falcosidekick.fullname" . }}
+      {{- end }}
       {{- if .Values.priorityClassName }}
       priorityClassName: "{{ .Values.priorityClassName }}"
       {{- end }}

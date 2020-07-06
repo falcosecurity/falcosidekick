@@ -190,7 +190,7 @@ webhook:
 
 azure:
   # eventHub:
-    # name: "" # The name of the Hub
+    # name: "" # The name of the Hub, EventHub output is enabled
     # namespace: "" # The name of the space the Hub is part of
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
@@ -279,7 +279,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **DOGSTATSD_TAGS**: A comma-separated list of tags to add to all metrics
 * **WEBHOOK_ADDRESS** : "" # Webhook address, if not empty, Webhook output is enabled
 * **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **AZURE_EVENTHUB_NAME**: Name of the Hub
+* **AZURE_EVENTHUB_NAME**: Name of the Hub, EventHub is *enabled*
 * **AZURE_EVENTHUB_NAMESPACE**: Name of the space the Hub is in
 * **AZURE_EVENTHUB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
