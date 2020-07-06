@@ -3,7 +3,7 @@ appVersion: "2.13.0"
 description: A simple daemon to help you with falco's outputs
 icon: https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png
 name: falcosidekick
-version: 0.1.17
+version: 0.1.18
 maintainers:
   - name: SweetOps
   - name: Issif
