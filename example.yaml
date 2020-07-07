@@ -1,0 +1,21 @@
+#listenport: 2801 # port to listen for daemon (default: 2801)
+debug: false # if true all outputs will print in stdout the payload they send (default: false)
+customfields: # custom fields are added to falco events
+  Akey: "AValue"
+  Bkey: "BValue"
+  Ckey: "CValue"
+
+rocketchat:
+  webhookurl: "http://192.168.64.2:8818/hooks/S5YrsrYNWghz3aRnk/PEASACXQ9NWJdpii8TND5MFSmdhQ5MRH3uYqDWXKeoYBeYH6" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  # icon: "https://imageog.flaticon.com/icons/png/512/174/174855.png?size=1200x630f&pad=10,10,10,10&ext=png&bg=FFFFFFFF" # Slack icon (avatar)
+  outputformat: "all" # all (default), text, fields
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  messageformat: "**Alert** : rule **{{ .Rule }}** triggered by user **{{ index .OutputFields \"user.name\" }}**" # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+
+mattermost:
+  webhookurl: "http://192.168.64.2:8065/hooks/wi7795u5ebyrbf7rcbmx377r1o" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  footer: "TEST" # Slack footer
+  # icon: "https://imageog.flaticon.com/icons/png/512/174/174855.png?size=1200x630f&pad=10,10,10,10&ext=png&bg=FFFFFFFF" # Slack icon (avatar)
+  outputformat: "all" # all (default), text, fields
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  messageformat: "**Alert** : rule **{{ .Rule }}** triggered by user **{{ index .OutputFields \"user.name\" }}**" # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
