@@ -190,7 +190,7 @@ webhook:
 
 azure:
   # eventHub:
-    # name: "" # The name of the Hub, EventHub output is enabled
+    # name: "" # The name of the Hub, if not empty, EventHub output is enabled
     # namespace: "" # The name of the space the Hub is part of
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
@@ -279,7 +279,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **DOGSTATSD_TAGS**: A comma-separated list of tags to add to all metrics
 * **WEBHOOK_ADDRESS** : "" # Webhook address, if not empty, Webhook output is enabled
 * **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **AZURE_EVENTHUB_NAME**: Name of the Hub, EventHub is *enabled*
+* **AZURE_EVENTHUB_NAME**: Name of the Hub, if not empty, EventHub is *enabled*
 * **AZURE_EVENTHUB_NAMESPACE**: Name of the space the Hub is in
 * **AZURE_EVENTHUB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
@@ -287,13 +287,13 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML value accept a [Go template](https://golang.org/pkg/text/template/) which can be used to format the text of a slack alert. These templates are evaluated on the JSON data from each Falco event - the following fields are available:
 
-| Template Syntax                              | Description      |
-|----------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `{{ .Output }}`                              | A formatted string from Falco describing the event.                                                                                                      |
-| `{{ .Priority }}`                            | The priority of the event, as a string.                                                                                                                  |
-| `{{ .Rule }}`                                | The name of the rule that generated the event.                                                                                                           |
-| `{{ .Time }}`                                | The timestamp when the event occurred.                                                                                                                   |
-| `{{ index .OutputFields \"<field name>\" }}` | A map of additional optional fields emitted depending on the event. These may not be present for every event, in which case they expand to the string `<no value>`   |
+| Template Syntax                              | Description                                                                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `{{ .Output }}`                              | A formatted string from Falco describing the event.                                                                                                                |
+| `{{ .Priority }}`                            | The priority of the event, as a string.                                                                                                                            |
+| `{{ .Rule }}`                                | The name of the rule that generated the event.                                                                                                                     |
+| `{{ .Time }}`                                | The timestamp when the event occurred.                                                                                                                             |
+| `{{ index .OutputFields \"<field name>\" }}` | A map of additional optional fields emitted depending on the event. These may not be present for every event, in which case they expand to the string `<no value>` |
 
 Go templates also support some basic methods for text manipulation which can be used to improve the clarity of alerts - see the documentation for details.
 
