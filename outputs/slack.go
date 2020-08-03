@@ -114,15 +114,15 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 
 	attachments = append(attachments, attachment)
 
-	iconURL := "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png"
-	if config.Slack.Icon != "" {
-		iconURL = config.Slack.Icon
-	}
+	// iconURL := "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png"
+	// if config.Slack.Icon != "" {
+	// 	iconURL = config.Slack.Icon
+	// }
 
 	s := slackPayload{
 		Text:        messageText,
-		Username:    "Falcosidekick",
-		IconURL:     iconURL,
+		Username:    config.Slack.Username,
+		IconURL:     config.Slack.Icon,
 		Attachments: attachments}
 
 	return s

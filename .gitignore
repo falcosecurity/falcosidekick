@@ -17,3 +17,5 @@ config.yaml
 .vscode
 .idea
 *.swp
+
+example.yaml
