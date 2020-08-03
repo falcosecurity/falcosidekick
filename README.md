@@ -6,7 +6,11 @@
 
 ## Description
 
-A simple daemon to help you with falco's outputs (https://sysdig.com/opensource/falco/). It takes a falco's event and forwards it to different outputs.
+A simple daemon for enhancing available outputs for [Falco](https://sysdig.com/opensource/falco/). It takes a falco's event and forwards it to different outputs.
+
+It works as a single endpoint for as many as you want `falco` instances :
+
+![falco_with_falcosidekick](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/falco_with_falcosidekick.png)
 
 ## Outputs
 
@@ -94,6 +98,7 @@ slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
   #footer: "" # Slack footer
   #icon: "" # Slack icon (avatar)
+  #username: "" # Slack username (default: Falcosidekick)
   outputformat: "all" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
@@ -101,6 +106,7 @@ slack:
 rocketchat:
   webhookurl: "" # Rocketchat WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Rocketchat output is enabled
   #icon: "" # Rocketchat icon (avatar)
+  #username: "" # Rocketchat username (default: Falcosidekick)
   outputformat: "all" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Rockatchat Text above Attachment, displayed in addition to the output from `ROCKETCHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
@@ -109,6 +115,7 @@ mattermost:
   webhookurl: "" # Mattermost WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Mattermost output is enabled
   #footer: "" # Mattermost footer
   #icon: "" # Mattermost icon (avatar)
+  #username: "" # Mattermost username (default: Falcosidekick)
   outputformat: "all" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # messageformat: "Alert : rule **{{ .Rule }}** triggered by user **{{ index .OutputFields \"user.name\" }}**" # a Go template to format Mattermost Text above Attachment, displayed in addition to the output from `MATTERMOST_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
@@ -224,17 +231,20 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **SLACK_WEBHOOKURL** : Slack Webhook URL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)
+* **SLACK_USERNAME** : Slack username (default: Falcosidekick)
 * **SLACK_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
 * **SLACK_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **SLACK_MESSAGEFORMAT** : a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 * **ROCKETCHAT_WEBHOOKURL** : Rocketchat Webhook URL (ex: https://XXXX/hooks/YYYY), if not `empty`, Rocketchat output is *enabled*
 * **ROCKETCHAT_ICON** : Rocketchat icon (avatar)
+* **ROCKETCHAT_USERNAME** : Rocketchat username (default: Falcosidekick)
 * **ROCKETCHAT_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Rocketchat), `fields` (only fields are displayed in Rocketchat)
 * **ROCKETCHAT_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **ROCKETCHAT_MESSAGEFORMAT** : a Go template to format Rocketchat Text above Attachment, displayed in addition to the output from `ROCKETCHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 * **MATTERMOST_WEBHOOKURL** : Mattermost Webhook URL (ex: https://XXXX/hooks/YYYY), if not `empty`, Mattermost output is *enabled*
 * **MATTERMOST_FOOTER** : Mattermost footer
 * **MATTERMOST_ICON** : Mattermost icon (avatar)
+* **MATTERMOST_USERNAME** : Mattermost username (default: Falcosidekick)
 * **MATTERMOST_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Mattermost), `fields` (only fields are displayed in Mattermost)
 * **MATTERMOST_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **MATTERMOST_MESSAGEFORMAT** : a Go template to format Mattermost Text above Attachment, displayed in addition to the output from `MATTERMOST_OUTPUTFORMAT`, see [Mattermost Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
@@ -292,7 +302,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AZURE_EVENTHUB_NAMESPACE**: Name of the space the Hub is in
 * **AZURE_EVENTHUB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
-#### Mattermost Message Formatting
+#### Slack/Rocketchat/Mattermost Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML value accept a [Go template](https://golang.org/pkg/text/template/) which can be used to format the text of a slack alert. These templates are evaluated on the JSON data from each Falco event - the following fields are available:
 
@@ -349,10 +359,15 @@ You should get :
 ### Slack
 
 (SLACK_OUTPUTFORMAT="**all**")
+
 ![slack example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack.png)
+
 (SLACK_OUTPUTFORMAT="**text**")
+
 ![slack no fields example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_no_fields.png)
+
 (SLACK_OUTPUTFORMAT="**fields**" and SLACK_MESSAGEFORMAT="**Alert : rule \*{{ .Rule }}\* triggered by user \*{{ index .OutputFields \"user.name\" }}\***")
+
 ![slack message format example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/slack_fields_messageformat.png)
 
 ### Mattermost
@@ -362,13 +377,17 @@ You should get :
 ### Teams
 
 (TEAMS_OUTPUTFORMAT="**all**")
+
 ![teams example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/teams.png)
+
 (TEAMS_OUTPUTFORMAT="**text**")
+
 ![teams facts only](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/teams_text.png)
 
 ### Datadog
 
 *(Tip: filter on `sources: falco`)*
+
 ![datadog example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/datadog.png)
 
 ### AlertManager
@@ -408,8 +427,11 @@ time                akey    bkey    ckey    priority rule      value
 ### SMTP
 
 (SMTP_OUTPUTFORMAT="**html**")
+
 ![smtp html example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/smtp_html.png)
+
 (SMTP_OUTPUTFORMAT="**text**")
+
 ![smtp plaintext example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/smtp_plaintext.png)
 
 ### Opsgenie

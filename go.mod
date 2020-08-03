@@ -1,6 +1,6 @@
 module github.com/falcosecurity/falcosidekick
 
-go 1.12
+go 1.14
 
 require (
 	github.com/Azure/azure-event-hubs-go/v3 v3.3.0

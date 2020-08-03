@@ -44,6 +44,7 @@ type slackOutputConfig struct {
 	WebhookURL            string
 	Footer                string
 	Icon                  string
+	Username              string
 	OutputFormat          string
 	MinimumPriority       string
 	MessageFormat         string
@@ -54,6 +55,7 @@ type rocketchatOutputConfig struct {
 	WebhookURL            string
 	Footer                string
 	Icon                  string
+	Username              string
 	OutputFormat          string
 	MinimumPriority       string
 	MessageFormat         string
@@ -64,6 +66,7 @@ type mattermostOutputConfig struct {
 	WebhookURL            string
 	Footer                string
 	Icon                  string
+	Username              string
 	OutputFormat          string
 	MinimumPriority       string
 	MessageFormat         string
