@@ -46,9 +46,9 @@ func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 		c.Stats.AzureEventHub.Add("error", 1)
 		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
 		return
-	} else {
-		c.Stats.AzureEventHub.Add("ok", 1)
-		log.Printf("[INFO]  : Succesfully sent event")
 	}
+	c.Stats.AzureEventHub.Add("ok", 1)
+	log.Printf("[INFO]  : Succesfully sent event")
+
 	c.Stats.AzureEventHub.Add("total", 1)
 }

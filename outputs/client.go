@@ -2,15 +2,16 @@ package outputs
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -88,10 +89,26 @@ func (c *Client) Post(payload interface{}) error {
 		log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
 	}
 
-	client := &http.Client{}
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 
 	if c.Config.CheckCert == false {
-		client.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+		transport.TLSClientConfig.InsecureSkipVerify = true
+	}
+
+	client := &http.Client{
+		Transport: transport,
 	}
 
 	req, err := http.NewRequest("POST", c.EndpointURL.String(), body)
