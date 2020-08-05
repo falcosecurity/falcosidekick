@@ -1,19 +1,20 @@
 package outputs
 
 import (
-	"github.com/falcosecurity/falcosidekick/types"
 	"strings"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type discordPayload struct {
-	Content    string                `json:"content"`
-	Avatar_url string                `json:"avatar_url,omitempty"`
-	Embeds     []discordEmbedPayload `json:"embeds"`
+	Content   string                `json:"content"`
+	AvatarURL string                `json:"avatar_url,omitempty"`
+	Embeds    []discordEmbedPayload `json:"embeds"`
 }
 
 type discordEmbedPayload struct {
 	Title       string                     `json:"title"`
-	Url         string                     `json:"url"`
+	URL         string                     `json:"url"`
 	Description string                     `json:"description"`
 	Color       string                     `json:"color"`
 	Fields      []discordEmbedFieldPayload `json:"fields"`
@@ -91,9 +92,9 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	embeds = append(embeds, embed)
 
 	ds := discordPayload{
-		Content:    "",
-		Avatar_url: iconURL,
-		Embeds:     embeds,
+		Content:   "",
+		AvatarURL: iconURL,
+		Embeds:    embeds,
 	}
 	return ds
 }
