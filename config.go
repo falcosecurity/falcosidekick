@@ -24,6 +24,7 @@ func getConfig() *types.Configuration {
 	v := viper.New()
 	v.SetDefault("ListenPort", 2801)
 	v.SetDefault("Debug", false)
+	v.SetDefault("CheckCert", true)
 	v.SetDefault("Slack.WebhookURL", "")
 	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")
 	v.SetDefault("Slack.Username", "Falcosidekick")

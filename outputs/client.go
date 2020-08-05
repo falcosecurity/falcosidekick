@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -88,6 +89,10 @@ func (c *Client) Post(payload interface{}) error {
 	}
 
 	client := &http.Client{}
+
+	if c.Config.CheckCert == false {
+		client.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	}
 
 	req, err := http.NewRequest("POST", c.EndpointURL.String(), body)
 	if err != nil {
