@@ -93,6 +93,7 @@ customfields: # custom fields are added to falco events
   Akey: "AValue"
   Bkey: "BValue"
   Ckey: "CValue"
+checkCert: true # check if ssl certificate of the output is valid (default: true)
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
@@ -225,26 +226,27 @@ Configuration of the daemon can be made also by *env vars*, these values overrid
 
 The *env vars* "match" field names in *yaml file with this structure (**take care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 
-* **LISTENPORT** : port to listen for daemon (default: 2801)
+* **LISTENPORT** : port to listen for daemon (default: `2801`)
 * **DEBUG** : if *true* all outputs will print in stdout the payload they send (default: false)
 * **CUSTOMFIELDS** : a list of comma separated custom fields to add to falco events, syntax is "key:value,key:value"
+* **CHECKCERT**: check if ssl certificate of the output is valid (default: `true`)
 * **SLACK_WEBHOOKURL** : Slack Webhook URL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output is *enabled*
 * **SLACK_FOOTER** : Slack footer
 * **SLACK_ICON** : Slack icon (avatar)
-* **SLACK_USERNAME** : Slack username (default: Falcosidekick)
+* **SLACK_USERNAME** : Slack username (default: `Falcosidekick`)
 * **SLACK_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Slack), `fields` (only fields are displayed in Slack)
 * **SLACK_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **SLACK_MESSAGEFORMAT** : a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 * **ROCKETCHAT_WEBHOOKURL** : Rocketchat Webhook URL (ex: https://XXXX/hooks/YYYY), if not `empty`, Rocketchat output is *enabled*
 * **ROCKETCHAT_ICON** : Rocketchat icon (avatar)
-* **ROCKETCHAT_USERNAME** : Rocketchat username (default: Falcosidekick)
+* **ROCKETCHAT_USERNAME** : Rocketchat username (default: `Falcosidekick`)
 * **ROCKETCHAT_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Rocketchat), `fields` (only fields are displayed in Rocketchat)
 * **ROCKETCHAT_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **ROCKETCHAT_MESSAGEFORMAT** : a Go template to format Rocketchat Text above Attachment, displayed in addition to the output from `ROCKETCHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 * **MATTERMOST_WEBHOOKURL** : Mattermost Webhook URL (ex: https://XXXX/hooks/YYYY), if not `empty`, Mattermost output is *enabled*
 * **MATTERMOST_FOOTER** : Mattermost footer
 * **MATTERMOST_ICON** : Mattermost icon (avatar)
-* **MATTERMOST_USERNAME** : Mattermost username (default: Falcosidekick)
+* **MATTERMOST_USERNAME** : Mattermost username (default: `Falcosidekick`)
 * **MATTERMOST_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Mattermost), `fields` (only fields are displayed in Mattermost)
 * **MATTERMOST_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **MATTERMOST_MESSAGEFORMAT** : a Go template to format Mattermost Text above Attachment, displayed in addition to the output from `MATTERMOST_OUTPUTFORMAT`, see [Mattermost Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.

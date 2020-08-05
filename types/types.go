@@ -38,6 +38,7 @@ type Configuration struct {
 	Webhook       webhookConfig
 	Azure         azureConfig
 	Customfields  map[string]string
+	CheckCert     bool
 }
 
 type slackOutputConfig struct {

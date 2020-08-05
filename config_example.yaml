@@ -4,6 +4,7 @@ customfields: # custom fields are added to falco events
   Akey: "AValue"
   Bkey: "BValue"
   Ckey: "CValue"
+checkCert: true # check if ssl certificate of the output is valid (default: true)
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
