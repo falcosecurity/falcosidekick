@@ -1,5 +1,5 @@
 # Build image (Golang)
-FROM golang:alpine AS build-stage
+FROM golang:1.14-alpine AS build-stage
 ENV GO111MODULE on
 ENV CGO_ENABLED 0
 

@@ -28,6 +28,7 @@ config:
     webhookurl: ""
     footer: ""
     icon: ""
+    username: ""
     outputformat: "all"
     minimumpriority: ""
     messageformat: ""
@@ -35,6 +36,7 @@ config:
   rocketchat:
     webhookurl: ""
     icon: ""
+    username: ""
     outputformat: "all"
     minimumpriority: ""
     messageformat: ""
@@ -43,6 +45,7 @@ config:
     webhookurl: ""
     footer: ""
     icon: ""
+    username: ""
     outputformat: "all"
     minimumpriority: ""
     messageformat: ""
@@ -119,6 +122,11 @@ config:
     address: ""
     minimumpriority: ""
 
+  webhook:
+    webhookurl: ""
+    icon: ""
+    minimumpriority: ""
+
   azure:
     subscriptionID: ""
     resourceGroupName: ""
@@ -128,6 +136,11 @@ config:
       namespace: ""
       name: ""
       minimumpriority: ""
+
+  discord:
+    webhookurl: ""
+    icon: ""
+    minimumpriority: ""
 
 service:
   type: ClusterIP
