@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.14.0 - 2020-08-10
+#### New
+- New output : **Azure Event Hubs** ([PR#66](https://github.com/falcosecurity/falcosidekick/pull/66) thanks to [@arminc](https://github.com/arminc))
+- New output : **Discord** ([PR#61](https://github.com/falcosecurity/falcosidekick/pull/61) thanks to [@nibalizer](https://github.com/nibalizer))
+#### Enhancement
+- Cert validity of outputs can be disabled ([PR#74](https://github.com/falcosecurity/falcosidekick/pull/74)
+- Golang 1.14 is now used for building the Docker image
+- Displayed username can be override for **Slack**, **Mattermost** and **Rocketchat** ([PR#72](https://github.com/falcosecurity/falcosidekick/pull/72)
+#### Fix
+- Wrong port name was displayed as output of Helm chart
+#### Note
+This release is the last one with an Helm chart, the next ones will be in [Falco Charts repo](https://github.com/helm/charts)
+
 ## 2.13.0 - 2020-06-15
 #### New
 - New output : **Rocketchat**

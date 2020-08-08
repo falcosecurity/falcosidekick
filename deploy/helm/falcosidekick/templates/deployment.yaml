@@ -63,6 +63,8 @@ spec:
               value: {{ .Values.config.slack.footer | quote }}
             - name: SLACK_ICON
               value: {{ .Values.config.slack.icon | quote }}
+            - name: SLACK_USERNAME
+              value: {{ .Values.config.slack.username | quote }}
             - name: SLACK_MINIMUMPRIORITY
               value: {{ .Values.config.slack.minimumpriority | quote }}
             - name: SLACK_MESSAGEFORMAT
@@ -78,6 +80,8 @@ spec:
               value: {{ .Values.config.rocketchat.outputformat | quote }}
             - name: ROCKETCHAT_ICON
               value: {{ .Values.config.rocketchat.icon | quote }}
+            - name: ROCKETCHAT_USERNAME
+              value: {{ .Values.config.rocketchat.username | quote }}
             - name: ROCKETCHAT_MINIMUMPRIORITY
               value: {{ .Values.config.rocketchat.minimumpriority | quote }}
             - name: ROCKETCHAT_MESSAGEFORMAT
@@ -95,6 +99,8 @@ spec:
               value: {{ .Values.config.mattermost.footer | quote }}
             - name: MATTERMOST_ICON
               value: {{ .Values.config.mattermost.icon | quote }}
+            - name: MATTERMOST_USERNAME
+              value: {{ .Values.config.mattermost.username | quote }}
             - name: MATTERMOST_MINIMUMPRIORITY
               value: {{ .Values.config.mattermost.minimumpriority | quote }}
             - name: MATTERMOST_MESSAGEFORMAT
@@ -258,6 +264,17 @@ spec:
               value: {{ .Values.config.azure.eventHub.namespace | quote }}
             - name: AZURE_EVENTHUB_MINIMUMPRIORITY
               value: {{ .Values.config.azure.eventHub.minimumpriority | quote }}
+            {{- end }}
+            {{- if .Values.config.slack.webhookurl }}
+            - name: DISCORD_WEBHOOKURL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "falcosidekick.fullname" . }}
+                  key: discord-webhookurl
+            - name: DISCORD_ICON
+              value: {{ .Values.config.discord.icon | quote }}
+            - name: DISCORD_MINIMUMPRIORITY
+              value: {{ .Values.config.discord.minimumpriority | quote }}
             {{- end }}
 
           resources:
