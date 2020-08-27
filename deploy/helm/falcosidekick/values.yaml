@@ -8,6 +8,10 @@ image:
   repository: falcosecurity/falcosidekick
   tag: 2.13.0
   pullPolicy: IfNotPresent
+  
+# One or more secrets to be used when pulling images
+imagePullSecrets: []
+# - registrySecretName
 
 nameOverride: ""
 fullnameOverride: ""

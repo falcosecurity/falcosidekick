@@ -22,6 +22,12 @@ spec:
         aadpodidbinding: {{ include "falcosidekick.fullname" . }}
         {{- end }}
     spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range .Values.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
       serviceAccountName: {{ include "falcosidekick.fullname" . }}
       {{- if .Values.priorityClassName }}
       priorityClassName: "{{ .Values.priorityClassName }}"
