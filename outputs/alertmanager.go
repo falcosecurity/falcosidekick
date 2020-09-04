@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
+	"github.com/iancoleman/strcase"
 )
 
 const (
@@ -35,6 +36,9 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 
 	amPayload.Annotations["info"] = falcopayload.Output
 	amPayload.Annotations["summary"] = falcopayload.Rule
+
+	// Prefix alertname
+	amPayload.Labels["alertname"] = "Falco" + strcase.ToCamel(string(falcopayload.Rule))
 
 	var a []alertmanagerPayload
 
