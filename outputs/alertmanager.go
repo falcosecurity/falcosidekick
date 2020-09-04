@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"os"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -10,6 +11,18 @@ const (
 	// AlertmanagerURI is default endpoint where to send events
 	AlertmanagerURI string = "/api/v1/alerts"
 )
+
+var priorityMap = map[string]int{
+	"emergency":     8,
+	"alert":         7,
+	"critical":      6,
+	"error":         5,
+	"warning":       4,
+	"notice":        3,
+	"informational": 2,
+	"debug":         1,
+	"":              0,
+}
 
 type alertmanagerPayload struct {
 	Labels      map[string]string `json:"labels,omitempty"`
@@ -35,6 +48,25 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 
 	amPayload.Annotations["info"] = falcopayload.Output
 	amPayload.Annotations["summary"] = falcopayload.Rule
+
+	// convert priority to ves alertmanager severity
+	var severity string
+	switch strings.ToLower(falcopayload.Priority) {
+	case "emergency", "alert", "critical":
+		severity = "critical"
+	case "error":
+		severity = "major"
+	default:
+		severity = "minor"
+	}
+	// unless req. priority >= (error = 5) => drop
+	if minpri, present := os.LookupEnv("ALERTMANAGER_MINIMUMPRIORITY"); present {
+		if priorityMap[strings.ToLower(falcopayload.Priority)] < priorityMap[strings.ToLower(minpri)] {
+			return []alertmanagerPayload{}
+		}
+	}
+	amPayload.Labels["priority"] = strings.ToLower(falcopayload.Priority)
+	amPayload.Labels["severity"] = severity
 
 	var a []alertmanagerPayload
 
