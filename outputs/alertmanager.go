@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -22,6 +23,43 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 	amPayload.Annotations = make(map[string]string)
 
 	for i, j := range falcopayload.OutputFields {
+		if strings.HasPrefix(i, "n_evts") {
+			// avoid delta evts as label
+			continue
+		}
+		// strip cardinalities of syscall drops
+		if strings.HasPrefix(i, "n_drop") {
+			d, err := strconv.ParseInt(j.(string), 10, 64)
+			if err == nil {
+				var jj string
+				switch d {
+				case d == 0:
+					jj = "0"
+					falcopayload.Priority = "warning"
+				case d < 10 {
+					jj = "<10"
+					falcopayload.Priority = "warning"
+				case d > 10000:
+					jj = ">10000"
+					falcopayload.Priority = "critical"
+				case d > 1000 {
+					jj = ">1000"
+					falcopayload.Priority = "critical"
+				case d > 100 {
+					jj = ">100"
+					falcopayload.Priority = "critical"
+				case d > 10 {
+					jj = ">10"
+					falcopayload.Priority = "warning"
+				default:
+					jj = j.(string)
+					falcopayload.Priority = "critical"
+				}
+
+				amPayload.Labels[i] = jj
+			}
+			continue
+		}
 		switch j.(type) {
 		case string:
 			//AlertManger unsupported chars in a label name
