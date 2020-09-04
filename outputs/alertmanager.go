@@ -24,8 +24,9 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 	for i, j := range falcopayload.OutputFields {
 		switch j.(type) {
 		case string:
-			//AlertManger doesn't support dots in a label name
-			amPayload.Labels[strings.Replace(i, ".", "_", -1)] = j.(string)
+			//AlertManger unsupported chars in a label name
+			replacer := strings.NewReplacer(".", "_", "[", "_", "]", "")
+			amPayload.Labels[replacer.Replace(i)] = j.(string)
 		default:
 			continue
 		}
