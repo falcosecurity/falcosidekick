@@ -32,23 +32,23 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 			d, err := strconv.ParseInt(j.(string), 10, 64)
 			if err == nil {
 				var jj string
-				switch d {
+				switch {
 				case d == 0:
 					jj = "0"
 					falcopayload.Priority = "warning"
-				case d < 10 {
+				case d < 10:
 					jj = "<10"
 					falcopayload.Priority = "warning"
 				case d > 10000:
 					jj = ">10000"
 					falcopayload.Priority = "critical"
-				case d > 1000 {
+				case d > 1000:
 					jj = ">1000"
 					falcopayload.Priority = "critical"
-				case d > 100 {
+				case d > 100:
 					jj = ">100"
 					falcopayload.Priority = "critical"
-				case d > 10 {
+				case d > 10:
 					jj = ">10"
 					falcopayload.Priority = "warning"
 				default:
