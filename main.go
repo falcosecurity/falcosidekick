@@ -174,7 +174,7 @@ func init() {
 			enabledOutputsText += "Influxdb "
 		}
 	}
-	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" {
+	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" || config.AWS.SNS.TopicArn != "" {
 		var err error
 		awsClient, err = outputs.NewAWSClient(config, stats, statsdClient, dogstatsdClient)
 		if err != nil {
@@ -183,12 +183,16 @@ func init() {
 			config.AWS.Region = ""
 			config.AWS.Lambda.FunctionName = ""
 			config.AWS.SQS.URL = ""
+			config.AWS.SNS.TopicArn = ""
 		} else {
 			if config.AWS.Lambda.FunctionName != "" {
 				enabledOutputsText += "AWSLambda "
 			}
 			if config.AWS.SQS.URL != "" {
 				enabledOutputsText += "AWSSQS "
+			}
+			if config.AWS.SNS.TopicArn != "" {
+				enabledOutputsText += "AWSSNS "
 			}
 		}
 	}

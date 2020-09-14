@@ -130,6 +130,7 @@ type awsOutputConfig struct {
 	SecretAccessKey string
 	Lambda          awsLambdaConfig
 	SQS             awsSQSConfig
+	SNS             awsSNSConfig
 }
 
 type awsLambdaConfig struct {
@@ -141,6 +142,11 @@ type awsLambdaConfig struct {
 
 type awsSQSConfig struct {
 	URL             string
+	MinimumPriority string
+}
+
+type awsSNSConfig struct {
+	TopicArn        string
 	MinimumPriority string
 }
 
@@ -200,6 +206,7 @@ type Statistics struct {
 	Influxdb      *expvar.Map
 	AWSLambda     *expvar.Map
 	AWSSQS        *expvar.Map
+	AWSSNS        *expvar.Map
 	SMTP          *expvar.Map
 	Opsgenie      *expvar.Map
 	Statsd        *expvar.Map

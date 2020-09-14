@@ -29,6 +29,7 @@ Currently available outputs are :
 * [**Influxdb**](https://www.influxdata.com/products/influxdb-overview/)
 * [**AWS Lambda**](https://aws.amazon.com/lambda/features/)
 * [**AWS SQS**](https://aws.amazon.com/sqs/features/)
+* [**AWS SNS**](https://aws.amazon.com/sns/features/)
 * **SMTP** (email)
 * [**Opsgenie**](https://www.opsgenie.com/)
 * [**StatsD**](https://github.com/statsd/statsd) (for monitoring of `falcosidekick`)
@@ -64,7 +65,7 @@ json_output: true
 json_include_output_property: true
 http_output:
   enabled: true
-  url: http://localhost:2801/"
+  url: "http://localhost:2801/"
 ```
 
 or
@@ -167,6 +168,9 @@ aws:
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sqs:
     # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  sns:
+    # topicarn : "" # SNS TopicArn, if not empty, AWS SNS output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
@@ -283,6 +287,8 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is enabled
 * **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **AWS_SNS_TOPICARN** : AWS SNS TopicARN, if not empty, AWS SNS output is enabled
+* **AWS_SNS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **SMTP_HOSTPORT** :  "host:port" address of SMTP server, if not empty, SMTP output is enabled
 * **SMTP_USER** : user to access SMTP server
 * **SMTP_PASSWORD** : password to access SMTP server

@@ -149,6 +149,9 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.AWS.SQS.URL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.SQS.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go awsClient.SendMessage(falcopayload)
 	}
+	if config.AWS.SNS.TopicArn != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.SNS.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+		go awsClient.PublishTopic(falcopayload)
+	}
 	if config.SMTP.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.SMTP.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go smtpClient.SendMail(falcopayload)
 	}

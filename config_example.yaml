@@ -79,6 +79,9 @@ aws:
   sqs:
     # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  sns:
+    # topicarn : "" # SNS TopicArn, if not empty, AWS SNS output is enabled
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
