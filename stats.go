@@ -34,6 +34,7 @@ func getInitStats() *types.Statistics {
 		Influxdb:      expvar.NewMap("outputs.influxdb"),
 		AWSLambda:     expvar.NewMap("outputs.awslambda"),
 		AWSSQS:        expvar.NewMap("outputs.awssqs"),
+		AWSSNS:        expvar.NewMap("outputs.awssns"),
 		SMTP:          expvar.NewMap("outputs.smtp"),
 		Opsgenie:      expvar.NewMap("outputs.opsgenie"),
 		Statsd:        expvar.NewMap("outputs.statsd"),
@@ -97,6 +98,9 @@ func getInitStats() *types.Statistics {
 	stats.AWSSQS.Add("total", 0)
 	stats.AWSSQS.Add("error", 0)
 	stats.AWSSQS.Add("ok", 0)
+	stats.AWSSNS.Add("total", 0)
+	stats.AWSSNS.Add("error", 0)
+	stats.AWSSNS.Add("ok", 0)
 	stats.SMTP.Add("total", 0)
 	stats.SMTP.Add("error", 0)
 	stats.SMTP.Add("ok", 0)

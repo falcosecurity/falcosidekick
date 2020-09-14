@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/falcosecurity/falcosidekick/types"
@@ -119,4 +120,54 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	log.Printf("[INFO]  : %v SQS - Send Message OK (%v)\n", c.OutputType, *resp.MessageId)
 	go c.CountMetric("outputs", 1, []string{"output:awssqs", "status:ok"})
 	c.Stats.AWSSQS.Add("ok", 1)
+}
+
+// PublishTopic sends a message to a SNS Topic
+func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
+	svc := sns.New(c.AWSSession)
+
+	msg := &sns.PublishInput{
+		Message: aws.String(string(falcopayload.Output)),
+		MessageAttributes: map[string]*sns.MessageAttributeValue{
+			"priority": &sns.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(falcopayload.Priority),
+			},
+			"rule": &sns.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(falcopayload.Rule),
+			},
+		},
+		TopicArn: aws.String(c.Config.AWS.SNS.TopicArn),
+	}
+
+	for i, j := range falcopayload.OutputFields {
+		switch j.(type) {
+		case string:
+			msg.MessageAttributes[i] = &sns.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(j.(string)),
+			}
+		default:
+			continue
+		}
+	}
+
+	if c.Config.Debug == true {
+		p, _ := json.Marshal(msg)
+		log.Printf("[DEBUG] : %v SNS - Message : %v\n", c.OutputType, string(p))
+	}
+
+	c.Stats.AWSSNS.Add("total", 1)
+	resp, err := svc.Publish(msg)
+	if err != nil {
+		go c.CountMetric("outputs", 1, []string{"output:awssns", "status:error"})
+		c.Stats.AWSSNS.Add("error", 1)
+		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		return
+	}
+
+	log.Printf("[INFO]  : %v SNS - Send to topic OK (%v)\n", c.OutputType, *resp.MessageId)
+	go c.CountMetric("outputs", 1, []string{"output:awssns", "status:ok"})
+	c.Stats.AWSSNS.Add("ok", 1)
 }
