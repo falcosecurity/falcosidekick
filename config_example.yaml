@@ -74,13 +74,14 @@ aws:
   # secretaccesskey: "" # aws secret access key (optionnal if you use EC2 Instance Profile)
   # region : "" # aws region (optionnal if you use EC2 Instance Profile)
   lambda:
-    # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
-    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sqs:
     # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sns:
     # topicarn : "" # SNS TopicArn, if not empty, AWS SNS output is enabled
+    rawjson: false # Send Raw JSON or parse it (default: false)
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:

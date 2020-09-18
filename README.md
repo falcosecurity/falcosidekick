@@ -171,6 +171,7 @@ aws:
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sns:
     # topicarn : "" # SNS TopicArn, if not empty, AWS SNS output is enabled
+    rawjson: false # Send Raw JSON or parse it (default: false)
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
@@ -288,6 +289,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is enabled
 * **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AWS_SNS_TOPICARN** : AWS SNS TopicARN, if not empty, AWS SNS output is enabled
+* **AWS_SNS_RAWJSON** : Send Raw JSON or parse it (default: false)
 * **AWS_SNS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **SMTP_HOSTPORT** :  "host:port" address of SMTP server, if not empty, SMTP output is enabled
 * **SMTP_USER** : user to access SMTP server
