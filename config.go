@@ -81,6 +81,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.SQS.MinimumPriority", "")
 	v.SetDefault("AWS.SNS.TopicArn", "")
 	v.SetDefault("AWS.SNS.MinimumPriority", "")
+	v.SetDefault("AWS.SNS.RawJSON", false)
 	v.SetDefault("SMTP.HostPort", "")
 	v.SetDefault("SMTP.User", "")
 	v.SetDefault("SMTP.Password", "")

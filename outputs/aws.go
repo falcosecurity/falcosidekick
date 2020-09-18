@@ -126,30 +126,40 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 	svc := sns.New(c.AWSSession)
 
-	msg := &sns.PublishInput{
-		Message: aws.String(string(falcopayload.Output)),
-		MessageAttributes: map[string]*sns.MessageAttributeValue{
-			"priority": &sns.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(falcopayload.Priority),
-			},
-			"rule": &sns.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(falcopayload.Rule),
-			},
-		},
-		TopicArn: aws.String(c.Config.AWS.SNS.TopicArn),
-	}
+	var msg *sns.PublishInput
 
-	for i, j := range falcopayload.OutputFields {
-		switch j.(type) {
-		case string:
-			msg.MessageAttributes[i] = &sns.MessageAttributeValue{
-				DataType:    aws.String("String"),
-				StringValue: aws.String(j.(string)),
+	if c.Config.AWS.SNS.RawJSON == true {
+		f, _ := json.Marshal(falcopayload)
+		msg = &sns.PublishInput{
+			Message:  aws.String(string(f)),
+			TopicArn: aws.String(c.Config.AWS.SNS.TopicArn),
+		}
+	} else {
+		msg = &sns.PublishInput{
+			Message: aws.String(string(falcopayload.Output)),
+			MessageAttributes: map[string]*sns.MessageAttributeValue{
+				"priority": &sns.MessageAttributeValue{
+					DataType:    aws.String("String"),
+					StringValue: aws.String(falcopayload.Priority),
+				},
+				"rule": &sns.MessageAttributeValue{
+					DataType:    aws.String("String"),
+					StringValue: aws.String(falcopayload.Rule),
+				},
+			},
+			TopicArn: aws.String(c.Config.AWS.SNS.TopicArn),
+		}
+
+		for i, j := range falcopayload.OutputFields {
+			switch j.(type) {
+			case string:
+				msg.MessageAttributes[i] = &sns.MessageAttributeValue{
+					DataType:    aws.String("String"),
+					StringValue: aws.String(j.(string)),
+				}
+			default:
+				continue
 			}
-		default:
-			continue
 		}
 	}
 

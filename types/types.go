@@ -147,6 +147,7 @@ type awsSQSConfig struct {
 
 type awsSNSConfig struct {
 	TopicArn        string
+	RawJSON         bool
 	MinimumPriority string
 }
 
