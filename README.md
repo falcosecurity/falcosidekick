@@ -58,9 +58,9 @@ helm install --name falcosidekick .
 
 ### Falco's config
 
-Add this (adapted to your environment) in your *falco.yaml* :
+If installing falco with helm, set this (adapted to your environment) in your *values.yaml* :
 
-```bash
+```yaml
 jsonOutput: true
 jsonIncludeOutputProperty: true
 httpOutput:
@@ -70,7 +70,7 @@ httpOutput:
 
 or
 
-```bash
+```yaml
 jsonOutput: true
 jsonIncludeOutputProperty: true
 programOutput:
@@ -78,6 +78,17 @@ programOutput:
   keepAlive: false
   program: "curl -d @- localhost:2801/"
 ```
+
+If managing *falco.yaml* manually, set this:
+
+```yaml
+json_output: true
+json_include_output_property: true
+http_output:
+  enabled: true
+  url: "http://localhost:2801/"
+```
+
 
 ### Configuration
 
