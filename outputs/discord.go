@@ -104,8 +104,10 @@ func (c *Client) DiscordPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newDiscordPayload(falcopayload, c.Config))
 	if err != nil {
 		c.Stats.Discord.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": "error"}).Inc()
 	} else {
 		c.Stats.Discord.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": "ok"}).Inc()
 	}
 	c.Stats.Discord.Add("total", 1)
 }

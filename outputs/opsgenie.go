@@ -1,8 +1,9 @@
 package outputs
 
 import (
-	"github.com/falcosecurity/falcosidekick/types"
 	"strings"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type opsgeniePayload struct {
@@ -52,8 +53,10 @@ func (c *Client) OpsgeniePost(falcopayload types.FalcoPayload) {
 	err := c.Post(newOpsgeniePayload(falcopayload, c.Config))
 	if err != nil {
 		c.Stats.Opsgenie.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "opsgenie", "status": "error"}).Inc()
 	} else {
 		c.Stats.Opsgenie.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "opsgenie", "status": "ok"}).Inc()
 	}
 	c.Stats.Opsgenie.Add("total", 1)
 }

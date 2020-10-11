@@ -44,13 +44,14 @@ type Client struct {
 	EndpointURL     *url.URL
 	Config          *types.Configuration
 	Stats           *types.Statistics
+	PromStats       *types.PromStatistics
 	AWSSession      *session.Session
 	StatsdClient    *statsd.Client
 	DogstatsdClient *statsd.Client
 }
 
 // NewClient returns a new output.Client for accessing the different API.
-func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration, stats *types.Statistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad Endpoint")
@@ -65,7 +66,7 @@ func NewClient(outputType string, defaultEndpointURL string, config *types.Confi
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config, Stats: stats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
 }
 
 // Post sends event (payload) to Output.

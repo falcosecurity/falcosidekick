@@ -30,8 +30,10 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 	err = c.Post(falcopayload)
 	if err != nil {
 		c.Stats.Elasticsearch.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "elasticsearch", "status": "error"}).Inc()
 	} else {
 		c.Stats.Elasticsearch.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "elasticsearch", "status": "ok"}).Inc()
 	}
 	c.Stats.Elasticsearch.Add("total", 1)
 }

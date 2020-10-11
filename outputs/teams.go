@@ -103,8 +103,10 @@ func (c *Client) TeamsPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newTeamsPayload(falcopayload, c.Config))
 	if err != nil {
 		c.Stats.Teams.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": "error"}).Inc()
 	} else {
 		c.Stats.Teams.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": "ok"}).Inc()
 	}
 	c.Stats.Teams.Add("total", 1)
 }

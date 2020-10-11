@@ -133,8 +133,10 @@ func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newSlackPayload(falcopayload, c.Config))
 	if err != nil {
 		c.Stats.Slack.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "slack", "status": "error"}).Inc()
 	} else {
 		c.Stats.Slack.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "slack", "status": "ok"}).Inc()
 	}
 	c.Stats.Slack.Add("total", 1)
 }

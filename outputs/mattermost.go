@@ -98,13 +98,15 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 	return s
 }
 
-// RocketchatPost posts event to Rocketchat
-func (c *Client) RocketchatPost(falcopayload types.FalcoPayload) {
+// MattermostPost posts event to Mattermost
+func (c *Client) MattermostPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newMattermostPayload(falcopayload, c.Config))
 	if err != nil {
 		c.Stats.Rocketchat.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": "error"}).Inc()
 	} else {
 		c.Stats.Rocketchat.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": "ok"}).Inc()
 	}
 	c.Stats.Rocketchat.Add("total", 1)
 }

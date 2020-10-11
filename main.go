@@ -9,6 +9,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/outputs"
 	"github.com/falcosecurity/falcosidekick/types"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Globale variables
@@ -34,11 +35,13 @@ var (
 var statsdClient, dogstatsdClient *statsd.Client
 var config *types.Configuration
 var stats *types.Statistics
+var promStats *types.PromStatistics
 var priorityMap map[string]int
 
 func init() {
 	config = getConfig()
 	stats = getInitStats()
+	promStats = getInitPromStats()
 	priorityMap = getPriorityMap()
 
 	enabledOutputsText := "[INFO]  : Enabled Outputs : "
@@ -67,13 +70,14 @@ func init() {
 		OutputType:      "null",
 		Config:          config,
 		Stats:           stats,
+		PromStats:       promStats,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}
 
 	if config.Slack.WebhookURL != "" {
 		var err error
-		slackClient, err = outputs.NewClient("Slack", config.Slack.WebhookURL, config, stats, statsdClient, dogstatsdClient)
+		slackClient, err = outputs.NewClient("Slack", config.Slack.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Slack.WebhookURL = ""
 		} else {
@@ -82,7 +86,7 @@ func init() {
 	}
 	if config.Rocketchat.WebhookURL != "" {
 		var err error
-		rocketchatClient, err = outputs.NewClient("Rocketchat", config.Rocketchat.WebhookURL, config, stats, statsdClient, dogstatsdClient)
+		rocketchatClient, err = outputs.NewClient("Rocketchat", config.Rocketchat.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Rocketchat.WebhookURL = ""
 		} else {
@@ -91,7 +95,7 @@ func init() {
 	}
 	if config.Mattermost.WebhookURL != "" {
 		var err error
-		mattermostClient, err = outputs.NewClient("Mattermost", config.Mattermost.WebhookURL, config, stats, statsdClient, dogstatsdClient)
+		mattermostClient, err = outputs.NewClient("Mattermost", config.Mattermost.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Mattermost.WebhookURL = ""
 		} else {
@@ -100,7 +104,7 @@ func init() {
 	}
 	if config.Teams.WebhookURL != "" {
 		var err error
-		teamsClient, err = outputs.NewClient("Teams", config.Teams.WebhookURL, config, stats, statsdClient, dogstatsdClient)
+		teamsClient, err = outputs.NewClient("Teams", config.Teams.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Teams.WebhookURL = ""
 		} else {
@@ -109,7 +113,7 @@ func init() {
 	}
 	if config.Datadog.APIKey != "" {
 		var err error
-		datadogClient, err = outputs.NewClient("Datadog", config.Datadog.Host+outputs.DatadogPath+"?api_key="+config.Datadog.APIKey, config, stats, statsdClient, dogstatsdClient)
+		datadogClient, err = outputs.NewClient("Datadog", config.Datadog.Host+outputs.DatadogPath+"?api_key="+config.Datadog.APIKey, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Datadog.APIKey = ""
 		} else {
@@ -118,7 +122,7 @@ func init() {
 	}
 	if config.Discord.WebhookURL != "" {
 		var err error
-		discordClient, err = outputs.NewClient("Discord", config.Discord.WebhookURL, config, stats, statsdClient, dogstatsdClient)
+		discordClient, err = outputs.NewClient("Discord", config.Discord.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Discord.WebhookURL = ""
 		} else {
@@ -127,7 +131,7 @@ func init() {
 	}
 	if config.Alertmanager.HostPort != "" {
 		var err error
-		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.HostPort+outputs.AlertmanagerURI, config, stats, statsdClient, dogstatsdClient)
+		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.HostPort+outputs.AlertmanagerURI, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Alertmanager.HostPort = ""
 		} else {
@@ -136,7 +140,7 @@ func init() {
 	}
 	if config.Elasticsearch.HostPort != "" {
 		var err error
-		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.HostPort+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config, stats, statsdClient, dogstatsdClient)
+		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.HostPort+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Elasticsearch.HostPort = ""
 		} else {
@@ -145,7 +149,7 @@ func init() {
 	}
 	if config.Loki.HostPort != "" {
 		var err error
-		lokiClient, err = outputs.NewClient("Loki", config.Loki.HostPort+"/api/prom/push", config, stats, statsdClient, dogstatsdClient)
+		lokiClient, err = outputs.NewClient("Loki", config.Loki.HostPort+"/api/prom/push", config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Loki.HostPort = ""
 		} else {
@@ -154,7 +158,7 @@ func init() {
 	}
 	if config.Nats.HostPort != "" {
 		var err error
-		natsClient, err = outputs.NewClient("NATS", config.Nats.HostPort, config, stats, statsdClient, dogstatsdClient)
+		natsClient, err = outputs.NewClient("NATS", config.Nats.HostPort, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Nats.HostPort = ""
 		} else {
@@ -167,7 +171,7 @@ func init() {
 			credentials = "&u=" + config.Influxdb.User + "&p=" + config.Influxdb.Password
 		}
 		var err error
-		influxdbClient, err = outputs.NewClient("Influxdb", config.Influxdb.HostPort+"/write?db="+config.Influxdb.Database+credentials, config, stats, statsdClient, dogstatsdClient)
+		influxdbClient, err = outputs.NewClient("Influxdb", config.Influxdb.HostPort+"/write?db="+config.Influxdb.Database+credentials, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Influxdb.HostPort = ""
 		} else {
@@ -176,7 +180,7 @@ func init() {
 	}
 	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" || config.AWS.SNS.TopicArn != "" {
 		var err error
-		awsClient, err = outputs.NewAWSClient(config, stats, statsdClient, dogstatsdClient)
+		awsClient, err = outputs.NewAWSClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.AWS.AccessKeyID = ""
 			config.AWS.SecretAccessKey = ""
@@ -198,7 +202,7 @@ func init() {
 	}
 	if config.SMTP.HostPort != "" && config.SMTP.From != "" && config.SMTP.To != "" {
 		var err error
-		smtpClient, err = outputs.NewSMTPClient(config, stats, statsdClient, dogstatsdClient)
+		smtpClient, err = outputs.NewSMTPClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.SMTP.HostPort = ""
 		} else {
@@ -211,7 +215,7 @@ func init() {
 		if strings.ToLower(config.Opsgenie.Region) == "eu" {
 			url = "https://api.eu.opsgenie.com/v2/alerts"
 		}
-		opsgenieClient, err = outputs.NewClient("Opsgenie", url, config, stats, statsdClient, dogstatsdClient)
+		opsgenieClient, err = outputs.NewClient("Opsgenie", url, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Opsgenie.APIKey = ""
 		} else {
@@ -220,7 +224,7 @@ func init() {
 	}
 	if config.Webhook.Address != "" {
 		var err error
-		webhookClient, err = outputs.NewClient("Webhook", config.Webhook.Address, config, stats, statsdClient, dogstatsdClient)
+		webhookClient, err = outputs.NewClient("Webhook", config.Webhook.Address, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Webhook.Address = ""
 		} else {
@@ -229,7 +233,7 @@ func init() {
 	}
 	if config.Azure.EventHub.Name != "" {
 		var err error
-		azureClient, err = outputs.NewEventHubClient(config, stats, statsdClient, dogstatsdClient)
+		azureClient, err = outputs.NewEventHubClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Azure.EventHub.Name = ""
 			config.Azure.EventHub.Namespace = ""
@@ -247,6 +251,7 @@ func main() {
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/ping", pingHandler)
 	http.HandleFunc("/test", testHandler)
+	http.Handle("/metrics", promhttp.Handler())
 
 	log.Printf("[INFO]  : Falco Sidekick is up and listening on port %v\n", config.ListenPort)
 	if config.Debug {

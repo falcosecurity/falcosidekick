@@ -23,7 +23,7 @@ type SMTPPayload struct {
 }
 
 // NewSMTPClient returns a new output.Client for accessing a SMTP server.
-func NewSMTPClient(config *types.Configuration, stats *types.Statistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewSMTPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	reg := regexp.MustCompile(`.*:[0-9]+`)
 	if !reg.MatchString(config.SMTP.HostPort) {
 		log.Printf("[ERROR] : SMTP - Bad Host:Port\n")
@@ -34,6 +34,7 @@ func NewSMTPClient(config *types.Configuration, stats *types.Statistics, statsdC
 		OutputType:      "SMTP",
 		Config:          config,
 		Stats:           stats,
+		PromStats:       promStats,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
