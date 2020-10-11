@@ -1,9 +1,10 @@
 package outputs
 
 import (
-	"github.com/falcosecurity/falcosidekick/types"
 	"strings"
 	"time"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type lokiPayload struct {
@@ -47,8 +48,10 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newLokiPayload(falcopayload, c.Config))
 	if err != nil {
 		c.Stats.Loki.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": "error"}).Inc()
 	} else {
 		c.Stats.Loki.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": "ok"}).Inc()
 	}
 	c.Stats.Loki.Add("total", 1)
 }

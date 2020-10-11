@@ -19,7 +19,7 @@ import (
 )
 
 // NewAWSClient returns a new output.Client for accessing the AWS API.
-func NewAWSClient(config *types.Configuration, stats *types.Statistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
 		os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
@@ -54,6 +54,7 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, statsdCl
 		Config:          config,
 		AWSSession:      sess,
 		Stats:           stats,
+		PromStats:       promStats,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -78,6 +79,7 @@ func (c *Client) InvokeLambda(falcopayload types.FalcoPayload) {
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:awslambda", "status:error"})
 		c.Stats.AWSLambda.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "awslambda", "status": "error"}).Inc()
 		log.Printf("[ERROR] : %v Lambda - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -90,6 +92,7 @@ func (c *Client) InvokeLambda(falcopayload types.FalcoPayload) {
 	log.Printf("[INFO]  : %v Lambda - Invoke OK (%v)\n", c.OutputType, *resp.StatusCode)
 	go c.CountMetric("outputs", 1, []string{"output:awslambda", "status:ok"})
 	c.Stats.AWSLambda.Add("ok", 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "awslambda", "status": "ok"}).Inc()
 }
 
 // SendMessage sends a message to SQS Queue
@@ -109,6 +112,7 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:awssqs", "status:error"})
 		c.Stats.AWSSQS.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "awssqs", "status": "error"}).Inc()
 		log.Printf("[ERROR] : %v SQS - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -120,6 +124,7 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	log.Printf("[INFO]  : %v SQS - Send Message OK (%v)\n", c.OutputType, *resp.MessageId)
 	go c.CountMetric("outputs", 1, []string{"output:awssqs", "status:ok"})
 	c.Stats.AWSSQS.Add("ok", 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "awssqs", "status": "ok"}).Inc()
 }
 
 // PublishTopic sends a message to a SNS Topic
@@ -173,6 +178,7 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:awssns", "status:error"})
 		c.Stats.AWSSNS.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "awssns", "status": "error"}).Inc()
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -180,4 +186,5 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 	log.Printf("[INFO]  : %v SNS - Send to topic OK (%v)\n", c.OutputType, *resp.MessageId)
 	go c.CountMetric("outputs", 1, []string{"output:awssns", "status:ok"})
 	c.Stats.AWSSNS.Add("ok", 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "awssns", "status": "ok"}).Inc()
 }

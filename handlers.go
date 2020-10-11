@@ -35,6 +35,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		http.Error(w, "Please send a valid request body", 400)
 		stats.Requests.Add("rejected", 1)
+		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:nobody"})
 		return
 	}
@@ -43,12 +44,14 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil || len(falcopayload.Output) == 0 {
 		http.Error(w, "Please send a valid request body", 400)
 		stats.Requests.Add("rejected", 1)
+		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:invalidjson"})
 		return
 	}
 
 	nullClient.CountMetric("inputs.requests.accepted", 1, []string{})
 	stats.Requests.Add("accepted", 1)
+	promStats.Inputs.With(map[string]string{"source": "requests", "status": "accepted"}).Inc()
 	forwardEvent(falcopayload)
 }
 
@@ -96,9 +99,11 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
 		nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + priority})
 		stats.Falco.Add(priority, 1)
+		promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": priority, "k8s_ns_name": "", "k8s_pod_name": ""}).Inc()
 	default:
 		nullClient.CountMetric("falco.accepted", 1, []string{"priority:unknown"})
 		stats.Falco.Add("unknown", 1)
+		promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": "unknown", "k8s_ns_name": "", "k8s_pod_name": ""}).Inc()
 	}
 
 	if config.Debug == true {

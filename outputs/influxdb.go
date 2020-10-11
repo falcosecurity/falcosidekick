@@ -32,8 +32,10 @@ func (c *Client) InfluxdbPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newInfluxdbPayload(falcopayload, c.Config))
 	if err != nil {
 		c.Stats.Influxdb.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": "error"}).Inc()
 	} else {
 		c.Stats.Influxdb.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": "ok"}).Inc()
 	}
 	c.Stats.Influxdb.Add("total", 1)
 }

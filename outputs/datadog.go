@@ -56,8 +56,10 @@ func (c *Client) DatadogPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newDatadogPayload(falcopayload))
 	if err != nil {
 		c.Stats.Datadog.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": "error"}).Inc()
 	} else {
 		c.Stats.Datadog.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": "ok"}).Inc()
 	}
 	c.Stats.Datadog.Add("total", 1)
 }

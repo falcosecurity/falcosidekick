@@ -4,6 +4,8 @@ import (
 	"expvar"
 	"text/template"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // FalcoPayload is a struct to map falco event json
@@ -214,4 +216,11 @@ type Statistics struct {
 	Dogstatsd     *expvar.Map
 	Webhook       *expvar.Map
 	AzureEventHub *expvar.Map
+}
+
+// PromStatistics is a struct to store prometheus metrics
+type PromStatistics struct {
+	Falco   *prometheus.CounterVec
+	Inputs  *prometheus.CounterVec
+	Outputs *prometheus.CounterVec
 }

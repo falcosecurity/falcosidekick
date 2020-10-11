@@ -87,8 +87,10 @@ func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newAlertmanagerPayload(falcopayload))
 	if err != nil {
 		c.Stats.Alertmanager.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": "error"}).Inc()
 	} else {
 		c.Stats.Alertmanager.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": "ok"}).Inc()
 	}
 	c.Stats.Alertmanager.Add("total", 1)
 }

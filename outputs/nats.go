@@ -18,6 +18,7 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:nats", "status:error"})
 		c.Stats.Nats.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "nats", "status": "error"}).Inc()
 		c.Stats.Nats.Add("total", 1)
 		log.Printf("[ERROR] : NATS - %v\n", err)
 		return
@@ -31,10 +32,12 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:nats", "status:error"})
 		c.Stats.Nats.Add("error", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "nats", "status": "error"}).Inc()
 		log.Printf("[ERROR] : NATS - %v\n", err)
 	} else {
 		go c.CountMetric("outputs", 1, []string{"output:nats", "status:ok"})
 		c.Stats.Nats.Add("ok", 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "nats", "status": "ok"}).Inc()
 		log.Printf("[INFO]  : NATS - Publish OK\n")
 	}
 	c.Stats.Nats.Add("total", 1)
