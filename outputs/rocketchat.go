@@ -100,7 +100,7 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 	return s
 }
 
-// RocketcahtPost posts event to Rocketchat
+// RocketchatPost posts event to Rocketchat
 func (c *Client) RocketchatPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newRocketchatPayload(falcopayload, c.Config))
 	if err != nil {
