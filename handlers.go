@@ -94,17 +94,27 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
+	var kn, kp string
+	p := "unknown"
 	priority := strings.ToLower(falcopayload.Priority)
+
 	switch priority {
 	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
-		nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + priority})
-		stats.Falco.Add(priority, 1)
-		promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": priority, "k8s_ns_name": "", "k8s_pod_name": ""}).Inc()
-	default:
-		nullClient.CountMetric("falco.accepted", 1, []string{"priority:unknown"})
-		stats.Falco.Add("unknown", 1)
-		promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": "unknown", "k8s_ns_name": "", "k8s_pod_name": ""}).Inc()
+		p = priority
 	}
+
+	for i, j := range falcopayload.OutputFields {
+		if i == "k8s_ns_name" {
+			kn = j.(string)
+		}
+		if i == "k8s_pod_name" {
+			kp = j.(string)
+		}
+	}
+
+	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + p})
+	stats.Falco.Add(p, 1)
+	promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": p, "k8s_ns_name": kn, "k8s_pod_name": kp}).Inc()
 
 	if config.Debug == true {
 		body, _ := json.Marshal(falcopayload)
