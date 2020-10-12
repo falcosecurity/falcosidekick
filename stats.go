@@ -50,6 +50,7 @@ func getInitStats() *types.Statistics {
 	stats.Falco.Add("notice", 0)
 	stats.Falco.Add("informational", 0)
 	stats.Falco.Add("debug", 0)
+	stats.Falco.Add("unknown", 0)
 
 	return stats
 }

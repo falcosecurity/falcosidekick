@@ -36,6 +36,7 @@ Currently available outputs are :
 * [**DogStatsD**](https://docs.datadoghq.com/developers/dogstatsd/?tab=go) (for monitoring of `falcosidekick`)
 * **Webhook**
 * [**Azure Event Hubs**](https://azure.microsoft.com/en-in/services/event-hubs/)
+* [**Prometheus**](https://prometheus.io/) (for both events and monitoring of `falcosidekick`)
 
 ## Usage
 
@@ -345,6 +346,7 @@ Different URI (handlers) are available :
 * `/ping` : you will get a  `pong` as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck purpose for example)
 * `/test` : (for debug only) send a test event to all enabled outputs.
 * `/debug/vars` : get statistics from daemon (in JSON format), it uses classic `expvar` package and some custom values are added
+* `/metrics` : prometheus endpoint, for scraping metrics about events and `falcosidekick`
 
 ## Logs
 
