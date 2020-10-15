@@ -10,7 +10,7 @@ metadata:
     heritage: "{{ .Release.Service }}"
 rules:
   - apiGroups:
-      - extensions
+      - policy
     resources:
       - podsecuritypolicies
     resourceNames:
