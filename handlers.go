@@ -179,4 +179,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Azure.EventHub.Name != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Azure.EventHub.MinimumPriority)] || falcopayload.Rule == "Test rule") {
 		go azureClient.EventHubPost(falcopayload)
 	}
+        if config.GCPPubSub.Topic != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.GCPPubSub.MinimumPriority)] || falcopayload.Rule == "Test rule") {
+                go gcpPubSubClient.GCPPublishTopic(falcopayload)
+	}
 }

@@ -14,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"cloud.google.com/go/pubsub"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -48,6 +49,7 @@ type Client struct {
 	AWSSession      *session.Session
 	StatsdClient    *statsd.Client
 	DogstatsdClient *statsd.Client
+	GCPPubSubClient *pubsub.Client
 }
 
 // NewClient returns a new output.Client for accessing the different API.
