@@ -106,6 +106,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Azure.eventHub.Namespace", "")
 	v.SetDefault("Azure.eventHub.Name", "")
 	v.SetDefault("Azure.eventHub.MinimumPriority", "")
+        v.SetDefault("GCPPubSub.ProjectID", "")
+	v.SetDefault("GCPPubSub.Topic", "")
+	v.SetDefault("GCPPubSub.Credentials", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -164,6 +167,7 @@ func getConfig() *types.Configuration {
 	c.Opsgenie.MinimumPriority = checkPriority(c.Opsgenie.MinimumPriority)
 	c.Webhook.MinimumPriority = checkPriority(c.Webhook.MinimumPriority)
 	c.Azure.EventHub.MinimumPriority = checkPriority(c.Azure.EventHub.MinimumPriority)
+	c.GCPPubSub.MinimumPriority = checkPriority(c.Azure.EventHub.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
