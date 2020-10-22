@@ -265,7 +265,7 @@ spec:
             - name: AZURE_EVENTHUB_MINIMUMPRIORITY
               value: {{ .Values.config.azure.eventHub.minimumpriority | quote }}
             {{- end }}
-            {{- if .Values.config.slack.webhookurl }}
+            {{- if .Values.config.discord.webhookurl }}
             - name: DISCORD_WEBHOOKURL
               valueFrom:
                 secretKeyRef:
