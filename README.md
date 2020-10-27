@@ -365,9 +365,13 @@ The daemon exposes the common *Golang* metrics and some custom values in JSON fo
 ![expvar json](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/expvar_json.png)
 ![expvarmon](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/expvarmon.png)
 
-### StatsD
+### Prometheus
 
-The daemon is able to push its metrics to a StatsD server. See [Configuration](https://github.com/falcosecurity/falcosidekick#configuration) section for how-to.
+The daemon exposes a `prometheus` endpoint on URI `/metrics`.
+
+### StatsD / DogStatsD
+
+The daemon is able to push its metrics to a StatsD/DogstatsD server. See [Configuration](https://github.com/falcosecurity/falcosidekick#configuration) section for how-to.
 
 ## Examples
 

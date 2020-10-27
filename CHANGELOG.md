@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.15.0 - 2020-10-27
+#### New
+- New output : **AWS SNS** ([PR#66](https://github.com/falcosecurity/falcosidekick/pull/84)
+- A `prometheus` exporter is now available for all metrics
+#### Enhancement
+- Reduce cardinality of alerts by grouping them for `AlertManager` ([PR#79](https://github.com/falcosecurity/falcosidekick/pull/79) thanks to [@epcim](https://github.com/epcim))
+#### Fix
+- Fix unsupported chars in a label name for `AlertManager` ([PR#78](https://github.com/falcosecurity/falcosidekick/pull/78) thanks to [@epcim](https://github.com/epcim))
+#### Note
+The Helm chart has been migrated to [falcosecurity/charts](https://github.com/falcosecurity/charts/tree/master/falcosidekick), the official repository chart of `falco` organization. You can now install it from [artifacthub.io](https://artifacthub.io/packages/helm/falcosecurity/falcosidekick). 
+
 ## 2.14.0 - 2020-08-10
 #### New
 - New output : **Azure Event Hubs** ([PR#66](https://github.com/falcosecurity/falcosidekick/pull/66) thanks to [@arminc](https://github.com/arminc))
