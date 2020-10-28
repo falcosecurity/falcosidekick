@@ -212,6 +212,8 @@ opsgenie:
 
 webhook:
   # address: "" # Webhook address, if not empty, Webhook output is enabled
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 azure:
@@ -319,6 +321,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **DOGSTATSD_NAMESPACE**: A prefix for all metrics (default: falcosidekick."")
 * **DOGSTATSD_TAGS**: A comma-separated list of tags to add to all metrics
 * **WEBHOOK_ADDRESS** : "" # Webhook address, if not empty, Webhook output is enabled
+* **WEBHOOK_CUSTOMHEADERS** : a list of comma separated custom headers to add, syntax is "key:value,key:value"
 * **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AZURE_EVENTHUB_NAME**: Name of the Hub, if not empty, EventHub is *enabled*
 * **AZURE_EVENTHUB_NAMESPACE**: Name of the space the Hub is in

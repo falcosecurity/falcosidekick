@@ -16,7 +16,10 @@ import (
 )
 
 func getConfig() *types.Configuration {
-	c := &types.Configuration{Customfields: make(map[string]string)}
+	c := &types.Configuration{
+		Customfields: make(map[string]string),
+		Webhook:      types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
+	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
 	kingpin.Parse()
@@ -119,6 +122,7 @@ func getConfig() *types.Configuration {
 		}
 	}
 	v.GetStringMapString("customfields")
+	v.GetStringMapString("Webhook.CustomHeaders")
 	v.Unmarshal(c)
 
 	if value, present := os.LookupEnv("CUSTOMFIELDS"); present {
@@ -127,6 +131,15 @@ func getConfig() *types.Configuration {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
 				c.Customfields[tagkeys[0]] = tagkeys[1]
+			}
+		}
+	}
+	if value, present := os.LookupEnv("WEBHOOK_CUSTOMHEADERS"); present {
+		customfields := strings.Split(value, ",")
+		for _, label := range customfields {
+			tagkeys := strings.Split(label, ":")
+			if len(tagkeys) == 2 {
+				c.Webhook.CustomHeaders[tagkeys[0]] = tagkeys[1]
 			}
 		}
 	}

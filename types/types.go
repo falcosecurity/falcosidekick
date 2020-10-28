@@ -21,7 +21,7 @@ type FalcoPayload struct {
 type Configuration struct {
 	ListenPort    int
 	Debug         bool
-	Slack         slackOutputConfig
+	Slack         SlackOutputConfig
 	Mattermost    mattermostOutputConfig
 	Rocketchat    rocketchatOutputConfig
 	Teams         teamsOutputConfig
@@ -35,15 +35,16 @@ type Configuration struct {
 	AWS           awsOutputConfig
 	SMTP          smtpOutputConfig
 	Opsgenie      opsgenieOutputConfig
-	Statsd        statsdConfig
-	Dogstatsd     statsdConfig
-	Webhook       webhookConfig
+	Statsd        statsdOutputConfig
+	Dogstatsd     statsdOutputConfig
+	Webhook       WebhookOutputConfig
 	Azure         azureConfig
 	Customfields  map[string]string
 	CheckCert     bool
 }
 
-type slackOutputConfig struct {
+// SlackOutputConfig represents parameters for Slack
+type SlackOutputConfig struct {
 	WebhookURL            string
 	Footer                string
 	Icon                  string
@@ -169,12 +170,14 @@ type opsgenieOutputConfig struct {
 	MinimumPriority string
 }
 
-type webhookConfig struct {
+// WebhookOutputConfig represents parameters for Webhook
+type WebhookOutputConfig struct {
 	Address         string
+	CustomHeaders   map[string]string
 	MinimumPriority string
 }
 
-type statsdConfig struct {
+type statsdOutputConfig struct {
 	Forwarder string
 	Namespace string
 	Tags      []string
