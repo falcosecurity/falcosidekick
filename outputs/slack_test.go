@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 	"text/template"
@@ -48,7 +49,15 @@ func TestNewSlackPayload(t *testing.T) {
 
 	var f types.FalcoPayload
 	json.Unmarshal([]byte(falcoTestInput), &f)
-	config := &types.Configuration{}
+	config := &types.Configuration{
+		Slack: types.SlackOutputConfig{
+			Username: "Falcosidekick",
+			Icon:     "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png",
+		},
+	}
+
+	fmt.Println(config)
+
 	config.Slack.MessageFormatTemplate, _ = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
 	output := newSlackPayload(f, config)
 	if !reflect.DeepEqual(output, expectedOutput) {

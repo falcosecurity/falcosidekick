@@ -115,6 +115,12 @@ func (c *Client) Post(payload interface{}) error {
 
 	req.Header.Add("User-Agent", "Falcosidekick")
 
+	if len(c.Config.Webhook.CustomHeaders) != 0 {
+		for i, j := range c.Config.Webhook.CustomHeaders {
+			req.Header.Add(i, j)
+		}
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
