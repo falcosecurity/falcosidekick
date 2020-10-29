@@ -2,7 +2,6 @@ package outputs
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"testing"
 	"text/template"
@@ -55,8 +54,6 @@ func TestNewSlackPayload(t *testing.T) {
 			Icon:     "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png",
 		},
 	}
-
-	fmt.Println(config)
 
 	config.Slack.MessageFormatTemplate, _ = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
 	output := newSlackPayload(f, config)
