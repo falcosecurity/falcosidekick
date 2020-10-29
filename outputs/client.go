@@ -115,7 +115,7 @@ func (c *Client) Post(payload interface{}) error {
 
 	req.Header.Add("User-Agent", "Falcosidekick")
 
-	if len(c.Config.Webhook.CustomHeaders) != 0 {
+	if len(c.Config.Webhook.CustomHeaders) != 0 && c.OutputType == "Webhook" {
 		for i, j := range c.Config.Webhook.CustomHeaders {
 			req.Header.Add(i, j)
 		}
