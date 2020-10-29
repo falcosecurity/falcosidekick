@@ -1,0 +1,17 @@
+version: 2.1
+workflows:
+  main:
+    jobs:
+      - test:
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
+jobs:
+  test:
+    docker:
+      - image: docker.io/golang:1.14.0
+    steps:
+      - checkout
+      - run:
+          name: Test
+          command: make test
