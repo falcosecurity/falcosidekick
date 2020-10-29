@@ -1,8 +1,14 @@
 # Changelog
 
+## 2.16.0 - 2020-10-29
+#### New
+- Custom Headers can be set for `Webhook` output ([PR#92](https://github.com/falcosecurity/falcosidekick/pull/92)
+#### Enhancement
+- Enable of `CircleCI` for unit tests
+
 ## 2.15.0 - 2020-10-27
 #### New
-- New output : **AWS SNS** ([PR#66](https://github.com/falcosecurity/falcosidekick/pull/84)
+- New output : **AWS SNS** ([PR#84](https://github.com/falcosecurity/falcosidekick/pull/84)
 - A `prometheus` exporter is now available for all metrics
 #### Enhancement
 - Reduce cardinality of alerts by grouping them for `AlertManager` ([PR#79](https://github.com/falcosecurity/falcosidekick/pull/79) thanks to [@epcim](https://github.com/epcim))
