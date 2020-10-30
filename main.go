@@ -244,15 +244,15 @@ func init() {
 			}
 		}
 	}
-        if config.GCPPubSub.ProjectID != "" && config.GCPPubSub.Topic != "" && config.GCPPubSub.Credentials != "" {
-                var err error
-                gcpPubSubClient, err = outputs.NewGCPPubSubClient(config, stats, statsdClient, dogstatsdClient)
-                if err != nil {
-                        config.GCPPubSub.Credentials = ""
-                } else {
-                	enabledOutputsText += "GCPPubSub "
-                }
-        }
+	if config.GCPPubSub.ProjectID != "" && config.GCPPubSub.Topic != "" && config.GCPPubSub.Credentials != "" {
+  	var err error
+    gcpPubSubClient, err = outputs.NewGCPPubSubClient(config, stats, statsdClient, dogstatsdClient)
+    if err != nil {
+    	config.GCPPubSub.Credentials = ""
+    } else {
+    	enabledOutputsText += "GCPPubSub "
+    }
+  }
 
 	log.Printf("%v\n", enabledOutputsText)
 }

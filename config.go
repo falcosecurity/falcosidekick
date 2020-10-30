@@ -106,7 +106,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Azure.eventHub.Namespace", "")
 	v.SetDefault("Azure.eventHub.Name", "")
 	v.SetDefault("Azure.eventHub.MinimumPriority", "")
-        v.SetDefault("GCPPubSub.ProjectID", "")
+	v.SetDefault("GCPPubSub.ProjectID", "")
 	v.SetDefault("GCPPubSub.Topic", "")
 	v.SetDefault("GCPPubSub.Credentials", "")
 
