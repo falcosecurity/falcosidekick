@@ -8,7 +8,6 @@ import (
 	"google.golang.org/api/option"
 	"log"
 	"os"
-	//"time"
 	"errors"
 	"encoding/json"
 	"github.com/DataDog/datadog-go/statsd"
@@ -43,7 +42,6 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, statsdCl
 			log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while creating GCP PubSub Client")
 			return nil, errors.New("Error while creating GCP PubSub Client")
 		}
-		//defer pubSubClient.Close()
 		topicClient = pubSubClient.Topic(config.GCP.PubSub.Topic)
 	}
 	return &Client{
