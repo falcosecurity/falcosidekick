@@ -39,7 +39,7 @@ type Configuration struct {
 	Dogstatsd     statsdOutputConfig
 	Webhook       WebhookOutputConfig
 	Azure         azureConfig
-  GCPPubSub     gcpPubSubOutputConfig
+	GCP           gcpOutputConfig
 	Customfields  map[string]string
 	CheckCert     bool
 }
@@ -194,11 +194,15 @@ type eventHub struct {
 	MinimumPriority string
 }
 
-type gcpPubSubOutputConfig struct {
+type gcpOutputConfig struct {
+	Credentials string
+        PubSub      gcpPubSub
+}
+
+type gcpPubSub struct {
 	ProjectID       string
-	Topic           string
-	Credentials     string
-	MinimumPriority	string
+        Topic           string
+        MinimumPriority string
 }
 
 // Statistics is a struct to store stastics
@@ -227,7 +231,7 @@ type Statistics struct {
 	Dogstatsd     *expvar.Map
 	Webhook       *expvar.Map
 	AzureEventHub *expvar.Map
-  GCPPubSub     *expvar.Map
+  	GCPPubSub     *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
