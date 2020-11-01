@@ -49,7 +49,7 @@ type Client struct {
 	AWSSession      *session.Session
 	StatsdClient    *statsd.Client
 	DogstatsdClient *statsd.Client
-	GCPPubSubClient *pubsub.Client
+	GCPTopicClient  *pubsub.Topic
 }
 
 // NewClient returns a new output.Client for accessing the different API.

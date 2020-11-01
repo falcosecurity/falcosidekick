@@ -228,12 +228,13 @@ discord:
   webhookurl: "" # discord WebhookURL (ex: https://discord.com/api/webhooks/xxxxxxxxxx...), if not empty, Discord output is enabled
   # icon: "" # Discord icon (avatar)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
- 
- gcppubsub:
-   projectid: "" # The GCP Project ID containing the Pub/Sub Topic
-   topic: "" # The name of the Pub/Sub topic
-   credentials: "" # The base64-encoded JSON key file for the GCP service account (only requires roles/pubsub.publisher role) 
- 
+
+gcp:
+  credentials: "" # The base64-encoded JSON key file for the GCP service account
+  pubsub:
+    projectid: "" # The GCP Project ID containing the Pub/Sub Topic
+    topic: "" # The name of the Pub/Sub topic
+
 ```
 
 Usage :
@@ -333,10 +334,10 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AZURE_EVENTHUB_NAME**: Name of the Hub, if not empty, EventHub is *enabled*
 * **AZURE_EVENTHUB_NAMESPACE**: Name of the space the Hub is in
 * **AZURE_EVENTHUB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **GCPPUBSUB_PROJECTID**: The GCP Project ID containing the Pub/Sub Topic
-* **GCPPUBSUB_TOPIC**: The name of the Pub/Sub topic
-* **GCPPUBSUB_CREDENTIALS**: The base64-encoded JSON key file for the GCP service account (only requires roles/pubsub.publisher role) 
-* **GCPPUBSUB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **GCP_CREDENTIALS**: The base64-encoded JSON key file for the GCP service account
+* **GCP_PUBSUB_PROJECTID**: The GCP Project ID containing the Pub/Sub Topic
+* **GCP_PUBSUB_TOPIC**: The name of the Pub/Sub topic
+* **GCP_PUBSUB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
 #### Slack/Rocketchat/Mattermost Message Formatting
 

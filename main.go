@@ -31,7 +31,7 @@ var (
 	opsgenieClient      *outputs.Client
 	webhookClient       *outputs.Client
 	azureClient         *outputs.Client
-	gcpPubSubClient     *outputs.Client
+	gcpClient           *outputs.Client
 )
 var statsdClient, dogstatsdClient *statsd.Client
 var config *types.Configuration
@@ -244,15 +244,15 @@ func init() {
 			}
 		}
 	}
-	if config.GCPPubSub.ProjectID != "" && config.GCPPubSub.Topic != "" && config.GCPPubSub.Credentials != "" {
-  	var err error
-    gcpPubSubClient, err = outputs.NewGCPPubSubClient(config, stats, statsdClient, dogstatsdClient)
-    if err != nil {
-    	config.GCPPubSub.Credentials = ""
-    } else {
-    	enabledOutputsText += "GCPPubSub "
-    }
-  }
+	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && config.GCP.Credentials != "" {
+		var err error
+		gcpClient, err = outputs.NewGCPClient(config, stats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.GCP.Credentials = ""
+		} else {
+			enabledOutputsText += "GCPPubSub "
+		}
+	}
 
 	log.Printf("%v\n", enabledOutputsText)
 }
