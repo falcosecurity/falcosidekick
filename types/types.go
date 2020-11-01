@@ -196,13 +196,13 @@ type eventHub struct {
 
 type gcpOutputConfig struct {
 	Credentials string
-        PubSub      gcpPubSub
+	PubSub      gcpPubSub
 }
 
 type gcpPubSub struct {
 	ProjectID       string
-        Topic           string
-        MinimumPriority string
+	Topic           string
+	MinimumPriority string
 }
 
 // Statistics is a struct to store stastics
