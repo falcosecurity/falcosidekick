@@ -50,11 +50,12 @@ docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX falco
 
 ### With Helm
 
+See [https://github.com/falcosecurity/charts/blob/master/falcosidekick/README.md](https://github.com/falcosecurity/charts/blob/master/falcosidekick/README.md)
 ```bash
+helm repo add falcosecurity https://falcosecurity.github.io/charts
+helm repo update
 
-git clone https://github.com/falcosecurity/falcosidekick.git
-cd ./falcosidekick/deploy/helm/falcosidekick/
-helm install --name falcosidekick .
+helm install falcosidekick --set config.debug=true falcosecurity/falcosidekick
 ```
 
 ### Falco's config
