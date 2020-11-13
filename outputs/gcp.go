@@ -4,25 +4,17 @@ import (
 	"cloud.google.com/go/pubsub"
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/falcosecurity/falcosidekick/types"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	"log"
-	"os"
-	"errors"
-	"encoding/json"
-	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewGCPClient returns a new output.Client for accessing the GCP API.
-func NewGCPClient(config *types.Configuration, stats *types.Statistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
-
-	if config.GCP.Credentials != "" {
-		os.Setenv("GCP_CREDENTIALS", config.GCP.Credentials)
-		os.Setenv("GCP_PUBSUB_PROJECTID", config.GCP.PubSub.ProjectID)
-		os.Setenv("GCP_PUBSUB_TOPIC", config.GCP.PubSub.Topic)
-	}
-
+func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	base64decodedCredentialsData, err := base64.StdEncoding.DecodeString(config.GCP.Credentials)
 	if err != nil {
 		log.Printf("[ERROR] : GCP - %v\n", "Error while base64-decoding GCP Credentials")
@@ -49,6 +41,7 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, statsdCl
 		Config:          config,
 		GCPTopicClient:  topicClient,
 		Stats:           stats,
+		PromStats:       promStats,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -57,7 +50,6 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, statsdCl
 // GCPPublishTopic sends a message to a GCP PubSub Topic
 func (c *Client) GCPPublishTopic(falcopayload types.FalcoPayload) {
 	c.Stats.GCPPubSub.Add("total", 1)
-	go c.CountMetric("outputs", 1, []string{"output:gcppubsub", "status:ok"})
 
 	payload, _ := json.Marshal(falcopayload)
 	message := &pubsub.Message{
@@ -66,12 +58,14 @@ func (c *Client) GCPPublishTopic(falcopayload types.FalcoPayload) {
 	result := c.GCPTopicClient.Publish(context.Background(), message)
 	id, err := result.Get(context.Background())
 	if err != nil {
-  	log.Printf("[ERROR] : GCPPubSub - %v - %v\n", "Error while publishing message", err.Error())
+		log.Printf("[ERROR] : GCPPubSub - %v - %v\n", "Error while publishing message", err.Error())
 		c.Stats.GCPPubSub.Add("error", 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcppubsub", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "gcppubsub", "status": "error"}).Inc()
 		return
 	}
 	log.Printf("[INFO]  : GCPPubSub - Send to topic OK (%v)\n", id)
-  	c.Stats.GCPPubSub.Add("ok", 1)
-		go c.CountMetric("outputs", 1, []string{"output:gcppubsub", "status:ok"})
+	c.Stats.GCPPubSub.Add("ok", 1)
+	go c.CountMetric("outputs", 1, []string{"output:gcppubsub", "status:ok"})
+	c.PromStats.Outputs.With(map[string]string{"destination": "gcppubsub", "status": "ok"}).Inc()
 }

@@ -246,7 +246,7 @@ func init() {
 	}
 	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && config.GCP.Credentials != "" {
 		var err error
-		gcpClient, err = outputs.NewGCPClient(config, stats, statsdClient, dogstatsdClient)
+		gcpClient, err = outputs.NewGCPClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.GCP.Credentials = ""
 		} else {

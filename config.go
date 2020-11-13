@@ -168,7 +168,7 @@ func getConfig() *types.Configuration {
 	c.Opsgenie.MinimumPriority = checkPriority(c.Opsgenie.MinimumPriority)
 	c.Webhook.MinimumPriority = checkPriority(c.Webhook.MinimumPriority)
 	c.Azure.EventHub.MinimumPriority = checkPriority(c.Azure.EventHub.MinimumPriority)
-	c.GCP.PubSub.MinimumPriority = checkPriority(c.PubSub.EventHub.MinimumPriority)
+	c.GCP.PubSub.MinimumPriority = checkPriority(c.GCP.PubSub.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
