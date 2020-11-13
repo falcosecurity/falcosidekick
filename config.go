@@ -109,6 +109,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("GCP.Credentials", "")
 	v.SetDefault("GCP.PubSub.ProjectID", "")
 	v.SetDefault("GCP.PubSub.Topic", "")
+	v.SetDefault("GCP.PubSub.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
