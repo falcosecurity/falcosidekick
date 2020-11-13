@@ -1,14 +1,20 @@
 # Changelog
 
+## 2.17.0 - 2020-11-13
+#### New
+- New output : **GCP PubSub** ([PR#97](https://github.com/falcosecurity/falcosidekick/pull/97) thanks to [@IanRobertson-wpe](https://github.com/IanRobertson-wpe))
+#### Enhancement
+- Better instructions for install with `Helm` ([PR#95](https://github.com/falcosecurity/falcosidekick/pull/95) thanks to [@pyaillet](https://github.com/pyaillet))
+
 ## 2.16.0 - 2020-10-29
 #### New
-- Custom Headers can be set for `Webhook` output ([PR#92](https://github.com/falcosecurity/falcosidekick/pull/92)
+- Custom Headers can be set for `Webhook` output ([PR#92](https://github.com/falcosecurity/falcosidekick/pull/92))
 #### Enhancement
 - Enable of `CircleCI` for unit tests
 
 ## 2.15.0 - 2020-10-27
 #### New
-- New output : **AWS SNS** ([PR#84](https://github.com/falcosecurity/falcosidekick/pull/84)
+- New output : **AWS SNS** ([PR#84](https://github.com/falcosecurity/falcosidekick/pull/84))
 - A `prometheus` exporter is now available for all metrics
 #### Enhancement
 - Reduce cardinality of alerts by grouping them for `AlertManager` ([PR#79](https://github.com/falcosecurity/falcosidekick/pull/79) thanks to [@epcim](https://github.com/epcim))
@@ -22,9 +28,9 @@ The Helm chart has been migrated to [falcosecurity/charts](https://github.com/fa
 - New output : **Azure Event Hubs** ([PR#66](https://github.com/falcosecurity/falcosidekick/pull/66) thanks to [@arminc](https://github.com/arminc))
 - New output : **Discord** ([PR#61](https://github.com/falcosecurity/falcosidekick/pull/61) thanks to [@nibalizer](https://github.com/nibalizer))
 #### Enhancement
-- Cert validity of outputs can be disabled ([PR#74](https://github.com/falcosecurity/falcosidekick/pull/74)
+- Cert validity of outputs can be disabled ([PR#74](https://github.com/falcosecurity/falcosidekick/pull/74))
 - Golang 1.14 is now used for building the Docker image
-- Displayed username can be override for **Slack**, **Mattermost** and **Rocketchat** ([PR#72](https://github.com/falcosecurity/falcosidekick/pull/72)
+- Displayed username can be override for **Slack**, **Mattermost** and **Rocketchat** ([PR#72](https://github.com/falcosecurity/falcosidekick/pull/72))
 #### Fix
 - Wrong port name was displayed as output of Helm chart
 #### Note
