@@ -2,16 +2,23 @@ version: 2.1
 workflows:
   main:
     jobs:
-      - test:
-          filters:
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
+      - test
+      - lint
+
 jobs:
   test:
     docker:
-      - image: docker.io/golang:1.14.0
+      - image: docker.io/golang:1.14.12
     steps:
       - checkout
       - run:
           name: Test
           command: make test
+  lint:
+    docker:
+      - image: docker.io/golang:1.14.12
+    steps:
+      - checkout
+      - run:
+          name: Lint
+          command: make lint

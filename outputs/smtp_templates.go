@@ -14,13 +14,13 @@ Time: {{ .Time }}
 var htmlTmpl = `
 {{ $color := "#858585"}}
 {{ if or (eq .Priority "Emergency") (eq .Priority "emergency") }}{{ $color = "#e20b0b" }}{{ end }}
-{{ if or (eq .Priority ALERT) (eq .Priority ALERT) }}{{ $color = "#ff5400" }}{{ end }}
-{{ if or (eq .Priority CRITICAL) (eq .Priority CRITICAL) }}{{ $color = "#ff9000" }}{{ end }}
-{{ if or (eq .Priority ERROR) (eq .Priority ERROR) }}{{ $color = "#ffc700" }}{{ end }}
-{{ if or (eq .Priority WARNING) (eq .Priority WARNING) }}{{ $color = "#ffff00" }}{{ end }}
-{{ if or (eq .Priority NOTICE) (eq .Priority NOTICE) }}{{ $color = "#5bffb5" }}{{ end }}
-{{ if or (eq .Priority INFORMATIONAL) (eq .Priority INFORMATIONAL) }}{{ $color = "#68c2ff" }}{{ end }}
-{{ if or (eq .Priority DEBUG) (eq .Priority DEBUG) }}{{ $color = "#ccfff2" }}{{ end }}
+{{ if or (eq .Priority "Alert") (eq .Priority "Alert") }}{{ $color = "#ff5400" }}{{ end }}
+{{ if or (eq .Priority "Critical") (eq .Priority "critical") }}{{ $color = "#ff9000" }}{{ end }}
+{{ if or (eq .Priority "Error") (eq .Priority "error") }}{{ $color = "#ffc700" }}{{ end }}
+{{ if or (eq .Priority "Warning") (eq .Priority "warning") }}{{ $color = "#ffff00" }}{{ end }}
+{{ if or (eq .Priority "Notice") (eq .Priority "notice") }}{{ $color = "#5bffb5" }}{{ end }}
+{{ if or (eq .Priority "Informational") (eq .Priority "informational") }}{{ $color = "#68c2ff" }}{{ end }}
+{{ if or (eq .Priority "Debug") (eq .Priority "debug") }}{{ $color = "#ccfff2" }}{{ end }}
 
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <style type="text/css">
