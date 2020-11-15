@@ -28,8 +28,8 @@ func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 	log.Printf("[INFO]  : Try sending event")
 	hub, err := eventhub.NewHubWithNamespaceNameAndEnvironment(c.Config.Azure.EventHub.Namespace, c.Config.Azure.EventHub.Name)
 	if err != nil {
-		c.Stats.AzureEventHub.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": "error"}).Inc()
+		c.Stats.AzureEventHub.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": Error}).Inc()
 		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -39,21 +39,21 @@ func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 	defer cancel()
 	data, err := json.Marshal(falcopayload)
 	if err != nil {
-		c.Stats.AzureEventHub.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": "error"}).Inc()
+		c.Stats.AzureEventHub.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": Error}).Inc()
 		log.Printf("[ERROR] : Cannot marshal payload: %v", err.Error())
 		return
 	}
 	err = hub.Send(ctx, eventhub.NewEvent(data))
 	if err != nil {
-		c.Stats.AzureEventHub.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": "error"}).Inc()
+		c.Stats.AzureEventHub.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": Error}).Inc()
 		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
 		return
 	}
-	c.Stats.AzureEventHub.Add("ok", 1)
-	c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": "ok"}).Inc()
-	log.Printf("[INFO]  : Succesfully sent event")
+	c.Stats.AzureEventHub.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": OK}).Inc()
+	log.Printf("[INFO]  : Successfully sent event")
 
-	c.Stats.AzureEventHub.Add("total", 1)
+	c.Stats.AzureEventHub.Add(Total, 1)
 }

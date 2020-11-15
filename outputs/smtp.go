@@ -48,13 +48,13 @@ func newSMTPPayload(falcopayload types.FalcoPayload, config *types.Configuration
 
 	s.Body = "MIME-version: 1.0;\n"
 
-	if config.SMTP.OutputFormat != "text" {
+	if config.SMTP.OutputFormat != Text {
 		s.Body += "Content-Type: multipart/alternative; boundary=4t74weu9byeSdJTM\n\n\n--4t74weu9byeSdJTM\n"
 	}
 
 	s.Body += "Content-Type: text/plain; charset=\"UTF-8\";\n\n"
 
-	ttmpl := textTemplate.New("text")
+	ttmpl := textTemplate.New(Text)
 	ttmpl, _ = ttmpl.Parse(plaintextTmpl)
 	var outtext bytes.Buffer
 	err := ttmpl.Execute(&outtext, falcopayload)
@@ -64,7 +64,7 @@ func newSMTPPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	}
 	s.Body += outtext.String()
 
-	if config.SMTP.OutputFormat == "text" {
+	if config.SMTP.OutputFormat == Text {
 		return s
 	}
 
@@ -99,12 +99,12 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 	err := smtp.SendMail(c.Config.SMTP.HostPort, auth, c.Config.SMTP.From, to, strings.NewReader(body))
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:smtp", "status:error"})
-		c.Stats.SMTP.Add("error", 1)
+		c.Stats.SMTP.Add(Error, 1)
 		log.Printf("[ERROR] : SMTP - %v\n", err)
 		return
 	}
 
 	log.Printf("[INFO]  : SMTP - Sent OK\n")
 	go c.CountMetric("outputs", 1, []string{"output:smtp", "status:ok"})
-	c.Stats.SMTP.Add("ok", 1)
+	c.Stats.SMTP.Add(OK, 1)
 }

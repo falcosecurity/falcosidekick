@@ -22,7 +22,6 @@ type lokiEntry struct {
 }
 
 func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration) lokiPayload {
-
 	le := lokiEntry{Ts: falcopayload.Time.Format(time.RFC3339), Line: falcopayload.Output}
 	ls := lokiStream{Entries: []lokiEntry{le}}
 
@@ -35,6 +34,7 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 			continue
 		}
 	}
+
 	s += "rule=\"" + falcopayload.Rule + "\","
 	s += "priority=\"" + falcopayload.Priority + "\","
 
@@ -47,11 +47,12 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newLokiPayload(falcopayload, c.Config))
 	if err != nil {
-		c.Stats.Loki.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": "error"}).Inc()
+		c.Stats.Loki.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": Error}).Inc()
 	} else {
-		c.Stats.Loki.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": "ok"}).Inc()
+		c.Stats.Loki.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": OK}).Inc()
 	}
-	c.Stats.Loki.Add("total", 1)
+
+	c.Stats.Loki.Add(Total, 1)
 }

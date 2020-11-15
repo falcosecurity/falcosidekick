@@ -125,6 +125,7 @@ func getConfig() *types.Configuration {
 			log.Printf("[ERROR] : Error when reading config file : %v\n", err)
 		}
 	}
+
 	v.GetStringMapString("customfields")
 	v.GetStringMapString("Webhook.CustomHeaders")
 	v.Unmarshal(c)
@@ -138,6 +139,7 @@ func getConfig() *types.Configuration {
 			}
 		}
 	}
+
 	if value, present := os.LookupEnv("WEBHOOK_CUSTOMHEADERS"); present {
 		customfields := strings.Split(value, ",")
 		for _, label := range customfields {
@@ -182,6 +184,7 @@ func checkPriority(prio string) string {
 	if match {
 		return prio
 	}
+
 	return ""
 }
 
@@ -192,7 +195,9 @@ func getMessageFormatTemplate(output, temp string) *template.Template {
 		if err != nil {
 			log.Fatalf("[ERROR] : Error compiling %v message template : %v\n", output, err)
 		}
+
 		return t
 	}
+
 	return nil
 }

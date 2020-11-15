@@ -15,7 +15,7 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 	var fields []slackAttachmentField
 	var field slackAttachmentField
 
-	if config.Rocketchat.OutputFormat == "all" || config.Rocketchat.OutputFormat == "fields" || config.Rocketchat.OutputFormat == "" {
+	if config.Rocketchat.OutputFormat == All || config.Rocketchat.OutputFormat == Fields || config.Rocketchat.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
 			switch j.(type) {
 			case string:
@@ -32,15 +32,15 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 			fields = append(fields, field)
 		}
 
-		field.Title = "rule"
+		field.Title = Rule
 		field.Value = falcopayload.Rule
 		field.Short = true
 		fields = append(fields, field)
-		field.Title = "priority"
+		field.Title = Priority
 		field.Value = falcopayload.Priority
 		field.Short = true
 		fields = append(fields, field)
-		field.Title = "time"
+		field.Title = Time
 		field.Short = false
 		field.Value = falcopayload.Time.String()
 		fields = append(fields, field)
@@ -48,7 +48,7 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
-	if config.Rocketchat.OutputFormat == "all" || config.Rocketchat.OutputFormat == "fields" || config.Rocketchat.OutputFormat == "" {
+	if config.Rocketchat.OutputFormat == All || config.Rocketchat.OutputFormat == Fields || config.Rocketchat.OutputFormat == "" {
 		attachment.Text = falcopayload.Output
 	}
 
@@ -61,32 +61,32 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 		}
 	}
 
-	if config.Rocketchat.OutputFormat == "all" || config.Rocketchat.OutputFormat == "fields" || config.Rocketchat.OutputFormat == "" {
+	if config.Rocketchat.OutputFormat == All || config.Rocketchat.OutputFormat == Fields || config.Rocketchat.OutputFormat == "" {
 		var color string
 		switch strings.ToLower(falcopayload.Priority) {
-		case "emergency":
-			color = "#e20b0b"
-		case "alert":
-			color = "#ff5400"
-		case "critical":
-			color = "#ff9000"
-		case "error":
-			color = "#ffc700"
-		case "warning":
-			color = "#ffff00"
-		case "notice":
-			color = "#5bffb5"
-		case "informational":
-			color = "#68c2ff"
-		case "debug":
-			color = "#ccfff2"
+		case Emergency:
+			color = Red
+		case Alert:
+			color = Orange
+		case Critical:
+			color = Orange
+		case Error:
+			color = Red
+		case Warning:
+			color = Yellow
+		case Notice:
+			color = Lightcyan
+		case Informational:
+			color = LigthBlue
+		case Debug:
+			color = PaleCyan
 		}
 		attachment.Color = color
 
 		attachments = append(attachments, attachment)
 	}
 
-	iconURL := "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png"
+	iconURL := DefaultIconURL
 	if config.Rocketchat.Icon != "" {
 		iconURL = config.Rocketchat.Icon
 	}
@@ -104,11 +104,12 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 func (c *Client) RocketchatPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newRocketchatPayload(falcopayload, c.Config))
 	if err != nil {
-		c.Stats.Rocketchat.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "rocketchat", "status": "error"}).Inc()
+		c.Stats.Rocketchat.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "rocketchat", "status": Error}).Inc()
 	} else {
-		c.Stats.Rocketchat.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "rocketchat", "status": "ok"}).Inc()
+		c.Stats.Rocketchat.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "rocketchat", "status": OK}).Inc()
 	}
-	c.Stats.Rocketchat.Add("total", 1)
+
+	c.Stats.Rocketchat.Add(Total, 1)
 }

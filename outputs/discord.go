@@ -31,26 +31,26 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	if config.Discord.Icon != "" {
 		iconURL = config.Discord.Icon
 	} else {
-		iconURL = "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png"
+		iconURL = DefaultIconURL
 	}
 
 	var color string
 	switch strings.ToLower(falcopayload.Priority) {
-	case "emergency":
+	case Emergency:
 		color = "15158332" // red
-	case "alert":
+	case Alert:
 		color = "11027200" // dark orange
-	case "critical":
+	case Critical:
 		color = "15105570" // orange
-	case "error":
+	case Error:
 		color = "15844367" // gold
-	case "warning":
+	case Warning:
 		color = "12745742" // dark gold
-	case "notice":
+	case Notice:
 		color = "3066993" // teal
-	case "informational":
+	case Informational:
 		color = "3447003" // blue
-	case "debug":
+	case Debug:
 		color = "12370112" // light grey
 	}
 
@@ -70,15 +70,15 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 		}
 		embedFields = append(embedFields, embedField)
 	}
-	embedField.Name = "rule"
+	embedField.Name = Rule
 	embedField.Value = falcopayload.Rule
 	embedField.Inline = true
 	embedFields = append(embedFields, embedField)
-	embedField.Name = "priority"
+	embedField.Name = Priority
 	embedField.Value = falcopayload.Priority
 	embedField.Inline = true
 	embedFields = append(embedFields, embedField)
-	embedField.Name = "time"
+	embedField.Name = Time
 	embedField.Value = falcopayload.Time.String()
 	embedField.Inline = true
 	embedFields = append(embedFields, embedField)
@@ -103,11 +103,11 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 func (c *Client) DiscordPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newDiscordPayload(falcopayload, c.Config))
 	if err != nil {
-		c.Stats.Discord.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": "error"}).Inc()
+		c.Stats.Discord.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": Error}).Inc()
 	} else {
-		c.Stats.Discord.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": "ok"}).Inc()
+		c.Stats.Discord.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": OK}).Inc()
 	}
-	c.Stats.Discord.Add("total", 1)
+	c.Stats.Discord.Add(Total, 1)
 }

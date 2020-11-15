@@ -39,12 +39,12 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 
 	var status string
 	switch strings.ToLower(falcopayload.Priority) {
-	case "emergency", "alert", "critical", "error":
-		status = "error"
-	case "warning":
-		status = "warning"
+	case Emergency, Alert, Critical, Error:
+		status = Error
+	case Warning:
+		status = Warning
 	default:
-		status = "info"
+		status = Info
 	}
 	d.AlertType = status
 
@@ -55,11 +55,11 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 func (c *Client) DatadogPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newDatadogPayload(falcopayload))
 	if err != nil {
-		c.Stats.Datadog.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": "error"}).Inc()
+		c.Stats.Datadog.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": Error}).Inc()
 	} else {
-		c.Stats.Datadog.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": "ok"}).Inc()
+		c.Stats.Datadog.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": OK}).Inc()
 	}
-	c.Stats.Datadog.Add("total", 1)
+	c.Stats.Datadog.Add(Total, 1)
 }

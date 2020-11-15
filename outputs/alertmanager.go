@@ -35,25 +35,25 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 				switch {
 				case d == 0:
 					jj = "0"
-					falcopayload.Priority = "warning"
+					falcopayload.Priority = Warning
 				case d < 10:
 					jj = "<10"
-					falcopayload.Priority = "warning"
+					falcopayload.Priority = Warning
 				case d > 10000:
 					jj = ">10000"
-					falcopayload.Priority = "critical"
+					falcopayload.Priority = Critical
 				case d > 1000:
 					jj = ">1000"
-					falcopayload.Priority = "critical"
+					falcopayload.Priority = Critical
 				case d > 100:
 					jj = ">100"
-					falcopayload.Priority = "critical"
+					falcopayload.Priority = Critical
 				case d > 10:
 					jj = ">10"
-					falcopayload.Priority = "warning"
+					falcopayload.Priority = Warning
 				default:
 					jj = j.(string)
-					falcopayload.Priority = "critical"
+					falcopayload.Priority = Critical
 				}
 
 				amPayload.Labels[i] = jj
@@ -86,11 +86,11 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newAlertmanagerPayload(falcopayload))
 	if err != nil {
-		c.Stats.Alertmanager.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": "error"}).Inc()
+		c.Stats.Alertmanager.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": Error}).Inc()
 	} else {
-		c.Stats.Alertmanager.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": "ok"}).Inc()
+		c.Stats.Alertmanager.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": OK}).Inc()
 	}
-	c.Stats.Alertmanager.Add("total", 1)
+	c.Stats.Alertmanager.Add(Total, 1)
 }

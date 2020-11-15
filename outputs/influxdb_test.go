@@ -15,7 +15,6 @@ func TestNewInfluxdbPayload(t *testing.T) {
 	influxdbPayload, _ := json.Marshal(newInfluxdbPayload(f, &types.Configuration{}))
 
 	if string(influxdbPayload) != expectedOutput {
-		// t.Fatalf("\nexpected payload: \n%v\ngot: \n%v\n", o1, o2)
 		t.Fatalf("\nexpected payload: \n%v\ngot: \n%v\n", expectedOutput, string(influxdbPayload))
 	}
 }

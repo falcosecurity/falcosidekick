@@ -36,7 +36,7 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	section.ActivityTitle = "Falco Sidekick"
 	section.ActivitySubTitle = falcopayload.Time.String()
 
-	if config.Teams.OutputFormat == "all" || config.Teams.OutputFormat == "text" || config.Teams.OutputFormat == "" {
+	if config.Teams.OutputFormat == All || config.Teams.OutputFormat == "text" || config.Teams.OutputFormat == "" {
 		section.Text = falcopayload.Output
 	}
 
@@ -44,7 +44,7 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		section.ActivityImage = config.Teams.ActivityImage
 	}
 
-	if config.Teams.OutputFormat == "all" || config.Teams.OutputFormat == "facts" || config.Teams.OutputFormat == "" {
+	if config.Teams.OutputFormat == All || config.Teams.OutputFormat == "facts" || config.Teams.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
 			switch j.(type) {
 			case string:
@@ -56,10 +56,10 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 			facts = append(facts, fact)
 		}
 
-		fact.Name = "rule"
+		fact.Name = Rule
 		fact.Value = falcopayload.Rule
 		facts = append(facts, fact)
-		fact.Name = "priority"
+		fact.Name = Priority
 		fact.Value = falcopayload.Priority
 		facts = append(facts, fact)
 	}
@@ -68,21 +68,21 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 
 	var color string
 	switch strings.ToLower(falcopayload.Priority) {
-	case "emergency":
+	case Emergency:
 		color = "e20b0b"
-	case "alert":
+	case Alert:
 		color = "ff5400"
-	case "critical":
+	case Critical:
 		color = "ff9000"
-	case "error":
+	case Error:
 		color = "ffc700"
-	case "warning":
+	case Warning:
 		color = "ffff00"
-	case "notice":
+	case Notice:
 		color = "5bffb5"
-	case "informational":
+	case Informational:
 		color = "68c2ff"
-	case "debug":
+	case Debug:
 		color = "ccfff2"
 	}
 
@@ -102,11 +102,12 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 func (c *Client) TeamsPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newTeamsPayload(falcopayload, c.Config))
 	if err != nil {
-		c.Stats.Teams.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": "error"}).Inc()
+		c.Stats.Teams.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": Error}).Inc()
 	} else {
-		c.Stats.Teams.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": "ok"}).Inc()
+		c.Stats.Teams.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": OK}).Inc()
 	}
-	c.Stats.Teams.Add("total", 1)
+
+	c.Stats.Teams.Add(Total, 1)
 }

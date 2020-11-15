@@ -27,13 +27,13 @@ func newOpsgeniePayload(falcopayload types.FalcoPayload, config *types.Configura
 
 	var prio string
 	switch strings.ToLower(falcopayload.Priority) {
-	case "emergency", "alert":
+	case "emergency", Alert:
 		prio = "P1"
-	case "critical":
+	case Critical:
 		prio = "P2"
-	case "error":
+	case Error:
 		prio = "P3"
-	case "warning":
+	case Warning:
 		prio = "P4"
 	default:
 		prio = "P5"
@@ -52,11 +52,12 @@ func newOpsgeniePayload(falcopayload types.FalcoPayload, config *types.Configura
 func (c *Client) OpsgeniePost(falcopayload types.FalcoPayload) {
 	err := c.Post(newOpsgeniePayload(falcopayload, c.Config))
 	if err != nil {
-		c.Stats.Opsgenie.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "opsgenie", "status": "error"}).Inc()
+		c.Stats.Opsgenie.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "opsgenie", "status": Error}).Inc()
 	} else {
 		c.Stats.Opsgenie.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "opsgenie", "status": "ok"}).Inc()
+		c.PromStats.Outputs.With(map[string]string{"destination": "opsgenie", "status": OK}).Inc()
 	}
-	c.Stats.Opsgenie.Add("total", 1)
+
+	c.Stats.Opsgenie.Add(Total, 1)
 }

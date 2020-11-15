@@ -9,9 +9,7 @@ import (
 type influxdbPayload string
 
 func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configuration) influxdbPayload {
-	var s string
-
-	s = "events,rule=" + strings.Replace(falcopayload.Rule, " ", "_", -1) + ",priority=" + strings.Replace(falcopayload.Priority, " ", "_", -1)
+	s := "events,rule=" + strings.Replace(falcopayload.Rule, " ", "_", -1) + ",priority=" + strings.Replace(falcopayload.Priority, " ", "_", -1)
 
 	for i, j := range falcopayload.OutputFields {
 		switch j.(type) {
@@ -31,11 +29,12 @@ func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configura
 func (c *Client) InfluxdbPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newInfluxdbPayload(falcopayload, c.Config))
 	if err != nil {
-		c.Stats.Influxdb.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": "error"}).Inc()
+		c.Stats.Influxdb.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": Error}).Inc()
 	} else {
-		c.Stats.Influxdb.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": "ok"}).Inc()
+		c.Stats.Influxdb.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": OK}).Inc()
 	}
-	c.Stats.Influxdb.Add("total", 1)
+
+	c.Stats.Influxdb.Add(Total, 1)
 }

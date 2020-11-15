@@ -13,11 +13,11 @@ func TestNewSlackPayload(t *testing.T) {
 	expectedOutput := slackPayload{
 		Text:     "Rule: Test rule Priority: Debug",
 		Username: "Falcosidekick",
-		IconURL:  "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png",
+		IconURL:  DefaultIconURL,
 		Attachments: []slackAttachment{
 			{
 				Fallback: "This is a test from falcosidekick",
-				Color:    "#ccfff2",
+				Color:    PaleCyan,
 				Text:     "This is a test from falcosidekick",
 				Footer:   "https://github.com/falcosecurity/falcosidekick",
 				Fields: []slackAttachmentField{
@@ -51,12 +51,13 @@ func TestNewSlackPayload(t *testing.T) {
 	config := &types.Configuration{
 		Slack: types.SlackOutputConfig{
 			Username: "Falcosidekick",
-			Icon:     "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png",
+			Icon:     DefaultIconURL,
 		},
 	}
 
 	config.Slack.MessageFormatTemplate, _ = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
 	output := newSlackPayload(f, config)
+
 	if !reflect.DeepEqual(output, expectedOutput) {
 		t.Fatalf("\nexpected payload: \n%#v\ngot: \n%#v\n", expectedOutput, output)
 	}

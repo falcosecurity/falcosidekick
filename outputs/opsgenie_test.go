@@ -22,6 +22,7 @@ func TestNewOpsgeniePayload(t *testing.T) {
 	var f types.FalcoPayload
 	json.Unmarshal([]byte(falcoTestInput), &f)
 	output := newOpsgeniePayload(f, &types.Configuration{})
+
 	if !reflect.DeepEqual(output, expectedOutput) {
 		t.Fatalf("\nexpected payload: \n%#v\ngot: \n%#v\n", expectedOutput, output)
 	}

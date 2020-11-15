@@ -17,10 +17,9 @@ func TestNewDatadogPayload(t *testing.T) {
 
 	var o1, o2 datadogPayload
 	json.Unmarshal([]byte(expectedOutput), &o1)
-	json.Unmarshal([]byte(s), &o2)
+	json.Unmarshal(s, &o2)
 
 	if !reflect.DeepEqual(o1, o2) {
-		// t.Fatalf("\nexpected payload: \n%v\ngot: \n%v\n", o1, o2)
 		t.Fatalf("\nexpected payload: \n%v\ngot: \n%v\n", expectedOutput, string(s))
 	}
 }
