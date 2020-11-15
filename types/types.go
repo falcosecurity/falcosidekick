@@ -22,7 +22,7 @@ type Configuration struct {
 	ListenPort    int
 	Debug         bool
 	Slack         SlackOutputConfig
-	Mattermost    mattermostOutputConfig
+	Mattermost    MattermostOutputConfig
 	Rocketchat    rocketchatOutputConfig
 	Teams         teamsOutputConfig
 	Datadog       datadogOutputConfig
@@ -67,7 +67,8 @@ type rocketchatOutputConfig struct {
 	MessageFormatTemplate *template.Template
 }
 
-type mattermostOutputConfig struct {
+// MattermostOutputConfig represents parameters for Mattermost
+type MattermostOutputConfig struct {
 	WebhookURL            string
 	Footer                string
 	Icon                  string
@@ -231,7 +232,7 @@ type Statistics struct {
 	Dogstatsd     *expvar.Map
 	Webhook       *expvar.Map
 	AzureEventHub *expvar.Map
-  	GCPPubSub     *expvar.Map
+	GCPPubSub     *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

@@ -44,6 +44,11 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 		field.Short = false
 		field.Value = falcopayload.Time.String()
 		fields = append(fields, field)
+
+		attachment.Footer = "https://github.com/falcosecurity/falcosidekick"
+		if config.Mattermost.Footer != "" {
+			attachment.Footer = config.Mattermost.Footer
+		}
 	}
 
 	attachment.Fallback = falcopayload.Output
@@ -93,7 +98,8 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 		Text:        messageText,
 		Username:    "Falcosidekick",
 		IconURL:     iconURL,
-		Attachments: attachments}
+		Attachments: attachments,
+	}
 
 	return s
 }
@@ -102,11 +108,11 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 func (c *Client) MattermostPost(falcopayload types.FalcoPayload) {
 	err := c.Post(newMattermostPayload(falcopayload, c.Config))
 	if err != nil {
-		c.Stats.Rocketchat.Add("error", 1)
+		c.Stats.Mattermost.Add("error", 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": "error"}).Inc()
 	} else {
-		c.Stats.Rocketchat.Add("ok", 1)
+		c.Stats.Mattermost.Add("ok", 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": "ok"}).Inc()
 	}
-	c.Stats.Rocketchat.Add("total", 1)
+	c.Stats.Mattermost.Add("total", 1)
 }

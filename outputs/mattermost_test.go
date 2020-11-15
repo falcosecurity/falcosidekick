@@ -9,7 +9,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-func TestNewSlackPayload(t *testing.T) {
+func TestMattermostPayload(t *testing.T) {
 	expectedOutput := slackPayload{
 		Text:     "Rule: Test rule Priority: Debug",
 		Username: "Falcosidekick",
@@ -49,14 +49,14 @@ func TestNewSlackPayload(t *testing.T) {
 	var f types.FalcoPayload
 	json.Unmarshal([]byte(falcoTestInput), &f)
 	config := &types.Configuration{
-		Slack: types.SlackOutputConfig{
+		Mattermost: types.MattermostOutputConfig{
 			Username: "Falcosidekick",
 			Icon:     "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png",
 		},
 	}
 
-	config.Slack.MessageFormatTemplate, _ = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
-	output := newSlackPayload(f, config)
+	config.Mattermost.MessageFormatTemplate, _ = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
+	output := newMattermostPayload(f, config)
 	if !reflect.DeepEqual(output, expectedOutput) {
 		t.Fatalf("\nexpected payload: \n%#v\ngot: \n%#v\n", expectedOutput, output)
 	}
