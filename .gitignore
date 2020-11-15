@@ -17,3 +17,4 @@ falcosidekick
 .vscode
 .idea
 *.swp
+/hack/tools/bin/*
