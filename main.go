@@ -56,6 +56,7 @@ func init() {
 			enabledOutputsText += "StatsD "
 		}
 	}
+
 	if config.Dogstatsd.Forwarder != "" {
 		var err error
 		dogstatsdClient, err = outputs.NewStatsdClient("DogStatsD", config, stats)
@@ -85,6 +86,7 @@ func init() {
 			enabledOutputsText += "Slack "
 		}
 	}
+
 	if config.Rocketchat.WebhookURL != "" {
 		var err error
 		rocketchatClient, err = outputs.NewClient("Rocketchat", config.Rocketchat.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
@@ -94,6 +96,7 @@ func init() {
 			enabledOutputsText += "Rocketchat "
 		}
 	}
+
 	if config.Mattermost.WebhookURL != "" {
 		var err error
 		mattermostClient, err = outputs.NewClient("Mattermost", config.Mattermost.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
@@ -103,6 +106,7 @@ func init() {
 			enabledOutputsText += "Mattermost "
 		}
 	}
+
 	if config.Teams.WebhookURL != "" {
 		var err error
 		teamsClient, err = outputs.NewClient("Teams", config.Teams.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
@@ -112,6 +116,7 @@ func init() {
 			enabledOutputsText += "Teams "
 		}
 	}
+
 	if config.Datadog.APIKey != "" {
 		var err error
 		datadogClient, err = outputs.NewClient("Datadog", config.Datadog.Host+outputs.DatadogPath+"?api_key="+config.Datadog.APIKey, config, stats, promStats, statsdClient, dogstatsdClient)
@@ -121,6 +126,7 @@ func init() {
 			enabledOutputsText += "Datadog "
 		}
 	}
+
 	if config.Discord.WebhookURL != "" {
 		var err error
 		discordClient, err = outputs.NewClient("Discord", config.Discord.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
@@ -130,6 +136,7 @@ func init() {
 			enabledOutputsText += "Discord "
 		}
 	}
+
 	if config.Alertmanager.HostPort != "" {
 		var err error
 		alertmanagerClient, err = outputs.NewClient("AlertManager", config.Alertmanager.HostPort+outputs.AlertmanagerURI, config, stats, promStats, statsdClient, dogstatsdClient)
@@ -139,6 +146,7 @@ func init() {
 			enabledOutputsText += "AlertManager "
 		}
 	}
+
 	if config.Elasticsearch.HostPort != "" {
 		var err error
 		elasticsearchClient, err = outputs.NewClient("Elasticsearch", config.Elasticsearch.HostPort+"/"+config.Elasticsearch.Index+"/"+config.Elasticsearch.Type, config, stats, promStats, statsdClient, dogstatsdClient)
@@ -148,6 +156,7 @@ func init() {
 			enabledOutputsText += "Elasticsearch "
 		}
 	}
+
 	if config.Loki.HostPort != "" {
 		var err error
 		lokiClient, err = outputs.NewClient("Loki", config.Loki.HostPort+"/api/prom/push", config, stats, promStats, statsdClient, dogstatsdClient)
@@ -157,6 +166,7 @@ func init() {
 			enabledOutputsText += "Loki "
 		}
 	}
+
 	if config.Nats.HostPort != "" {
 		var err error
 		natsClient, err = outputs.NewClient("NATS", config.Nats.HostPort, config, stats, promStats, statsdClient, dogstatsdClient)
@@ -166,11 +176,13 @@ func init() {
 			enabledOutputsText += "NATS "
 		}
 	}
+
 	if config.Influxdb.HostPort != "" {
 		var credentials string
 		if config.Influxdb.User != "" && config.Influxdb.Password != "" {
 			credentials = "&u=" + config.Influxdb.User + "&p=" + config.Influxdb.Password
 		}
+
 		var err error
 		influxdbClient, err = outputs.NewClient("Influxdb", config.Influxdb.HostPort+"/write?db="+config.Influxdb.Database+credentials, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
@@ -179,6 +191,7 @@ func init() {
 			enabledOutputsText += "Influxdb "
 		}
 	}
+
 	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" || config.AWS.SNS.TopicArn != "" {
 		var err error
 		awsClient, err = outputs.NewAWSClient(config, stats, promStats, statsdClient, dogstatsdClient)
@@ -201,6 +214,7 @@ func init() {
 			}
 		}
 	}
+
 	if config.SMTP.HostPort != "" && config.SMTP.From != "" && config.SMTP.To != "" {
 		var err error
 		smtpClient, err = outputs.NewSMTPClient(config, stats, promStats, statsdClient, dogstatsdClient)
@@ -210,6 +224,7 @@ func init() {
 			enabledOutputsText += "SMTP "
 		}
 	}
+
 	if config.Opsgenie.APIKey != "" {
 		var err error
 		url := "https://api.opsgenie.com/v2/alerts"
@@ -223,6 +238,7 @@ func init() {
 			enabledOutputsText += "Opsgenie "
 		}
 	}
+
 	if config.Webhook.Address != "" {
 		var err error
 		webhookClient, err = outputs.NewClient("Webhook", config.Webhook.Address, config, stats, promStats, statsdClient, dogstatsdClient)
@@ -232,6 +248,7 @@ func init() {
 			enabledOutputsText += "Webhook "
 		}
 	}
+
 	if config.Azure.EventHub.Name != "" {
 		var err error
 		azureClient, err = outputs.NewEventHubClient(config, stats, promStats, statsdClient, dogstatsdClient)
@@ -244,6 +261,7 @@ func init() {
 			}
 		}
 	}
+
 	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && config.GCP.Credentials != "" {
 		var err error
 		gcpClient, err = outputs.NewGCPClient(config, stats, promStats, statsdClient, dogstatsdClient)
@@ -267,6 +285,7 @@ func main() {
 	if config.Debug {
 		log.Printf("[INFO]  : Debug mode : %v\n", config.Debug)
 	}
+
 	if err := http.ListenAndServe(":"+strconv.Itoa(config.ListenPort), nil); err != nil {
 		log.Fatalf("[ERROR] : %v\n", err.Error())
 	}

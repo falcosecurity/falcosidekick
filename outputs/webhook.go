@@ -8,11 +8,12 @@ import (
 func (c *Client) WebhookPost(falcopayload types.FalcoPayload) {
 	err := c.Post(falcopayload)
 	if err != nil {
-		c.Stats.Webhook.Add("error", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "webhook", "status": "error"}).Inc()
+		c.Stats.Webhook.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "webhook", "status": Error}).Inc()
 	} else {
-		c.Stats.Webhook.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "webhook", "status": "ok"}).Inc()
+		c.Stats.Webhook.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "webhook", "status": OK}).Inc()
 	}
-	c.Stats.Webhook.Add("total", 1)
+
+	c.Stats.Webhook.Add(Total, 1)
 }

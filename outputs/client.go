@@ -12,9 +12,9 @@ import (
 	"regexp"
 	"strings"
 
+	"cloud.google.com/go/pubsub"
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"cloud.google.com/go/pubsub"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -94,7 +94,10 @@ func (c *Client) Post(payload interface{}) error {
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 
 	if c.Config.CheckCert == false {
-		customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		customTransport.TLSClientConfig = &tls.Config{
+			// nolint: gosec
+			InsecureSkipVerify: true,
+		}
 	}
 
 	client := &http.Client{

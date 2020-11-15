@@ -19,8 +19,10 @@ type FalcoPayload struct {
 
 // Configuration is a struct to store configuration
 type Configuration struct {
-	ListenPort    int
+	CheckCert     bool
 	Debug         bool
+	ListenPort    int
+	Customfields  map[string]string
 	Slack         SlackOutputConfig
 	Mattermost    MattermostOutputConfig
 	Rocketchat    rocketchatOutputConfig
@@ -40,8 +42,6 @@ type Configuration struct {
 	Webhook       WebhookOutputConfig
 	Azure         azureConfig
 	GCP           gcpOutputConfig
-	Customfields  map[string]string
-	CheckCert     bool
 }
 
 // SlackOutputConfig represents parameters for Slack

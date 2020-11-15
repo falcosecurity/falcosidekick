@@ -14,13 +14,13 @@ Time: {{ .Time }}
 var htmlTmpl = `
 {{ $color := "#858585"}}
 {{ if or (eq .Priority "Emergency") (eq .Priority "emergency") }}{{ $color = "#e20b0b" }}{{ end }}
-{{ if or (eq .Priority "Alert") (eq .Priority "Alert") }}{{ $color = "#ff5400" }}{{ end }}
-{{ if or (eq .Priority "Critical") (eq .Priority "critical") }}{{ $color = "#ff9000" }}{{ end }}
-{{ if or (eq .Priority "Error") (eq .Priority "error") }}{{ $color = "#ffc700" }}{{ end }}
-{{ if or (eq .Priority "Warning") (eq .Priority "warning") }}{{ $color = "#ffff00" }}{{ end }}
-{{ if or (eq .Priority "Notice") (eq .Priority "notice") }}{{ $color = "#5bffb5" }}{{ end }}
-{{ if or (eq .Priority "Informational") (eq .Priority "informational") }}{{ $color = "#68c2ff" }}{{ end }}
-{{ if or (eq .Priority "Debug") (eq .Priority "debug") }}{{ $color = "#ccfff2" }}{{ end }}
+{{ if or (eq .Priority ALERT) (eq .Priority ALERT) }}{{ $color = "#ff5400" }}{{ end }}
+{{ if or (eq .Priority CRITICAL) (eq .Priority CRITICAL) }}{{ $color = "#ff9000" }}{{ end }}
+{{ if or (eq .Priority ERROR) (eq .Priority ERROR) }}{{ $color = "#ffc700" }}{{ end }}
+{{ if or (eq .Priority WARNING) (eq .Priority WARNING) }}{{ $color = "#ffff00" }}{{ end }}
+{{ if or (eq .Priority NOTICE) (eq .Priority NOTICE) }}{{ $color = "#5bffb5" }}{{ end }}
+{{ if or (eq .Priority INFORMATIONAL) (eq .Priority INFORMATIONAL) }}{{ $color = "#68c2ff" }}{{ end }}
+{{ if or (eq .Priority DEBUG) (eq .Priority DEBUG) }}{{ $color = "#ccfff2" }}{{ end }}
 
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <style type="text/css">
@@ -45,15 +45,15 @@ var htmlTmpl = `
 </table>
 <table cellpadding="5" cellspacing="0" style="font-family:arial,helvetica,sans-serif; width:700px; font-size:13px">
     <tbody>
-        <tr>  
+        <tr>
             <td style="background-color:#858585"><span style="font-size:14px;color:#fff;"><strong>Output</strong></span></td>
             <td style="background-color:#d1d6da">{{ .Output }}</td>
         </tr>
-        <tr> 
+        <tr>
             <td style="background-color:#858585"><span style="font-size:14px;color:#fff;"><strong>Rule</strong></span></td>
             <td style="background-color:#d1d6da">{{ .Rule }}</td>
         </tr>
-        <tr> 
+        <tr>
             <td style="background-color:#858585"><span style="font-size:14px;color:#fff;"><strong>Time</strong></span></td>
             <td style="background-color:#d1d6da">{{ .Time }}</td>
         </tr>

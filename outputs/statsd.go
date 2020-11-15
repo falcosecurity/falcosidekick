@@ -30,26 +30,32 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 				t += "." + strings.Replace(s[1], " ", "", -1)
 			}
 		}
+
 		if err := c.StatsdClient.Count(metric+t, value, []string{}, 1); err != nil {
-			c.Stats.Statsd.Add("error", 1)
-			c.PromStats.Outputs.With(map[string]string{"destination": "statsd", "status": "error"}).Inc()
+			c.Stats.Statsd.Add(Error, 1)
+			c.PromStats.Outputs.With(map[string]string{"destination": "statsd", "status": Error}).Inc()
 			log.Printf("[ERROR] : StatsD - Unable to send metric (%v%v%v) : %v\n", c.Config.Statsd.Namespace, metric, t, err)
+
 			return
 		}
-		c.Stats.Statsd.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "statsd", "status": "ok"}).Inc()
+
+		c.Stats.Statsd.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "statsd", "status": OK}).Inc()
 		log.Printf("[INFO]  : StatsD - Send Metric OK (%v%v%v)\n", c.Config.Statsd.Namespace, metric, t)
 	}
+
 	if c.DogstatsdClient != nil {
 		c.Stats.Dogstatsd.Add("total", 1)
 		if err := c.DogstatsdClient.Count(metric, value, tags, 1); err != nil {
-			c.Stats.Dogstatsd.Add("error", 1)
-			c.PromStats.Outputs.With(map[string]string{"destination": "dogstatsd", "status": "error"}).Inc()
+			c.Stats.Dogstatsd.Add(Error, 1)
+			c.PromStats.Outputs.With(map[string]string{"destination": "dogstatsd", "status": Error}).Inc()
 			log.Printf("[ERROR] : DogStatsD - Send Metric Error (%v%v%v) : %v\n", c.Config.Statsd.Namespace, metric, tags, err)
+
 			return
 		}
-		c.Stats.Dogstatsd.Add("ok", 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "dogstatsd", "status": "ok"}).Inc()
+
+		c.Stats.Dogstatsd.Add(OK, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "dogstatsd", "status": OK}).Inc()
 		log.Printf("[INFO]  : DogStatsD - Send Metric OK (%v%v %v)\n", c.Config.Statsd.Namespace, metric, tags)
 	}
 }
