@@ -15,7 +15,7 @@ type slackAttachmentField struct {
 	Short bool   `json:"short"`
 }
 
-//Attachment
+// Attachment
 type slackAttachment struct {
 	Fallback   string                 `json:"fallback"`
 	Color      string                 `json:"color"`
