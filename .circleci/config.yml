@@ -2,9 +2,14 @@ version: 2.1
 workflows:
   main:
     jobs:
-      - test
-      - lint
-
+      - test:
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*(-.*)*/
+      - lint:
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*(-.*)*/
 jobs:
   test:
     docker:
