@@ -286,7 +286,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **DATADOG_APIKEY** : Datadog API Key, if not `empty`, Datadog output is *enabled*
 * **DATADOG_HOST** : Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
 * **DATADOG_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **DISCORD_WEBHOOKURL** : Discord WebhookURL (ex: https://discord.com/api/webhooks/xxxxxxxxxx...), if not empty, Discord output is enabled
+* **DISCORD_WEBHOOKURL** : Discord WebhookURL (ex: https://discord.com/api/webhooks/xxxxxxxxxx...), if not empty, Discord output is *enabled*
 * **DISCORD_ICON** : Discord icon (avatar)
 * **DISCORD_MINIMUMPRIORITY** : minimum priority of event for using use this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **ALERTMANAGER_HOSTPORT** : AlertManager http://host:port, if not `empty`, AlertManager is *enabled*
@@ -308,29 +308,29 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AWS_ACCESSKEYID** : AWS Access Key Id (optionnal if you use EC2 Instance Profile)
 * **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optionnal if you use EC2 Instance Profile)
 * **AWS_REGION** : AWS Region (optionnal if you use EC2 Instance Profile)
-* **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name, if not empty, AWS Lambda output is enabled
+* **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name, if not empty, AWS Lambda output is *enabled*
 * **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is enabled
+* **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is *enabled*
 * **AWS_SQS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **AWS_SNS_TOPICARN** : AWS SNS TopicARN, if not empty, AWS SNS output is enabled
+* **AWS_SNS_TOPICARN** : AWS SNS TopicARN, if not empty, AWS SNS output is *enabled*
 * **AWS_SNS_RAWJSON** : Send Raw JSON or parse it (default: false)
 * **AWS_SNS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **SMTP_HOSTPORT** :  "host:port" address of SMTP server, if not empty, SMTP output is enabled
+* **SMTP_HOSTPORT** :  "host:port" address of SMTP server, if not empty, SMTP output is *enabled*
 * **SMTP_USER** : user to access SMTP server
 * **SMTP_PASSWORD** : password to access SMTP server
 * **SMTP_FROM** : Sender address (mandatory if SMTP output is enabled)
 * **SMTP_TO** : comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
 * **SMTP_OUTPUTFORMAT** : "" # html (default), text
 * **SMTP_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **OPSGENIE_APIKEY** : Opsgenie API Key, if not empty, Opsgenie output is enabled
+* **OPSGENIE_APIKEY** : Opsgenie API Key, if not empty, Opsgenie output is *enabled*
 * **OPSGENIE_REGION** : "" # (us|eu) region of your domain (default is 'us')
 * **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **STATSD_FORWARDER**: The address for the StatsD forwarder, in the form http://host:port, if not empty StatsD is enabled
+* **STATSD_FORWARDER**: The address for the StatsD forwarder, in the form http://host:port, if not empty StatsD is *enabled*
 * **STATSD_NAMESPACE**: A prefix for all metrics (default: "falcosidekick.")
-* **DOGSTATSD_FORWARDER**: The address for the DogStatsD forwarder, in the form http://host:port, if not empty DogStatsD is enabled
+* **DOGSTATSD_FORWARDER**: The address for the DogStatsD forwarder, in the form http://host:port, if not empty DogStatsD is *enabled*
 * **DOGSTATSD_NAMESPACE**: A prefix for all metrics (default: falcosidekick."")
 * **DOGSTATSD_TAGS**: A comma-separated list of tags to add to all metrics
-* **WEBHOOK_ADDRESS** : "" # Webhook address, if not empty, Webhook output is enabled
+* **WEBHOOK_ADDRESS** : "" # Webhook address, if not empty, Webhook output is *enabled*
 * **WEBHOOK_CUSTOMHEADERS** : a list of comma separated custom headers to add, syntax is "key:value,key:value"
 * **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AZURE_EVENTHUB_NAME**: Name of the Hub, if not empty, EventHub is *enabled*
