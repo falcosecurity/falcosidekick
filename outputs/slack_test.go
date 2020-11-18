@@ -2,11 +2,12 @@ package outputs
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 	"text/template"
 
 	"github.com/falcosecurity/falcosidekick/types"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewSlackPayload(t *testing.T) {
@@ -47,7 +48,7 @@ func TestNewSlackPayload(t *testing.T) {
 	}
 
 	var f types.FalcoPayload
-	json.Unmarshal([]byte(falcoTestInput), &f)
+	require.Nil(t, json.Unmarshal([]byte(falcoTestInput), &f))
 	config := &types.Configuration{
 		Slack: types.SlackOutputConfig{
 			Username: "Falcosidekick",
@@ -55,10 +56,10 @@ func TestNewSlackPayload(t *testing.T) {
 		},
 	}
 
-	config.Slack.MessageFormatTemplate, _ = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
-	output := newSlackPayload(f, config)
+	var err error
+	config.Slack.MessageFormatTemplate, err = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
+	require.Nil(t, err)
 
-	if !reflect.DeepEqual(output, expectedOutput) {
-		t.Fatalf("\nexpected payload: \n%#v\ngot: \n%#v\n", expectedOutput, output)
-	}
+	output := newSlackPayload(f, config)
+	require.Equal(t, output, expectedOutput)
 }

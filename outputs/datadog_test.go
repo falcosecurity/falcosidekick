@@ -2,10 +2,11 @@ package outputs
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 
 	"github.com/falcosecurity/falcosidekick/types"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewDatadogPayload(t *testing.T) {
@@ -16,10 +17,8 @@ func TestNewDatadogPayload(t *testing.T) {
 	s, _ := json.Marshal(newDatadogPayload(f))
 
 	var o1, o2 datadogPayload
-	json.Unmarshal([]byte(expectedOutput), &o1)
-	json.Unmarshal(s, &o2)
+	require.Nil(t, json.Unmarshal([]byte(expectedOutput), &o1))
+	require.Nil(t, json.Unmarshal(s, &o2))
 
-	if !reflect.DeepEqual(o1, o2) {
-		t.Fatalf("\nexpected payload: \n%v\ngot: \n%v\n", expectedOutput, string(s))
-	}
+	require.Equal(t, o1, o2)
 }
