@@ -37,7 +37,7 @@ type googlechatPayload struct {
 
 func newGooglechatPayload(falcopayload types.FalcoPayload, config *types.Configuration) googlechatPayload {
 	var messageText string
-	var widgets []widget
+	widgets := []widget{}
 
 	if config.Googlechat.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
