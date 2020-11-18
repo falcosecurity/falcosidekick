@@ -2,10 +2,11 @@ package outputs
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 
 	"github.com/falcosecurity/falcosidekick/types"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewTeamsPayload(t *testing.T) {
@@ -38,10 +39,8 @@ func TestNewTeamsPayload(t *testing.T) {
 	}
 
 	var f types.FalcoPayload
-	json.Unmarshal([]byte(falcoTestInput), &f)
-	output := newTeamsPayload(f, &types.Configuration{})
+	require.Nil(t, json.Unmarshal([]byte(falcoTestInput), &f))
 
-	if !reflect.DeepEqual(output, expectedOutput) {
-		t.Fatalf("\nexpected payload: \n%#v\ngot: \n%#v\n", expectedOutput, output)
-	}
+	output := newTeamsPayload(f, &types.Configuration{})
+	require.Equal(t, output, expectedOutput)
 }

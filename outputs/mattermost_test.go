@@ -2,11 +2,12 @@ package outputs
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 	"text/template"
 
 	"github.com/falcosecurity/falcosidekick/types"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMattermostPayload(t *testing.T) {
@@ -47,7 +48,7 @@ func TestMattermostPayload(t *testing.T) {
 	}
 
 	var f types.FalcoPayload
-	json.Unmarshal([]byte(falcoTestInput), &f)
+	require.Nil(t, json.Unmarshal([]byte(falcoTestInput), &f))
 	config := &types.Configuration{
 		Mattermost: types.MattermostOutputConfig{
 			Username: "Falcosidekick",
@@ -55,9 +56,10 @@ func TestMattermostPayload(t *testing.T) {
 		},
 	}
 
-	config.Mattermost.MessageFormatTemplate, _ = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
+	var err error
+	config.Mattermost.MessageFormatTemplate, err = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
+	require.Nil(t, err)
+
 	output := newMattermostPayload(f, config)
-	if !reflect.DeepEqual(output, expectedOutput) {
-		t.Fatalf("\nexpected payload: \n%#v\ngot: \n%#v\n", expectedOutput, output)
-	}
+	require.Equal(t, output, expectedOutput)
 }

@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
 	"testing"
 
 	"github.com/falcosecurity/falcosidekick/types"
+
+	"github.com/stretchr/testify/require"
 )
 
 var falcoTestInput = `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"2001-01-01T01:10:00Z","output_fields": {"proc.name":"falcosidekick", "proc.tty": 1234}}`
@@ -22,14 +23,11 @@ func TestNewClient(t *testing.T) {
 
 	testClientOutput := Client{OutputType: "test", EndpointURL: u, Config: config, Stats: stats, PromStats: promStats}
 	_, err := NewClient("test", "localhost/%*$¨^!/:;", config, stats, promStats, nil, nil)
-	if err == nil {
-		t.Fatalf("error while creating client object : %v\n", err)
-	}
+	require.NotNil(t, err)
 
-	nc, _ := NewClient("test", "http://localhost", config, stats, promStats, nil, nil)
-	if !reflect.DeepEqual(&testClientOutput, nc) {
-		t.Fatalf("expected: %v, got: %v\n", testClientOutput, nc)
-	}
+	nc, err := NewClient("test", "http://localhost", config, stats, promStats, nil, nil)
+	require.Nil(t, err)
+	require.Equal(t, &testClientOutput, nc)
 }
 
 func TestPost(t *testing.T) {
@@ -57,8 +55,6 @@ func TestPost(t *testing.T) {
 		}
 	}))
 
-	nc, _ := NewClient("", "", &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
-
 	for i, j := range map[string]error{
 		"/200": nil, "/400": ErrHeaderMissing,
 		"/401": ErrClientAuthenticationError,
@@ -68,10 +64,11 @@ func TestPost(t *testing.T) {
 		"/429": ErrTooManyRequest,
 		"/502": errors.New("502 Bad Gateway"),
 	} {
-		nc, _ = NewClient("", ts.URL+i, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
-		err := nc.Post("")
-		if !reflect.DeepEqual(err, j) {
-			t.Fatalf("expected error: %v, got: %v\n", j, err)
-		}
+		nc, err := NewClient("", ts.URL+i, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
+		require.Nil(t, err)
+		require.NotEmpty(t, nc)
+
+		errPost := nc.Post("")
+		require.Equal(t, errPost, j)
 	}
 }
