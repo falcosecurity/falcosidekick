@@ -18,25 +18,25 @@ func TestNewGoogleChatPayload(t *testing.T) {
 					{
 						Widgets: []widget{
 							{
-								keyValue: keyValue{
+								keyValue{
 									TopLabel: "proc.name",
 									Content:  "falcosidekick",
 								},
 							},
 							{
-								keyValue: keyValue{
+								keyValue{
 									TopLabel: "rule",
 									Content:  "Test rule",
 								},
 							},
 							{
-								keyValue: keyValue{
+								keyValue{
 									TopLabel: "priority",
 									Content:  "Debug",
 								},
 							},
 							{
-								keyValue: keyValue{
+								keyValue{
 									TopLabel: "time",
 									Content:  "2001-01-01 01:10:00 +0000 UTC",
 								},
