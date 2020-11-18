@@ -509,3 +509,4 @@ go test ./outputs -count=1 -cover -v
 ## Author
 
 Thomas Labarussias (https://github.com/Issif)
+
