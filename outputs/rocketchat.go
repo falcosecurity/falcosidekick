@@ -17,11 +17,11 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 	if config.Rocketchat.OutputFormat == All || config.Rocketchat.OutputFormat == Fields || config.Rocketchat.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
-			switch j.(type) {
+			switch v := j.(type) {
 			case string:
 				field.Title = i
-				field.Value = j.(string)
-				if len([]rune(j.(string))) < 36 {
+				field.Value = v
+				if len([]rune(v)) < 36 {
 					field.Short = true
 				} else {
 					field.Short = false

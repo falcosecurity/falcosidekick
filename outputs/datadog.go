@@ -24,9 +24,9 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 	var tags []string
 
 	for i, j := range falcopayload.OutputFields {
-		switch j.(type) {
+		switch v := j.(type) {
 		case string:
-			tags = append(tags, i+":"+j.(string))
+			tags = append(tags, i+":"+v)
 		default:
 			continue
 		}

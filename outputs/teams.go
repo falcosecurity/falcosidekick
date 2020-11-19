@@ -46,10 +46,10 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 
 	if config.Teams.OutputFormat == All || config.Teams.OutputFormat == "facts" || config.Teams.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
-			switch j.(type) {
+			switch v := j.(type) {
 			case string:
 				fact.Name = i
-				fact.Value = j.(string)
+				fact.Value = v
 			default:
 				continue
 			}

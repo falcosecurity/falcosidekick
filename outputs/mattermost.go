@@ -17,11 +17,11 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 	if config.Mattermost.OutputFormat == All || config.Mattermost.OutputFormat == Fields || config.Mattermost.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
-			switch j.(type) {
+			switch v := j.(type) {
 			case string:
 				field.Title = i
-				field.Value = j.(string)
-				if len([]rune(j.(string))) < 36 {
+				field.Value = v
+				if len([]rune(v)) < 36 {
 					field.Short = true
 				} else {
 					field.Short = false
