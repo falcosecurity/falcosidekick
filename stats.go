@@ -42,6 +42,7 @@ func getInitStats() *types.Statistics {
 		Webhook:       getOutputNewMap("webhook"),
 		AzureEventHub: getOutputNewMap("azureeventhub"),
 		GCPPubSub:     getOutputNewMap("gcppubsub"),
+		GoogleChat:    getOutputNewMap("googlechat"),
 	}
 	stats.Falco.Add("emergency", 0)
 	stats.Falco.Add("alert", 0)

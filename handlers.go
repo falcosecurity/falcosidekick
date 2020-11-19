@@ -203,4 +203,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.GCP.PubSub.Topic != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.GCP.PubSub.MinimumPriority)] || falcopayload.Rule == TestRule) {
 		go gcpClient.GCPPublishTopic(falcopayload)
 	}
+
+	if config.Googlechat.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Googlechat.MinimumPriority)] || falcopayload.Rule == TestRule) {
+		go googleChatClient.GooglechatPost(falcopayload)
+	}
 }

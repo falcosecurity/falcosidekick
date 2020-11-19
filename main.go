@@ -32,6 +32,7 @@ var (
 	webhookClient       *outputs.Client
 	azureClient         *outputs.Client
 	gcpClient           *outputs.Client
+	googleChatClient    *outputs.Client
 )
 var statsdClient, dogstatsdClient *statsd.Client
 var config *types.Configuration
@@ -269,6 +270,16 @@ func init() {
 			config.GCP.Credentials = ""
 		} else {
 			enabledOutputsText += "GCPPubSub "
+		}
+	}
+
+	if config.Googlechat.WebhookURL != "" {
+		var err error
+		googleChatClient, err = outputs.NewClient("Googlechat", config.Googlechat.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Googlechat.WebhookURL = ""
+		} else {
+			enabledOutputsText += "Google Chat "
 		}
 	}
 

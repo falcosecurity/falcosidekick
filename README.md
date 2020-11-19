@@ -40,6 +40,7 @@ Currently available outputs are :
 * [**Azure Event Hubs**](https://azure.microsoft.com/en-in/services/event-hubs/)
 * [**Prometheus**](https://prometheus.io/) (for both events and monitoring of `falcosidekick`)
 * [**GCP PubSub**](https://cloud.google.com/pubsub)
+* [**Google Chat**](https://workspace.google.com/products/chat/)
 
 ## Usage
 
@@ -237,6 +238,11 @@ gcp:
     projectid: "" # The GCP Project ID containing the Pub/Sub Topic
     topic: "" # The name of the Pub/Sub topic
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+googleChat:
+  webhookurl: "" # Google Chat WebhookURL (ex: https://chat.googleapis.com/v1/spaces/XXXXXX/YYYYYY), if not empty, Google Chat output is enabled
+  # outputformat: "" # all (default), text
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -340,8 +346,11 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **GCP_PUBSUB_PROJECTID**: The GCP Project ID containing the Pub/Sub Topic
 * **GCP_PUBSUB_TOPIC**: The name of the Pub/Sub topic
 * **GCP_PUBSUB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **GOOGLECHAT_WEBHOOKURL** : Google Chat URL (ex: https://chat.googleapis.com/v1/spaces/XXXXXX/YYYYYY), if not `empty`, Google Chat output is *enabled*
+* **ROCKETCHAT_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Google Chat)
+* **GOOGLECHAT_MINIMUNPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
-#### Slack/Rocketchat/Mattermost Message Formatting
+#### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML value accept a [Go template](https://golang.org/pkg/text/template/) which can be used to format the text of a slack alert. These templates are evaluated on the JSON data from each Falco event - the following fields are available:
 
@@ -485,6 +494,16 @@ time                akey    bkey    ckey    priority rule      value
 ### Discord
 
 ![discord example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/discord_example.png)
+
+### Google Chat
+
+(GOOGLECHAT_OUTPUTFORMAT="**all**")
+
+![google chat example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/google_chat_example.png)
+
+(GOOGLECHAT_OUTPUTFORMAT="**text**")
+
+![google chat no fields example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/google_chat_no_fields.png)
 
 ## Development
 
