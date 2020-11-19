@@ -110,6 +110,10 @@ func getConfig() *types.Configuration {
 	v.SetDefault("GCP.PubSub.ProjectID", "")
 	v.SetDefault("GCP.PubSub.Topic", "")
 	v.SetDefault("GCP.PubSub.MinimumPriority", "")
+	v.SetDefault("Googlechat.WebhookURL", "")
+	v.SetDefault("Googlechat.OutputFormat", "all")
+	v.SetDefault("Googlechat.MessageFormat", "")
+	v.SetDefault("Googlechat.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -171,11 +175,12 @@ func getConfig() *types.Configuration {
 	c.Webhook.MinimumPriority = checkPriority(c.Webhook.MinimumPriority)
 	c.Azure.EventHub.MinimumPriority = checkPriority(c.Azure.EventHub.MinimumPriority)
 	c.GCP.PubSub.MinimumPriority = checkPriority(c.GCP.PubSub.MinimumPriority)
+	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
 	c.Mattermost.MessageFormatTemplate = getMessageFormatTemplate("Mattermost", c.Mattermost.MessageFormat)
-
+	c.Googlechat.MessageFormatTemplate = getMessageFormatTemplate("Googlechat", c.Googlechat.MessageFormat)
 	return c
 }
 

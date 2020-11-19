@@ -42,6 +42,7 @@ type Configuration struct {
 	Webhook       WebhookOutputConfig
 	Azure         azureConfig
 	GCP           gcpOutputConfig
+	Googlechat    GooglechatConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -206,6 +207,15 @@ type gcpPubSub struct {
 	MinimumPriority string
 }
 
+// GooglechatConfig represents parameters for Google chat
+type GooglechatConfig struct {
+	WebhookURL            string
+	OutputFormat          string
+	MinimumPriority       string
+	MessageFormat         string
+	MessageFormatTemplate *template.Template
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests      *expvar.Map
@@ -233,6 +243,7 @@ type Statistics struct {
 	Webhook       *expvar.Map
 	AzureEventHub *expvar.Map
 	GCPPubSub     *expvar.Map
+	GoogleChat    *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

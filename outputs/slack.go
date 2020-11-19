@@ -41,6 +41,7 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	var field slackAttachmentField
 
 	if config.Slack.OutputFormat == All || config.Slack.OutputFormat == Fields || config.Slack.OutputFormat == "" {
+		log.Print("not text!")
 		for i, j := range falcopayload.OutputFields {
 			switch v := j.(type) {
 			case string:
@@ -118,6 +119,8 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	// if config.Slack.Icon != "" {
 	// 	iconURL = config.Slack.Icon
 	// }
+
+	log.Println(messageText)
 
 	s := slackPayload{
 		Text:        messageText,
