@@ -2,11 +2,12 @@ package outputs
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 	"text/template"
 
 	"github.com/falcosecurity/falcosidekick/types"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewGoogleChatPayload(t *testing.T) {
@@ -49,15 +50,15 @@ func TestNewGoogleChatPayload(t *testing.T) {
 	}
 
 	var f types.FalcoPayload
-	json.Unmarshal([]byte(falcoTestInput), &f)
+	require.Nil(t, json.Unmarshal([]byte(falcoTestInput), &f))
 	config := &types.Configuration{
 		Googlechat: types.GooglechatConfig{},
 	}
 
-	config.Googlechat.MessageFormatTemplate, _ = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
+	var err error
+	config.Googlechat.MessageFormatTemplate, err = template.New("").Parse("Rule: {{ .Rule }} Priority: {{ .Priority }}")
+	require.Nil(t, err)
 	output := newGooglechatPayload(f, config)
 
-	if !reflect.DeepEqual(output, expectedOutput) {
-		t.Fatalf("\nexpected payload: \n%#v\ngot: \n%#v\n", expectedOutput, output)
-	}
+	require.Equal(t, output, expectedOutput)
 }
