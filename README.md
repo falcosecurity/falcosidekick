@@ -501,11 +501,12 @@ time                akey    bkey    ckey    priority rule      value
 
 (GOOGLECHAT_OUTPUTFORMAT="**all**")
 
-![google chat example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/google_chat_example.png)
+![google chat example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/google_chat_no_fields.png)
 
 (GOOGLECHAT_OUTPUTFORMAT="**text**")
 
-![google chat no fields example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/google_chat_no_fields.png)
+![google chat text example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/google_chat_example.png)
+
 
 ## Development
 
