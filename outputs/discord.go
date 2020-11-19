@@ -60,11 +60,11 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	var embedField discordEmbedFieldPayload
 
 	for i, j := range falcopayload.OutputFields {
-		switch j.(type) {
+		switch v := j.(type) {
 		case string:
 			embedField.Name = i
 			embedField.Inline = true
-			embedField.Value = "```" + j.(string) + "```"
+			embedField.Value = "```" + v + "```"
 		default:
 			continue
 		}

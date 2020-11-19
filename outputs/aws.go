@@ -157,11 +157,11 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 		}
 
 		for i, j := range falcopayload.OutputFields {
-			switch j.(type) {
+			switch v := j.(type) {
 			case string:
 				msg.MessageAttributes[i] = &sns.MessageAttributeValue{
 					DataType:    aws.String("String"),
-					StringValue: aws.String(j.(string)),
+					StringValue: aws.String(v),
 				}
 			default:
 				continue

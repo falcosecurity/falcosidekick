@@ -12,9 +12,9 @@ func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configura
 	s := "events,rule=" + strings.Replace(falcopayload.Rule, " ", "_", -1) + ",priority=" + strings.Replace(falcopayload.Priority, " ", "_", -1)
 
 	for i, j := range falcopayload.OutputFields {
-		switch j.(type) {
+		switch v := j.(type) {
 		case string:
-			s += "," + i + "=" + strings.Replace(j.(string), " ", "_", -1)
+			s += "," + i + "=" + strings.Replace(v, " ", "_", -1)
 		default:
 			continue
 		}

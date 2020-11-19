@@ -60,11 +60,11 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 			}
 			continue
 		}
-		switch j.(type) {
+		switch v := j.(type) {
 		case string:
 			//AlertManger unsupported chars in a label name
 			replacer := strings.NewReplacer(".", "_", "[", "_", "]", "")
-			amPayload.Labels[replacer.Replace(i)] = j.(string)
+			amPayload.Labels[replacer.Replace(i)] = v
 		default:
 			continue
 		}
