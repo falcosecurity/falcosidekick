@@ -25,7 +25,7 @@ type Configuration struct {
 	Customfields  map[string]string
 	Slack         SlackOutputConfig
 	Mattermost    MattermostOutputConfig
-	Rocketchat    rocketchatOutputConfig
+	Rocketchat    RocketchatOutputConfig
 	Teams         teamsOutputConfig
 	Datadog       datadogOutputConfig
 	Discord       discordOutputConfig
@@ -57,7 +57,7 @@ type SlackOutputConfig struct {
 	MessageFormatTemplate *template.Template
 }
 
-type rocketchatOutputConfig struct {
+type RocketchatOutputConfig struct {
 	WebhookURL            string
 	Footer                string
 	Icon                  string
