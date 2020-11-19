@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.18.0 - 2020-11-20
+#### New
+- New output : **Google Chat** ([PR#107](https://github.com/falcosecurity/falcosidekick/pull/107) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
+#### Enhancement
+- Add test for `Mattermost` ([PR#99](https://github.com/falcosecurity/falcosidekick/pull/99) thanks to [@pcpanato](https://github.com/cpanato))
+- Add golangci lint ([PR#100](https://github.com/falcosecurity/falcosidekick/pull/100) thanks to [@pcpanato](https://github.com/cpanato))
+- Dependecies: update several deps ([PR#103](https://github.com/falcosecurity/falcosidekick/pull/103) thanks to [@pcpanato](https://github.com/cpanato))
+- clean a bit the `Circleci` config ([PR#106](https://github.com/falcosecurity/falcosidekick/pull/106) thanks to [@pcpanato](https://github.com/cpanato))
+- Use `testify` to check the test results ([PR#108](https://github.com/falcosecurity/falcosidekick/pull/108) [PR#112](https://github.com/falcosecurity/falcosidekick/pull/112) thanks to [@pcpanato](https://github.com/cpanato))
+- Refactor type assertion in output ([PR#110](https://github.com/falcosecurity/falcosidekick/pull/110) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
+- Add test for `Rocketchat` ([PR#113](https://github.com/falcosecurity/falcosidekick/pull/113) thanks to [@pcpanato](https://github.com/cpanato))
+#### Fix
+- Fix stats for `Mattermost` ([PR#99](https://github.com/falcosecurity/falcosidekick/pull/99) thanks to [@pcpanato](https://github.com/cpanato))
+
 ## 2.17.0 - 2020-11-13
 #### New
 - New output : **GCP PubSub** ([PR#97](https://github.com/falcosecurity/falcosidekick/pull/97) thanks to [@IanRobertson-wpe](https://github.com/IanRobertson-wpe))

@@ -64,26 +64,7 @@ helm install falcosidekick --set config.debug=true falcosecurity/falcosidekick
 
 ### Falco's config
 
-If installing falco with helm, set this (adapted to your environment) in your *values.yaml* :
-
-```yaml
-jsonOutput: true
-jsonIncludeOutputProperty: true
-httpOutput:
-  enabled: true
-  url: "http://localhost:2801/"
-```
-
-or
-
-```yaml
-jsonOutput: true
-jsonIncludeOutputProperty: true
-programOutput:
-  enabled: true
-  keepAlive: false
-  program: "curl -d @- localhost:2801/"
-```
+#### with falco.yaml
 
 If managing *falco.yaml* manually, set this:
 
@@ -95,6 +76,28 @@ http_output:
   url: "http://localhost:2801/"
 ```
 
+#### with Helm
+
+If installing `falco` with `Helm`, set this (adapted to your environment) in your *values.yaml* :
+
+```yaml
+jsonOutput: true
+jsonIncludeOutputProperty: true
+httpOutput:
+  enabled: true
+  url: "http://falcosidekick:2801/"
+```
+
+or
+
+```yaml
+jsonOutput: true
+jsonIncludeOutputProperty: true
+programOutput:
+  enabled: true
+  keepAlive: false
+  program: "curl -d @- falcosidekick:2801/"
+```
 
 ### Configuration
 
