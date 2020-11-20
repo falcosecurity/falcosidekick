@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -35,7 +35,16 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	nullClient.CountMetric("total", 1, []string{})
 
 	if r.Body == nil {
-		http.Error(w, "Please send a valid request body", 400)
+		http.Error(w, "Please send a valid request body", http.StatusBadRequest)
+		stats.Requests.Add("rejected", 1)
+		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
+		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:nobody"})
+
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Please send with post http method", http.StatusBadRequest)
 		stats.Requests.Add("rejected", 1)
 		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:nobody"})
@@ -45,7 +54,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	falcopayload, err := newFalcoPayload(r.Body)
 	if err != nil || len(falcopayload.Output) == 0 {
-		http.Error(w, "Please send a valid request body", 400)
+		http.Error(w, "Please send a valid request body", http.StatusBadRequest)
 		stats.Requests.Add("rejected", 1)
 		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:invalidjson"})
@@ -66,18 +75,8 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 
 // testHandler sends a test event to all enabled outputs.
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	testEvent := `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","outputfields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`
-
-	resp, err := http.Post("http://localhost:"+strconv.Itoa(config.ListenPort), "application/json", bytes.NewBuffer([]byte(testEvent)))
-	if err != nil {
-		log.Printf("[DEBUG] : Test Failed. Falcosidekick can't call itself\n")
-	}
-	defer resp.Body.Close()
-
-	log.Printf("[DEBUG] : Test sent\n")
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("[DEBUG] : Test KO (%v)\n", resp.Status)
-	}
+	r.Body = ioutil.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","outputfields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`)))
+	mainHandler(w, r)
 }
 
 func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
