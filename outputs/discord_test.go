@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -20,7 +21,7 @@ func TestNewDiscordPayload(t *testing.T) {
 				Fields: []discordEmbedFieldPayload{
 					{
 						Name:   "proc.name",
-						Value:  "```falcosidekick```",
+						Value:  fmt.Sprintf("```%s```", "falcosidekick"),
 						Inline: true,
 					},
 					{

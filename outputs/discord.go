@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -62,26 +63,17 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	for i, j := range falcopayload.OutputFields {
 		switch v := j.(type) {
 		case string:
-			embedField.Name = i
-			embedField.Inline = true
-			embedField.Value = "```" + v + "```"
+			embedField = discordEmbedFieldPayload{i, fmt.Sprintf("```%s```", v), true}
 		default:
 			continue
 		}
+
 		embedFields = append(embedFields, embedField)
 	}
-	embedField.Name = Rule
-	embedField.Value = falcopayload.Rule
-	embedField.Inline = true
-	embedFields = append(embedFields, embedField)
-	embedField.Name = Priority
-	embedField.Value = falcopayload.Priority
-	embedField.Inline = true
-	embedFields = append(embedFields, embedField)
-	embedField.Name = Time
-	embedField.Value = falcopayload.Time.String()
-	embedField.Inline = true
-	embedFields = append(embedFields, embedField)
+
+	embedFields = append(embedFields, discordEmbedFieldPayload{Rule, falcopayload.Rule, true})
+	embedFields = append(embedFields, discordEmbedFieldPayload{Priority, falcopayload.Priority, true})
+	embedFields = append(embedFields, discordEmbedFieldPayload{Time, falcopayload.Time.String(), true})
 
 	embed := discordEmbedPayload{
 		Title:       "",
