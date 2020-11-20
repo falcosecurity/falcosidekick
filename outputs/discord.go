@@ -91,12 +91,11 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	}
 	embeds = append(embeds, embed)
 
-	ds := discordPayload{
+	return discordPayload{
 		Content:   "",
 		AvatarURL: iconURL,
 		Embeds:    embeds,
 	}
-	return ds
 }
 
 // DiscordPost posts events to discord

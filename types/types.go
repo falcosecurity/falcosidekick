@@ -28,7 +28,7 @@ type Configuration struct {
 	Rocketchat    RocketchatOutputConfig
 	Teams         teamsOutputConfig
 	Datadog       datadogOutputConfig
-	Discord       discordOutputConfig
+	Discord       DiscordOutputConfig
 	Alertmanager  alertmanagerOutputConfig
 	Elasticsearch elasticsearchOutputConfig
 	Influxdb      influxdbOutputConfig
@@ -93,7 +93,7 @@ type datadogOutputConfig struct {
 	MinimumPriority string
 }
 
-type discordOutputConfig struct {
+type DiscordOutputConfig struct {
 	WebhookURL      string
 	MinimumPriority string
 	Icon            string
