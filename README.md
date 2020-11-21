@@ -524,7 +524,7 @@ go build
 Create a debug event
 
 ```bash
-curl -H "Content-Type: application/json" -H "Accept: application/json" localhost:2801/test
+curl -X POST -H "Content-Type: application/json" -H "Accept: application/json" localhost:2801/test
 ```
 
 ### Test & Coverage
