@@ -107,7 +107,7 @@ func (c *Client) DiscordPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": Error}).Inc()
 	} else {
 		c.Stats.Discord.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": OK}).Inc()
+		c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": OK}).Inc()
 	}
 	c.Stats.Discord.Add(Total, 1)
 }
