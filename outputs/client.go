@@ -25,7 +25,7 @@ var ErrHeaderMissing = errors.New("Header missing")
 var ErrClientAuthenticationError = errors.New("Authentication Error")
 
 // ErrForbidden = 403
-var ErrForbidden = errors.New("Acces Denied")
+var ErrForbidden = errors.New("Access Denied")
 
 // ErrNotFound = 404
 var ErrNotFound = errors.New("Resource not found")
