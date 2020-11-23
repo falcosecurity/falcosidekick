@@ -194,7 +194,8 @@ func init() {
 		}
 	}
 
-	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" || config.AWS.SNS.TopicArn != "" {
+	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" ||
+		config.AWS.SNS.TopicArn != "" || config.AWS.CloudWatchLogs.LogGroup != "" {
 		var err error
 		awsClient, err = outputs.NewAWSClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
@@ -204,6 +205,8 @@ func init() {
 			config.AWS.Lambda.FunctionName = ""
 			config.AWS.SQS.URL = ""
 			config.AWS.SNS.TopicArn = ""
+			config.AWS.CloudWatchLogs.LogGroup = ""
+			config.AWS.CloudWatchLogs.LogStream = ""
 		} else {
 			if config.AWS.Lambda.FunctionName != "" {
 				enabledOutputsText += "AWSLambda "
@@ -213,6 +216,9 @@ func init() {
 			}
 			if config.AWS.SNS.TopicArn != "" {
 				enabledOutputsText += "AWSSNS "
+			}
+			if config.AWS.CloudWatchLogs.LogGroup != "" {
+				enabledOutputsText += "AWSCloudWatchLogs "
 			}
 		}
 	}
