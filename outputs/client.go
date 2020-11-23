@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/falcosecurity/falcosidekick/types"
+	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 // ErrHeaderMissing = 400
@@ -50,6 +51,7 @@ type Client struct {
 	StatsdClient    *statsd.Client
 	DogstatsdClient *statsd.Client
 	GCPTopicClient  *pubsub.Topic
+	KakaProducer    *kafka.Producer
 }
 
 // NewClient returns a new output.Client for accessing the different API.

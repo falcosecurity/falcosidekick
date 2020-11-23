@@ -206,4 +206,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Googlechat.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Googlechat.MinimumPriority)] || falcopayload.Rule == TestRule) {
 		go googleChatClient.GooglechatPost(falcopayload)
 	}
+
+	if config.Kafka.URL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Kafka.MinimumPriority)] || falcopayload.Rule == TestRule) {
+		go kafkaClient.KafkaProduce(falcopayload)
+	}
 }
