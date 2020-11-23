@@ -498,7 +498,7 @@ time                akey    bkey    ckey    priority rule      value
 
 ### Discord
 
-![discord example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/discord_example.png)
+![discord example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/discord.png)
 
 ### Google Chat
 
