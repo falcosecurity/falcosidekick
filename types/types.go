@@ -43,6 +43,7 @@ type Configuration struct {
 	Azure         azureConfig
 	GCP           gcpOutputConfig
 	Googlechat    GooglechatConfig
+	Kafka         kafkaConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -216,6 +217,13 @@ type GooglechatConfig struct {
 	MessageFormatTemplate *template.Template
 }
 
+type kafkaConfig struct {
+	URL             string
+	Topic           string
+	Partition       int32
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests      *expvar.Map
@@ -244,6 +252,7 @@ type Statistics struct {
 	AzureEventHub *expvar.Map
 	GCPPubSub     *expvar.Map
 	GoogleChat    *expvar.Map
+	Kafka         *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

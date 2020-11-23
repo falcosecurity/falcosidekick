@@ -114,6 +114,10 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Googlechat.OutputFormat", "all")
 	v.SetDefault("Googlechat.MessageFormat", "")
 	v.SetDefault("Googlechat.MinimumPriority", "")
+	v.SetDefault("Kafka.URL", "")
+	v.SetDefault("Kafka.Topic", "")
+	v.SetDefault("Karfa.Partition", 0)
+	v.SetDefault("Kafka.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -176,6 +180,7 @@ func getConfig() *types.Configuration {
 	c.Azure.EventHub.MinimumPriority = checkPriority(c.Azure.EventHub.MinimumPriority)
 	c.GCP.PubSub.MinimumPriority = checkPriority(c.GCP.PubSub.MinimumPriority)
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
+	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

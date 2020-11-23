@@ -33,6 +33,7 @@ var (
 	azureClient         *outputs.Client
 	gcpClient           *outputs.Client
 	googleChatClient    *outputs.Client
+	kafkaClient         *outputs.Client
 )
 var statsdClient, dogstatsdClient *statsd.Client
 var config *types.Configuration
@@ -280,6 +281,16 @@ func init() {
 			config.Googlechat.WebhookURL = ""
 		} else {
 			enabledOutputsText += "Google Chat "
+		}
+	}
+
+	if config.Kafka.URL != "" && config.Kafka.Topic != "" {
+		var err error
+		kafkaClient, err = outputs.NewKafkaClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.GCP.Credentials = ""
+		} else {
+			enabledOutputsText += "Kafka "
 		}
 	}
 
