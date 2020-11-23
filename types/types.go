@@ -138,6 +138,7 @@ type awsOutputConfig struct {
 	Lambda          awsLambdaConfig
 	SQS             awsSQSConfig
 	SNS             awsSNSConfig
+	CloudWatchLogs  awsCloudWatchLogs
 }
 
 type awsLambdaConfig struct {
@@ -155,6 +156,12 @@ type awsSQSConfig struct {
 type awsSNSConfig struct {
 	TopicArn        string
 	RawJSON         bool
+	MinimumPriority string
+}
+
+type awsCloudWatchLogs struct {
+	LogGroup        string
+	LogStream       string
 	MinimumPriority string
 }
 
@@ -226,33 +233,34 @@ type kafkaConfig struct {
 
 // Statistics is a struct to store stastics
 type Statistics struct {
-	Requests      *expvar.Map
-	FIFO          *expvar.Map
-	GRPC          *expvar.Map
-	Falco         *expvar.Map
-	Slack         *expvar.Map
-	Mattermost    *expvar.Map
-	Rocketchat    *expvar.Map
-	Teams         *expvar.Map
-	Datadog       *expvar.Map
-	Discord       *expvar.Map
-	Alertmanager  *expvar.Map
-	Elasticsearch *expvar.Map
-	Loki          *expvar.Map
-	Nats          *expvar.Map
-	Influxdb      *expvar.Map
-	AWSLambda     *expvar.Map
-	AWSSQS        *expvar.Map
-	AWSSNS        *expvar.Map
-	SMTP          *expvar.Map
-	Opsgenie      *expvar.Map
-	Statsd        *expvar.Map
-	Dogstatsd     *expvar.Map
-	Webhook       *expvar.Map
-	AzureEventHub *expvar.Map
-	GCPPubSub     *expvar.Map
-	GoogleChat    *expvar.Map
-	Kafka         *expvar.Map
+	Requests          *expvar.Map
+	FIFO              *expvar.Map
+	GRPC              *expvar.Map
+	Falco             *expvar.Map
+	Slack             *expvar.Map
+	Mattermost        *expvar.Map
+	Rocketchat        *expvar.Map
+	Teams             *expvar.Map
+	Datadog           *expvar.Map
+	Discord           *expvar.Map
+	Alertmanager      *expvar.Map
+	Elasticsearch     *expvar.Map
+	Loki              *expvar.Map
+	Nats              *expvar.Map
+	Influxdb          *expvar.Map
+	AWSLambda         *expvar.Map
+	AWSSQS            *expvar.Map
+	AWSSNS            *expvar.Map
+	AWSCloudWatchLogs *expvar.Map
+	SMTP              *expvar.Map
+	Opsgenie          *expvar.Map
+	Statsd            *expvar.Map
+	Dogstatsd         *expvar.Map
+	Webhook           *expvar.Map
+	AzureEventHub     *expvar.Map
+	GCPPubSub         *expvar.Map
+	GoogleChat        *expvar.Map
+	Kafka             *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

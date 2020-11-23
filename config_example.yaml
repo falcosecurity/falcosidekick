@@ -83,6 +83,10 @@ aws:
     # topicarn : "" # SNS TopicArn, if not empty, AWS SNS output is enabled
     rawjson: false # Send Raw JSON or parse it (default: false)
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  cloudwatchlogs:
+    # loggroup : "" #  AWS CloudWatch Logs Group name, if not empty, CloudWatch Logs output is enabled
+    # logstream : "" # AWS CloudWatch Logs Stream name, if empty, Falcosidekick will try to create a log stream
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
@@ -141,5 +145,5 @@ googlechat:
 kafka:
   url: "" # Apache Kafka URL (ex: http://kafka). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
-  # partition: 0 # Partition number of the topic. 
+  # partition: 0 # Partition number of the topic.
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

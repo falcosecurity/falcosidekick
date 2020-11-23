@@ -184,6 +184,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go awsClient.PublishTopic(falcopayload)
 	}
 
+	if config.AWS.CloudWatchLogs.LogGroup != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.CloudWatchLogs.MinimumPriority)] || falcopayload.Rule == TestRule) {
+		go awsClient.SendCloudWatchLog(falcopayload)
+	}
+
 	if config.SMTP.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.SMTP.MinimumPriority)] || falcopayload.Rule == TestRule) {
 		go smtpClient.SendMail(falcopayload)
 	}
@@ -191,6 +195,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Opsgenie.APIKey != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Opsgenie.MinimumPriority)] || falcopayload.Rule == TestRule) {
 		go opsgenieClient.OpsgeniePost(falcopayload)
 	}
+
 	if config.Webhook.Address != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Webhook.MinimumPriority)] || falcopayload.Rule == TestRule) {
 		go webhookClient.WebhookPost(falcopayload)
 	}

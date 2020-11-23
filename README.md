@@ -32,6 +32,7 @@ Currently available outputs are :
 * [**AWS Lambda**](https://aws.amazon.com/lambda/features/)
 * [**AWS SQS**](https://aws.amazon.com/sqs/features/)
 * [**AWS SNS**](https://aws.amazon.com/sns/features/)
+* [**AWS CloudWatchLogs**](https://aws.amazon.com/cloudwatch/features/)
 * **SMTP** (email)
 * [**Opsgenie**](https://www.opsgenie.com/)
 * [**StatsD**](https://github.com/statsd/statsd) (for monitoring of `falcosidekick`)
@@ -194,6 +195,10 @@ aws:
     # topicarn : "" # SNS TopicArn, if not empty, AWS SNS output is enabled
     rawjson: false # Send Raw JSON or parse it (default: false)
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  cloudwatchlogs:
+    # loggroup : "" #  AWS CloudWatch Logs Group name, if not empty, CloudWatch Logs output is enabled
+    # logstream : "" # AWS CloudWatch Logs Stream name, if empty, Falcosidekick will try to create a log stream
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
@@ -252,7 +257,7 @@ googlechat:
 kafka:
   url: "" # Apache Kafka URL (ex: http://kafka). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
-  # partition: 0 # Partition number of the topic. 
+  # partition: 0 # Partition number of the topic.
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
@@ -332,6 +337,8 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AWS_SNS_TOPICARN** : AWS SNS TopicARN, if not empty, AWS SNS output is *enabled*
 * **AWS_SNS_RAWJSON** : Send Raw JSON or parse it (default: false)
 * **AWS_SNS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **AWS_CLOUDWATCHLOGS_LOGGROUP** : AWS CloudWatch Logs Group name, if not empty, CloudWatch Logs output is enabled
+* **AWS_CLOUDWATCHLOGS_LOGSTREAM** : AWS CloudWatch Logs Stream name, if empty, FalcoSideKick will try to create a log stream
 * **SMTP_HOSTPORT** :  "host:port" address of SMTP server, if not empty, SMTP output is *enabled*
 * **SMTP_USER** : user to access SMTP server
 * **SMTP_PASSWORD** : password to access SMTP server
@@ -414,6 +421,81 @@ The daemon exposes a `prometheus` endpoint on URI `/metrics`.
 ### StatsD / DogStatsD
 
 The daemon is able to push its metrics to a StatsD/DogstatsD server. See [Configuration](https://github.com/falcosecurity/falcosidekick#configuration) section for how-to.
+
+
+### AWS Policy example
+
+When using the AWS output you will need to set the AWS keys with some permissions to access the resources you selected to use, like
+`SQS`, `Lambda`, `SNS` and `CloudWatchLogs`
+
+#### CloudWatch Logs Sample Policy
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "cloudwacthlogs",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:DescribeLogStreams",
+                "logs:PutRetentionPolicy",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+#### SQS Sample Policy
+
+```json
+{
+   "Version": "2012-10-17",
+   "Id": "sqs",
+   "Statement": [{
+      "Sid":"sendMessage",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "sqs:SendMessage",
+      "Resource": "arn:aws:sqs:*:111122223333:queue1"
+   }]
+}
+```
+
+#### SNS Sample Policy
+
+```json
+{
+   "Version": "2012-10-17",
+   "Id": "sns",
+   "Statement": [{
+      "Sid":"publish",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "sns:Publish",
+      "Resource": "arn:aws:sqs:*:111122223333:queue1"
+   }]
+}
+```
+
+#### Lambda Sample Policy
+
+```json
+{
+   "Version": "2012-10-17",
+   "Id": "lambda",
+   "Statement": [{
+      "Sid":"invoke",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "lambda:InvokeFunction",
+      "Resource": "*"
+   }]
+}
+```
 
 ## Examples
 
