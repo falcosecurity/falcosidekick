@@ -51,7 +51,7 @@ type Client struct {
 	StatsdClient    *statsd.Client
 	DogstatsdClient *statsd.Client
 	GCPTopicClient  *pubsub.Topic
-	KakaProducer    *kafka.Producer
+	KafkaProducer    *kafka.Producer
 }
 
 // NewClient returns a new output.Client for accessing the different API.

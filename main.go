@@ -288,7 +288,7 @@ func init() {
 		var err error
 		kafkaClient, err = outputs.NewKafkaClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
-			config.GCP.Credentials = ""
+			config.Kafka.URL = ""
 		} else {
 			enabledOutputsText += "Kafka "
 		}
