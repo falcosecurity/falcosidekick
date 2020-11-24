@@ -250,8 +250,8 @@ googlechat:
   messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Google Chat Text above Attachment, displayed in addition to the output from `GOOGLECHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
 
 kafka:
-  url: "" # Apache Kafka URL (ex: http://kafka). Defaults to port 9092 if no port is specified after the domain.
-  topic: "" # Name of the topic
+  url: "" # Apache Kafka URL (ex: http://kafka). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
+  topic: "" # Name of the topic, if not empty, Kafka output is enabled
   # partition: 0 # Partition number of the topic. 
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
