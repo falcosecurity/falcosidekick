@@ -361,6 +361,10 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **GOOGLECHAT_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in Google Chat)
 * **GOOGLECHAT_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **GOOGLECHAT_MESSAGEFORMAT** : a Go template to format Google Chat Text above Attachment, displayed in addition to the output from `GOOGLECHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before sections.
+* **KAFKA_URL**: THe URL of the Kafka server (ex: http://kafka), if not empty, Kafka is *enabled*
+* **KAFKA_TOPIC**: The name of the Kafka topic
+* **KAFKA_PARTITION**: The number of the Kafka partition
+* **KAFKA_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
