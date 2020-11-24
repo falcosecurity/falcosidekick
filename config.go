@@ -116,7 +116,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Googlechat.MinimumPriority", "")
 	v.SetDefault("Kafka.URL", "")
 	v.SetDefault("Kafka.Topic", "")
-	v.SetDefault("Karfa.Partition", 0)
+	v.SetDefault("Kafka.Partition", 0)
 	v.SetDefault("Kafka.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

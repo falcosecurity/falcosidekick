@@ -24,7 +24,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 		PromStats:       promStats,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
-		KakaProducer:    p,
+		KafkaProducer:    p,
 	}, nil
 }
 
@@ -32,7 +32,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 func (c *Client) KafkaProduce(falcopayload types.FalcoPayload) {
 	b, err := json.Marshal(falcopayload)
 	if err != nil {
-		log.Printf("[ERROR] : Kafka - %v - %v\n", "Error while marshaling message", err.Error())
+		log.Printf("[ERROR] : Kafka - %v - %v\n", "Error while marshalling message", err.Error())
 	}
 
 	msg := &kafka.Message{
@@ -48,7 +48,7 @@ func (c *Client) KafkaProduce(falcopayload types.FalcoPayload) {
 		msg.TopicPartition.Partition = c.Config.Kafka.Partition
 	}
 
-	err = c.KakaProducer.Produce(msg, nil)
+	err = c.KafkaProducer.Produce(msg, nil)
 
 	if err != nil {
 		c.Stats.Kafka.Add(Error, 1)
