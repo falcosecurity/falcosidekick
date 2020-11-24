@@ -24,7 +24,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 		PromStats:       promStats,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
-		KafkaProducer:    p,
+		KafkaProducer:   p,
 	}, nil
 }
 
