@@ -339,6 +339,7 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **AWS_SNS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AWS_CLOUDWATCHLOGS_LOGGROUP** : AWS CloudWatch Logs Group name, if not empty, CloudWatch Logs output is enabled
 * **AWS_CLOUDWATCHLOGS_LOGSTREAM** : AWS CloudWatch Logs Stream name, if empty, FalcoSideKick will try to create a log stream
+* **AWS_CLOUDWATCHLOGS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **SMTP_HOSTPORT** :  "host:port" address of SMTP server, if not empty, SMTP output is *enabled*
 * **SMTP_USER** : user to access SMTP server
 * **SMTP_PASSWORD** : password to access SMTP server
