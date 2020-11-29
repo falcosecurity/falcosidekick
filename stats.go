@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/falcosecurity/falcosidekick/outputs"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -46,31 +47,31 @@ func getInitStats() *types.Statistics {
 		GoogleChat:        getOutputNewMap("googlechat"),
 		Kafka:             getOutputNewMap("kafka"),
 	}
-	stats.Falco.Add("emergency", 0)
-	stats.Falco.Add("alert", 0)
-	stats.Falco.Add("critical", 0)
-	stats.Falco.Add("error", 0)
-	stats.Falco.Add("warning", 0)
-	stats.Falco.Add("notice", 0)
-	stats.Falco.Add("informational", 0)
-	stats.Falco.Add("debug", 0)
-	stats.Falco.Add("unknown", 0)
+	stats.Falco.Add(outputs.Emergency, 0)
+	stats.Falco.Add(outputs.Alert, 0)
+	stats.Falco.Add(outputs.Critical, 0)
+	stats.Falco.Add(outputs.Error, 0)
+	stats.Falco.Add(outputs.Warning, 0)
+	stats.Falco.Add(outputs.Notice, 0)
+	stats.Falco.Add(outputs.Informational, 0)
+	stats.Falco.Add(outputs.Debug, 0)
+	stats.Falco.Add(outputs.None, 0)
 
 	return stats
 }
 
 func getInputNewMap(s string) *expvar.Map {
 	e := expvar.NewMap("inputs." + s)
-	e.Add("total", 0)
-	e.Add("rejected", 0)
-	e.Add("accepted", 0)
+	e.Add(outputs.Total, 0)
+	e.Add(outputs.Rejected, 0)
+	e.Add(outputs.Accepted, 0)
 	return e
 }
 
 func getOutputNewMap(s string) *expvar.Map {
 	e := expvar.NewMap("outputs." + s)
-	e.Add("total", 0)
-	e.Add("error", 0)
-	e.Add("ok", 0)
+	e.Add(outputs.Total, 0)
+	e.Add(outputs.Error, 0)
+	e.Add(outputs.OK, 0)
 	return e
 }

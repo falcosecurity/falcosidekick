@@ -13,9 +13,11 @@ const (
 	Info          string = "info"
 	None          string = "none"
 
-	All    string = "all"
-	Fields string = "fields"
-	Total  string = "total"
+	All      string = "all"
+	Fields   string = "fields"
+	Total    string = "total"
+	Rejected string = "rejected"
+	Accepted string = "accepted"
 
 	Rule     string = "rule"
 	Priority string = "priority"

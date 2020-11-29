@@ -274,7 +274,8 @@ func init() {
 		var err error
 		gcpClient, err = outputs.NewGCPClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
-			config.GCP.Credentials = ""
+			config.GCP.PubSub.ProjectID = ""
+			config.GCP.PubSub.Topic = ""
 		} else {
 			enabledOutputsText += "GCPPubSub "
 		}
