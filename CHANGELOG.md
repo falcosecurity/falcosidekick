@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.19.0 - 2020-12-01
+#### New
+- New output : **Apache Kafka** ([PR#124](https://github.com/falcosecurity/falcosidekick/pull/124) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
+- New output : **Cloudwatch Logs** ([PR#127](https://github.com/falcosecurity/falcosidekick/pull/127) thanks to [@pcpanato](https://github.com/cpanato))
+#### Enhancement
+- Bump Golang version to `1.15` ([PR#128](https://github.com/falcosecurity/falcosidekick/pull/128) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
+- Add a contributing document ([PR#123](https://github.com/falcosecurity/falcosidekick/pull/123) thanks to [@pcpanato](https://github.com/cpanato))
+- Add a `.dockerignore` for small images ([PR#126](https://github.com/falcosecurity/falcosidekick/pull/126) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
+- Refactor HTTP server handler ([PR#116](https://github.com/falcosecurity/falcosidekick/pull/116) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
+- Add test for `Discord` ([PR#117](https://github.com/falcosecurity/falcosidekick/pull/117) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
+#### Fix
+- Fix Discord output's Prometheus metrics ([PR#118](https://github.com/falcosecurity/falcosidekick/pull/118) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
+- Fix `nil pointer` when `GCP` configuration is incorrect ([PR#130](https://github.com/falcosecurity/falcosidekick/pull/130))
+
 ## 2.18.0 - 2020-11-20
 #### New
 - New output : **Google Chat** ([PR#107](https://github.com/falcosecurity/falcosidekick/pull/107) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
