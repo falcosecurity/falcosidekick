@@ -1,12 +1,16 @@
 # Changelog
 
+## 2.19.1 - 2020-12-02
+#### Fix
+- Fix dockerfile to build the new kafka output ([PR#56](https://github.com/falcosecurity/falcosidekick/pull/132) thanks to [@cpanato](https://github.com/cpanato))
+
 ## 2.19.0 - 2020-12-01
 #### New
 - New output : **Apache Kafka** ([PR#124](https://github.com/falcosecurity/falcosidekick/pull/124) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
-- New output : **Cloudwatch Logs** ([PR#127](https://github.com/falcosecurity/falcosidekick/pull/127) thanks to [@pcpanato](https://github.com/cpanato))
+- New output : **Cloudwatch Logs** ([PR#127](https://github.com/falcosecurity/falcosidekick/pull/127) thanks to [@cpanato](https://github.com/cpanato))
 #### Enhancement
 - Bump Golang version to `1.15` ([PR#128](https://github.com/falcosecurity/falcosidekick/pull/128) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
-- Add a contributing document ([PR#123](https://github.com/falcosecurity/falcosidekick/pull/123) thanks to [@pcpanato](https://github.com/cpanato))
+- Add a contributing document ([PR#123](https://github.com/falcosecurity/falcosidekick/pull/123) thanks to [@cpanato](https://github.com/cpanato))
 - Add a `.dockerignore` for small images ([PR#126](https://github.com/falcosecurity/falcosidekick/pull/126) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
 - Refactor HTTP server handler ([PR#116](https://github.com/falcosecurity/falcosidekick/pull/116) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
 - Add test for `Discord` ([PR#117](https://github.com/falcosecurity/falcosidekick/pull/117) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
@@ -18,15 +22,15 @@
 #### New
 - New output : **Google Chat** ([PR#107](https://github.com/falcosecurity/falcosidekick/pull/107) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
 #### Enhancement
-- Add test for `Mattermost` ([PR#99](https://github.com/falcosecurity/falcosidekick/pull/99) thanks to [@pcpanato](https://github.com/cpanato))
-- Add golangci lint ([PR#100](https://github.com/falcosecurity/falcosidekick/pull/100) thanks to [@pcpanato](https://github.com/cpanato))
-- Dependecies: update several deps ([PR#103](https://github.com/falcosecurity/falcosidekick/pull/103) thanks to [@pcpanato](https://github.com/cpanato))
-- clean a bit the `Circleci` config ([PR#106](https://github.com/falcosecurity/falcosidekick/pull/106) thanks to [@pcpanato](https://github.com/cpanato))
-- Use `testify` to check the test results ([PR#108](https://github.com/falcosecurity/falcosidekick/pull/108) [PR#112](https://github.com/falcosecurity/falcosidekick/pull/112) thanks to [@pcpanato](https://github.com/cpanato))
+- Add test for `Mattermost` ([PR#99](https://github.com/falcosecurity/falcosidekick/pull/99) thanks to [@cpanato](https://github.com/cpanato))
+- Add golangci lint ([PR#100](https://github.com/falcosecurity/falcosidekick/pull/100) thanks to [@cpanato](https://github.com/cpanato))
+- Dependecies: update several deps ([PR#103](https://github.com/falcosecurity/falcosidekick/pull/103) thanks to [@cpanato](https://github.com/cpanato))
+- clean a bit the `Circleci` config ([PR#106](https://github.com/falcosecurity/falcosidekick/pull/106) thanks to [@cpanato](https://github.com/cpanato))
+- Use `testify` to check the test results ([PR#108](https://github.com/falcosecurity/falcosidekick/pull/108) [PR#112](https://github.com/falcosecurity/falcosidekick/pull/112) thanks to [@cpanato](https://github.com/cpanato))
 - Refactor type assertion in output ([PR#110](https://github.com/falcosecurity/falcosidekick/pull/110) thanks to [@KeisukeYamashita](https://github.com/KeisukeYamashita))
-- Add test for `Rocketchat` ([PR#113](https://github.com/falcosecurity/falcosidekick/pull/113) thanks to [@pcpanato](https://github.com/cpanato))
+- Add test for `Rocketchat` ([PR#113](https://github.com/falcosecurity/falcosidekick/pull/113) thanks to [@cpanato](https://github.com/cpanato))
 #### Fix
-- Fix stats for `Mattermost` ([PR#99](https://github.com/falcosecurity/falcosidekick/pull/99) thanks to [@pcpanato](https://github.com/cpanato))
+- Fix stats for `Mattermost` ([PR#99](https://github.com/falcosecurity/falcosidekick/pull/99) thanks to [@cpanato](https://github.com/cpanato))
 
 ## 2.17.0 - 2020-11-13
 #### New
@@ -49,7 +53,7 @@
 #### Fix
 - Fix unsupported chars in a label name for `AlertManager` ([PR#78](https://github.com/falcosecurity/falcosidekick/pull/78) thanks to [@epcim](https://github.com/epcim))
 #### Note
-The Helm chart has been migrated to [falcosecurity/charts](https://github.com/falcosecurity/charts/tree/master/falcosidekick), the official repository chart of `falco` organization. You can now install it from [artifacthub.io](https://artifacthub.io/packages/helm/falcosecurity/falcosidekick). 
+The Helm chart has been migrated to [falcosecurity/charts](https://github.com/falcosecurity/charts/tree/master/falcosidekick), the official repository chart of `falco` organization. You can now install it from [artifacthub.io](https://artifacthub.io/packages/helm/falcosecurity/falcosidekick).
 
 ## 2.14.0 - 2020-08-10
 #### New
@@ -96,7 +100,7 @@ This release is the last one with an Helm chart, the next ones will be in [Falco
 - New output : **DogStatsD**
 - New metrics : *running goroutines*, *number of used CPU*
 #### Enhancement
-- :boom: Standardization of metric names (to be consistent between *expar* and *(Dog)StatsD*) 
+- :boom: Standardization of metric names (to be consistent between *expar* and *(Dog)StatsD*)
 - :boom: New namespace for metrics (*inputs*), will be used for future *inputs* (*fifo*, *gRPC*)
 #### Fix
 - *StatsD* implementation worked only with *DogStatsD* ([issue #49](https://github.com/falcosecurity/falcosidekick/issues/49))
@@ -168,20 +172,20 @@ This release is the last one with an Helm chart, the next ones will be in [Falco
 - Falcosidekick can now be deployed with Helm (see [README](https://github.com/falcosecurity/falcosidekick/blob/master/README.md)) ([PR#25](https://github.com/falcosecurity/falcosidekick/pull/25) thanks to [@SweetOps](https://github.com/SweetOps))
 
 ## 2.2.0 - 2019-06-13
-#### New 
+#### New
 - A minimum priority for each output can be set
 - New output : **Influxdb** ([issue #4](https://github.com/falcosecurity/falcosidekick/issues/4))
 #### Fix
 - Panic happened when trying to add `customfields` but falco event hadn't
 
 ## 2.1.0 - 2019-06-12
-#### New 
+#### New
 - Custom fields can be added to falco events (see [README](https://github.com/falcosecurity/falcosidekick/blob/master/README.md)) ([PR#26](https://github.com/falcosecurity/falcosidekick/pull/26) thanks to [@zetaab](https://github.com/zetaab))
 #### Fix
 - Fix `Slack.Output` in config.go ([PR#24](https://github.com/falcosecurity/falcosidekick/pull/24) thanks to [@SweetOps](https://github.com/SweetOps))
 
 ## 2.0.0 - 2019-05-23
-#### New 
+#### New
 - New output : **Elasticsearch** ([issue #14](https://github.com/falcosecurity/falcosidekick/issues/14))
 - **New configuration method : we can now use a config file in YAML and/or env vars** (see *README*) ([issue #17](https://github.com/falcosecurity/falcosidekick/issues/17))
 - New endpoint : `/debug/vars` gives access to Golang + Custom metrics (see *README*) ([issue #17](https://github.com/falcosecurity/falcosidekick/issues/17))
@@ -237,7 +241,7 @@ This release is the last one with an Helm chart, the next ones will be in [Falco
 ## 1.0.2 - 2018-10-10
 #### Enhancement
 - Update changelog
-- Update README with new Slack Options + more info 
+- Update README with new Slack Options + more info
 
 ## 1.0.1 - 2018-10-10
 #### New
