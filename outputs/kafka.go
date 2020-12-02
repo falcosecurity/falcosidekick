@@ -5,8 +5,9 @@ import (
 	"log"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+
 	"github.com/falcosecurity/falcosidekick/types"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 // NewKafkaClient returns a new output.Client for accessing the Apache Kafka.
