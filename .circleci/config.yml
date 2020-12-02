@@ -19,6 +19,14 @@ jobs:
     - checkout
     - run: make test
 
+  build-image:
+    executor:
+      name: default
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run: make build-image
+
 workflows:
   main:
     jobs:
@@ -30,3 +38,11 @@ workflows:
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)*(-.*)*/
+      - build-image:
+          requires:
+            - test
+            - lint
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*(-.*)*/
+
