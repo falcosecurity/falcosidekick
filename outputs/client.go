@@ -15,8 +15,9 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+
 	"github.com/falcosecurity/falcosidekick/types"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
 )
 
 // ErrHeaderMissing = 400

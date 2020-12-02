@@ -12,6 +12,7 @@ GOPROXY := https://proxy.golang.org
 endif
 export GOPROXY
 GO ?= go
+DOCKER ?= docker
 TEST_FLAGS ?= -v -race
 
 # Directories.
@@ -32,6 +33,10 @@ GOLANGCI_LINT := $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER)
 .PHONY: falcosidekick
 falcosidekick:
 	$(GO) build -o $@
+
+.PHONY: build-image
+build-image:
+	$(DOCKER) build . -t falcosecurity/falcosidekick:latest
 
 ## --------------------------------------
 ## Test

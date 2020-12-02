@@ -1,21 +1,21 @@
-# Build image (Golang)
-FROM golang:1.14-alpine AS build-stage
-ENV GO111MODULE on
-ENV CGO_ENABLED 0
+ARG BUILDER_IMAGE=golang:1.15.5-alpine
+ARG BASE_IMAGE=alpine:3.12
 
-RUN apk add --no-cache gcc git make
+FROM ${BUILDER_IMAGE} AS build-stage
+
+RUN apk add --update --no-cache alpine-sdk ca-certificates librdkafka coreutils
 
 WORKDIR /src
 ADD . .
 
 RUN go mod download
-RUN go build -o falcosidekick
+RUN go build -tags musl -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o falcosidekick .
 
 # Final Docker image
-FROM alpine AS final-stage
+FROM ${BASE_IMAGE} AS final-stage
 LABEL MAINTAINER "Thomas Labarussias <issif+falcosidekick@gadz.org>"
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --update --no-cache ca-certificates librdkafka
 
 # Create user falcosidekick
 RUN addgroup -S falcosidekick && adduser -u 1234 -S falcosidekick -G falcosidekick
@@ -24,6 +24,7 @@ RUN addgroup -S falcosidekick && adduser -u 1234 -S falcosidekick -G falcosideki
 USER 1234
 
 WORKDIR ${HOME}/app
+COPY --from=build-stage /src/LICENSE .
 COPY --from=build-stage /src/falcosidekick .
 
 EXPOSE 2801
