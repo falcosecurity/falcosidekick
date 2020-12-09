@@ -18,6 +18,7 @@ const (
 	Total    string = "total"
 	Rejected string = "rejected"
 	Accepted string = "accepted"
+	Outputs  string = "outputs"
 
 	Rule     string = "rule"
 	Priority string = "priority"

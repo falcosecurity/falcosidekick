@@ -26,6 +26,7 @@ var (
 	influxdbClient      *outputs.Client
 	lokiClient          *outputs.Client
 	natsClient          *outputs.Client
+	stanClient          *outputs.Client
 	awsClient           *outputs.Client
 	smtpClient          *outputs.Client
 	opsgenieClient      *outputs.Client
@@ -34,12 +35,13 @@ var (
 	gcpClient           *outputs.Client
 	googleChatClient    *outputs.Client
 	kafkaClient         *outputs.Client
+
+	statsdClient, dogstatsdClient *statsd.Client
+	config                        *types.Configuration
+	stats                         *types.Statistics
+	promStats                     *types.PromStatistics
+	priorityMap                   map[string]int
 )
-var statsdClient, dogstatsdClient *statsd.Client
-var config *types.Configuration
-var stats *types.Statistics
-var promStats *types.PromStatistics
-var priorityMap map[string]int
 
 func init() {
 	config = getConfig()
@@ -176,6 +178,18 @@ func init() {
 			config.Nats.HostPort = ""
 		} else {
 			enabledOutputsText += "NATS "
+		}
+	}
+
+	if config.Stan.HostPort != "" && config.Stan.ClusterID != "" && config.Stan.ClientID != "" {
+		var err error
+		stanClient, err = outputs.NewClient("STAN", config.Stan.HostPort, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Stan.HostPort = ""
+			config.Stan.ClusterID = ""
+			config.Stan.ClientID = ""
+		} else {
+			enabledOutputsText += "STAN "
 		}
 	}
 

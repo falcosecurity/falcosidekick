@@ -28,6 +28,7 @@ Currently available outputs are :
 * [**Elasticsearch**](https://www.elastic.co/)
 * [**Loki**](https://grafana.com/oss/loki)
 * [**NATS**](https://nats.io/)
+* [**STAN (NATS Streaming)**](https://docs.nats.io/nats-streaming-concepts/intro)
 * [**Influxdb**](https://www.influxdata.com/products/influxdb-overview/)
 * [**AWS Lambda**](https://aws.amazon.com/lambda/features/)
 * [**AWS SQS**](https://aws.amazon.com/sqs/features/)
@@ -181,6 +182,12 @@ nats:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
+stan:
+  # hostport: "" # nats://{domain or ip}:{port}, if not empty, STAN output is enabled
+  # clusterid: "" # Cluster name, if not empty, STAN output is enabled
+  # clientid: "" # Client ID, if not empty, STAN output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 aws:
   # accesskeyid: "" # aws access key (optionnal if you use EC2 Instance Profile)
   # secretaccesskey: "" # aws secret access key (optionnal if you use EC2 Instance Profile)
@@ -327,6 +334,10 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **LOKI_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **NATS_HOSTPORT** : NATS "nats://host:port", if not `empty`, NATS is *enabled*
 * **NATS_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **STAN_HOSTPORT** : NATS "nats://host:port", if not `empty`, STAN is *enabled*
+* **STAN_CLUSTERID** : Cluster name, if not `empty`, STAN is *enabled*
+* **STAN_CLIENTID** : Client ID to use, if not `empty`, STAN is *enabled*
+* **STAN_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AWS_ACCESSKEYID** : AWS Access Key Id (optionnal if you use EC2 Instance Profile)
 * **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optionnal if you use EC2 Instance Profile)
 * **AWS_REGION** : AWS Region (optionnal if you use EC2 Instance Profile)
