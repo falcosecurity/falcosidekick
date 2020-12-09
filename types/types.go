@@ -34,6 +34,7 @@ type Configuration struct {
 	Influxdb      influxdbOutputConfig
 	Loki          lokiOutputConfig
 	Nats          natsOutputConfig
+	Stan          stanOutputConfig
 	AWS           awsOutputConfig
 	SMTP          smtpOutputConfig
 	Opsgenie      opsgenieOutputConfig
@@ -128,6 +129,13 @@ type lokiOutputConfig struct {
 
 type natsOutputConfig struct {
 	HostPort        string
+	MinimumPriority string
+}
+
+type stanOutputConfig struct {
+	HostPort        string
+	ClusterID       string
+	ClientID        string
 	MinimumPriority string
 }
 
@@ -247,6 +255,7 @@ type Statistics struct {
 	Elasticsearch     *expvar.Map
 	Loki              *expvar.Map
 	Nats              *expvar.Map
+	Stan              *expvar.Map
 	Influxdb          *expvar.Map
 	AWSLambda         *expvar.Map
 	AWSSQS            *expvar.Map

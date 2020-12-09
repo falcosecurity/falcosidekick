@@ -172,6 +172,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go natsClient.NatsPublish(falcopayload)
 	}
 
+	if config.Stan.HostPort != "" && config.Stan.ClusterID != "" && config.Stan.ClientID != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Stan.MinimumPriority)] || falcopayload.Rule == TestRule) {
+		go stanClient.StanPublish(falcopayload)
+	}
+
 	if config.AWS.Lambda.FunctionName != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.Lambda.MinimumPriority)] || falcopayload.Rule == TestRule) {
 		go awsClient.InvokeLambda(falcopayload)
 	}

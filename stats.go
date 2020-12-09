@@ -32,6 +32,7 @@ func getInitStats() *types.Statistics {
 		Elasticsearch:     getOutputNewMap("elasticsearch"),
 		Loki:              getOutputNewMap("loki"),
 		Nats:              getOutputNewMap("nats"),
+		Stan:              getOutputNewMap("stan"),
 		Influxdb:          getOutputNewMap("influxdb"),
 		AWSLambda:         getOutputNewMap("awslambda"),
 		AWSSQS:            getOutputNewMap("awssqs"),
