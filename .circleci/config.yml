@@ -27,6 +27,19 @@ jobs:
     - setup_remote_docker
     - run: make build-image
 
+  build-push-main:
+    executor:
+      name: default
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run: make build-image
+    - run:
+        command: |
+          echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
+          docker push falcosecurity/falcosidekick:latest
+
+
 workflows:
   main:
     jobs:
@@ -45,4 +58,11 @@ workflows:
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)*(-.*)*/
-
+      - build-push-main:
+          context: falco
+          requires:
+            - test
+            - lint
+          filters:
+            branches:
+              only: master
