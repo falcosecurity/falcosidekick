@@ -216,7 +216,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go googleChatClient.GooglechatPost(falcopayload)
 	}
 
-	if config.Kafka.URL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Kafka.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Kafka.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Kafka.MinimumPriority)] || falcopayload.Rule == TestRule) {
 		go kafkaClient.KafkaProduce(falcopayload)
 	}
 }

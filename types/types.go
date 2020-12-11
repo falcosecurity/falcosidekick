@@ -233,9 +233,9 @@ type GooglechatConfig struct {
 }
 
 type kafkaConfig struct {
-	URL             string
+	HostPort        string
 	Topic           string
-	Partition       int32
+	Partition       int
 	MinimumPriority string
 }
 

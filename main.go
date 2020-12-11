@@ -305,11 +305,11 @@ func init() {
 		}
 	}
 
-	if config.Kafka.URL != "" && config.Kafka.Topic != "" {
+	if config.Kafka.HostPort != "" && config.Kafka.Topic != "" {
 		var err error
 		kafkaClient, err = outputs.NewKafkaClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
-			config.Kafka.URL = ""
+			config.Kafka.HostPort = ""
 		} else {
 			enabledOutputsText += "Kafka "
 		}

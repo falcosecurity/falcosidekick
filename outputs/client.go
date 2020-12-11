@@ -15,7 +15,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/segmentio/kafka-go"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -52,7 +52,7 @@ type Client struct {
 	StatsdClient    *statsd.Client
 	DogstatsdClient *statsd.Client
 	GCPTopicClient  *pubsub.Topic
-	KafkaProducer   *kafka.Producer
+	KafkaProducer   *kafka.Conn
 }
 
 // NewClient returns a new output.Client for accessing the different API.
