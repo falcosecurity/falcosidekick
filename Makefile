@@ -47,6 +47,10 @@ test:
 	$(GO) vet ./...
 	$(GO) test ${TEST_FLAGS} ./...
 
+.PHONY: test-coverage
+test-coverage:
+	$(GO) test ./outputs -count=1 -cover -v ./...
+
 ## --------------------------------------
 ## Linting
 ## --------------------------------------
@@ -64,7 +68,6 @@ lint-full: $(GOLANGCI_LINT) ## Run slower linters to detect possible issues
 
 $(GOLANGCI_LINT): ## Build golangci-lint from tools folder.
 	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) github.com/golangci/golangci-lint/cmd/golangci-lint $(GOLANGCI_LINT_BIN) $(GOLANGCI_LINT_VER)
-
 
 ## --------------------------------------
 ## Cleanup / Verification

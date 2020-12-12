@@ -621,7 +621,7 @@ time                akey    bkey    ckey    priority rule      value
 ### Build
 
 ```bash
-go build
+make falcosidekick
 ```
 
 ### Quicktest
@@ -635,7 +635,13 @@ curl -X POST -H "Content-Type: application/json" -H "Accept: application/json" l
 ### Test & Coverage
 
 ```bash
-go test ./outputs -count=1 -cover -v
+make test
+```
+
+With Coverage
+
+```bash
+make test-coverage
 ```
 
 ## Author
