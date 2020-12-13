@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"log"
 	"strings"
 	"time"
 
@@ -45,14 +46,19 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 
 // LokiPost posts event to Loki
 func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
+	c.Stats.Loki.Add(Total, 1)
+
 	err := c.Post(newLokiPayload(falcopayload, c.Config))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:loki", "status:error"})
 		c.Stats.Loki.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": Error}).Inc()
-	} else {
-		c.Stats.Loki.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": OK}).Inc()
+		log.Printf("[ERROR] : Loki - %v\n", err)
+		return
 	}
 
-	c.Stats.Loki.Add(Total, 1)
+	go c.CountMetric(Outputs, 1, []string{"output:loki", "status:ok"})
+	c.Stats.Loki.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": OK}).Inc()
+	log.Printf("[INFO] : Loki - Publish OK\n")
 }
