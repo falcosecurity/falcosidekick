@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -92,13 +93,20 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 
 // DiscordPost posts events to discord
 func (c *Client) DiscordPost(falcopayload types.FalcoPayload) {
+	c.Stats.Discord.Add(Total, 1)
+
 	err := c.Post(newDiscordPayload(falcopayload, c.Config))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:discord", "status:error"})
 		c.Stats.Discord.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": Error}).Inc()
-	} else {
-		c.Stats.Discord.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": OK}).Inc()
+		log.Printf("[ERROR] : Discord - %v\n", err)
+		return
 	}
-	c.Stats.Discord.Add(Total, 1)
+
+	// Setting the success status
+	go c.CountMetric(Outputs, 1, []string{"output:discord", "status:ok"})
+	c.Stats.Discord.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": OK}).Inc()
+	log.Printf("[INFO] : Discord - Publish OK\n")
 }
