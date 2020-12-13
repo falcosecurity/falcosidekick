@@ -40,7 +40,7 @@ func (c *Client) StanPublish(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:stan", "status:ok"})
 	c.Stats.Stan.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "stan", "status": OK}).Inc()
-	log.Printf("[INFO]  : STAN - Publish OK\n")
+	log.Printf("[INFO] : STAN - Publish OK\n")
 }
 
 // setStanErrorMetrics set the error stats
