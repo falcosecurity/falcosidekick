@@ -9,11 +9,13 @@ import (
 )
 
 func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
-	var messageText string
-	var attachments []slackAttachment
-	var attachment slackAttachment
-	var fields []slackAttachmentField
-	var field slackAttachmentField
+	var (
+		messageText string
+		attachments []slackAttachment
+		attachment  slackAttachment
+		fields      []slackAttachmentField
+		field       slackAttachmentField
+	)
 
 	if config.Mattermost.OutputFormat == All || config.Mattermost.OutputFormat == Fields || config.Mattermost.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
@@ -29,6 +31,7 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 			default:
 				continue
 			}
+
 			fields = append(fields, field)
 		}
 
@@ -60,7 +63,7 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 	if config.Mattermost.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
 		if err := config.Mattermost.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
-			log.Printf("[ERROR] : Error expanding Slack message %v", err)
+			log.Printf("[ERROR] : Mattermost - Error expanding Mattermost message %v", err)
 		} else {
 			messageText = buf.String()
 		}
@@ -106,14 +109,20 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 // MattermostPost posts event to Mattermost
 func (c *Client) MattermostPost(falcopayload types.FalcoPayload) {
+	c.Stats.Mattermost.Add(Total, 1)
+
 	err := c.Post(newMattermostPayload(falcopayload, c.Config))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:mattermost", "status:error"})
 		c.Stats.Mattermost.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": Error}).Inc()
-	} else {
-		c.Stats.Mattermost.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": OK}).Inc()
+		log.Printf("[ERROR] : Mattermost - %v\n", err)
+		return
 	}
 
-	c.Stats.Mattermost.Add(Total, 1)
+	// Setting the success status
+	go c.CountMetric(Outputs, 1, []string{"output:mattermost", "status:ok"})
+	c.Stats.Mattermost.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": OK}).Inc()
+	log.Printf("[INFO] : Mattermost - Publish OK\n")
 }
