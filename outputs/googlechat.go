@@ -42,7 +42,7 @@ func newGooglechatPayload(falcopayload types.FalcoPayload, config *types.Configu
 	if config.Googlechat.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
 		if err := config.Googlechat.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
-			log.Printf("[ERROR] : Error expanding Google Chat message %v", err)
+			log.Printf("[ERROR] : GoogleChat - Error expanding Google Chat message %v", err)
 		} else {
 			messageText = buf.String()
 		}
@@ -89,14 +89,19 @@ func newGooglechatPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 // GooglechatPost posts event to Google Chat
 func (c *Client) GooglechatPost(falcopayload types.FalcoPayload) {
+	c.Stats.GoogleChat.Add(Total, 1)
+
 	err := c.Post(newGooglechatPayload(falcopayload, c.Config))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:googlechat", "status:error"})
 		c.Stats.GoogleChat.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "googlechat", "status": Error}).Inc()
-	} else {
-		c.Stats.GoogleChat.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "googlechat", "status": OK}).Inc()
+		log.Printf("[ERROR] : GoogleChat - %v\n", err)
+		return
 	}
 
-	c.Stats.GoogleChat.Add(Total, 1)
+	go c.CountMetric(Outputs, 1, []string{"output:googlechat", "status:ok"})
+	c.Stats.GoogleChat.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "googlechat", "status": OK}).Inc()
+	log.Printf("[INFO]  : GoogleChat - Publish OK\n")
 }
