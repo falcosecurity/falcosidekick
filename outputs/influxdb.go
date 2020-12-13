@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"log"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -27,14 +28,20 @@ func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configura
 
 // InfluxdbPost posts event to InfluxDB
 func (c *Client) InfluxdbPost(falcopayload types.FalcoPayload) {
+	c.Stats.Influxdb.Add(Total, 1)
+
 	err := c.Post(newInfluxdbPayload(falcopayload, c.Config))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:influxdb", "status:error"})
 		c.Stats.Influxdb.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": Error}).Inc()
-	} else {
-		c.Stats.Influxdb.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": OK}).Inc()
+		log.Printf("[ERROR] : InfluxDB - %v\n", err)
+		return
 	}
 
-	c.Stats.Influxdb.Add(Total, 1)
+	// Setting the success status
+	go c.CountMetric(Outputs, 1, []string{"output:influxdb", "status:ok"})
+	c.Stats.Influxdb.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": OK}).Inc()
+	log.Printf("[INFO] : InfluxDB - Publish OK\n")
 }
