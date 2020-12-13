@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"log"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -53,13 +54,19 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 
 // DatadogPost posts event to Datadog
 func (c *Client) DatadogPost(falcopayload types.FalcoPayload) {
+	c.Stats.Datadog.Add(Total, 1)
+
 	err := c.Post(newDatadogPayload(falcopayload))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:datadog", "status:error"})
 		c.Stats.Datadog.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": Error}).Inc()
-	} else {
-		c.Stats.Datadog.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": OK}).Inc()
+		log.Printf("[ERROR] : Datadog - %v\n", err)
+		return
 	}
-	c.Stats.Datadog.Add(Total, 1)
+
+	go c.CountMetric(Outputs, 1, []string{"output:datadog", "status:ok"})
+	c.Stats.Datadog.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": OK}).Inc()
+	log.Printf("[INFO] : Datadog - Publish OK\n")
 }
