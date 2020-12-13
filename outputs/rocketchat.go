@@ -9,11 +9,13 @@ import (
 )
 
 func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
-	var messageText string
-	var attachments []slackAttachment
-	var attachment slackAttachment
-	var fields []slackAttachmentField
-	var field slackAttachmentField
+	var (
+		messageText string
+		attachments []slackAttachment
+		attachment  slackAttachment
+		fields      []slackAttachmentField
+		field       slackAttachmentField
+	)
 
 	if config.Rocketchat.OutputFormat == All || config.Rocketchat.OutputFormat == Fields || config.Rocketchat.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
@@ -29,6 +31,7 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 			default:
 				continue
 			}
+
 			fields = append(fields, field)
 		}
 
@@ -55,7 +58,7 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 	if config.Rocketchat.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
 		if err := config.Rocketchat.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
-			log.Printf("[ERROR] : Error expanding Slack message %v", err)
+			log.Printf("[ERROR] : RocketChat - Error expanding RocketChat message %v", err)
 		} else {
 			messageText = buf.String()
 		}
@@ -102,14 +105,20 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 // RocketchatPost posts event to Rocketchat
 func (c *Client) RocketchatPost(falcopayload types.FalcoPayload) {
+	c.Stats.Rocketchat.Add(Total, 1)
+
 	err := c.Post(newRocketchatPayload(falcopayload, c.Config))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:rocketchat", "status:error"})
 		c.Stats.Rocketchat.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "rocketchat", "status": Error}).Inc()
-	} else {
-		c.Stats.Rocketchat.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "rocketchat", "status": OK}).Inc()
+		log.Printf("[ERROR] : RocketChat - %v\n", err.Error())
+		return
 	}
 
-	c.Stats.Rocketchat.Add(Total, 1)
+	// Setting the success status
+	go c.CountMetric(Outputs, 1, []string{"output:rocketchat", "status:ok"})
+	c.Stats.Rocketchat.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "rocketchat", "status": OK}).Inc()
+	log.Printf("[INFO] : RocketChat - Publish OK\n")
 }
