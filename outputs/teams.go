@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"log"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -28,10 +29,12 @@ type teamsPayload struct {
 }
 
 func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuration) teamsPayload {
-	var sections []teamsSection
-	var section teamsSection
-	var facts []teamsFact
-	var fact teamsFact
+	var (
+		sections []teamsSection
+		section  teamsSection
+		facts    []teamsFact
+		fact     teamsFact
+	)
 
 	section.ActivityTitle = "Falco Sidekick"
 	section.ActivitySubTitle = falcopayload.Time.String()
@@ -53,6 +56,7 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 			default:
 				continue
 			}
+
 			facts = append(facts, fact)
 		}
 
@@ -100,14 +104,20 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 
 // TeamsPost posts event to Teams
 func (c *Client) TeamsPost(falcopayload types.FalcoPayload) {
+	c.Stats.Teams.Add(Total, 1)
+
 	err := c.Post(newTeamsPayload(falcopayload, c.Config))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:teams", "status:error"})
 		c.Stats.Teams.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": Error}).Inc()
-	} else {
-		c.Stats.Teams.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": OK}).Inc()
+		log.Printf("[ERROR] : Teams - %v\n", err)
+		return
 	}
 
-	c.Stats.Teams.Add(Total, 1)
+	// Setting the success status
+	go c.CountMetric(Outputs, 1, []string{"output:teams", "status:ok"})
+	c.Stats.Teams.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": OK}).Inc()
+	log.Printf("[INFO] : Teams - Publish OK\n")
 }
