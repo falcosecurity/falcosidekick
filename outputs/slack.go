@@ -34,11 +34,13 @@ type slackPayload struct {
 }
 
 func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
-	var messageText string
-	var attachments []slackAttachment
-	var attachment slackAttachment
-	var fields []slackAttachmentField
-	var field slackAttachmentField
+	var (
+		messageText string
+		attachments []slackAttachment
+		attachment  slackAttachment
+		fields      []slackAttachmentField
+		field       slackAttachmentField
+	)
 
 	if config.Slack.OutputFormat == All || config.Slack.OutputFormat == Fields || config.Slack.OutputFormat == "" {
 		for i, j := range falcopayload.OutputFields {
@@ -54,6 +56,7 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 			default:
 				continue
 			}
+
 			fields = append(fields, field)
 		}
 
@@ -85,7 +88,7 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	if config.Slack.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
 		if err := config.Slack.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
-			log.Printf("[ERROR] : Error expanding Slack message %v", err)
+			log.Printf("[ERROR] : Slack - Error expanding Slack message %v", err)
 		} else {
 			messageText = buf.String()
 		}
@@ -114,11 +117,6 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 
 	attachments = append(attachments, attachment)
 
-	// iconURL := DefaultIconURL
-	// if config.Slack.Icon != "" {
-	// 	iconURL = config.Slack.Icon
-	// }
-
 	s := slackPayload{
 		Text:        messageText,
 		Username:    config.Slack.Username,
@@ -130,14 +128,20 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 
 // SlackPost posts event to Slack
 func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
+	c.Stats.Slack.Add(Total, 1)
+
 	err := c.Post(newSlackPayload(falcopayload, c.Config))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:slack", "status:error"})
 		c.Stats.Slack.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "slack", "status": Error}).Inc()
-	} else {
-		c.Stats.Slack.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "slack", "status": OK}).Inc()
+		log.Printf("[ERROR] : Slack - %v\n", err)
+		return
 	}
 
-	c.Stats.Slack.Add(Total, 1)
+	// Setting the success status
+	go c.CountMetric(Outputs, 1, []string{"output:slack", "status:ok"})
+	c.Stats.Slack.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "slack", "status": OK}).Inc()
+	log.Printf("[INFO] : Slack - Publish OK\n")
 }
