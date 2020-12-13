@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"log"
 	"strconv"
 	"strings"
 
@@ -84,13 +85,19 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 
 // AlertmanagerPost posts event to AlertManager
 func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
+	c.Stats.Alertmanager.Add(Total, 1)
+
 	err := c.Post(newAlertmanagerPayload(falcopayload))
 	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:error"})
 		c.Stats.Alertmanager.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": Error}).Inc()
-	} else {
-		c.Stats.Alertmanager.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": OK}).Inc()
+		log.Printf("[ERROR] : AlertManager - %v\n", err)
+		return
 	}
-	c.Stats.Alertmanager.Add(Total, 1)
+
+	go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:ok"})
+	c.Stats.Alertmanager.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": OK}).Inc()
+	log.Printf("[INFO]  : AlertManager - Publish OK\n")
 }
