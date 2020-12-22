@@ -208,8 +208,12 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go azureClient.EventHubPost(falcopayload)
 	}
 
-	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.GCP.PubSub.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.GCSCC.MinimumPriority)] || falcopayload.Rule == TestRule) {
 		go gcpClient.GCPPublishTopic(falcopayload)
+	}
+
+	if config.GCSCC.WebhookURL != "" && config.GCSCC.AuthenticationToken != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.GCP.PubSub.MinimumPriority)] || falcopayload.Rule == TestRule) {
+		go gcsccClient.GCSCCPost(falcopayload)
 	}
 
 	if config.Googlechat.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Googlechat.MinimumPriority)] || falcopayload.Rule == TestRule) {

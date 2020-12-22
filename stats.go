@@ -45,6 +45,7 @@ func getInitStats() *types.Statistics {
 		Webhook:           getOutputNewMap("webhook"),
 		AzureEventHub:     getOutputNewMap("azureeventhub"),
 		GCPPubSub:         getOutputNewMap("gcppubsub"),
+		GCSCC:             getOutputNewMap("gcscc"),
 		GoogleChat:        getOutputNewMap("googlechat"),
 		Kafka:             getOutputNewMap("kafka"),
 	}

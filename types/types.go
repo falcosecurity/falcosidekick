@@ -43,6 +43,7 @@ type Configuration struct {
 	Webhook       WebhookOutputConfig
 	Azure         azureConfig
 	GCP           gcpOutputConfig
+	GCSCC         gcsccOutputConfig
 	Googlechat    GooglechatConfig
 	Kafka         kafkaConfig
 }
@@ -59,6 +60,7 @@ type SlackOutputConfig struct {
 	MessageFormatTemplate *template.Template
 }
 
+// RocketchatOutputConfig represents parameters for Rocketchat
 type RocketchatOutputConfig struct {
 	WebhookURL            string
 	Footer                string
@@ -95,6 +97,7 @@ type datadogOutputConfig struct {
 	MinimumPriority string
 }
 
+// DiscordOutputConfig represents parameters for Discord
 type DiscordOutputConfig struct {
 	WebhookURL      string
 	MinimumPriority string
@@ -217,6 +220,12 @@ type gcpOutputConfig struct {
 	PubSub      gcpPubSub
 }
 
+type gcsccOutputConfig struct {
+	WebhookURL          string
+	AuthenticationToken string
+	MinimumPriority     string
+}
+
 type gcpPubSub struct {
 	ProjectID       string
 	Topic           string
@@ -268,6 +277,7 @@ type Statistics struct {
 	Webhook           *expvar.Map
 	AzureEventHub     *expvar.Map
 	GCPPubSub         *expvar.Map
+	GCSCC             *expvar.Map
 	GoogleChat        *expvar.Map
 	Kafka             *expvar.Map
 }

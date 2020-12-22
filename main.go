@@ -33,6 +33,7 @@ var (
 	webhookClient       *outputs.Client
 	azureClient         *outputs.Client
 	gcpClient           *outputs.Client
+	gcsccClient         *outputs.Client
 	googleChatClient    *outputs.Client
 	kafkaClient         *outputs.Client
 
@@ -302,6 +303,17 @@ func init() {
 			config.Googlechat.WebhookURL = ""
 		} else {
 			enabledOutputsText += "Google Chat "
+		}
+	}
+
+	if config.GCSCC.WebhookURL != "" && config.GCSCC.AuthenticationToken != "" {
+		var err error
+		gcsccClient, err = outputs.NewClient("GCSCC", config.GCSCC.WebhookURL, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.GCSCC.WebhookURL = ""
+			config.GCSCC.AuthenticationToken = ""
+		} else {
+			enabledOutputsText += "GCSCC "
 		}
 	}
 

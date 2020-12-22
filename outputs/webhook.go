@@ -6,7 +6,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-// WebhookPost posts event to Slack
+// WebhookPost posts event to an HTTP Endpoiny
 func (c *Client) WebhookPost(falcopayload types.FalcoPayload) {
 	c.Stats.Webhook.Add(Total, 1)
 

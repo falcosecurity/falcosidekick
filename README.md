@@ -44,6 +44,7 @@ Currently available outputs are :
 * [**GCP PubSub**](https://cloud.google.com/pubsub)
 * [**Google Chat**](https://workspace.google.com/products/chat/)
 * [**Apache Kafka**](https://kafka.apache.org/)
+* [**GCSCC (Google Cloud Security Command Center**](https://cloud.google.com/security-command-center)
 
 ## Usage
 
@@ -266,6 +267,11 @@ kafka:
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
   # partition: 0 # Partition number of the topic.
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+gcscc:
+  webhookurl: "" # GCSCC Webhookurl (ex: http://sysdig-gcscc-connector.default.svc.cluster.local:8080/events), if not empty, GCSCC output is enabled
+  authenticationtoken: "" # GCSCC Token for authentication (mandatory) (ex: 'Bearer b27511f86e911f20b9e0f9c8104b4ec4')
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -384,6 +390,9 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **KAFKA_TOPIC**: The name of the Kafka topic
 * **KAFKA_PARTITION**: The number of the Kafka partition
 * **KAFKA_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **GCSCC_WEBHOOKURL** : GCSCC Webhookurl (ex: http://sysdig-gcscc-connector.default.svc.cluster.local:8080/events), if not `empty`, GCSCC output is *enabled*
+* **GCSCC_AUTHENTICATIONTOKEN** : GCSCC Token for authentication (*mandatory*) (ex: 'Bearer b27511f86e911f20b9e0f9c8104b4ec4')
+* **GCSCC_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 

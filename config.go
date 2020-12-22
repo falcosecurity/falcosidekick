@@ -119,6 +119,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("GCP.PubSub.ProjectID", "")
 	v.SetDefault("GCP.PubSub.Topic", "")
 	v.SetDefault("GCP.PubSub.MinimumPriority", "")
+	v.SetDefault("GCSCC.WebHookURL", "")
+	v.SetDefault("GCSCC.AuthenticationToken", "")
+	v.SetDefault("GCSCC.MinimumPriority", "")
 	v.SetDefault("Googlechat.WebhookURL", "")
 	v.SetDefault("Googlechat.OutputFormat", "all")
 	v.SetDefault("Googlechat.MessageFormat", "")
@@ -190,6 +193,7 @@ func getConfig() *types.Configuration {
 	c.Webhook.MinimumPriority = checkPriority(c.Webhook.MinimumPriority)
 	c.Azure.EventHub.MinimumPriority = checkPriority(c.Azure.EventHub.MinimumPriority)
 	c.GCP.PubSub.MinimumPriority = checkPriority(c.GCP.PubSub.MinimumPriority)
+	c.GCSCC.MinimumPriority = checkPriority(c.GCSCC.MinimumPriority)
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
 	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
 

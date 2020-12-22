@@ -129,6 +129,10 @@ func (c *Client) Post(payload interface{}) error {
 		}
 	}
 
+	if c.OutputType == "GCSCC" {
+		req.Header.Add("Authorization", c.Config.GCSCC.AuthenticationToken)
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
