@@ -45,6 +45,7 @@ type Configuration struct {
 	GCP           gcpOutputConfig
 	Googlechat    GooglechatConfig
 	Kafka         kafkaConfig
+	Pagerduty     pagerdutyConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -239,6 +240,14 @@ type kafkaConfig struct {
 	MinimumPriority string
 }
 
+type pagerdutyConfig struct {
+	APIKey           string
+	Service          string
+	Assignee         []string
+	EscalationPolicy string
+	MinimumPriority  string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -270,6 +279,7 @@ type Statistics struct {
 	GCPPubSub         *expvar.Map
 	GoogleChat        *expvar.Map
 	Kafka             *expvar.Map
+	Pagerduty         *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

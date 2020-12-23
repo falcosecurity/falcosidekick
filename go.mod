@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.8.3
 	github.com/Azure/azure-event-hubs-go/v3 v3.3.3
 	github.com/DataDog/datadog-go v4.2.0+incompatible
+	github.com/PagerDuty/go-pagerduty v1.3.0
 	github.com/aws/aws-sdk-go v1.35.30
 	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21
 	github.com/emersion/go-smtp v0.14.0

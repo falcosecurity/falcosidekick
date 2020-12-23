@@ -35,6 +35,7 @@ var (
 	gcpClient           *outputs.Client
 	googleChatClient    *outputs.Client
 	kafkaClient         *outputs.Client
+	pagerdutyClient     *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -312,6 +313,16 @@ func init() {
 			config.Kafka.HostPort = ""
 		} else {
 			enabledOutputsText += "Kafka "
+		}
+	}
+
+	if config.Pagerduty.Service != "" {
+		var err error
+		pagerdutyClient, err = outputs.NewPagerdutyClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Pagerduty.Service = ""
+		} else {
+			enabledOutputsText += "Pagerduty "
 		}
 	}
 

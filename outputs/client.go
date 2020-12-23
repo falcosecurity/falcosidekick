@@ -14,6 +14,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/PagerDuty/go-pagerduty"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/segmentio/kafka-go"
 
@@ -53,6 +54,7 @@ type Client struct {
 	DogstatsdClient *statsd.Client
 	GCPTopicClient  *pubsub.Topic
 	KafkaProducer   *kafka.Conn
+	PagerdutyClient *pagerduty.Client
 }
 
 // NewClient returns a new output.Client for accessing the different API.

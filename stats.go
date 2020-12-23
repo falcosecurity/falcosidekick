@@ -47,6 +47,7 @@ func getInitStats() *types.Statistics {
 		GCPPubSub:         getOutputNewMap("gcppubsub"),
 		GoogleChat:        getOutputNewMap("googlechat"),
 		Kafka:             getOutputNewMap("kafka"),
+		Pagerduty:         getOutputNewMap("pagerduty"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

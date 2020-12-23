@@ -219,4 +219,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Kafka.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Kafka.MinimumPriority)] || falcopayload.Rule == TestRule) {
 		go kafkaClient.KafkaProduce(falcopayload)
 	}
+
+	if (len(config.Pagerduty.Assignee) > 0 || config.Pagerduty.EscalationPolicy != "") && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Pagerduty.MinimumPriority)] || falcopayload.Rule == TestRule) {
+		go kafkaClient.PagerdutyPost(falcopayload)
+	}
 }
