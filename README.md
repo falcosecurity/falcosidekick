@@ -44,6 +44,7 @@ Currently available outputs are :
 * [**GCP PubSub**](https://cloud.google.com/pubsub)
 * [**Google Chat**](https://workspace.google.com/products/chat/)
 * [**Apache Kafka**](https://kafka.apache.org/)
+* [**PagerDuty**](https://pagerduty.com/)
 
 ## Usage
 
@@ -268,8 +269,8 @@ kafka:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 pagerduty:
-  # apikey: # Pagerduty API Key, if not empty, Pagerduty is enabled
-  service: "" # Service to create an incident
+  # apikey: # Pagerduty API Key, if not empty, Pagerduty output is enabled
+  service: "" # Service to create an incident (mandatory)
   assignee: "" # A list of comma separated users to assign. Cannot be provided if pagerduty.escalationpolicy is already specified.
   escalationpolicy: "" # Escalation policy to assign. Cannot be provided if pagerduty.escalationpolicy is already specified
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
@@ -391,6 +392,8 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **KAFKA_TOPIC**: The name of the Kafka topic
 * **KAFKA_PARTITION**: The number of the Kafka partition
 * **KAFKA_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **PAGERDUTY_APIKEY**: Pagerduty API Key, if not empty, Pagerduty output is *enabled*
+* **PAGERDUTY_SERVICE**: Service to create an incident (mandatory)
 * **PAGERDUTY_ASSIGNEE**: A list of comma separated users to assign. Cannot be provided if `PAGERDUTY_ESCALATION_POLICY` is already specified. If not empty, Pagerduty is *enabled*
 * **PAGERDUTY_ESCALATION_POLICY**: Escalation policy to assign. Cannot be provided if `PAGERDUTY_ASSIGNEE` is already specified.If not empty, Pagerduty is *enabled*
 * **PAGERDUTY_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
