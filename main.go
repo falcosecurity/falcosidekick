@@ -316,10 +316,11 @@ func init() {
 		}
 	}
 
-	if config.Pagerduty.Service != "" {
+	if config.Pagerduty.APIKey != "" && config.Pagerduty.Service != "" {
 		var err error
 		pagerdutyClient, err = outputs.NewPagerdutyClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
+			config.Pagerduty.APIKey = ""
 			config.Pagerduty.Service = ""
 		} else {
 			enabledOutputsText += "Pagerduty "

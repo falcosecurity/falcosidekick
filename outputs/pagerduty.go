@@ -16,7 +16,7 @@ func NewPagerdutyClient(config *types.Configuration, stats *types.Statistics, pr
 	}
 
 	return &Client{
-		OutputType:      "GCP",
+		OutputType:      "PagerDuty",
 		Config:          config,
 		Stats:           stats,
 		PromStats:       promStats,
@@ -26,22 +26,49 @@ func NewPagerdutyClient(config *types.Configuration, stats *types.Statistics, pr
 	}, nil
 }
 
-// PagerdutyPost posts incident to Pagerduty
-func (c *Client) PagerdutyPost(falcopayload types.FalcoPayload) {
+// PagerdutyCreateIncident posts incident to Pagerduty
+func (c *Client) PagerdutyCreateIncident(falcopayload types.FalcoPayload) {
 	c.Stats.Pagerduty.Add(Total, 1)
 
-	// TODO: Implement pagerduty post
-	err := c.Post(newDatadogPayload(falcopayload))
-	if err != nil {
+	opts := &pagerduty.CreateIncidentOptions{
+		Type:  "incident",
+		Title: falcopayload.Output,
+		Service: &pagerduty.APIReference{
+			ID:   c.Config.Pagerduty.Service,
+			Type: "service_reference",
+		},
+	}
+
+	if len(c.Config.Pagerduty.Assignee) > 0 {
+		assignments := make([]pagerduty.Assignee, len(c.Config.Pagerduty.Assignee))
+		for i, a := range c.Config.Pagerduty.Assignee {
+			assignments[i] = pagerduty.Assignee{
+				Assignee: pagerduty.APIObject{
+					ID:   a,
+					Type: "user_reference",
+				},
+			}
+		}
+		opts.Assignments = assignments
+	}
+
+	if policy := c.Config.Pagerduty.EscalationPolicy; policy != "" {
+		opts.EscalationPolicy = &pagerduty.APIReference{
+			ID:   policy,
+			Type: "escalation_policy_reference",
+		}
+	}
+
+	if _, err := c.PagerdutyClient.CreateIncident("falcosidekick", opts); err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:pagerduty", "status:error"})
 		c.Stats.Pagerduty.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "pagerduty", "status": Error}).Inc()
-		log.Printf("[ERROR] : Pagerduty - %v\n", err)
+		log.Printf("[ERROR] : PagerDuty - %v\n", err)
 		return
 	}
 
 	go c.CountMetric(Outputs, 1, []string{"output:pagerduty", "status:ok"})
 	c.Stats.Pagerduty.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "pagerduty", "status": OK}).Inc()
-	log.Printf("[INFO] : Pagerduty - Publish OK\n")
+	log.Printf("[INFO] : Pagerduty - Create Incident OK\n")
 }

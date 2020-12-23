@@ -197,7 +197,7 @@ func getConfig() *types.Configuration {
 	c.GCP.PubSub.MinimumPriority = checkPriority(c.GCP.PubSub.MinimumPriority)
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
 	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
-	c.Pagerduty.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
+	c.Pagerduty.MinimumPriority = checkPriority(c.Pagerduty.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

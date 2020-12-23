@@ -220,7 +220,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go kafkaClient.KafkaProduce(falcopayload)
 	}
 
-	if (len(config.Pagerduty.Assignee) > 0 || config.Pagerduty.EscalationPolicy != "") && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Pagerduty.MinimumPriority)] || falcopayload.Rule == TestRule) {
-		go kafkaClient.PagerdutyPost(falcopayload)
+	if config.Pagerduty.APIKey != "" && config.Pagerduty.Service != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Pagerduty.MinimumPriority)] || falcopayload.Rule == TestRule) {
+		go pagerdutyClient.PagerdutyCreateIncident(falcopayload)
 	}
 }
