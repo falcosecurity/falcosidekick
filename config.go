@@ -127,6 +127,11 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Kafka.Topic", "")
 	v.SetDefault("Kafka.Partition", 0)
 	v.SetDefault("Kafka.MinimumPriority", "")
+	v.SetDefault("Pagerduty.APIKey", "")
+	v.SetDefault("Pagerduty.Service", "")
+	v.SetDefault("Pagerduty.Assignee", []string{})
+	v.SetDefault("Pagerduty.EscalationPolicy", "")
+	v.SetDefault("Pagerduty.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -192,6 +197,7 @@ func getConfig() *types.Configuration {
 	c.GCP.PubSub.MinimumPriority = checkPriority(c.GCP.PubSub.MinimumPriority)
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
 	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
+	c.Pagerduty.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
