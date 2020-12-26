@@ -332,6 +332,7 @@ func init() {
 
 func main() {
 	http.HandleFunc("/", mainHandler)
+	http.HandleFunc("/ping", pingHandler)
 	http.HandleFunc("/healthz", healthHandler)
 	http.HandleFunc("/test", testHandler)
 	http.Handle("/metrics", promhttp.Handler())

@@ -68,9 +68,14 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	forwardEvent(falcopayload)
 }
 
+// pingHandler is a simple handler to test if daemon is UP.
+func pingHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("pong\n"))
+}
+
 // healthHandler is a simple handler to test if daemon is UP.
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("pong\n"))
+	w.WriteHeader(http.StatusOK)
 }
 
 // testHandler sends a test event to all enabled outputs.
