@@ -417,7 +417,8 @@ Go templates also support some basic methods for text manipulation which can be 
 Different URI (handlers) are available :
 
 * `/` : main and default handler, your falco config must be configured to use it
-* `/ping` : you will get a  `pong` as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck purpose for example)
+* `/ping` : you will get a  `pong` as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck purpose for example). This endpoint is deprecated and it will be removed in `3.0.0`.
+* `/healthz`: you will get a HTTP status code `200` response as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck or purpose for example)
 * `/test` : (for debug only) send a test event to all enabled outputs.
 * `/debug/vars` : get statistics from daemon (in JSON format), it uses classic `expvar` package and some custom values are added
 * `/metrics` : prometheus endpoint, for scraping metrics about events and `falcosidekick`
