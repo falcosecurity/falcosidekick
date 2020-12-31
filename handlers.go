@@ -75,7 +75,8 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 
 // healthHandler is a simple handler to test if daemon is UP.
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
+	w.Header().Add("Content-Type", "application/json")
+	w.Write([]byte("{\"status\": \"ok\"}"))
 }
 
 // testHandler sends a test event to all enabled outputs.
