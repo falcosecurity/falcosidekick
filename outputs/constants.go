@@ -35,4 +35,6 @@ const (
 	LigthBlue string = "#68c2ff"
 	Lightcyan string = "#5bffb5"
 	Orange    string = "#ff5400"
+
+	Kubeless string = "Kubeless"
 )

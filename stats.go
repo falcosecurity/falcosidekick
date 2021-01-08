@@ -48,6 +48,7 @@ func getInitStats() *types.Statistics {
 		GoogleChat:        getOutputNewMap("googlechat"),
 		Kafka:             getOutputNewMap("kafka"),
 		Pagerduty:         getOutputNewMap("pagerduty"),
+		Kubeless:          getOutputNewMap("kubeless"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

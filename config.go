@@ -132,6 +132,11 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Pagerduty.Assignee", []string{})
 	v.SetDefault("Pagerduty.EscalationPolicy", "")
 	v.SetDefault("Pagerduty.MinimumPriority", "")
+	v.SetDefault("Kubeless.Namespace", "")
+	v.SetDefault("Kubeless.Function", "")
+	v.SetDefault("Kubeless.Port", 8080)
+	v.SetDefault("Kubeless.Kubeconfig", "")
+	v.SetDefault("Kubeless.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -198,6 +203,7 @@ func getConfig() *types.Configuration {
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
 	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
 	c.Pagerduty.MinimumPriority = checkPriority(c.Pagerduty.MinimumPriority)
+	c.Kubeless.MinimumPriority = checkPriority(c.Kubeless.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
