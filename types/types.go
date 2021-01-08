@@ -46,6 +46,7 @@ type Configuration struct {
 	Googlechat    GooglechatConfig
 	Kafka         kafkaConfig
 	Pagerduty     pagerdutyConfig
+	Kubeless      kubelessConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -60,6 +61,7 @@ type SlackOutputConfig struct {
 	MessageFormatTemplate *template.Template
 }
 
+// RocketchatOutputConfig .
 type RocketchatOutputConfig struct {
 	WebhookURL            string
 	Footer                string
@@ -96,6 +98,7 @@ type datadogOutputConfig struct {
 	MinimumPriority string
 }
 
+// DiscordOutputConfig .
 type DiscordOutputConfig struct {
 	WebhookURL      string
 	MinimumPriority string
@@ -248,6 +251,14 @@ type pagerdutyConfig struct {
 	MinimumPriority  string
 }
 
+type kubelessConfig struct {
+	Namespace       string
+	Function        string
+	Port            int
+	Kubeconfig      string
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -280,6 +291,7 @@ type Statistics struct {
 	GoogleChat        *expvar.Map
 	Kafka             *expvar.Map
 	Pagerduty         *expvar.Map
+	Kubeless          *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

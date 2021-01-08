@@ -45,6 +45,7 @@ Currently available outputs are :
 * [**Google Chat**](https://workspace.google.com/products/chat/)
 * [**Apache Kafka**](https://kafka.apache.org/)
 * [**PagerDuty**](https://pagerduty.com/)
+* [**Kubeless**](https://kubeless.io/)
 
 ## Usage
 
@@ -274,6 +275,13 @@ pagerduty:
   assignee: "" # A list of comma separated users to assign. Cannot be provided if pagerduty.escalationpolicy is already specified.
   escalationpolicy: "" # Escalation policy to assign. Cannot be provided if pagerduty.escalationpolicy is already specified
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+kubeless:
+  function: "" # Name of Kubeless function, if not empty, Kubeless is enabled
+  namespace: "" # Namespace of Kubeless function (mandatory)
+  port: 8080 # Port of service of Kubeless function
+  kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcoside is running outside the cluster)
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -397,6 +405,11 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **PAGERDUTY_ASSIGNEE**: A list of comma separated users to assign. Cannot be provided if `PAGERDUTY_ESCALATION_POLICY` is already specified. If not empty, Pagerduty is *enabled*
 * **PAGERDUTY_ESCALATION_POLICY**: Escalation policy to assign. Cannot be provided if `PAGERDUTY_ASSIGNEE` is already specified.If not empty, Pagerduty is *enabled*
 * **PAGERDUTY_MINIMUMPRIORITY**: minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+* **KUBELESS_FUNCTION**: Name of Kubeless function, if not empty, Kubeless is *enabled*
+* **KUBELESS_NAMESPACE**: Namespace of Kubeless function (mandatory)
+* **KUBELESS_PORT**: Port of service of Kubeless function (default is `8080`)
+* **KUBELESS_KUBECONFIG**: Kubeconfig file to use (only if falcoside is running outside the cluster)
+* **KUBELESS_MINIMUMPRIORITY**: "debug" # minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 

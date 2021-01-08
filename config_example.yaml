@@ -147,3 +147,10 @@ kafka:
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
   # partition: 0 # Partition number of the topic.
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+kubeless:
+  function: "" # Name of Kubeless function, if not empty, Kubeless is enabled
+  namespace: "" # Namespace of Kubeless function (mandatory)
+  port: 8080 # Port of service of Kubeless function
+  kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcoside is running outside the cluster)
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

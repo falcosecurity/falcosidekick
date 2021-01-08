@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -16,7 +17,9 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/PagerDuty/go-pagerduty"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -44,17 +47,18 @@ var ErrClientCreation = errors.New("Client creation Error")
 
 // Client communicates with the different API.
 type Client struct {
-	OutputType      string
-	EndpointURL     *url.URL
-	Config          *types.Configuration
-	Stats           *types.Statistics
-	PromStats       *types.PromStatistics
-	AWSSession      *session.Session
-	StatsdClient    *statsd.Client
-	DogstatsdClient *statsd.Client
-	GCPTopicClient  *pubsub.Topic
-	KafkaProducer   *kafka.Conn
-	PagerdutyClient *pagerduty.Client
+	OutputType       string
+	EndpointURL      *url.URL
+	Config           *types.Configuration
+	Stats            *types.Statistics
+	PromStats        *types.PromStatistics
+	AWSSession       *session.Session
+	StatsdClient     *statsd.Client
+	DogstatsdClient  *statsd.Client
+	GCPTopicClient   *pubsub.Topic
+	KafkaProducer    *kafka.Conn
+	PagerdutyClient  *pagerduty.Client
+	KubernetesClient *kubernetes.Clientset
 }
 
 // NewClient returns a new output.Client for accessing the different API.
@@ -114,13 +118,19 @@ func (c *Client) Post(payload interface{}) error {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 	}
 	contentType := "application/json; charset=utf-8"
-	if c.OutputType == "Loki" {
+	if c.OutputType == "Loki" || c.OutputType == Kubeless {
 		contentType = "application/json"
 	}
 	req.Header.Add("Content-Type", contentType)
 
 	if c.OutputType == "Opsgenie" {
 		req.Header.Add("Authorization", "GenieKey "+c.Config.Opsgenie.APIKey)
+	}
+
+	if c.OutputType == Kubeless {
+		req.Header.Add("event-id", uuid.New().String())
+		req.Header.Add("event-type", "falco")
+		req.Header.Add("event-namespace", c.Config.Kubeless.Namespace)
 	}
 
 	req.Header.Add("User-Agent", "Falcosidekick")
@@ -144,6 +154,10 @@ func (c *Client) Post(payload interface{}) error {
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
 		log.Printf("[INFO]  : %v - Post OK (%v)\n", c.OutputType, resp.StatusCode)
+		if c.OutputType == Kubeless {
+			body, _ := ioutil.ReadAll(resp.Body)
+			log.Printf("[INFO]  : Kubeless - Function Response : %v\n", string(body))
+		}
 		return nil
 	case http.StatusBadRequest: //400
 		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrHeaderMissing, resp.StatusCode)

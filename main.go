@@ -36,6 +36,7 @@ var (
 	googleChatClient    *outputs.Client
 	kafkaClient         *outputs.Client
 	pagerdutyClient     *outputs.Client
+	kubelessClient      *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -322,6 +323,18 @@ func init() {
 			config.Pagerduty.Service = ""
 		} else {
 			enabledOutputsText += "Pagerduty "
+		}
+	}
+
+	if config.Kubeless.Namespace != "" && config.Kubeless.Function != "" {
+		var err error
+		kubelessClient, err = outputs.NewKubelessClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			log.Printf("[ERROR] : Kubeless - %v\n", err)
+			config.Kubeless.Namespace = ""
+			config.Kubeless.Function = ""
+		} else {
+			enabledOutputsText += "Kubeless "
 		}
 	}
 
