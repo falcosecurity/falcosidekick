@@ -149,7 +149,7 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 			MessageAttributes: map[string]*sns.MessageAttributeValue{
 				"priority": {
 					DataType:    aws.String("String"),
-					StringValue: aws.String(falcopayload.Priority),
+					StringValue: aws.String(falcopayload.Priority.String()),
 				},
 				"rule": {
 					DataType:    aws.String("String"),

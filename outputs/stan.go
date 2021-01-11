@@ -29,7 +29,7 @@ func (c *Client) StanPublish(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	err = nc.Publish("falco."+strings.ToLower(falcopayload.Priority)+"."+r, j)
+	err = nc.Publish("falco."+strings.ToLower(falcopayload.Priority.String())+"."+r, j)
 	if err != nil {
 		c.setStanErrorMetrics()
 		log.Printf("[ERROR] : STAN - %v\n", err)

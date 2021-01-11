@@ -37,7 +37,7 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	}
 
 	s += "rule=\"" + falcopayload.Rule + "\","
-	s += "priority=\"" + falcopayload.Priority + "\","
+	s += "priority=\"" + falcopayload.Priority.String() + "\","
 
 	ls.Labels = "{" + s[:len(s)-1] + "}"
 

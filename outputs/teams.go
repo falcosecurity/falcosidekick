@@ -1,10 +1,8 @@
 package outputs
 
 import (
-	"log"
-	"strings"
-
 	"github.com/falcosecurity/falcosidekick/types"
+	"log"
 )
 
 type teamsFact struct {
@@ -64,29 +62,29 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		fact.Value = falcopayload.Rule
 		facts = append(facts, fact)
 		fact.Name = Priority
-		fact.Value = falcopayload.Priority
+		fact.Value = falcopayload.Priority.String()
 		facts = append(facts, fact)
 	}
 
 	section.Facts = facts
 
 	var color string
-	switch strings.ToLower(falcopayload.Priority) {
-	case Emergency:
+	switch falcopayload.Priority {
+	case types.Emergency:
 		color = "e20b0b"
-	case Alert:
+	case types.Alert:
 		color = "ff5400"
-	case Critical:
+	case types.Critical:
 		color = "ff9000"
-	case Error:
+	case types.Error:
 		color = "ffc700"
-	case Warning:
+	case types.Warning:
 		color = "ffff00"
-	case Notice:
+	case types.Notice:
 		color = "5bffb5"
-	case Informational:
+	case types.Informational:
 		color = "68c2ff"
-	case Debug:
+	case types.Debug:
 		color = "ccfff2"
 	}
 

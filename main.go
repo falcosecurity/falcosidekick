@@ -41,14 +41,12 @@ var (
 	config                        *types.Configuration
 	stats                         *types.Statistics
 	promStats                     *types.PromStatistics
-	priorityMap                   map[string]int
 )
 
 func init() {
 	config = getConfig()
 	stats = getInitStats()
 	promStats = getInitPromStats()
-	priorityMap = getPriorityMap()
 
 	enabledOutputsText := "[INFO]  : Enabled Outputs : "
 

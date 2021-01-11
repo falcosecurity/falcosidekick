@@ -36,25 +36,25 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 				switch {
 				case d == 0:
 					jj = "0"
-					falcopayload.Priority = Warning
+					falcopayload.Priority = types.Warning
 				case d < 10:
 					jj = "<10"
-					falcopayload.Priority = Warning
+					falcopayload.Priority = types.Warning
 				case d > 10000:
 					jj = ">10000"
-					falcopayload.Priority = Critical
+					falcopayload.Priority = types.Critical
 				case d > 1000:
 					jj = ">1000"
-					falcopayload.Priority = Critical
+					falcopayload.Priority = types.Critical
 				case d > 100:
 					jj = ">100"
-					falcopayload.Priority = Critical
+					falcopayload.Priority = types.Critical
 				case d > 10:
 					jj = ">10"
-					falcopayload.Priority = Warning
+					falcopayload.Priority = types.Warning
 				default:
 					jj = j.(string)
-					falcopayload.Priority = Critical
+					falcopayload.Priority = types.Critical
 				}
 
 				amPayload.Labels[i] = jj
