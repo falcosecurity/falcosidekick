@@ -43,7 +43,7 @@ func NewSMTPClient(config *types.Configuration, stats *types.Statistics, promSta
 func newSMTPPayload(falcopayload types.FalcoPayload, config *types.Configuration) SMTPPayload {
 	s := SMTPPayload{
 		To:      "To: " + config.SMTP.To,
-		Subject: "Subject: [" + falcopayload.Priority + "] " + falcopayload.Output,
+		Subject: "Subject: [" + falcopayload.Priority.String() + "] " + falcopayload.Output,
 	}
 
 	s.Body = "MIME-version: 1.0;\n"

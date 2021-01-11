@@ -2,10 +2,8 @@ package outputs
 
 import (
 	"fmt"
-	"log"
-	"strings"
-
 	"github.com/falcosecurity/falcosidekick/types"
+	"log"
 )
 
 type discordPayload struct {
@@ -37,22 +35,22 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	}
 
 	var color string
-	switch strings.ToLower(falcopayload.Priority) {
-	case Emergency:
+	switch falcopayload.Priority {
+	case types.Emergency:
 		color = "15158332" // red
-	case Alert:
+	case types.Alert:
 		color = "11027200" // dark orange
-	case Critical:
+	case types.Critical:
 		color = "15105570" // orange
-	case Error:
+	case types.Error:
 		color = "15844367" // gold
-	case Warning:
+	case types.Warning:
 		color = "12745742" // dark gold
-	case Notice:
+	case types.Notice:
 		color = "3066993" // teal
-	case Informational:
+	case types.Informational:
 		color = "3447003" // blue
-	case Debug:
+	case types.Debug:
 		color = "12370112" // light grey
 	}
 
@@ -73,7 +71,7 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	}
 
 	embedFields = append(embedFields, discordEmbedFieldPayload{Rule, falcopayload.Rule, true})
-	embedFields = append(embedFields, discordEmbedFieldPayload{Priority, falcopayload.Priority, true})
+	embedFields = append(embedFields, discordEmbedFieldPayload{Priority, falcopayload.Priority.String(), true})
 	embedFields = append(embedFields, discordEmbedFieldPayload{Time, falcopayload.Time.String(), true})
 
 	embed := discordEmbedPayload{

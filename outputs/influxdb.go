@@ -10,7 +10,7 @@ import (
 type influxdbPayload string
 
 func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configuration) influxdbPayload {
-	s := "events,rule=" + strings.Replace(falcopayload.Rule, " ", "_", -1) + ",priority=" + strings.Replace(falcopayload.Priority, " ", "_", -1)
+	s := "events,rule=" + strings.Replace(falcopayload.Rule, " ", "_", -1) + ",priority=" + falcopayload.Priority.String()
 
 	for i, j := range falcopayload.OutputFields {
 		switch v := j.(type) {

@@ -222,7 +222,6 @@ func getMessageFormatTemplate(output, temp string) *template.Template {
 		if err != nil {
 			log.Fatalf("[ERROR] : Error compiling %v message template : %v\n", output, err)
 		}
-
 		return t
 	}
 

@@ -7,27 +7,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
 const TestRule string = "Test rule"
-
-func getPriorityMap() map[string]int {
-	return map[string]int{
-		"emergency":     8,
-		"alert":         7,
-		"critical":      6,
-		"error":         5,
-		"warning":       4,
-		"notice":        3,
-		"informational": 2,
-		"debug":         1,
-		"":              0,
-	}
-}
 
 // mainHandler is Falco Sidekick main handler (default).
 func mainHandler(w http.ResponseWriter, r *http.Request) {
@@ -104,14 +89,6 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 
 	var kn, kp string
-	p := "unknown"
-	priority := strings.ToLower(falcopayload.Priority)
-
-	switch priority {
-	case "emergency", "alert", "critical", "error", "warning", "notice", "informational", "debug":
-		p = priority
-	}
-
 	for i, j := range falcopayload.OutputFields {
 		if i == "k8s_ns_name" {
 			kn = j.(string)
@@ -121,9 +98,9 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
-	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + p})
-	stats.Falco.Add(p, 1)
-	promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": p, "k8s_ns_name": kn, "k8s_pod_name": kp}).Inc()
+	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + falcopayload.Priority.String()})
+	stats.Falco.Add(falcopayload.Priority.String(), 1)
+	promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "k8s_ns_name": kn, "k8s_pod_name": kp}).Inc()
 
 	if config.Debug == true {
 		body, _ := json.Marshal(falcopayload)
@@ -134,99 +111,99 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 }
 
 func forwardEvent(falcopayload types.FalcoPayload) {
-	if config.Slack.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Slack.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Slack.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Slack.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go slackClient.SlackPost(falcopayload)
 	}
 
-	if config.Rocketchat.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Rocketchat.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Rocketchat.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Rocketchat.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go rocketchatClient.RocketchatPost(falcopayload)
 	}
 
-	if config.Mattermost.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Mattermost.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Mattermost.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Mattermost.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go mattermostClient.MattermostPost(falcopayload)
 	}
 
-	if config.Teams.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Teams.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Teams.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Teams.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go teamsClient.TeamsPost(falcopayload)
 	}
 
-	if config.Datadog.APIKey != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Datadog.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Datadog.APIKey != "" && (falcopayload.Priority >= types.Priority(config.Datadog.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go datadogClient.DatadogPost(falcopayload)
 	}
 
-	if config.Discord.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Discord.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Discord.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Discord.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go discordClient.DiscordPost(falcopayload)
 	}
 
-	if config.Alertmanager.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Alertmanager.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Alertmanager.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Alertmanager.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go alertmanagerClient.AlertmanagerPost(falcopayload)
 	}
 
-	if config.Elasticsearch.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Elasticsearch.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Elasticsearch.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Elasticsearch.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go elasticsearchClient.ElasticsearchPost(falcopayload)
 	}
 
-	if config.Influxdb.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Influxdb.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Influxdb.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Influxdb.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go influxdbClient.InfluxdbPost(falcopayload)
 	}
 
-	if config.Loki.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Loki.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Loki.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Loki.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go lokiClient.LokiPost(falcopayload)
 	}
 
-	if config.Nats.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Nats.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Nats.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Nats.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go natsClient.NatsPublish(falcopayload)
 	}
 
-	if config.Stan.HostPort != "" && config.Stan.ClusterID != "" && config.Stan.ClientID != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Stan.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Stan.HostPort != "" && config.Stan.ClusterID != "" && config.Stan.ClientID != "" && (falcopayload.Priority >= types.Priority(config.Stan.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go stanClient.StanPublish(falcopayload)
 	}
 
-	if config.AWS.Lambda.FunctionName != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.Lambda.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.AWS.Lambda.FunctionName != "" && (falcopayload.Priority >= types.Priority(config.AWS.Lambda.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go awsClient.InvokeLambda(falcopayload)
 	}
 
-	if config.AWS.SQS.URL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.SQS.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.AWS.SQS.URL != "" && (falcopayload.Priority >= types.Priority(config.AWS.SQS.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go awsClient.SendMessage(falcopayload)
 	}
 
-	if config.AWS.SNS.TopicArn != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.SNS.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.AWS.SNS.TopicArn != "" && (falcopayload.Priority >= types.Priority(config.AWS.SNS.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go awsClient.PublishTopic(falcopayload)
 	}
 
-	if config.AWS.CloudWatchLogs.LogGroup != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.AWS.CloudWatchLogs.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.AWS.CloudWatchLogs.LogGroup != "" && (falcopayload.Priority >= types.Priority(config.AWS.CloudWatchLogs.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go awsClient.SendCloudWatchLog(falcopayload)
 	}
 
-	if config.SMTP.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.SMTP.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.SMTP.HostPort != "" && (falcopayload.Priority >= types.Priority(config.SMTP.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go smtpClient.SendMail(falcopayload)
 	}
 
-	if config.Opsgenie.APIKey != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Opsgenie.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Opsgenie.APIKey != "" && (falcopayload.Priority >= types.Priority(config.Opsgenie.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go opsgenieClient.OpsgeniePost(falcopayload)
 	}
 
-	if config.Webhook.Address != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Webhook.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Webhook.Address != "" && (falcopayload.Priority >= types.Priority(config.Webhook.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go webhookClient.WebhookPost(falcopayload)
 	}
 
-	if config.Azure.EventHub.Name != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Azure.EventHub.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Azure.EventHub.Name != "" && (falcopayload.Priority >= types.Priority(config.Azure.EventHub.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go azureClient.EventHubPost(falcopayload)
 	}
 
-	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.GCP.PubSub.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && (falcopayload.Priority >= types.Priority(config.GCP.PubSub.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go gcpClient.GCPPublishTopic(falcopayload)
 	}
 
-	if config.Googlechat.WebhookURL != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Googlechat.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Googlechat.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Googlechat.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go googleChatClient.GooglechatPost(falcopayload)
 	}
 
-	if config.Kafka.HostPort != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Kafka.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Kafka.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Kafka.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go kafkaClient.KafkaProduce(falcopayload)
 	}
 
-	if config.Pagerduty.APIKey != "" && config.Pagerduty.Service != "" && (priorityMap[strings.ToLower(falcopayload.Priority)] >= priorityMap[strings.ToLower(config.Pagerduty.MinimumPriority)] || falcopayload.Rule == TestRule) {
+	if config.Pagerduty.APIKey != "" && config.Pagerduty.Service != "" && (falcopayload.Priority >= types.Priority(config.Pagerduty.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go pagerdutyClient.PagerdutyCreateIncident(falcopayload)
 	}
 }

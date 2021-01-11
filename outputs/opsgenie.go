@@ -1,10 +1,8 @@
 package outputs
 
 import (
-	"log"
-	"strings"
-
 	"github.com/falcosecurity/falcosidekick/types"
+	"log"
 )
 
 type opsgeniePayload struct {
@@ -27,14 +25,14 @@ func newOpsgeniePayload(falcopayload types.FalcoPayload, config *types.Configura
 	}
 
 	var prio string
-	switch strings.ToLower(falcopayload.Priority) {
-	case "emergency", Alert:
+	switch falcopayload.Priority {
+	case types.Emergency, types.Alert:
 		prio = "P1"
-	case Critical:
+	case types.Critical:
 		prio = "P2"
-	case Error:
+	case types.Error:
 		prio = "P3"
-	case Warning:
+	case types.Warning:
 		prio = "P4"
 	default:
 		prio = "P5"

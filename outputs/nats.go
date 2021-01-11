@@ -33,7 +33,7 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	err = nc.Publish("falco."+strings.ToLower(falcopayload.Priority)+"."+r, j)
+	err = nc.Publish("falco."+strings.ToLower(falcopayload.Priority.String())+"."+r, j)
 	if err != nil {
 		c.setNatsErrorMetrics()
 		log.Printf("[ERROR] : NATS - %v\n", err)

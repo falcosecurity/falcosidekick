@@ -2,10 +2,8 @@ package outputs
 
 import (
 	"bytes"
-	"log"
-	"strings"
-
 	"github.com/falcosecurity/falcosidekick/types"
+	"log"
 )
 
 func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
@@ -40,7 +38,7 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 		field.Short = true
 		fields = append(fields, field)
 		field.Title = Priority
-		field.Value = falcopayload.Priority
+		field.Value = falcopayload.Priority.String()
 		field.Short = true
 		fields = append(fields, field)
 		field.Title = Time
@@ -66,22 +64,22 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 	if config.Rocketchat.OutputFormat == All || config.Rocketchat.OutputFormat == Fields || config.Rocketchat.OutputFormat == "" {
 		var color string
-		switch strings.ToLower(falcopayload.Priority) {
-		case Emergency:
+		switch falcopayload.Priority {
+		case types.Emergency:
 			color = Red
-		case Alert:
+		case types.Alert:
 			color = Orange
-		case Critical:
+		case types.Critical:
 			color = Orange
-		case Error:
+		case types.Error:
 			color = Red
-		case Warning:
+		case types.Warning:
 			color = Yellow
-		case Notice:
+		case types.Notice:
 			color = Lightcyan
-		case Informational:
+		case types.Informational:
 			color = LigthBlue
-		case Debug:
+		case types.Debug:
 			color = PaleCyan
 		}
 		attachment.Color = color

@@ -1,10 +1,8 @@
 package outputs
 
 import (
-	"log"
-	"strings"
-
 	"github.com/falcosecurity/falcosidekick/types"
+	"log"
 )
 
 const (
@@ -39,10 +37,10 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 	d.SourceType = "falco"
 
 	var status string
-	switch strings.ToLower(falcopayload.Priority) {
-	case Emergency, Alert, Critical, Error:
+	switch falcopayload.Priority {
+	case types.Emergency, types.Alert, types.Critical, types.Error:
 		status = Error
-	case Warning:
+	case types.Warning:
 		status = Warning
 	default:
 		status = Info

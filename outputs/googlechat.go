@@ -72,7 +72,7 @@ func newGooglechatPayload(falcopayload types.FalcoPayload, config *types.Configu
 	}
 
 	widgets = append(widgets, widget{KeyValue: keyValue{"rule", falcopayload.Rule}})
-	widgets = append(widgets, widget{KeyValue: keyValue{"priority", falcopayload.Priority}})
+	widgets = append(widgets, widget{KeyValue: keyValue{"priority", falcopayload.Priority.String()}})
 	widgets = append(widgets, widget{KeyValue: keyValue{"time", falcopayload.Time.String()}})
 
 	return googlechatPayload{
