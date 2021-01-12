@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.20.0 - 2021-01-12
+#### New
+- New output : **STAN (NATS Streaming)** ([PR#135](https://github.com/falcosecurity/falcosidekick/pull/135))
+- New output : **PagerDuty** ([PR#164](https://github.com/falcosecurity/falcosidekick/pull/164))
+- New output : **Kubeless** ([PR#170](https://github.com/falcosecurity/falcosidekick/pull/170))
+#### Enhancement
+- CI: clean filters ([PR#138](https://github.com/falcosecurity/falcosidekick/pull/138))
+- Replace library for `Kafka` ([PR#139](https://github.com/falcosecurity/falcosidekick/pull/139))
+- Re-align code for `NATS` output ([PR#159](https://github.com/falcosecurity/falcosidekick/pull/159))
+- Add new endpoint `/healthz` ([PR#167](https://github.com/falcosecurity/falcosidekick/pull/167))
+- Change the way to manage *Priority* ([PR#171](https://github.com/falcosecurity/falcosidekick/pull/171) thanks to [@n3wscott](https://github.com/n3wscott))
+#### Fix
+- Fix missing metrics for various outputs ([PR#145](https://github.com/falcosecurity/falcosidekick/pull/145), [PR#146](https://github.com/falcosecurity/falcosidekick/pull/146), [PR#147](https://github.com/falcosecurity/falcosidekick/pull/147), [PR#148](https://github.com/falcosecurity/falcosidekick/pull/148), [PR#149](https://github.com/falcosecurity/falcosidekick/pull/149), [PR#150](https://github.com/falcosecurity/falcosidekick/pull/150), [PR#151](https://github.com/falcosecurity/falcosidekick/pull/151), [PR#152](https://github.com/falcosecurity/falcosidekick/pull/152), [PR#153](https://github.com/falcosecurity/falcosidekick/pull/153), [PR#154](https://github.com/falcosecurity/falcosidekick/pull/154), [PR#155](https://github.com/falcosecurity/falcosidekick/pull/155), [PR#156](https://github.com/falcosecurity/falcosidekick/pull/156), [PR#157](https://github.com/falcosecurity/falcosidekick/pull/157), [PR#158](https://github.com/falcosecurity/falcosidekick/pull/158))
+
 ## 2.19.1 - 2020-12-02
 #### Fix
 - Fix dockerfile to build the new kafka output ([PR#56](https://github.com/falcosecurity/falcosidekick/pull/132) thanks to [@cpanato](https://github.com/cpanato))
