@@ -58,7 +58,7 @@ type Client struct {
 	GCPTopicClient   *pubsub.Topic
 	KafkaProducer    *kafka.Conn
 	PagerdutyClient  *pagerduty.Client
-	KubernetesClient *kubernetes.Clientset
+	KubernetesClient kubernetes.Interface
 }
 
 // NewClient returns a new output.Client for accessing the different API.
