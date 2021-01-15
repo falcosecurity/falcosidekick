@@ -31,6 +31,7 @@ var (
 	smtpClient          *outputs.Client
 	opsgenieClient      *outputs.Client
 	webhookClient       *outputs.Client
+	cloudeventsClient   *outputs.Client
 	azureClient         *outputs.Client
 	gcpClient           *outputs.Client
 	googleChatClient    *outputs.Client
@@ -268,6 +269,16 @@ func init() {
 			config.Webhook.Address = ""
 		} else {
 			enabledOutputsText += "Webhook "
+		}
+	}
+
+	if config.CloudEvents.Address != "" {
+		var err error
+		cloudeventsClient, err = outputs.NewClient("CloudEvents", config.CloudEvents.Address, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.CloudEvents.Address = ""
+		} else {
+			enabledOutputsText += "CloudEvents "
 		}
 	}
 

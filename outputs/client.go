@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/PagerDuty/go-pagerduty"
 	"github.com/aws/aws-sdk-go/aws/session"
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"k8s.io/client-go/kubernetes"
@@ -47,18 +48,19 @@ var ErrClientCreation = errors.New("Client creation Error")
 
 // Client communicates with the different API.
 type Client struct {
-	OutputType       string
-	EndpointURL      *url.URL
-	Config           *types.Configuration
-	Stats            *types.Statistics
-	PromStats        *types.PromStatistics
-	AWSSession       *session.Session
-	StatsdClient     *statsd.Client
-	DogstatsdClient  *statsd.Client
-	GCPTopicClient   *pubsub.Topic
-	KafkaProducer    *kafka.Conn
-	PagerdutyClient  *pagerduty.Client
-	KubernetesClient kubernetes.Interface
+	OutputType        string
+	EndpointURL       *url.URL
+	Config            *types.Configuration
+	Stats             *types.Statistics
+	PromStats         *types.PromStatistics
+	AWSSession        *session.Session
+	StatsdClient      *statsd.Client
+	DogstatsdClient   *statsd.Client
+	GCPTopicClient    *pubsub.Topic
+	KafkaProducer     *kafka.Conn
+	PagerdutyClient   *pagerduty.Client
+	CloudEventsClient cloudevents.Client
+	KubernetesClient  kubernetes.Interface
 }
 
 // NewClient returns a new output.Client for accessing the different API.

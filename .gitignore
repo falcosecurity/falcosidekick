@@ -18,3 +18,5 @@ falcosidekick
 .idea
 *.swp
 /hack/tools/bin/*
+
+tmp/

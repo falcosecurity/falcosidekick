@@ -41,6 +41,7 @@ type Configuration struct {
 	Statsd        statsdOutputConfig
 	Dogstatsd     statsdOutputConfig
 	Webhook       WebhookOutputConfig
+	CloudEvents   CloudEventsOutputConfig
 	Azure         azureConfig
 	GCP           gcpOutputConfig
 	Googlechat    GooglechatConfig
@@ -200,6 +201,13 @@ type WebhookOutputConfig struct {
 	MinimumPriority string
 }
 
+// CloudEventsOutputConfig represents parameters for CloudEvents
+type CloudEventsOutputConfig struct {
+	Address         string
+	Extensions      map[string]string
+	MinimumPriority string
+}
+
 type statsdOutputConfig struct {
 	Forwarder string
 	Namespace string
@@ -291,6 +299,7 @@ type Statistics struct {
 	GoogleChat        *expvar.Map
 	Kafka             *expvar.Map
 	Pagerduty         *expvar.Map
+	CloudEvents       *expvar.Map
 	Kubeless          *expvar.Map
 }
 
