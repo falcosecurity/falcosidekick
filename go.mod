@@ -11,6 +11,7 @@ require (
 	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21
 	github.com/emersion/go-smtp v0.14.0
 	github.com/gkarthiks/k8s-discovery v0.19.0
+	github.com/cloudevents/sdk-go/v2 v2.3.1
 	github.com/google/uuid v1.1.2
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/nats-io/nats-streaming-server v0.19.0 // indirect

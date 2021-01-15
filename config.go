@@ -19,6 +19,7 @@ func getConfig() *types.Configuration {
 	c := &types.Configuration{
 		Customfields: make(map[string]string),
 		Webhook:      types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
+		CloudEvents:  types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
@@ -112,6 +113,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Customfields", map[string]string{})
 	v.SetDefault("Webhook.Address", "")
 	v.SetDefault("Webhook.MinimumPriority", "")
+	v.SetDefault("CloudEvents.Address", "")
+	v.SetDefault("CloudEvents.MinimumPriority", "")
 	v.SetDefault("Azure.eventHub.Namespace", "")
 	v.SetDefault("Azure.eventHub.Name", "")
 	v.SetDefault("Azure.eventHub.MinimumPriority", "")
@@ -155,6 +158,7 @@ func getConfig() *types.Configuration {
 
 	v.GetStringMapString("customfields")
 	v.GetStringMapString("Webhook.CustomHeaders")
+	v.GetStringMapString("CloudEvents.Extensions")
 	v.Unmarshal(c)
 
 	if value, present := os.LookupEnv("CUSTOMFIELDS"); present {
@@ -173,6 +177,16 @@ func getConfig() *types.Configuration {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
 				c.Webhook.CustomHeaders[tagkeys[0]] = tagkeys[1]
+			}
+		}
+	}
+
+	if value, present := os.LookupEnv("CLOUDEVENTS_EXTENSIONS"); present {
+		customfields := strings.Split(value, ",")
+		for _, label := range customfields {
+			tagkeys := strings.Split(label, ":")
+			if len(tagkeys) == 2 {
+				c.CloudEvents.Extensions[tagkeys[0]] = tagkeys[1]
 			}
 		}
 	}
@@ -198,6 +212,7 @@ func getConfig() *types.Configuration {
 	c.AWS.CloudWatchLogs.MinimumPriority = checkPriority(c.AWS.CloudWatchLogs.MinimumPriority)
 	c.Opsgenie.MinimumPriority = checkPriority(c.Opsgenie.MinimumPriority)
 	c.Webhook.MinimumPriority = checkPriority(c.Webhook.MinimumPriority)
+	c.CloudEvents.MinimumPriority = checkPriority(c.CloudEvents.MinimumPriority)
 	c.Azure.EventHub.MinimumPriority = checkPriority(c.Azure.EventHub.MinimumPriority)
 	c.GCP.PubSub.MinimumPriority = checkPriority(c.GCP.PubSub.MinimumPriority)
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)

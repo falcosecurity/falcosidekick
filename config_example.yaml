@@ -118,6 +118,12 @@ webhook:
   #   key: value
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
+cloudevents:
+# address: "" # CloudEvents consumer http address, if not empty, CloudEvents output is enabled
+# extensions: # Extensions to add in the outbound Event, useful for routing
+#   key: value
+# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 azure:
   eventHub:
     name: "" # Name of the Hub, if not empty, EventHub is enabled

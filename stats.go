@@ -43,6 +43,7 @@ func getInitStats() *types.Statistics {
 		Statsd:            getOutputNewMap("statsd"),
 		Dogstatsd:         getOutputNewMap("dogstatsd"),
 		Webhook:           getOutputNewMap("webhook"),
+		CloudEvents:       getOutputNewMap("cloudevents"),
 		AzureEventHub:     getOutputNewMap("azureeventhub"),
 		GCPPubSub:         getOutputNewMap("gcppubsub"),
 		GoogleChat:        getOutputNewMap("googlechat"),

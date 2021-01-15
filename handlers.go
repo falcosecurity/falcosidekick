@@ -187,6 +187,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go webhookClient.WebhookPost(falcopayload)
 	}
 
+	if config.CloudEvents.Address != "" && (falcopayload.Priority >= types.Priority(config.CloudEvents.MinimumPriority) || falcopayload.Rule == TestRule) {
+		go cloudeventsClient.CloudEventsSend(falcopayload)
+	}
+
 	if config.Azure.EventHub.Name != "" && (falcopayload.Priority >= types.Priority(config.Azure.EventHub.MinimumPriority) || falcopayload.Rule == TestRule) {
 		go azureClient.EventHubPost(falcopayload)
 	}
