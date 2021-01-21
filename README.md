@@ -191,9 +191,9 @@ stan:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 aws:
-  # accesskeyid: "" # aws access key (optionnal if you use EC2 Instance Profile)
-  # secretaccesskey: "" # aws secret access key (optionnal if you use EC2 Instance Profile)
-  # region : "" # aws region (optionnal if you use EC2 Instance Profile)
+  # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
+  # secretaccesskey: "" # aws secret access key (optional if you use EC2 Instance Profile)
+  # region : "" # aws region (optional if you use EC2 Instance Profile)
   lambda:
     # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
@@ -354,9 +354,9 @@ The *env vars* "match" field names in *yaml file with this structure (**take car
 * **STAN_CLUSTERID** : Cluster name, if not `empty`, STAN is *enabled*
 * **STAN_CLIENTID** : Client ID to use, if not `empty`, STAN is *enabled*
 * **STAN_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-* **AWS_ACCESSKEYID** : AWS Access Key Id (optionnal if you use EC2 Instance Profile)
-* **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optionnal if you use EC2 Instance Profile)
-* **AWS_REGION** : AWS Region (optionnal if you use EC2 Instance Profile)
+* **AWS_ACCESSKEYID** : AWS Access Key Id (optional if you use EC2 Instance Profile)
+* **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optional if you use EC2 Instance Profile)
+* **AWS_REGION** : AWS Region (optional if you use EC2 Instance Profile)
 * **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name, if not empty, AWS Lambda output is *enabled*
 * **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 * **AWS_SQS_URL** : AWS SQS Queue URL, if not empty, AWS SQS output is *enabled*

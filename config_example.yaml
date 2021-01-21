@@ -70,9 +70,9 @@ nats:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 aws:
-  # accesskeyid: "" # aws access key (optionnal if you use EC2 Instance Profile)
-  # secretaccesskey: "" # aws secret access key (optionnal if you use EC2 Instance Profile)
-  # region : "" # aws region (optionnal if you use EC2 Instance Profile)
+  # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
+  # secretaccesskey: "" # aws secret access key (optional if you use EC2 Instance Profile)
+  # region : "" # aws region (optional if you use EC2 Instance Profile)
   lambda:
   # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
