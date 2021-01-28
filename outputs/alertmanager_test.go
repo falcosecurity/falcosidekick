@@ -2,18 +2,21 @@ package outputs
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/falcosecurity/falcosidekick/types"
-
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewAlertmanagerPayload(t *testing.T) {
-	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","rule":"Test rule","source":"falco"},"annotations":{"info":"This is a test from falcosidekick","summary":"Test rule"}}]`
+func TestNewAlertmanagerPayloadO(t *testing.T) {
+	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","proc_tty":"1234","rule":"Test rule","source":"falco"},"annotations":{"info":"This is a test from falcosidekick","summary":"Test rule"}}]`
 
 	var f types.FalcoPayload
-	require.Nil(t, json.Unmarshal([]byte(falcoTestInput), &f))
+	d := json.NewDecoder(strings.NewReader(falcoTestInput))
+	d.UseNumber()
+	err := d.Decode(&f) //have to decode it the way newFalcoPayload does
+	require.Nil(t, err)
 	s, err := json.Marshal(newAlertmanagerPayload(f))
 	require.Nil(t, err)
 
