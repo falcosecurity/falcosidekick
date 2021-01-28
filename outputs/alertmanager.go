@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"encoding/json"
 	"log"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 	var amPayload alertmanagerPayload
 	amPayload.Labels = make(map[string]string)
 	amPayload.Annotations = make(map[string]string)
+	replacer := strings.NewReplacer(".", "_", "[", "_", "]", "")
 
 	for i, j := range falcopayload.OutputFields {
 		if strings.HasPrefix(i, "n_evts") {
@@ -64,8 +66,9 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 		switch v := j.(type) {
 		case string:
 			//AlertManger unsupported chars in a label name
-			replacer := strings.NewReplacer(".", "_", "[", "_", "]", "")
 			amPayload.Labels[replacer.Replace(i)] = v
+		case json.Number:
+			amPayload.Labels[replacer.Replace(i)] = v.String()
 		default:
 			continue
 		}

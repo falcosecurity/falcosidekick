@@ -73,7 +73,10 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	var falcopayload types.FalcoPayload
 
-	err := json.NewDecoder(payload).Decode(&falcopayload)
+	d := json.NewDecoder(payload)
+	d.UseNumber()
+
+	err := d.Decode(&falcopayload)
 	if err != nil {
 		return types.FalcoPayload{}, err
 	}
