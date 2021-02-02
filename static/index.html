@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js">
+<!--<![endif]-->
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Falcosidekick UI</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.0.7/js/all.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+
+<style>
+    .tag:not(body).is-white.is-emergency {
+        background-color: #e20b0b;
+    }
+
+    .tag:not(body).is-white.is-alert {
+        background-color: #ff5400;
+    }
+
+    .tag:not(body).is-white.is-critical {
+        background-color: #ff5400;
+    }
+
+    .tag:not(body).is-white.is-critical {
+        background-color: #ff5400;
+    }
+
+    .tag:not(body).is-white.is-error {
+        background-color: #e20b0b;
+    }
+
+    .tag:not(body).is-white.is-warning {
+        background-color: #ffc700;
+    }
+
+    .tag:not(body).is-white.is-notice {
+        background-color: #5bffb5;
+    }
+
+    .tag:not(body).is-white.is-informational {
+        background-color: #68c2ff;
+    }
+
+    .tag:not(body).is-white.is-debug {
+        background-color: #ccfff2;
+    }
+</style>
+
+<body>
+
+    <template id="config-list-tpl">
+        <div>
+            <span>Enabled outputs: </span>
+            <span v-for="index in outputs" class="tag is-light" style="margin-right: 3px;">{{ index }}</span>
+        </div>
+    </template>
+
+    <template id="event-list-tpl">
+        <div>
+            <!-- {{ stats["falco.priority"] }} -->
+            <div class="field is-grouped is-grouped-multiline">
+                <div class="control">
+                    <div class="tags has-addons">
+                        <span class="tag is-light">{{ stats["falco.priority"].emergency }}</span><span
+                            class="tag is-white is-emergency">Emergency</span>
+                    </div>
+                </div>
+                <div class="control">
+                    <div class="tags has-addons">
+                        <span class="tag is-light">{{ stats["falco.priority"].alert }}</span><span
+                            class="tag is-white is-alert">Alert</span>
+                    </div>
+                </div>
+                <div class="control">
+                    <div class="tags has-addons">
+                        <span class="tag is-light">{{ stats["falco.priority"].critical }}</span><span
+                            class="tag is-white is-critical">Critical</span>
+                    </div>
+                </div>
+                <div class="control">
+                    <div class="tags has-addons">
+                        <span class="tag is-light">{{ stats["falco.priority"].error }}</span><span
+                            class="tag is-white is-error">Error</span>
+                    </div>
+                </div>
+                <div class="control">
+                    <div class="tags has-addons">
+                        <span class="tag is-light">{{ stats["falco.priority"].warning }}</span><span
+                            class="tag is-white is-warning">Warning</span>
+                    </div>
+                </div>
+                <div class="control">
+                    <div class="tags has-addons">
+                        <span class="tag is-light">{{ stats["falco.priority"].notice }}</span><span
+                            class="tag is-white is-notice">Notice</span>
+                    </div>
+                </div>
+                <div class="control">
+                    <div class="tags has-addons">
+                        <span class="tag is-light">{{ stats["falco.priority"].informational }}</span><span
+                            class="tag is-white is-informational">Informational</span>
+                    </div>
+                </div>
+                <div class="control">
+                    <div class="tags has-addons">
+                        <span class="tag is-light">{{ stats["falco.priority"].debug }}</span><span
+                            class="tag is-white is-debug">Debug</span>
+                    </div>
+                </div>
+                <div class="control">
+                    <div class="tags has-addons">
+                        <span class="tag is-light">{{ stats["falco.priority"].none }}</span><span
+                            class="tag is-white is-debug">None</span>
+                    </div>
+                </div>
+                <div style="float: right;">
+                    <input class="input is-small" type="text" placeholder="filter" v-model="filter" />
+                </div>
+            </div>
+            <div>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Priority</th>
+                            <th>Rule</th>
+                            <th>Output</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="index in filteredEvents.slice().reverse()">
+                            <td style="font-size: 80%;">
+                                {{ index.time }}
+                            </td>
+                            <td>
+                                <span class="tag is-white is-emergency" v-if="index.priority === 'Emergency'"
+                                    v-html="highlightMatches(index.priority)">{{ index.priority }}</span>
+                                <span class="tag is-white is-alert" v-if="index.priority === 'Alert'"
+                                    v-html="highlightMatches(index.priority)">{{ index.priority }}</span>
+                                <span class="tag is-white is-critical" v-if="index.priority === 'Critical'"
+                                    v-html="highlightMatches(index.priority)">{{ index.priority }}</span>
+                                <span class="tag is-white is-error" v-if="index.priority==='Error'"
+                                    v-html="highlightMatches(index.priority)">{{ index.priority }}</span>
+                                <span class="tag is-white is-warning" v-if="index.priority === 'Warning'"
+                                    v-html="highlightMatches(index.priority)">{{ index.priority }}</span>
+                                <span class="tag is-white is-notice" v-if="index.priority === 'Notice'"
+                                    v-html="highlightMatches(index.priority)">{{ index.priority }}</span>
+                                <span class="tag is-white is-informational" v-if="index.priority === 'Informational'"
+                                    v-html="highlightMatches(index.priority)">{{ index.priority }}</span>
+                                <span class="tag is-white is-debug" v-if="index.priority === 'Debug'"
+                                    v-html="highlightMatches(index.priority)">{{ index.priority }}</span>
+                            </td>
+                            <td>
+                                <span class="tag is-info is-light" v-html="highlightMatches(index.rule)">{{ index.rule
+                                    }}</span>
+                            </td>
+                            <td style="font-size: 80%;">
+                                <div style="margin-bottom: 15px;">
+                                    <p v-html="highlightMatches(index.output)">
+                                        {{ index.output }}
+                                    </p>
+                                </div>
+                                <div class="field is-grouped is-grouped-multiline">
+                                    <div class="control" v-for="(value, key) in index.output_fields">
+                                        <div class="tags has-addons">
+                                            <span class="tag is-light">{{ key }}</span>
+                                            <span class="tag is-info is-light">{{ value
+                                                }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        Vue.component("config-list", {
+            template: "#config-list-tpl",
+            mounted() {
+                axios.get('/outputs').then(resp => {
+                    this.outputs = resp.data
+                })
+            },
+            data() {
+                return {
+                    outputs: []
+                }
+            }
+        })
+    </script>
+    <script>
+        Vue.component("event-list", {
+            template: "#event-list-tpl",
+            methods: {
+                refresh() {
+                    axios.get("/events").then(resp => {
+                        this.events = resp.data
+                    })
+                    axios.get("/debug/vars").then(resp => {
+                        this.stats = resp.data
+                    })
+                },
+                highlightMatches(text) {
+                    const matchExists = text.toLowerCase().includes(this.filter.toLowerCase());
+                    if (!matchExists) return text;
+
+                    const re = new RegExp(this.filter, 'ig');
+                    return text.replace(re, matchedText => `<strong>${matchedText}</strong>`);
+                }
+            },
+            computed: {
+                filteredEvents() {
+                    return this.events.filter(row => {
+                        const output = row.output.toLowerCase();
+                        const rule = row.rule.toLowerCase();
+                        const priority = row.priority.toLowerCase();
+                        const searchTerm = this.filter.toLowerCase();
+
+                        return output.includes(searchTerm) ||
+                            rule.includes(searchTerm) || priority.includes(searchTerm);
+                    });
+                }
+            },
+            data() {
+                return {
+                    filter: '',
+                    events: [],
+                    stats: {}
+                }
+            },
+            mounted() {
+                axios.get("/events").then(resp => {
+                    this.events = resp.data
+                })
+                axios.get("/debug/vars").then(resp => {
+                    this.stats = resp.data
+                })
+
+                this.ws = new WebSocket("ws://" + window.location.host + "/ws");
+
+                this.ws.onconnect = (evt) => {
+                    console.log("ws connected", evt)
+                }
+                this.ws.onclose = (evt) => {
+                    console.log("ws closed", evt)
+                }
+                this.ws.onmessage = (evt) => {
+                    console.log("new event", evt)
+                    this.$emit("newEvent", evt)
+                    this.refresh()
+                }
+            }
+        })
+    </script>
+
+    <section class="hero is-link is-small">
+        <div class="hero-body">
+            <div class="container">
+                <img width="6%" style="float: left; margin: 0px 30px 0px 0px;"
+                    src="https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png">
+            </div>
+            <div class="container">
+                <h1 class="title">
+                    Falcosidekick UI
+                </h1>
+                <h2 class="subtitle">
+                    Latest Events from Falco
+                </h2>
+                <div id="config" class="container" style="text-align:left;">
+                    <config-list></config-list>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="section">
+        <div class="container">
+            <div id="events">
+                <event-list></event-list>
+            </div>
+        </div>
+    </section>
+    <script>
+        var config = new Vue({
+            el: '#config'
+        });
+        var events = new Vue({
+            el: '#events'
+        });
+    </script>
+
+</body>
+
+</html>

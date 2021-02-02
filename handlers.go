@@ -7,9 +7,11 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
+	"golang.org/x/net/websocket"
 )
 
 const TestRule string = "Test rule"
@@ -64,10 +66,34 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("{\"status\": \"ok\"}"))
 }
 
+// outputsHandler is a simple handler to send list of enabled outputs
+func outputsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+	s, _ := json.Marshal(enabledOutputs)
+	w.Write(s)
+}
+
+// eventsHandler is a simple handler to send last of events
+func eventsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+	s, _ := json.Marshal(lastEvents)
+	w.Write(s)
+}
+
 // testHandler sends a test event to all enabled outputs.
 func testHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = ioutil.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","outputfields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`)))
 	mainHandler(w, r)
+}
+
+func socket(ws *websocket.Conn) {
+	log.Printf("[INFO]  : Connection to WebUI established\n")
+	for {
+		event := <-broadcast
+		if err := websocket.JSON.Send(ws, event); err != nil {
+			break
+		}
+	}
 }
 
 func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
@@ -102,8 +128,19 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 
 	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + falcopayload.Priority.String()})
-	stats.Falco.Add(falcopayload.Priority.String(), 1)
+	stats.Falco.Add(strings.ToLower(falcopayload.Priority.String()), 1)
 	promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "k8s_ns_name": kn, "k8s_pod_name": kp}).Inc()
+
+	if len(lastEvents) > 49 {
+		lastEvents = append(lastEvents[1:len(lastEvents)-1], falcopayload)
+	} else {
+		lastEvents = append(lastEvents, falcopayload)
+	}
+
+	select {
+	case broadcast <- falcopayload:
+	default:
+	}
 
 	if config.Debug == true {
 		body, _ := json.Marshal(falcopayload)
