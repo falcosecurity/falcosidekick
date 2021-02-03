@@ -26,9 +26,13 @@ import (
 func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
-		os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
-		os.Setenv("AWS_SECRET_ACCESS_KEY", config.AWS.SecretAccessKey)
-		os.Setenv("AWS_DEFAULT_REGION", config.AWS.Region)
+		err1 := os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
+		err2 := os.Setenv("AWS_SECRET_ACCESS_KEY", config.AWS.SecretAccessKey)
+		err3 := os.Setenv("AWS_DEFAULT_REGION", config.AWS.Region)
+		if err1 != nil || err2 != nil || err3 != nil {
+			log.Printf("[ERROR] : AWS - Error setting AWS env vars")
+			return nil, errors.New("Error setting AWS env vars")
+		}
 	}
 
 	sess, err := session.NewSession(&aws.Config{

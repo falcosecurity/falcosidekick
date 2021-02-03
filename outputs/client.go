@@ -95,7 +95,9 @@ func (c *Client) Post(payload interface{}) error {
 	case influxdbPayload:
 		fmt.Fprintf(body, "%v", payload)
 	default:
-		json.NewEncoder(body).Encode(payload)
+		if err := json.NewEncoder(body).Encode(payload); err != nil {
+			log.Printf("[ERROR] : %v - %s", c.OutputType, err)
+		}
 	}
 
 	if c.Config.Debug == true {
@@ -105,8 +107,8 @@ func (c *Client) Post(payload interface{}) error {
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 
 	if c.Config.CheckCert == false {
+		// #nosec G402 This is only set as a result of explicit configuration
 		customTransport.TLSClientConfig = &tls.Config{
-			// nolint: gosec
 			InsecureSkipVerify: true,
 		}
 	}
