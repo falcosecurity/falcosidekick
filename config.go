@@ -159,7 +159,9 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("customfields")
 	v.GetStringMapString("Webhook.CustomHeaders")
 	v.GetStringMapString("CloudEvents.Extensions")
-	v.Unmarshal(c)
+	if err := v.Unmarshal(c); err != nil {
+		log.Printf("[ERROR] : Error unmarshalling config : %s", err)
+	}
 
 	if value, present := os.LookupEnv("CUSTOMFIELDS"); present {
 		customfields := strings.Split(value, ",")

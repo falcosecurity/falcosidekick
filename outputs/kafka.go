@@ -46,7 +46,11 @@ func (c *Client) KafkaProduce(falcopayload types.FalcoPayload) {
 		Value: falcoMsg,
 	}
 
-	c.KafkaProducer.SetWriteDeadline(time.Now().Add(10 * time.Second))
+	if err := c.KafkaProducer.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		c.setKafkaErrorMetrics()
+		log.Printf("[ERROR] : Kafka - %v\n", err)
+		return
+	}
 	_, err = c.KafkaProducer.WriteMessages(kafkaMsg)
 	if err != nil {
 		c.setKafkaErrorMetrics()
