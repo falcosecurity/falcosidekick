@@ -53,6 +53,7 @@ Currently available outputs are :
 - [**Apache Kafka**](https://kafka.apache.org/)
 - [**PagerDuty**](https://pagerduty.com/)
 - [**Kubeless**](https://kubeless.io/)
+- [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
 
 ## Usage
 
@@ -296,6 +297,9 @@ kubeless:
   port: 8080 # Port of service of Kubeless function
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcoside is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+webui:
+  address: "" # WebUI address, if not empty, WebUI output is enabled
 ```
 
 Usage :
@@ -544,6 +548,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **KUBELESS_MINIMUMPRIORITY**: "debug" # minimum priority of event for using
   this output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **WEBUI_ADDRESS** : WebUI address, if not empty, WebUI output is 
+  _enabled_
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 

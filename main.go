@@ -9,6 +9,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/outputs"
 	"github.com/falcosecurity/falcosidekick/types"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -38,6 +39,7 @@ var (
 	kafkaClient         *outputs.Client
 	pagerdutyClient     *outputs.Client
 	kubelessClient      *outputs.Client
+	webUIClient         *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -50,7 +52,7 @@ func init() {
 	stats = getInitStats()
 	promStats = getInitPromStats()
 
-	enabledOutputsText := "[INFO]  : Enabled Outputs : "
+	config.UUID = uuid.New().String()
 
 	if config.Statsd.Forwarder != "" {
 		var err error
@@ -58,7 +60,7 @@ func init() {
 		if err != nil {
 			config.Statsd.Forwarder = ""
 		} else {
-			enabledOutputsText += "StatsD "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "StatsD")
 		}
 	}
 
@@ -68,7 +70,7 @@ func init() {
 		if err != nil {
 			config.Statsd.Forwarder = ""
 		} else {
-			enabledOutputsText += "StatsD "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "StatsD")
 			nullClient.DogstatsdClient = dogstatsdClient
 		}
 	}
@@ -88,7 +90,7 @@ func init() {
 		if err != nil {
 			config.Slack.WebhookURL = ""
 		} else {
-			enabledOutputsText += "Slack "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Slack")
 		}
 	}
 
@@ -98,7 +100,7 @@ func init() {
 		if err != nil {
 			config.Rocketchat.WebhookURL = ""
 		} else {
-			enabledOutputsText += "Rocketchat "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Rocketchat")
 		}
 	}
 
@@ -108,7 +110,7 @@ func init() {
 		if err != nil {
 			config.Mattermost.WebhookURL = ""
 		} else {
-			enabledOutputsText += "Mattermost "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Mattermost")
 		}
 	}
 
@@ -118,7 +120,7 @@ func init() {
 		if err != nil {
 			config.Teams.WebhookURL = ""
 		} else {
-			enabledOutputsText += "Teams "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Teams")
 		}
 	}
 
@@ -128,7 +130,7 @@ func init() {
 		if err != nil {
 			config.Datadog.APIKey = ""
 		} else {
-			enabledOutputsText += "Datadog "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Datadog")
 		}
 	}
 
@@ -138,7 +140,7 @@ func init() {
 		if err != nil {
 			config.Discord.WebhookURL = ""
 		} else {
-			enabledOutputsText += "Discord "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Discord")
 		}
 	}
 
@@ -148,7 +150,7 @@ func init() {
 		if err != nil {
 			config.Alertmanager.HostPort = ""
 		} else {
-			enabledOutputsText += "AlertManager "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AlertManager")
 		}
 	}
 
@@ -158,7 +160,7 @@ func init() {
 		if err != nil {
 			config.Elasticsearch.HostPort = ""
 		} else {
-			enabledOutputsText += "Elasticsearch "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Elasticsearch")
 		}
 	}
 
@@ -168,7 +170,7 @@ func init() {
 		if err != nil {
 			config.Loki.HostPort = ""
 		} else {
-			enabledOutputsText += "Loki "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Loki")
 		}
 	}
 
@@ -178,7 +180,7 @@ func init() {
 		if err != nil {
 			config.Nats.HostPort = ""
 		} else {
-			enabledOutputsText += "NATS "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "NATS")
 		}
 	}
 
@@ -190,7 +192,7 @@ func init() {
 			config.Stan.ClusterID = ""
 			config.Stan.ClientID = ""
 		} else {
-			enabledOutputsText += "STAN "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "STAN")
 		}
 	}
 
@@ -205,7 +207,7 @@ func init() {
 		if err != nil {
 			config.Influxdb.HostPort = ""
 		} else {
-			enabledOutputsText += "Influxdb "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Influxdb")
 		}
 	}
 
@@ -224,16 +226,16 @@ func init() {
 			config.AWS.CloudWatchLogs.LogStream = ""
 		} else {
 			if config.AWS.Lambda.FunctionName != "" {
-				enabledOutputsText += "AWSLambda "
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSLambda")
 			}
 			if config.AWS.SQS.URL != "" {
-				enabledOutputsText += "AWSSQS "
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSSQS")
 			}
 			if config.AWS.SNS.TopicArn != "" {
-				enabledOutputsText += "AWSSNS "
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSSNS")
 			}
 			if config.AWS.CloudWatchLogs.LogGroup != "" {
-				enabledOutputsText += "AWSCloudWatchLogs "
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSCloudWatchLogs")
 			}
 		}
 	}
@@ -244,7 +246,7 @@ func init() {
 		if err != nil {
 			config.SMTP.HostPort = ""
 		} else {
-			enabledOutputsText += "SMTP "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "SMTP")
 		}
 	}
 
@@ -258,7 +260,7 @@ func init() {
 		if err != nil {
 			config.Opsgenie.APIKey = ""
 		} else {
-			enabledOutputsText += "Opsgenie "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Opsgenie")
 		}
 	}
 
@@ -268,7 +270,7 @@ func init() {
 		if err != nil {
 			config.Webhook.Address = ""
 		} else {
-			enabledOutputsText += "Webhook "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Webhook")
 		}
 	}
 
@@ -278,7 +280,7 @@ func init() {
 		if err != nil {
 			config.CloudEvents.Address = ""
 		} else {
-			enabledOutputsText += "CloudEvents "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "CloudEvents")
 		}
 	}
 
@@ -290,7 +292,7 @@ func init() {
 			config.Azure.EventHub.Namespace = ""
 		} else {
 			if config.Azure.EventHub.Name != "" {
-				enabledOutputsText += "EventHub "
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "EventHub")
 			}
 		}
 	}
@@ -302,7 +304,7 @@ func init() {
 			config.GCP.PubSub.ProjectID = ""
 			config.GCP.PubSub.Topic = ""
 		} else {
-			enabledOutputsText += "GCPPubSub "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "GCPPubSub")
 		}
 	}
 
@@ -312,7 +314,7 @@ func init() {
 		if err != nil {
 			config.Googlechat.WebhookURL = ""
 		} else {
-			enabledOutputsText += "Google Chat "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Google Chat")
 		}
 	}
 
@@ -322,7 +324,7 @@ func init() {
 		if err != nil {
 			config.Kafka.HostPort = ""
 		} else {
-			enabledOutputsText += "Kafka "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Kafka")
 		}
 	}
 
@@ -333,7 +335,7 @@ func init() {
 			config.Pagerduty.APIKey = ""
 			config.Pagerduty.Service = ""
 		} else {
-			enabledOutputsText += "Pagerduty "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Pagerduty")
 		}
 	}
 
@@ -345,11 +347,31 @@ func init() {
 			config.Kubeless.Namespace = ""
 			config.Kubeless.Function = ""
 		} else {
-			enabledOutputsText += "Kubeless "
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Kubeless")
 		}
 	}
 
-	log.Printf("%v\n", enabledOutputsText)
+	if config.Webhook.Address != "" {
+		var err error
+		webhookClient, err = outputs.NewClient("Webhook", config.Webhook.Address, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Webhook.Address = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Webhook")
+		}
+	}
+
+	if config.WebUI.Address != "" {
+		var err error
+		webUIClient, err = outputs.NewClient("WebUI", config.WebUI.Address, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.WebUI.Address = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
+		}
+	}
+
+	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
 }
 
 func main() {

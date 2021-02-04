@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -104,7 +105,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 
 	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + falcopayload.Priority.String()})
-	stats.Falco.Add(falcopayload.Priority.String(), 1)
+	stats.Falco.Add(strings.ToLower(falcopayload.Priority.String()), 1)
 	promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "k8s_ns_name": kn, "k8s_pod_name": kp}).Inc()
 
 	if config.Debug == true {
@@ -218,5 +219,9 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 
 	if config.Kubeless.Namespace != "" && config.Kubeless.Function != "" && (falcopayload.Priority >= types.Priority(config.Kubeless.MinimumPriority) || falcopayload.Rule == testRule) {
 		go kubelessClient.KubelessCall(falcopayload)
+	}
+
+	if config.WebUI.Address != "" {
+		go webUIClient.WebUIPost(falcopayload)
 	}
 }

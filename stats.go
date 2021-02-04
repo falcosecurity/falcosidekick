@@ -50,6 +50,7 @@ func getInitStats() *types.Statistics {
 		Kafka:             getOutputNewMap("kafka"),
 		Pagerduty:         getOutputNewMap("pagerduty"),
 		Kubeless:          getOutputNewMap("kubeless"),
+		WebUI:             getOutputNewMap("webui"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

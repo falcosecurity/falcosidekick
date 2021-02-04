@@ -19,6 +19,7 @@ type FalcoPayload struct {
 
 // Configuration is a struct to store configuration
 type Configuration struct {
+	UUID          string
 	CheckCert     bool
 	Debug         bool
 	ListenPort    int
@@ -48,6 +49,7 @@ type Configuration struct {
 	Kafka         kafkaConfig
 	Pagerduty     pagerdutyConfig
 	Kubeless      kubelessConfig
+	WebUI         WebUIOutputConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -267,6 +269,11 @@ type kubelessConfig struct {
 	MinimumPriority string
 }
 
+// WebUIOutputConfig represents parameters for WebUI
+type WebUIOutputConfig struct {
+	Address string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -301,6 +308,7 @@ type Statistics struct {
 	Pagerduty         *expvar.Map
 	CloudEvents       *expvar.Map
 	Kubeless          *expvar.Map
+	WebUI             *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

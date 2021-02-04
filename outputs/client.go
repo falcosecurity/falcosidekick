@@ -46,6 +46,9 @@ var ErrTooManyRequest = errors.New("Exceeding post rate limit")
 // ErrClientCreation is returned if client can't be created
 var ErrClientCreation = errors.New("Client creation Error")
 
+// EnabledOutputs list all enabled outputs
+var EnabledOutputs []string
+
 // Client communicates with the different API.
 type Client struct {
 	OutputType        string
