@@ -361,16 +361,6 @@ func init() {
 		}
 	}
 
-	if config.WebUI.Address != "" {
-		var err error
-		webUIClient, err = outputs.NewClient("WebUI", config.WebUI.Address, config, stats, promStats, statsdClient, dogstatsdClient)
-		if err != nil {
-			config.WebUI.Address = ""
-		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
-		}
-	}
-
 	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
 }
 
