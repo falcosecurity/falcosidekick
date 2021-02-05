@@ -9,19 +9,19 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-type webUIPayload struct {
+type WebUIPayload struct {
 	UUID    string             `json:"uuid,omitempty"`
 	Event   types.FalcoPayload `json:"event,omitempty"`
 	Stats   map[string]int64   `json:"stats,omitempty"`
 	Outputs []string           `json:"outputs,omitempty"`
 }
 
-func newWebUIPayload(falcopayload types.FalcoPayload, config *types.Configuration) webUIPayload {
+func newWebUIPayload(falcopayload types.FalcoPayload, config *types.Configuration) WebUIPayload {
 	s := new(map[string]int64)
 
 	json.Unmarshal([]byte(fmt.Sprintf("%v", expvar.Get("falco.priority"))), &s)
 
-	return webUIPayload{
+	return WebUIPayload{
 		UUID:    config.UUID,
 		Event:   falcopayload,
 		Stats:   *s,
