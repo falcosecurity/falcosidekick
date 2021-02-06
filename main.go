@@ -351,13 +351,13 @@ func init() {
 		}
 	}
 
-	if config.Webhook.Address != "" {
+	if config.WebUI.URL != "" {
 		var err error
-		webhookClient, err = outputs.NewClient("Webhook", config.Webhook.Address, config, stats, promStats, statsdClient, dogstatsdClient)
+		webUIClient, err = outputs.NewClient("WebUI", config.WebUI.URL, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
-			config.Webhook.Address = ""
+			config.WebUI.URL = ""
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Webhook")
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
 		}
 	}
 

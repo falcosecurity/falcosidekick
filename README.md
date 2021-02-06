@@ -299,7 +299,7 @@ kubeless:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 webui:
-  address: "" # WebUI address, if not empty, WebUI output is enabled
+  url: "" # WebUI URL, if not empty, WebUI output is enabled
 ```
 
 Usage :
@@ -548,7 +548,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **KUBELESS_MINIMUMPRIORITY**: "debug" # minimum priority of event for using
   this output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-- **WEBUI_ADDRESS** : WebUI address, if not empty, WebUI output is 
+- **WEBUI_URL** : WebUI URL, if not empty, WebUI output is 
   _enabled_
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting

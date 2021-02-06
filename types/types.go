@@ -271,7 +271,7 @@ type kubelessConfig struct {
 
 // WebUIOutputConfig represents parameters for WebUI
 type WebUIOutputConfig struct {
-	Address string
+	URL string
 }
 
 // Statistics is a struct to store stastics

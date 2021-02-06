@@ -221,7 +221,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go kubelessClient.KubelessCall(falcopayload)
 	}
 
-	if config.WebUI.Address != "" {
+	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
 	}
 }
