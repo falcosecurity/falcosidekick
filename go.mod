@@ -8,9 +8,10 @@ require (
 	github.com/DataDog/datadog-go v4.2.0+incompatible
 	github.com/PagerDuty/go-pagerduty v1.3.0
 	github.com/aws/aws-sdk-go v1.36.23
-	github.com/cloudevents/sdk-go/v2 v2.3.1
 	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21
 	github.com/emersion/go-smtp v0.14.0
+	github.com/gkarthiks/k8s-discovery v0.19.0
+	github.com/cloudevents/sdk-go/v2 v2.3.1
 	github.com/google/uuid v1.1.2
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/nats-io/nats-streaming-server v0.19.0 // indirect
@@ -23,5 +24,6 @@ require (
 	golang.org/x/oauth2 v0.0.0-20201208152858-08078c50e5b5
 	google.golang.org/api v0.36.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
+	k8s.io/apimachinery v0.20.1
 	k8s.io/client-go v0.20.1
 )
