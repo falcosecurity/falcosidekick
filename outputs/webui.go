@@ -46,5 +46,5 @@ func (c *Client) WebUIPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:webui", "status:ok"})
 	c.Stats.WebUI.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "webui", "status": OK}).Inc()
-	log.Printf("[INFO] : WebUI - Publish OK\n")
+	log.Printf("[INFO]  : WebUI - Publish OK\n")
 }
