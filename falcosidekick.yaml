@@ -1,0 +1,2 @@
+alertmanager:
+  hostport: "http://armada-ops-alertmanager.monitoring.svc.cluster.local:9093"
