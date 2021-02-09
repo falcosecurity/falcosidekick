@@ -140,7 +140,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Kubeless.Port", 8080)
 	v.SetDefault("Kubeless.Kubeconfig", "")
 	v.SetDefault("Kubeless.MinimumPriority", "")
-	v.SetDefault("Webui.URL", "http://localhost:2802")
+	v.SetDefault("Webui.URL", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
