@@ -126,6 +126,7 @@ vars_ override values from _file_.
 See **config_example.yaml** :
 
 ```yaml
+#listenaddress: "" # ip address to bind falcosidekick to (default: "" meaning all addresses)
 #listenport: 2801 # port to listen for daemon (default: 2801)
 debug: false # if true all outputs will print in stdout the payload they send (default: false)
 customfields: # custom fields are added to falco events
@@ -320,6 +321,7 @@ override these from _yaml file_.
 The _env vars_ "match" field names in \*yaml file with this structure (**take
 care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 
+- **LISTENADDRESS** : ip address to bind falcosidekick to (default: "" meaning all addresses)
 - **LISTENPORT** : port to listen for daemon (default: `2801`)
 - **DEBUG** : if _true_ all outputs will print in stdout the payload they send
   (default: false)
