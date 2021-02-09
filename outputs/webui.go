@@ -3,7 +3,6 @@ package outputs
 import (
 	"encoding/json"
 	"expvar"
-	"fmt"
 	"log"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -19,7 +18,9 @@ type WebUIPayload struct {
 func newWebUIPayload(falcopayload types.FalcoPayload, config *types.Configuration) WebUIPayload {
 	s := new(map[string]int64)
 
-	json.Unmarshal([]byte(fmt.Sprintf("%v", expvar.Get("falco.priority"))), &s)
+	if err := json.Unmarshal([]byte(expvar.Get("falco.priority").String()), &s); err != nil {
+		log.Printf("[ERROR] : WebUI - failed to unmarshal expvar : %s", err)
+	}
 
 	return WebUIPayload{
 		UUID:    config.UUID,
