@@ -22,6 +22,7 @@ type Configuration struct {
 	UUID          string
 	CheckCert     bool
 	Debug         bool
+	ListenAddress string
 	ListenPort    int
 	Customfields  map[string]string
 	Slack         SlackOutputConfig

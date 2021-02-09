@@ -1,9 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -371,12 +371,12 @@ func main() {
 	http.HandleFunc("/test", testHandler)
 	http.Handle("/metrics", promhttp.Handler())
 
-	log.Printf("[INFO]  : Falco Sidekick is up and listening on port %v\n", config.ListenPort)
+	log.Printf("[INFO]  : Falco Sidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
 	if config.Debug {
-		log.Printf("[INFO]  : Debug mode : %v\n", config.Debug)
+		log.Printf("[INFO]  : Debug mode : %v", config.Debug)
 	}
 
-	if err := http.ListenAndServe(":"+strconv.Itoa(config.ListenPort), nil); err != nil {
-		log.Fatalf("[ERROR] : %v\n", err.Error())
+	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", config.ListenAddress, config.ListenPort), nil); err != nil {
+		log.Fatalf("[ERROR] : %v", err.Error())
 	}
 }

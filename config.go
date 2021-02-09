@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -26,6 +27,7 @@ func getConfig() *types.Configuration {
 	kingpin.Parse()
 
 	v := viper.New()
+	v.SetDefault("ListenAddress", "")
 	v.SetDefault("ListenPort", 2801)
 	v.SetDefault("Debug", false)
 	v.SetDefault("CheckCert", true)
@@ -196,6 +198,10 @@ func getConfig() *types.Configuration {
 
 	if c.ListenPort == 0 || c.ListenPort > 65536 {
 		log.Fatalf("[ERROR] : Bad port number\n")
+	}
+
+	if ip := net.ParseIP(c.ListenAddress); c.ListenAddress != "" && ip == nil {
+		log.Fatalf("[ERROR] : Failed to parse ListenAddress")
 	}
 
 	c.Slack.MinimumPriority = checkPriority(c.Slack.MinimumPriority)
