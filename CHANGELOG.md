@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.21.0 - 2021-02-12
+#### New
+- New output : **Cloud Events** ([PR#169](https://github.com/falcosecurity/falcosidekick/pull/169) thanks to [@n3wscott](https://github.com/n3wscott))
+- New output : **WebUI** ([PR#180](https://github.com/falcosecurity/falcosidekick/pull/180))
+#### Enhancement
+- Include numeric values for `Alertmanager` outputs ([PR#177](https://github.com/falcosecurity/falcosidekick/pull/177) thanks to to [@alsm](https://github.com/alsm))
+- Add `listenaddress` option ([PR#187](https://github.com/falcosecurity/falcosidekick/pull/187) thanks to to [@alsm](https://github.com/alsm))
+#### Fix
+- Fix spelling typos in README ([PR#175](https://github.com/falcosecurity/falcosidekick/pull/175) thanks to to [@princespaghetti](https://github.com/princespaghetti))
+- Fix several `gosec` issues ([PR#179](https://github.com/falcosecurity/falcosidekick/pull/179) thanks to to [@alsm](https://github.com/alsm))
+- Fix label values with quotes for `Loki` ([PR#182](https://github.com/falcosecurity/falcosidekick/pull/182))
+
 ## 2.20.0 - 2021-01-12
 #### New
 - New output : **STAN (NATS Streaming)** ([PR#135](https://github.com/falcosecurity/falcosidekick/pull/135))
