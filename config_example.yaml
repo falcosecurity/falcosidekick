@@ -91,6 +91,7 @@ aws:
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
+  # authmethod: "plain" # auth method (plain/login) to SMTP server, default is "plain"
   # user: "" # user to access SMTP server
   # password: "" # password to access SMTP server
   # from: "" # Sender address (mandatory if SMTP output is enabled)

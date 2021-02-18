@@ -226,6 +226,7 @@ aws:
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
+  # authmethod: "plain" # auth method (plain/login) to SMTP server, default is "plain"
   # user: "" # user to access SMTP server
   # password: "" # password to access SMTP server
   # from: "" # Sender address (mandatory if SMTP output is enabled)
@@ -460,6 +461,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   this output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **SMTP_HOSTPORT** : "host:port" address of SMTP server, if not empty, SMTP
+- **SMTP_AUTHMETHOD** : "plain" # auth method (plain/login) to SMTP server, default is "plain"
+
   output is _enabled_
 - **SMTP_USER** : user to access SMTP server
 - **SMTP_PASSWORD** : password to access SMTP server

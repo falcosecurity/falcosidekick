@@ -89,6 +89,9 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 
 	to := strings.Split(strings.Replace(c.Config.SMTP.To, " ", "", -1), ",")
 	auth := sasl.NewPlainClient("", c.Config.SMTP.User, c.Config.SMTP.Password)
+	if strings.ToLower(c.Config.SMTP.AuthMethod) == "login" {
+		auth = sasl.NewLoginClient(c.Config.SMTP.User, c.Config.SMTP.Password)
+	}
 	body := sp.To + "\n" + sp.Subject + "\n" + sp.Body
 
 	if c.Config.Debug == true {

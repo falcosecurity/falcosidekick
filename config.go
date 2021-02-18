@@ -92,6 +92,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.CloudWatchLogs.LogStream", "")
 	v.SetDefault("AWS.CloudWatchLogs.MinimumPriority", "")
 	v.SetDefault("SMTP.HostPort", "")
+	v.SetDefault("SMTP.AuthMethod", "plain")
 	v.SetDefault("SMTP.User", "")
 	v.SetDefault("SMTP.Password", "")
 	v.SetDefault("SMTP.From", "")

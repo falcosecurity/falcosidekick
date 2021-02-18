@@ -183,6 +183,7 @@ type awsCloudWatchLogs struct {
 
 type smtpOutputConfig struct {
 	HostPort        string
+	AuthMethod      string
 	User            string
 	Password        string
 	From            string
