@@ -128,7 +128,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Googlechat.OutputFormat", "all")
 	v.SetDefault("Googlechat.MessageFormat", "")
 	v.SetDefault("Googlechat.MinimumPriority", "")
-	v.SetDefault("Kafka.URL", "")
+	v.SetDefault("Kafka.HostPort", "")
 	v.SetDefault("Kafka.Topic", "")
 	v.SetDefault("Kafka.Partition", 0)
 	v.SetDefault("Kafka.MinimumPriority", "")
