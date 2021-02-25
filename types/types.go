@@ -154,6 +154,7 @@ type awsOutputConfig struct {
 	Lambda          awsLambdaConfig
 	SQS             awsSQSConfig
 	SNS             awsSNSConfig
+	S3              awsS3Config
 	CloudWatchLogs  awsCloudWatchLogs
 }
 
@@ -179,6 +180,11 @@ type awsCloudWatchLogs struct {
 	LogGroup        string
 	LogStream       string
 	MinimumPriority string
+}
+
+type awsS3Config struct {
+	Prefix string
+	Bucket string
 }
 
 type smtpOutputConfig struct {
