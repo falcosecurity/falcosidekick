@@ -1,9 +1,11 @@
 package outputs
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -17,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/lambda"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -133,6 +136,37 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	go c.CountMetric("outputs", 1, []string{"output:awssqs", "status:ok"})
 	c.Stats.AWSSQS.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "awssqs", "status": "ok"}).Inc()
+}
+
+// UploadS3 upload payload to S3
+func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
+	f, _ := json.Marshal(falcopayload)
+
+	prefix := ""
+	if c.Config.AWS.S3.Prefix != "" {
+		prefix = c.Config.AWS.S3.Prefix
+	}
+
+	key := fmt.Sprintf("%s/payload-%s-%v.json", falcopayload.Rule, prefix, time.Now().UnixNano())
+	resp, err := s3.New(c.AWSSession).PutObject(&s3.PutObjectInput{
+		Bucket: aws.String(c.Config.AWS.S3.Bucket),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader(f),
+	})
+	if err != nil {
+		go c.CountMetric("outputs", 1, []string{"output:awss3", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "awss3", "status": Error}).Inc()
+		log.Printf("[ERROR] : %v S3 - %v\n", c.OutputType, err.Error())
+		return
+	}
+
+	if c.Config.Debug == true {
+		log.Printf("[DEBUG] : %v S3 - SSECustomerKeyMD5 : %v\n", c.OutputType, *resp.SSECustomerKeyMD5)
+	}
+
+	log.Printf("[INFO]  : %v S3 - Upload payload OK (%v)\n", c.OutputType, *resp.SSECustomerKeyMD5)
+	go c.CountMetric("outputs", 1, []string{"output:awss3", "status:ok"})
+	c.PromStats.Outputs.With(map[string]string{"destination": "awss3", "status": "ok"}).Inc()
 }
 
 // PublishTopic sends a message to a SNS Topic
