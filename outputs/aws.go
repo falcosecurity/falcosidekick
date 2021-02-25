@@ -143,11 +143,12 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 	f, _ := json.Marshal(falcopayload)
 
 	prefix := ""
+	t := time.Now()
 	if c.Config.AWS.S3.Prefix != "" {
 		prefix = c.Config.AWS.S3.Prefix
 	}
 
-	key := fmt.Sprintf("%s/payload-%s-%v.json", falcopayload.Rule, prefix, time.Now().UnixNano())
+	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format("2006-01-02"))
 	resp, err := s3.New(c.AWSSession).PutObject(&s3.PutObjectInput{
 		Bucket: aws.String(c.Config.AWS.S3.Bucket),
 		Key:    aws.String(key),

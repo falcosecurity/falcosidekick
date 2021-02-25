@@ -183,8 +183,9 @@ type awsCloudWatchLogs struct {
 }
 
 type awsS3Config struct {
-	Prefix string
-	Bucket string
+	Prefix          string
+	Bucket          string
+	MinimumPriority string
 }
 
 type smtpOutputConfig struct {
@@ -303,6 +304,7 @@ type Statistics struct {
 	AWSSQS            *expvar.Map
 	AWSSNS            *expvar.Map
 	AWSCloudWatchLogs *expvar.Map
+	AWSS3             *expvar.Map
 	SMTP              *expvar.Map
 	Opsgenie          *expvar.Map
 	Statsd            *expvar.Map
