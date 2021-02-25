@@ -174,11 +174,15 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	}
 
 	if config.AWS.SNS.TopicArn != "" && (falcopayload.Priority >= types.Priority(config.AWS.SNS.MinimumPriority) || falcopayload.Rule == testRule) {
-		go awsClient.PublishTopic(falcopayload)
+		go awsClient.UploadS3(falcopayload)
 	}
 
 	if config.AWS.CloudWatchLogs.LogGroup != "" && (falcopayload.Priority >= types.Priority(config.AWS.CloudWatchLogs.MinimumPriority) || falcopayload.Rule == testRule) {
 		go awsClient.SendCloudWatchLog(falcopayload)
+	}
+
+	if config.AWS.S3.Bucket != "" && (falcopayload.Priority >= types.Priority(config.AWS.S3.MinimumPriority) || falcopayload.Rule == testRule) {
+		go awsClient.PublishTopic(falcopayload)
 	}
 
 	if config.SMTP.HostPort != "" && (falcopayload.Priority >= types.Priority(config.SMTP.MinimumPriority) || falcopayload.Rule == testRule) {

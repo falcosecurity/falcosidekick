@@ -38,6 +38,7 @@ func getInitStats() *types.Statistics {
 		AWSSQS:            getOutputNewMap("awssqs"),
 		AWSSNS:            getOutputNewMap("awssns"),
 		AWSCloudWatchLogs: getOutputNewMap("awscloudwatchlogs"),
+		AWSS3:             getOutputNewMap("awss3"),
 		SMTP:              getOutputNewMap("smtp"),
 		Opsgenie:          getOutputNewMap("opsgenie"),
 		Statsd:            getOutputNewMap("statsd"),

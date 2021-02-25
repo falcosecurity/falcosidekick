@@ -221,6 +221,7 @@ func init() {
 			config.AWS.Region = ""
 			config.AWS.Lambda.FunctionName = ""
 			config.AWS.SQS.URL = ""
+			config.AWS.S3.Bucket = ""
 			config.AWS.SNS.TopicArn = ""
 			config.AWS.CloudWatchLogs.LogGroup = ""
 			config.AWS.CloudWatchLogs.LogStream = ""
@@ -236,6 +237,9 @@ func init() {
 			}
 			if config.AWS.CloudWatchLogs.LogGroup != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSCloudWatchLogs")
+			}
+			if config.AWS.S3.Bucket != "" {
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSS3")
 			}
 		}
 	}
