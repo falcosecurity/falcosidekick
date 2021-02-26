@@ -212,7 +212,7 @@ func init() {
 	}
 
 	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" ||
-		config.AWS.SNS.TopicArn != "" || config.AWS.CloudWatchLogs.LogGroup != "" {
+		config.AWS.SNS.TopicArn != "" || config.AWS.CloudWatchLogs.LogGroup != "" || config.AWS.S3.Bucket != "" {
 		var err error
 		awsClient, err = outputs.NewAWSClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
