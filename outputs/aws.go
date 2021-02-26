@@ -148,7 +148,7 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 		prefix = c.Config.AWS.S3.Prefix
 	}
 
-	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format("2006-01-02"))
+	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format(time.RFC3339Nano))
 	resp, err := s3.New(c.AWSSession).PutObject(&s3.PutObjectInput{
 		Bucket: aws.String(c.Config.AWS.S3.Bucket),
 		Key:    aws.String(key),
@@ -159,10 +159,6 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "awss3", "status": Error}).Inc()
 		log.Printf("[ERROR] : %v S3 - %v\n", c.OutputType, err.Error())
 		return
-	}
-
-	if c.Config.Debug == true {
-		log.Printf("[DEBUG] : %v S3 - SSECustomerKeyMD5 : %v\n", c.OutputType, *resp.SSECustomerKeyMD5)
 	}
 
 	log.Printf("[INFO]  : %v S3 - Upload payload OK (%v)\n", c.OutputType, *resp.SSECustomerKeyMD5)
