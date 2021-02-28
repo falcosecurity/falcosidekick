@@ -223,6 +223,10 @@ aws:
     # loggroup : "" #  AWS CloudWatch Logs Group name, if not empty, CloudWatch Logs output is enabled
     # logstream : "" # AWS CloudWatch Logs Stream name, if empty, Falcosidekick will try to create a log stream
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  s3:
+    # bucket: "falcosidekick" # AWS S3, bucket name
+    # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
@@ -459,6 +463,11 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **AWS_CLOUDWATCHLOGS_MINIMUMPRIORITY** : minimum priority of event for using
   this output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **AWS_S3_BUCKET** : AWS S3 Bucket, if not empty, AWS S3 output is
+    _enabled_
+- **AWS_S3_PREFIX** : Prefix name of the object, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+- **AWS_S3_MINIMUMPRIORITY** : minimum priority of event for using this output,
+  order is
 - **SMTP_HOSTPORT** : "host:port" address of SMTP server, if not empty, SMTP
   output is _enabled_
 - **SMTP_USER** : user to access SMTP server
