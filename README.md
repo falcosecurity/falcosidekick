@@ -38,6 +38,7 @@ Currently available outputs are :
 - [**AWS SQS**](https://aws.amazon.com/sqs/features/)
 - [**AWS SNS**](https://aws.amazon.com/sns/features/)
 - [**AWS CloudWatchLogs**](https://aws.amazon.com/cloudwatch/features/)
+- [**AWS S3**](https://aws.amazon.com/s3/features/)
 - **SMTP** (email)
 - [**Opsgenie**](https://www.opsgenie.com/)
 - [**StatsD**](https://github.com/statsd/statsd) (for monitoring of
