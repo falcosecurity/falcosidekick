@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/storage"
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
@@ -50,16 +51,19 @@ var EnabledOutputs []string
 
 // Client communicates with the different API.
 type Client struct {
-	OutputType        string
-	EndpointURL       *url.URL
-	Config            *types.Configuration
-	Stats             *types.Statistics
-	PromStats         *types.PromStatistics
-	AWSSession        *session.Session
-	StatsdClient      *statsd.Client
-	DogstatsdClient   *statsd.Client
-	GCPTopicClient    *pubsub.Topic
-	KafkaProducer     *kafka.Writer
+	OutputType      string
+	EndpointURL     *url.URL
+	Config          *types.Configuration
+	Stats           *types.Statistics
+	PromStats       *types.PromStatistics
+	AWSSession      *session.Session
+	StatsdClient    *statsd.Client
+	DogstatsdClient *statsd.Client
+	GCPTopicClient  *pubsub.Topic
+
+	GCSStorageClient  *storage.BucketHandle
+	KafkaProducer     *kafka.Conn
+	PagerdutyClient   *pagerduty.Client
 	CloudEventsClient cloudevents.Client
 	KubernetesClient  kubernetes.Interface
 }

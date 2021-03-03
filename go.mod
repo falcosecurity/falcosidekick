@@ -3,10 +3,10 @@ module github.com/falcosecurity/falcosidekick
 go 1.16
 
 require (
-	cloud.google.com/go/pubsub v1.10.0
-	github.com/Azure/azure-event-hubs-go/v3 v3.3.6
-	github.com/DataDog/datadog-go v4.4.0+incompatible
-	github.com/Microsoft/go-winio v0.4.16 // indirect
+	cloud.google.com/go/pubsub v1.9.1
+	cloud.google.com/go/storage v1.14.0
+	github.com/Azure/azure-event-hubs-go/v3 v3.3.4
+	github.com/DataDog/datadog-go v4.2.0+incompatible
 	github.com/PagerDuty/go-pagerduty v1.3.0
 	github.com/aws/aws-sdk-go v1.37.22
 	github.com/cloudevents/sdk-go/v2 v2.3.1

@@ -47,6 +47,7 @@ func getInitStats() *types.Statistics {
 		CloudEvents:       getOutputNewMap("cloudevents"),
 		AzureEventHub:     getOutputNewMap("azureeventhub"),
 		GCPPubSub:         getOutputNewMap("gcppubsub"),
+		GCPStorage:        getOutputNewMap("gcpstorage"),
 		GoogleChat:        getOutputNewMap("googlechat"),
 		Kafka:             getOutputNewMap("kafka"),
 		Pagerduty:         getOutputNewMap("pagerduty"),
