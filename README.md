@@ -50,6 +50,7 @@ Currently available outputs are :
 - [**Prometheus**](https://prometheus.io/) (for both events and monitoring of
   `falcosidekick`)
 - [**GCP PubSub**](https://cloud.google.com/pubsub)
+- [**GCP Storage**](https://cloud.google.com/storage)
 - [**Google Chat**](https://workspace.google.com/products/chat/)
 - [**Apache Kafka**](https://kafka.apache.org/)
 - [**PagerDuty**](https://pagerduty.com/)
@@ -276,6 +277,10 @@ gcp:
   pubsub:
     projectid: "" # The GCP Project ID containing the Pub/Sub Topic
     topic: "" # The name of the Pub/Sub topic
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  storage:
+    # prefix : "" # name of prefix, keys will have format: gs://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+    bucket: "" # The name of the bucket
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 googlechat:

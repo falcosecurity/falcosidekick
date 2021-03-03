@@ -239,11 +239,18 @@ type eventHub struct {
 type gcpOutputConfig struct {
 	Credentials string
 	PubSub      gcpPubSub
+	Storage     gcpStorage
 }
 
 type gcpPubSub struct {
 	ProjectID       string
 	Topic           string
+	MinimumPriority string
+}
+
+type gcpStorage struct {
+	Bucket          string
+	Prefix          string
 	MinimumPriority string
 }
 
@@ -327,6 +334,7 @@ type Statistics struct {
 	Webhook           *expvar.Map
 	AzureEventHub     *expvar.Map
 	GCPPubSub         *expvar.Map
+	GCPStorage        *expvar.Map
 	GoogleChat        *expvar.Map
 	Kafka             *expvar.Map
 	Pagerduty         *expvar.Map
