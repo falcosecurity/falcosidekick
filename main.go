@@ -332,14 +332,17 @@ func init() {
 		}
 	}
 
-	if config.Pagerduty.APIKey != "" && config.Pagerduty.Service != "" {
+	if config.Pagerduty.RoutingKey != "" {
 		var err error
-		pagerdutyClient, err = outputs.NewPagerdutyClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		var url = "https://events.pagerduty.com/v2/enqueue"
+		var outputName = "Pagerduty"
+
+		pagerdutyClient, err = outputs.NewClient(outputName, url, config, stats, promStats, statsdClient, dogstatsdClient)
+
 		if err != nil {
-			config.Pagerduty.APIKey = ""
-			config.Pagerduty.Service = ""
+			config.Pagerduty.RoutingKey = ""
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Pagerduty")
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, outputName)
 		}
 	}
 

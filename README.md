@@ -291,11 +291,8 @@ kafka:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 pagerduty:
-  # apikey: # Pagerduty API Key, if not empty, Pagerduty output is enabled
-  service: "" # Service to create an incident (mandatory)
-  assignee: "" # A list of comma separated users to assign. Cannot be provided if pagerduty.escalationpolicy is already specified.
-  escalationpolicy: "" # Escalation policy to assign. Cannot be provided if pagerduty.escalationpolicy is already specified
-  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  routingKey: "" # Pagerduty Routing Key, if not empty, Pagerduty output is enabled
+  minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 kubeless:
   function: "" # Name of Kubeless function, if not empty, Kubeless is enabled
