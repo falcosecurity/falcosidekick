@@ -112,7 +112,6 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Dogstatsd.Forwarder", "")
 	v.SetDefault("Dogstatsd.Namespace", "falcosidekick.")
 	v.SetDefault("Dogstatsd.Tags", []string{})
-	v.SetDefault("Customfields", map[string]string{})
 	v.SetDefault("Webhook.Address", "")
 	v.SetDefault("Webhook.MinimumPriority", "")
 	v.SetDefault("CloudEvents.Address", "")
