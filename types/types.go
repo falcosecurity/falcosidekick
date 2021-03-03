@@ -48,7 +48,7 @@ type Configuration struct {
 	GCP           gcpOutputConfig
 	Googlechat    GooglechatConfig
 	Kafka         kafkaConfig
-	Pagerduty     pagerdutyConfig
+	Pagerduty     PagerdutyConfig
 	Kubeless      kubelessConfig
 	WebUI         WebUIOutputConfig
 }
@@ -261,12 +261,9 @@ type kafkaConfig struct {
 	MinimumPriority string
 }
 
-type pagerdutyConfig struct {
-	APIKey           string
-	Service          string
-	Assignee         []string
-	EscalationPolicy string
-	MinimumPriority  string
+type PagerdutyConfig struct {
+	RoutingKey      string
+	MinimumPriority string
 }
 
 type kubelessConfig struct {
