@@ -12,15 +12,16 @@ Time: {{ .Time }}
 `
 
 var htmlTmpl = `
-{{ $color := "#858585"}}
-{{ if or (eq .Priority "Emergency") (eq .Priority "emergency") }}{{ $color = "#e20b0b" }}{{ end }}
-{{ if or (eq .Priority "Alert") (eq .Priority "Alert") }}{{ $color = "#ff5400" }}{{ end }}
-{{ if or (eq .Priority "Critical") (eq .Priority "critical") }}{{ $color = "#ff9000" }}{{ end }}
-{{ if or (eq .Priority "Error") (eq .Priority "error") }}{{ $color = "#ffc700" }}{{ end }}
-{{ if or (eq .Priority "Warning") (eq .Priority "warning") }}{{ $color = "#ffff00" }}{{ end }}
-{{ if or (eq .Priority "Notice") (eq .Priority "notice") }}{{ $color = "#5bffb5" }}{{ end }}
-{{ if or (eq .Priority "Informational") (eq .Priority "informational") }}{{ $color = "#68c2ff" }}{{ end }}
-{{ if or (eq .Priority "Debug") (eq .Priority "debug") }}{{ $color = "#ccfff2" }}{{ end }}
+{{ $color := "#858585" }}
+{{ $prio := printf "%v" .Priority }}
+{{ if or (eq $prio "Emergency") (eq $prio "emergency") }}{{ $color = "#e20b0b" }}{{ end }}
+{{ if or (eq $prio "Alert") (eq $prio "Alert") }}{{ $color = "#ff5400" }}{{ end }}
+{{ if or (eq $prio "Critical") (eq $prio "critical") }}{{ $color = "#ff9000" }}{{ end }}
+{{ if or (eq $prio "Error") (eq $prio "error") }}{{ $color = "#ffc700" }}{{ end }}
+{{ if or (eq $prio "Warning") (eq $prio "warning") }}{{ $color = "#ffff00" }}{{ end }}
+{{ if or (eq $prio "Notice") (eq $prio "notice") }}{{ $color = "#5bffb5" }}{{ end }}
+{{ if or (eq $prio "Informational") (eq $prio "informational") }}{{ $color = "#68c2ff" }}{{ end }}
+{{ if or (eq $prio "Debug") (eq $prio "debug") }}{{ $color = "#ccfff2" }}{{ end }}
 
 <meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
 <style type="text/css">
@@ -30,7 +31,7 @@ var htmlTmpl = `
 <table cellpadding="3" cellspacing="0" style="font-family:arial,helvetica,sans-serif; height:2px; width:700px;">
     <tbody>
         <tr>
-            <td><img src="https://falco.org/images/logos/falco-logo.png" width="117px" height="47"></td>
+            <td><img src="https://raw.githubusercontent.com/cncf/artwork/master/projects/falco/horizontal/color/falco-horizontal-color.png" width="117px" height="47"></td>
             <td></td>
         </tr>
     </tbody>
