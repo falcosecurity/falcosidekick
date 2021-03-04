@@ -28,7 +28,7 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 
 	googleCredentialsData := string(base64decodedCredentialsData)
 	var topicClient *pubsub.Topic
-	var bucketClient *storage.BucketHandle
+	var storageClient *storage.Client
 
 	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" {
 		credentials, err := google.CredentialsFromJSON(context.Background(), []byte(googleCredentialsData), pubsub.ScopePubSub)
@@ -50,19 +50,18 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 			log.Printf("[ERROR] : GCP Storage - %v\n", "Error while loading GCS Credentials")
 			return nil, errors.New("Error while loading GCP Credentials")
 		}
-		gcsClient, err := storage.NewClient(context.Background(), option.WithCredentials(credentials))
+		storageClient, err = storage.NewClient(context.Background(), option.WithCredentials(credentials))
 		if err != nil {
 			log.Printf("[ERROR] : GCP Storage - %v\n", "Error while creating GCP Storage Client")
 			return nil, errors.New("Error while creating GCP Storage Client")
 		}
-		bucketClient = gcsClient.Bucket(config.GCP.Storage.Bucket)
 	}
 
 	return &Client{
 		OutputType:       "GCP",
 		Config:           config,
 		GCPTopicClient:   topicClient,
-		GCSStorageClient: bucketClient,
+		GCSStorageClient: storageClient,
 		Stats:            stats,
 		PromStats:        promStats,
 		StatsdClient:     statsdClient,
@@ -105,13 +104,12 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 	prefix := ""
 	t := time.Now()
 	if c.Config.GCP.Storage.Prefix != "" {
-		prefix = c.Config.AWS.S3.Prefix
+		prefix = c.Config.GCP.Storage.Prefix
 	}
 
 	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format(time.RFC3339Nano))
-
-	_, err := c.GCSStorageClient.Object(key).NewWriter(context.Background()).Write(payload)
-
+	fmt.Println(payload)
+	_, err := c.GCSStorageClient.Bucket(c.Config.GCP.Storage.Bucket).Object(key).NewWriter(context.Background()).Write(payload)
 	if err != nil {
 		log.Printf("[ERROR] : GCPStorage - %v - %v\n", "Error while Uploading message", err.Error())
 		c.Stats.GCPStorage.Add(Error, 1)

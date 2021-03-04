@@ -302,7 +302,7 @@ func init() {
 		}
 	}
 
-	if (config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && config.GCP.Credentials != "") || config.GCP.Storage.Bucket != "" {
+	if (config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "") || config.GCP.Storage.Bucket != "" {
 		var err error
 		gcpClient, err = outputs.NewGCPClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
@@ -316,7 +316,6 @@ func init() {
 			if config.GCP.Storage.Bucket != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "GCPStorage")
 			}
-
 		}
 	}
 

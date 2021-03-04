@@ -1,4 +1,4 @@
-package outputs
+spackage outputs
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/PagerDuty/go-pagerduty"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/google/uuid"
