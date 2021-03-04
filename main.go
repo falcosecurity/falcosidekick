@@ -302,14 +302,21 @@ func init() {
 		}
 	}
 
-	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && config.GCP.Credentials != "" {
+	if (config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && config.GCP.Credentials != "") || config.GCP.Storage.Bucket != "" {
 		var err error
 		gcpClient, err = outputs.NewGCPClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.GCP.PubSub.ProjectID = ""
 			config.GCP.PubSub.Topic = ""
+			config.GCP.Storage.Bucket = ""
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "GCPPubSub")
+			if config.GCP.PubSub.Topic != "" && config.GCP.PubSub.ProjectID != "" {
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "GCPPubSub")
+			}
+			if config.GCP.Storage.Bucket != "" {
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "GCPStorage")
+			}
+
 		}
 	}
 
