@@ -209,6 +209,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go gcpClient.GCPPublishTopic(falcopayload)
 	}
 
+	if config.GCP.Storage.Bucket != "" && (falcopayload.Priority >= types.Priority(config.GCP.Storage.MinimumPriority) || falcopayload.Rule == testRule) {
+		go gcpClient.UploadGCS(falcopayload)
+	}
+
 	if config.Googlechat.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Googlechat.MinimumPriority) || falcopayload.Rule == testRule) {
 		go googleChatClient.GooglechatPost(falcopayload)
 	}
