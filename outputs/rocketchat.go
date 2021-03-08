@@ -2,8 +2,9 @@ package outputs
 
 import (
 	"bytes"
-	"github.com/falcosecurity/falcosidekick/types"
 	"log"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
@@ -49,7 +50,7 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
-	if config.Rocketchat.OutputFormat == All || config.Rocketchat.OutputFormat == Fields || config.Rocketchat.OutputFormat == "" {
+	if config.Rocketchat.OutputFormat == All || config.Rocketchat.OutputFormat == Text || config.Rocketchat.OutputFormat == "" {
 		attachment.Text = falcopayload.Output
 	}
 

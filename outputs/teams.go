@@ -1,8 +1,9 @@
 package outputs
 
 import (
-	"github.com/falcosecurity/falcosidekick/types"
 	"log"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type teamsFact struct {
@@ -37,7 +38,7 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	section.ActivityTitle = "Falco Sidekick"
 	section.ActivitySubTitle = falcopayload.Time.String()
 
-	if config.Teams.OutputFormat == All || config.Teams.OutputFormat == "text" || config.Teams.OutputFormat == "" {
+	if config.Teams.OutputFormat == All || config.Teams.OutputFormat == Text || config.Teams.OutputFormat == "" {
 		section.Text = falcopayload.Output
 	}
 
