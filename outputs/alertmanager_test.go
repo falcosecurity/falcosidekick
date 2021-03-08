@@ -5,8 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func TestNewAlertmanagerPayloadO(t *testing.T) {

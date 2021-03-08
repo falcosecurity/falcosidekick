@@ -5,8 +5,9 @@ import (
 	"log"
 	"strings"
 
-	"github.com/falcosecurity/falcosidekick/types"
 	stan "github.com/nats-io/stan.go"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // StanPublish publishes event to NATS Streaming

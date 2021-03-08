@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func getInitPromStats() *types.PromStatistics {

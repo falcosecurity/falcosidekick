@@ -7,10 +7,11 @@ import (
 	"strconv"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/google/uuid"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewKubelessClient returns a new output.Client for accessing Kubernetes.

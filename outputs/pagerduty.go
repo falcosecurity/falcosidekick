@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/PagerDuty/go-pagerduty"
+
 	"github.com/falcosecurity/falcosidekick/types"
 )
 

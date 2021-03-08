@@ -11,8 +11,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/falcosecurity/falcosidekick/types"
-
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -23,6 +21,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sts"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewAWSClient returns a new output.Client for accessing the AWS API.

@@ -6,8 +6,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/falcosecurity/falcosidekick/types"
 	nats "github.com/nats-io/nats.go"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 var slugRegularExpression = regexp.MustCompile("[^a-z0-9]+")
