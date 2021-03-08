@@ -1,8 +1,9 @@
 package outputs
 
 import (
-	"github.com/falcosecurity/falcosidekick/types"
 	"log"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type teamsFact struct {

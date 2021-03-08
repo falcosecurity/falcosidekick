@@ -2,10 +2,12 @@ package outputs
 
 import (
 	"encoding/json"
-	"github.com/PagerDuty/go-pagerduty"
-	"github.com/falcosecurity/falcosidekick/types"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/PagerDuty/go-pagerduty"
+	"github.com/stretchr/testify/require"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func TestPagerdutyPayload(t *testing.T) {

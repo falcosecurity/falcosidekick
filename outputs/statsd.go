@@ -1,11 +1,12 @@
 package outputs
 
 import (
-	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
-
 	"log"
 	"strings"
+
+	"github.com/DataDog/datadog-go/statsd"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewStatsdClient returns a new output.Client for sending metrics to StatsD.

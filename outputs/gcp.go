@@ -9,9 +9,10 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewGCPClient returns a new output.Client for accessing the GCP API.

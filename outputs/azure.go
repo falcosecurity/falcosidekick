@@ -8,6 +8,7 @@ import (
 
 	eventhub "github.com/Azure/azure-event-hubs-go/v3"
 	"github.com/DataDog/datadog-go/statsd"
+
 	"github.com/falcosecurity/falcosidekick/types"
 )
 

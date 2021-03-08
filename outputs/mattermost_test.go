@@ -5,9 +5,9 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/falcosecurity/falcosidekick/types"
-
 	"github.com/stretchr/testify/require"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func TestMattermostPayload(t *testing.T) {

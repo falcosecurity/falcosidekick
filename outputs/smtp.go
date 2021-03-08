@@ -8,10 +8,10 @@ import (
 	"strings"
 	textTemplate "text/template"
 
+	"github.com/DataDog/datadog-go/statsd"
 	sasl "github.com/emersion/go-sasl"
 	smtp "github.com/emersion/go-smtp"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 

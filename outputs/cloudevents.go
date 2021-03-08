@@ -2,8 +2,9 @@ package outputs
 
 import (
 	"context"
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"log"
+
+	cloudevents "github.com/cloudevents/sdk-go/v2"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )

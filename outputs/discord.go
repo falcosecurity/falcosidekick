@@ -2,8 +2,9 @@ package outputs
 
 import (
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/types"
 	"log"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type discordPayload struct {

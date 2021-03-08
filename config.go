@@ -10,10 +10,10 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/falcosecurity/falcosidekick/types"
-
 	"github.com/spf13/viper"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func getConfig() *types.Configuration {

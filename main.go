@@ -7,10 +7,11 @@ import (
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/outputs"
-	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/falcosecurity/falcosidekick/outputs"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // Globale variables

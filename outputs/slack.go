@@ -2,8 +2,9 @@ package outputs
 
 import (
 	"bytes"
-	"github.com/falcosecurity/falcosidekick/types"
 	"log"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // Field
