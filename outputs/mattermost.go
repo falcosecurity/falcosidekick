@@ -55,7 +55,7 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
-	if config.Mattermost.OutputFormat == All || config.Mattermost.OutputFormat == Fields || config.Mattermost.OutputFormat == "" {
+	if config.Mattermost.OutputFormat == All || config.Mattermost.OutputFormat == Text || config.Mattermost.OutputFormat == "" {
 		attachment.Text = falcopayload.Output
 	}
 

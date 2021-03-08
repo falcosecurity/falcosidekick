@@ -2,8 +2,9 @@ package outputs
 
 import (
 	"bytes"
-	"github.com/falcosecurity/falcosidekick/types"
 	"log"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // Field
@@ -79,7 +80,7 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 
 	attachment.Fallback = falcopayload.Output
 	attachment.Fields = fields
-	if config.Slack.OutputFormat == All || config.Slack.OutputFormat == Fields || config.Slack.OutputFormat == "" {
+	if config.Slack.OutputFormat == All || config.Slack.OutputFormat == Text || config.Slack.OutputFormat == "" {
 		attachment.Text = falcopayload.Output
 	}
 
