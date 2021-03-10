@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/segmentio/kafka-go"
@@ -14,10 +13,10 @@ import (
 
 // NewKafkaClient returns a new output.Client for accessing the Apache Kafka.
 func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
-	conn, err := kafka.DialLeader(context.Background(), "tcp", config.Kafka.HostPort, config.Kafka.Topic, config.Kafka.Partition)
-	if err != nil {
-		log.Printf("[ERROR] : Kafka - %v - %v\n", "failed to connect to Apache Kafka server", err.Error())
-		return nil, err
+
+	kafkaWriter := &kafka.Writer{
+		Addr:  kafka.TCP(config.Kafka.HostPort),
+		Topic: config.Kafka.Topic,
 	}
 
 	return &Client{
@@ -27,7 +26,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 		PromStats:       promStats,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
-		KafkaProducer:   conn,
+		KafkaProducer:   kafkaWriter,
 	}, nil
 }
 
@@ -46,12 +45,7 @@ func (c *Client) KafkaProduce(falcopayload types.FalcoPayload) {
 		Value: falcoMsg,
 	}
 
-	if err := c.KafkaProducer.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
-		c.setKafkaErrorMetrics()
-		log.Printf("[ERROR] : Kafka - %v\n", err)
-		return
-	}
-	_, err = c.KafkaProducer.WriteMessages(kafkaMsg)
+	err = c.KafkaProducer.WriteMessages(context.Background(), kafkaMsg)
 	if err != nil {
 		c.setKafkaErrorMetrics()
 		log.Printf("[ERROR] : Kafka - %v\n", err)

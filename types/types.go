@@ -258,7 +258,6 @@ type GooglechatConfig struct {
 type kafkaConfig struct {
 	HostPort        string
 	Topic           string
-	Partition       int
 	MinimumPriority string
 }
 
