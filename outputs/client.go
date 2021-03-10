@@ -59,7 +59,7 @@ type Client struct {
 	StatsdClient      *statsd.Client
 	DogstatsdClient   *statsd.Client
 	GCPTopicClient    *pubsub.Topic
-	KafkaProducer     *kafka.Conn
+	KafkaProducer     *kafka.Writer
 	CloudEventsClient cloudevents.Client
 	KubernetesClient  kubernetes.Interface
 }

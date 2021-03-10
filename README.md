@@ -287,7 +287,6 @@ googlechat:
 kafka:
   hostport: "" # Apache Kafka Host:Port (ex: localhost:9092). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
-  # partition: 0 # Partition number of the topic.
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 pagerduty:
@@ -532,7 +531,6 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **KAFKA_HOSTPORT**: The Host:Port of the Kafka (ex: localhost:9092), if not
   empty, Kafka is _enabled_
 - **KAFKA_TOPIC**: The name of the Kafka topic
-- **KAFKA_PARTITION**: The number of the Kafka partition
 - **KAFKA_MINIMUMPRIORITY**: minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
