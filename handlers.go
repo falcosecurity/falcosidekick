@@ -96,10 +96,10 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	var kn, kp string
 	for i, j := range falcopayload.OutputFields {
-		if i == "k8s_ns_name" {
+		if i == "k8s.ns.name" {
 			kn = j.(string)
 		}
-		if i == "k8s_pod_name" {
+		if i == "k8s.pod.name" {
 			kp = j.(string)
 		}
 	}
