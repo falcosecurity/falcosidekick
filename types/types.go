@@ -50,6 +50,7 @@ type Configuration struct {
 	Kafka         kafkaConfig
 	Pagerduty     PagerdutyConfig
 	Kubeless      kubelessConfig
+	Openfaas      openfaasConfig
 	WebUI         WebUIOutputConfig
 }
 
@@ -274,6 +275,16 @@ type kubelessConfig struct {
 	MinimumPriority string
 }
 
+type openfaasConfig struct {
+	GatewayNamespace  string
+	GatewayService    string
+	FunctionName      string
+	FunctionNamespace string
+	GatewayPort       int
+	Kubeconfig        string
+	MinimumPriority   string
+}
+
 // WebUIOutputConfig represents parameters for WebUI
 type WebUIOutputConfig struct {
 	URL string
@@ -314,6 +325,7 @@ type Statistics struct {
 	Pagerduty         *expvar.Map
 	CloudEvents       *expvar.Map
 	Kubeless          *expvar.Map
+	Openfaas          *expvar.Map
 	WebUI             *expvar.Map
 }
 

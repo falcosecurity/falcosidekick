@@ -37,4 +37,5 @@ const (
 	Orange    string = "#ff5400"
 
 	Kubeless string = "Kubeless"
+	Openfaas string = "OpenFaas"
 )
