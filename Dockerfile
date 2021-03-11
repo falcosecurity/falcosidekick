@@ -6,7 +6,7 @@ FROM ${BUILDER_IMAGE} AS build-stage
 ENV CGO_ENABLED=0
 
 WORKDIR /src
-ADD . .
+COPY . .
 
 RUN go mod download
 RUN make falcosidekick

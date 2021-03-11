@@ -1,0 +1,44 @@
+project_name: falcosidekick
+builds:
+  - id: "falcosidekick"
+    goos:
+    - linux
+    goarch:
+    - amd64
+    asmflags:
+      - all=-trimpath={{.Env.GOPATH}}
+    gcflags:
+      - all=-trimpath={{.Env.GOPATH}}
+    env:
+      - CGO_ENABLED=0
+    binary: falcosidekick
+
+dockers:
+  - goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile
+    image_templates:
+      - "falcosecurity/falcosidekick:latest"
+      - "falcosecurity/falcosidekick:{{ .Version }}"
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    extra_files:
+      - outputs
+      - types
+      - config.go
+      - handlers.go
+      - main.go
+      - stats_prometheus.go
+      - stats.go
+      - go.mod
+      - go.sum
+      - Makefile
+      - LICENSE
+
+release:
+  github:
+  prerelease: auto
