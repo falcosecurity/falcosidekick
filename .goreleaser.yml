@@ -18,7 +18,7 @@ dockers:
     goarch: amd64
     dockerfile: Dockerfile
     image_templates:
-      - "falcosecurity/falcosidekick:latest"
+      - "falcosecurity/falcosidekick:stable"
       - "falcosecurity/falcosidekick:{{ .Version }}"
     build_flag_templates:
       - "--pull"
