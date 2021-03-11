@@ -20,3 +20,4 @@ falcosidekick
 /hack/tools/bin/*
 
 tmp/
+dist/

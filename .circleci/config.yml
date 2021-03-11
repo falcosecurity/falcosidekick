@@ -39,6 +39,17 @@ jobs:
           echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
           docker push falcosecurity/falcosidekick:latest
 
+  release:
+    executor:
+      name: default
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Prepare env
+          command: |
+            echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
+      - run: curl -sL https://git.io/goreleaser | bash
 
 workflows:
   main:
@@ -60,3 +71,14 @@ workflows:
           filters:
             branches:
               only: master
+      - release:
+          context: falco
+          requires:
+            - test
+            - lint
+            - build-image
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
