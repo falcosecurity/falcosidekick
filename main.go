@@ -40,6 +40,7 @@ var (
 	kafkaClient         *outputs.Client
 	pagerdutyClient     *outputs.Client
 	kubelessClient      *outputs.Client
+	openfaasClient      *outputs.Client
 	webUIClient         *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
@@ -366,6 +367,16 @@ func init() {
 			config.WebUI.URL = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
+		}
+	}
+
+	if config.Openfaas.FunctionName != "" {
+		var err error
+		openfaasClient, err = outputs.NewOpenfaasClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			log.Printf("[ERROR] : OpenFaaS - %v\n", err)
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OpenFaaS")
 		}
 	}
 

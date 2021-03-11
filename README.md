@@ -54,6 +54,7 @@ Currently available outputs are :
 - [**Apache Kafka**](https://kafka.apache.org/)
 - [**PagerDuty**](https://pagerduty.com/)
 - [**Kubeless**](https://kubeless.io/)
+- [**OpenFaaS**](https://www.openfaas.com)
 - [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
 
 ## Usage
@@ -299,6 +300,15 @@ kubeless:
   namespace: "" # Namespace of Kubeless function (mandatory)
   port: 8080 # Port of service of Kubeless function
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcoside is running outside the cluster)
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+openfaas:
+  gatewayservice: "" # Service of OpenFaaS Gateway, "gateway" (default)
+  gatewaynamespace: "" # Namespace of OpenFaaS Gateway, "openfaas" (default)
+  gatewayport: 8080 # Port of service of OpenFaaS Gateway
+  functionname: "" # Name of OpenFaaS function, if not empty, OpenFaaS is enabled
+  functionnamespace: "" # Namespace of OpenFaaS function, "openfaas-fn" (default)
+  kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 webui:
@@ -555,6 +565,16 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **KUBELESS_KUBECONFIG**: Kubeconfig file to use (only if falcoside is running
   outside the cluster)
 - **KUBELESS_MINIMUMPRIORITY**: "debug" # minimum priority of event for using
+  this output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **OPENFAAS_GATEWAYNAMESPACE** : Namespace of OpenFaaS Gateway, "openfaas" (default)
+- **OPENFAAS_GATEWAYSERVICE** : Service of OpenFaaS Gateway, "gateway" (default)
+- **OPENFAAS_FUNCTIONNAME** : Name of OpenFaaS function, if not empty, OpenFaaS is enabled
+- **OPENFAAS_FUNCTIONNAMESPACE** : # Namespace of OpenFaaS function, "openfaas-fn" (default)
+- **OPENFAAS_GATEWAYPORT** : Port of service of OpenFaaS Gateway
+- **OPENFAAS_KUBECONFIG** : Kubeconfig file to use (only if falcoside is running
+  outside the cluster)
+- **OPENFAAS_MINIMUMPRIORITY** : "debug" # minimum priority of event for using
   this output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **WEBUI_URL** : WebUI URL, if not empty, WebUI output is 

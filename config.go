@@ -141,6 +141,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Kubeless.Port", 8080)
 	v.SetDefault("Kubeless.Kubeconfig", "")
 	v.SetDefault("Kubeless.MinimumPriority", "")
+
+	v.SetDefault("Openfaas.GatewayNamespace", "openfaas")
+	v.SetDefault("Openfaas.GatewayService", "gateway")
+	v.SetDefault("Openfaas.FunctionName", "")
+	v.SetDefault("Openfaas.FunctionNamespace", "openfaas-fn")
+	v.SetDefault("Openfaas.GatewayPort", 8080)
+	v.SetDefault("Openfaas.Kubeconfig", "")
+	v.SetDefault("Openfaas.MinimumPriority", "")
+
 	v.SetDefault("Webui.URL", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -227,6 +236,7 @@ func getConfig() *types.Configuration {
 	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
 	c.Pagerduty.MinimumPriority = checkPriority(c.Pagerduty.MinimumPriority)
 	c.Kubeless.MinimumPriority = checkPriority(c.Kubeless.MinimumPriority)
+	c.Openfaas.MinimumPriority = checkPriority(c.Openfaas.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

@@ -166,5 +166,14 @@ kubeless:
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcoside is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
+openfaas:
+  gatewayservice: "" # Service of OpenFaaS Gateway, "gateway" (default)
+  gatewaynamespace: "" # Namespace of OpenFaaS Gateway, "openfaas" (default)
+  gatewayport: 8080 # Port of service of OpenFaaS Gateway
+  functionname: "" # Name of OpenFaaS function, if not empty, OpenFaaS is enabled
+  functionnamespace: "" # Namespace of OpenFaaS function, "openfaas-fn" (default)
+  kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled

@@ -159,9 +159,12 @@ func (c *Client) Post(payload interface{}) error {
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
 		log.Printf("[INFO]  : %v - Post OK (%v)\n", c.OutputType, resp.StatusCode)
+		body, _ := ioutil.ReadAll(resp.Body)
 		if c.OutputType == Kubeless {
-			body, _ := ioutil.ReadAll(resp.Body)
 			log.Printf("[INFO]  : Kubeless - Function Response : %v\n", string(body))
+		} else if c.OutputType == Openfaas {
+			log.Printf("[INFO]  : %v - Function Response : %v\n", Openfaas,
+				string(body))
 		}
 		return nil
 	case http.StatusBadRequest: //400

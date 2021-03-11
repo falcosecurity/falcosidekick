@@ -225,6 +225,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go kubelessClient.KubelessCall(falcopayload)
 	}
 
+	if config.Openfaas.FunctionName != "" && (falcopayload.Priority >= types.Priority(config.Openfaas.MinimumPriority) || falcopayload.Rule == testRule) {
+		go openfaasClient.OpenfaasCall(falcopayload)
+	}
+
 	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
 	}
