@@ -272,8 +272,7 @@ func (c *Client) SendCloudWatchLog(falcopayload types.FalcoPayload) {
 	}
 
 	var err error
-	resp := &cloudwatchlogs.PutLogEventsOutput{}
-	resp, err = c.putLogEvents(svc, input)
+	resp, err := c.putLogEvents(svc, input)
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:awscloudwatchlogs", "status:error"})
 		c.Stats.AWSCloudWatchLogs.Add(Error, 1)
