@@ -53,6 +53,7 @@ func getInitStats() *types.Statistics {
 		Kubeless:          getOutputNewMap("kubeless"),
 		Openfaas:          getOutputNewMap("openfaas"),
 		WebUI:             getOutputNewMap("webui"),
+		Rabbitmq:          getOutputNewMap("rabbitmq"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

@@ -176,3 +176,9 @@ openfaas:
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
+
+rabbitmq:
+  url: "" # Rabbitmq URL, if not empty, Rabbitmq output is enabled
+  queue: "" # Rabbitmq Queue name
+  minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+

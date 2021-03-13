@@ -42,6 +42,7 @@ var (
 	kubelessClient      *outputs.Client
 	openfaasClient      *outputs.Client
 	webUIClient         *outputs.Client
+	rabbitmqClient      *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -375,6 +376,16 @@ func init() {
 			log.Printf("[ERROR] : OpenFaaS - %v\n", err)
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OpenFaaS")
+		}
+	}
+
+	if config.Rabbitmq.URL != "" && config.Rabbitmq.Queue != "" {
+		var err error
+		rabbitmqClient, err = outputs.NewRabbitmqClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Rabbitmq.URL = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Rabbitmq")
 		}
 	}
 

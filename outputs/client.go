@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/streadway/amqp"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -62,6 +63,7 @@ type Client struct {
 	KafkaProducer     *kafka.Writer
 	CloudEventsClient cloudevents.Client
 	KubernetesClient  kubernetes.Interface
+	RabbitmqClient   *amqp.Channel
 }
 
 // NewClient returns a new output.Client for accessing the different API.
