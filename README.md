@@ -577,7 +577,10 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **WEBUI_URL** : WebUI URL, if not empty, WebUI output is 
   _enabled_
-
+- **RABBITMQ_URL**: Rabbitmq URL, if not empty, Rabbitmq output is enabled
+- **RABBITMQ_QUEUE**: # Rabbitmq Queue name
+- **RABBITMQ_MINIMUMPRIORITY**: "debug" # minimum priority of event for using
+  this output, order is
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML

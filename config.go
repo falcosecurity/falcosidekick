@@ -150,6 +150,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Openfaas.MinimumPriority", "")
 
 	v.SetDefault("Webui.URL", "")
+	v.SetDefault("Rabbitmq.MinimumPriority", "")
+	v.SetDefault("Rabbitmq.URL", "")
+	v.SetDefault("Rabbitmq.Queue", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -236,6 +239,7 @@ func getConfig() *types.Configuration {
 	c.Pagerduty.MinimumPriority = checkPriority(c.Pagerduty.MinimumPriority)
 	c.Kubeless.MinimumPriority = checkPriority(c.Kubeless.MinimumPriority)
 	c.Openfaas.MinimumPriority = checkPriority(c.Openfaas.MinimumPriority)
+	c.Rabbitmq.MinimumPriority = checkPriority(c.Rabbitmq.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
