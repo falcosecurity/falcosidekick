@@ -117,7 +117,7 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	log.Printf("[INFO]  : GCPStorage - Uploaded to bucket OK \n")
+	log.Printf("[INFO]  : GCPStorage - Upload to bucket OK \n")
 	c.Stats.GCPStorage.Add(OK, 1)
 	go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": OK}).Inc()
