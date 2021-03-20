@@ -1,31 +1,22 @@
 package outputs
 
 import (
-	"encoding/json"
-	"expvar"
 	"log"
 
 	"github.com/falcosecurity/falcosidekick/types"
+	"github.com/google/uuid"
 )
 
 type WebUIPayload struct {
-	UUID    string             `json:"uuid,omitempty"`
-	Event   types.FalcoPayload `json:"event,omitempty"`
-	Stats   map[string]int64   `json:"stats,omitempty"`
-	Outputs []string           `json:"outputs,omitempty"`
+	Event   types.FalcoPayload `json:"event"`
+	Outputs []string           `json:"outputs"`
 }
 
 func newWebUIPayload(falcopayload types.FalcoPayload, config *types.Configuration) WebUIPayload {
-	s := new(map[string]int64)
-
-	if err := json.Unmarshal([]byte(expvar.Get("falco.priority").String()), &s); err != nil {
-		log.Printf("[ERROR] : WebUI - failed to unmarshal expvar : %s", err)
-	}
+	falcopayload.UUID = uuid.New().String()
 
 	return WebUIPayload{
-		UUID:    config.UUID,
 		Event:   falcopayload,
-		Stats:   *s,
 		Outputs: EnabledOutputs,
 	}
 }

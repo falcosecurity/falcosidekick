@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/google/uuid"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/falcosecurity/falcosidekick/outputs"
@@ -53,8 +53,6 @@ func init() {
 	config = getConfig()
 	stats = getInitStats()
 	promStats = getInitPromStats()
-
-	config.UUID = uuid.New().String()
 
 	if config.Statsd.Forwarder != "" {
 		var err error

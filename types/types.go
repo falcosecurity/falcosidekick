@@ -10,6 +10,7 @@ import (
 
 // FalcoPayload is a struct to map falco event json
 type FalcoPayload struct {
+	UUID         string                 `json:"uuid,omitempty"`
 	Output       string                 `json:"output"`
 	Priority     PriorityType           `json:"priority"`
 	Rule         string                 `json:"rule"`
@@ -19,7 +20,6 @@ type FalcoPayload struct {
 
 // Configuration is a struct to store configuration
 type Configuration struct {
-	UUID          string
 	CheckCert     bool
 	Debug         bool
 	ListenAddress string
