@@ -5,6 +5,7 @@ approvers:
   - leogr
   - cpanato
   - KeisukeYamashita
+  - fjogeleit
 reviewers:
   - Issif
   - leodido
@@ -12,3 +13,4 @@ reviewers:
   - leogr
   - cpanato
   - KeisukeYamashita
+  - fjogeleit
