@@ -385,7 +385,7 @@ func init() {
 		if err != nil {
 			config.Rabbitmq.URL = ""
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Rabbitmq")
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "RabbitMQ")
 		}
 	}
 
