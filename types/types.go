@@ -292,8 +292,8 @@ type WebUIOutputConfig struct {
 
 // RabbitmqConfig represents parameters for rabbitmq
 type RabbitmqConfig struct {
-	URL string
-	Queue string
+	URL             string
+	Queue           string
 	MinimumPriority string
 }
 
@@ -334,7 +334,7 @@ type Statistics struct {
 	Kubeless          *expvar.Map
 	Openfaas          *expvar.Map
 	WebUI             *expvar.Map
-	Rabbitmq     	  *expvar.Map
+	Rabbitmq          *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
