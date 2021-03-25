@@ -1,14 +1,16 @@
 package outputs
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
-	"encoding/json"
-	"github.com/streadway/amqp"
+
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/types"
+	"github.com/streadway/amqp"
 )
 
-// NewRabbitmqClient returns a new output.Client for accessing the Rabbitmqs API.
+// NewRabbitmqClient returns a new output.Client for accessing the RabbitmMQ API.
 func NewRabbitmqClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	var channel *amqp.Channel
@@ -27,7 +29,7 @@ func NewRabbitmqClient(config *types.Configuration, stats *types.Statistics, pro
 	}
 
 	return &Client{
-		OutputType:      "GCP",
+		OutputType:      "RabbitMQ",
 		Config:          config,
 		RabbitmqClient:  channel,
 		Stats:           stats,
@@ -43,9 +45,9 @@ func (c *Client) Publish(falcopayload types.FalcoPayload) {
 
 	payload, _ := json.Marshal(falcopayload)
 
-	err := c.RabbitmqClient.Publish("", c.Config.Rabbitmq.Queue, false,false, amqp.Publishing {
-			ContentType: "text/plain",
-			Body:        payload,
+	err := c.RabbitmqClient.Publish("", c.Config.Rabbitmq.Queue, false, false, amqp.Publishing{
+		ContentType: "text/plain",
+		Body:        payload,
 	})
 
 	if err != nil {
@@ -57,7 +59,7 @@ func (c *Client) Publish(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	log.Printf("[INFO]  : rabbitmq - Send to message OK \n")
+	log.Printf("[INFO]  : RabbitMQ - Send to message OK \n")
 	c.Stats.Rabbitmq.Add(OK, 1)
 	go c.CountMetric("outputs", 1, []string{"output:rabbitmq", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "rabbitmq", "status": OK}).Inc()

@@ -150,9 +150,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Openfaas.MinimumPriority", "")
 
 	v.SetDefault("Webui.URL", "")
-	v.SetDefault("Rabbitmq.MinimumPriority", "")
 	v.SetDefault("Rabbitmq.URL", "")
 	v.SetDefault("Rabbitmq.Queue", "")
+	v.SetDefault("Rabbitmq.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
