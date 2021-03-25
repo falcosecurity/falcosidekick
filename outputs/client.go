@@ -1,4 +1,4 @@
-spackage outputs
+package outputs
 
 import (
 	"bytes"
@@ -63,8 +63,8 @@ type Client struct {
 	DogstatsdClient *statsd.Client
 	GCPTopicClient  *pubsub.Topic
 
-	GCSStorageClient  *storage.BucketHandle
-	KafkaProducer     *kafka.Conn
+	GCSStorageClient  *storage.Client
+	KafkaProducer     *kafka.Writer
 	PagerdutyClient   *pagerduty.Client
 	CloudEventsClient cloudevents.Client
 	KubernetesClient  kubernetes.Interface

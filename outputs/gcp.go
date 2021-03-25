@@ -1,7 +1,6 @@
 package outputs
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -9,6 +8,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"cloud.google.com/go/storage"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/DataDog/datadog-go/statsd"
