@@ -63,7 +63,7 @@ type Client struct {
 	KafkaProducer     *kafka.Writer
 	CloudEventsClient cloudevents.Client
 	KubernetesClient  kubernetes.Interface
-	RabbitmqClient   *amqp.Channel
+	RabbitmqClient    *amqp.Channel
 }
 
 // NewClient returns a new output.Client for accessing the different API.
