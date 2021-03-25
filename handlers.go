@@ -229,6 +229,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go openfaasClient.OpenfaasCall(falcopayload)
 	}
 
+	if config.Rabbitmq.URL != "" && config.Rabbitmq.Queue != "" && (falcopayload.Priority >= types.Priority(config.Openfaas.MinimumPriority) || falcopayload.Rule == testRule) {
+		go rabbitmqClient.Publish(falcopayload)
+	}
+
 	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
 	}
