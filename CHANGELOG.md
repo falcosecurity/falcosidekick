@@ -1,16 +1,20 @@
 # Changelog
 
+
 ## 2.21.0 - 2021-02-12
 #### New
-- New output : **Cloud Events** ([PR#169](https://github.com/falcosecurity/falcosidekick/pull/169) thanks to [@n3wscott](https://github.com/n3wscott))
-- New output : **WebUI** ([PR#180](https://github.com/falcosecurity/falcosidekick/pull/180))
+- New output : **AWS S3** ([PR#195](https://github.com/falcosecurity/falcosidekick/pull/195) thanks to [@evalsocket](https://github.com/evalsocket))
+- New output : **GCP Storage** ([PR#202](https://github.com/falcosecurity/falcosidekick/pull/202) thanks to [@evalsocket](https://github.com/evalsocket))
+- New output : **RabbitMQ** ([PR#210](https://github.com/falcosecurity/falcosidekick/pull/210) thanks to [@evalsocket](https://github.com/evalsocket))
+- New output : **OpenFaas** ([PR#208](https://github.com/falcosecurity/falcosidekick/pull/208) thanks to [@developper-guy](https://github.com/developper-guy))
 #### Enhancement
-- Include numeric values for `Alertmanager` outputs ([PR#177](https://github.com/falcosecurity/falcosidekick/pull/177) thanks to to [@alsm](https://github.com/alsm))
-- Add `listenaddress` option ([PR#187](https://github.com/falcosecurity/falcosidekick/pull/187) thanks to to [@alsm](https://github.com/alsm))
+- Use higher level Writer api for **Kafka** ([PR#206](https://github.com/falcosecurity/falcosidekick/pull/206) thanks to [@zemek](https://github.com/zemek))
+- Reorder *imports* to follow good practices ([PR#205](https://github.com/falcosecurity/falcosidekick/pull/205))
+- Prevent misleading error message when *CUSTOMFIELDS* env var is set ([PR#201](https://github.com/falcosecurity/falcosidekick/pull/201) thanks to [@zemek](https://github.com/zemek))
+- Use *Events v2* API for **PagerDUty** output 
 #### Fix
-- Fix spelling typos in README ([PR#175](https://github.com/falcosecurity/falcosidekick/pull/175) thanks to to [@princespaghetti](https://github.com/princespaghetti))
-- Fix several `gosec` issues ([PR#179](https://github.com/falcosecurity/falcosidekick/pull/179) thanks to to [@alsm](https://github.com/alsm))
-- Fix label values with quotes for `Loki` ([PR#182](https://github.com/falcosecurity/falcosidekick/pull/182))
+- Fix *outputformat* when using fields or text in **Slack** output ([PR#204](https://github.com/falcosecurity/falcosidekick/pull/204))
+- Fix HTML template for **SMTP** output ([PR#199](https://github.com/falcosecurity/falcosidekick/pull/199))
 
 ## 2.20.0 - 2021-01-12
 #### New
