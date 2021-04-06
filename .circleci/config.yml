@@ -54,8 +54,14 @@ jobs:
 workflows:
   main:
     jobs:
-      - test
-      - lint
+      - test:
+          filters:
+            tags:
+              only: /(v)?[0-9]+(\.[0-9]+)*(-.*)*/
+      - lint:
+          filters:
+            tags:
+              only: /(v)?[0-9]+(\.[0-9]+)*(-.*)*/
       - build-image:
           requires:
             - test
@@ -63,6 +69,8 @@ workflows:
           filters:
             branches:
               ignore: master
+            tags:
+              only: /(v)?[0-9]+(\.[0-9]+)*(-.*)*/
       - build-push-main:
           context: falco
           requires:
