@@ -11,9 +11,19 @@ import (
 
 // NewStatsdClient returns a new output.Client for sending metrics to StatsD.
 func NewStatsdClient(outputType string, config *types.Configuration, stats *types.Statistics) (*statsd.Client, error) {
-	statsdClient, err := statsd.New(config.Statsd.Forwarder, statsd.WithNamespace(config.Statsd.Namespace), statsd.WithTags(config.Statsd.Tags))
+	statsdClient := new(statsd.Client)
+	var err error
+	var fwd string
+	switch outputType {
+	case "StatsD":
+		statsdClient, err = statsd.New(config.Statsd.Forwarder, statsd.WithNamespace(config.Statsd.Namespace), statsd.WithTags(config.Statsd.Tags))
+		fwd = config.Statsd.Forwarder
+	case "DogStatsD":
+		statsdClient, err = statsd.New(config.Dogstatsd.Forwarder, statsd.WithNamespace(config.Dogstatsd.Namespace), statsd.WithTags(config.Dogstatsd.Tags))
+		fwd = config.Dogstatsd.Forwarder
+	}
 	if err != nil {
-		log.Printf("[ERROR] : Can't configure %v client for %v - %v", outputType, config.Statsd.Forwarder, err)
+		log.Printf("[ERROR] : Can't configure %v client for %v - %v", outputType, fwd, err)
 		return nil, err
 	}
 
