@@ -21,3 +21,5 @@ falcosidekick
 
 tmp/
 dist/
+
+/vendor

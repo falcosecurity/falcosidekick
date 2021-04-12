@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"time"
@@ -14,67 +15,61 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sts"
 
-	"github.com/falcosecurity/falcosidekick/outputs/aws_region"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewAWSClient returns a new output.Client for accessing the AWS API.
 func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
+	var region string
+	var err error
+
 	//Set the region, or lookup if it doesn't exist
 	if config.AWS.Region != "" {
 		region = config.AWS.Region
 	} else {
-		region, err := aws_region.GetRegion("")
+		log.Printf("[INFO] : AWS - No Region configured, querying instance metadata for region \n")
+		region, err = GetRegion("")
+		if err != nil {
+			return nil, errors.New("error finding region from metadata, or configuration")
+		}
 	}
+	log.Printf("[INFO] : AWS - Using Region %v\n", region)
 
 	// If using access keys in the config, check for those first.
 	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" {
 		err1 := os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
 		err2 := os.Setenv("AWS_SECRET_ACCESS_KEY", config.AWS.SecretAccessKey)
-		err3 := os.Setenv("AWS_DEFAULT_REGION", aws.String(region))
-		if err1 != nil || err2 != nil || err3 != nil {
+		if err1 != nil || err2 != nil {
 			log.Printf("[ERROR] : AWS - Error setting AWS env vars")
 			return nil, errors.New("Error setting AWS env vars")
 		}
-		sess, err := session.NewSession(&aws.Config{
-			Region: aws.String(region),
-		)}
+		// Log which type of authentication will be using.
+		log.Printf("[INFO] : AWS - Using Access Key Authentication")
 	}
 
 	//Check if using IRSA (IAM role service accounts)
 	// env | grep AWS
-	// Then create session using that 
 	roleARN := os.Getenv("AWS_ROLE_ARN")
 	tokenPath := os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
-	sessionName := os.Getenv("AWS_ROLE_SESSION_NAME")
-	if roleARN != "" && tokenPath != "" && sessionName != "" {
-		// Create session if found Iam role service account credentials on the pod
-		sess, err := session.NewSession(&aws.Config{
-			Region: aws.String(region),
-		)}
-		if err != nil {
-			return nil, errors.Wrap(err, "error creating a new session to create a WebIdentityRoleProvider")
-		}
+	if roleARN != "" && tokenPath != "" {
+		// Log which type of authentication will be using.
+		log.Printf("[INFO] : AWS - Using IAM Role Service Account for AWS authentication")
 	}
 
-	if config.AWS.AccessKeyID == "" &&  tokenPath == "" {
-		// If IAM role service account is not preset create a new session using New() which will pull from the node's assumed role.
-		sess, err := session.New(&aws.Config{
-			Region: aws.String(region),
-		)}
-		if err != nil {
-			log.Printf("[ERROR] : AWS - %v\n", "Error while creating AWS Session")
-			return nil, errors.Wrap(err, "Error creating an AWS Session")
-		}
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(region),
+	})
+	if err != nil {
+		return nil, errors.New("error creating a new session")
 	}
 
 	var endpointURL *url.URL
@@ -268,7 +263,6 @@ func (c *Client) SendCloudWatchLog(falcopayload types.FalcoPayload) {
 			LogGroupName:  aws.String(c.Config.AWS.CloudWatchLogs.LogGroup),
 			LogStreamName: aws.String(streamName),
 		}
-
 		_, err := svc.CreateLogStream(inputLogStream)
 		if err != nil {
 			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == cloudwatchlogs.ErrCodeResourceAlreadyExistsException {
@@ -327,4 +321,51 @@ func (c *Client) putLogEvents(svc *cloudwatchlogs.CloudWatchLogs, input *cloudwa
 	}
 
 	return resp, nil
+}
+
+/*
+Our chosen approach is:
+	"More specific takes precedence over less specific."
+1. User-provided configuration is the most explicit.
+2. Environment variables are potentially shared across many invocations and so they have less precedence.
+3. Configuration in `~/.aws/config` is shared across all invocations of a given user and so this has even less precedence.
+4. Configuration retrieved from the EC2 instance metadata service is shared by all invocations on a given machine, and so it has the lowest precedence.
+This approach should be used in future updates to this logic.
+*/
+
+var ec2Endpoint *string
+
+func GetRegion(configuredRegion string) (string, error) {
+	if configuredRegion != "" {
+		return configuredRegion, nil
+	}
+
+	sess, err := session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	})
+	if err != nil {
+		return "", errors.New("got error when starting session")
+	}
+
+	region := aws.StringValue(sess.Config.Region)
+	if region != "" {
+		return region, nil
+	}
+
+	metadata := ec2metadata.New(sess, &aws.Config{
+		Endpoint:                          ec2Endpoint,
+		EC2MetadataDisableTimeoutOverride: aws.Bool(true),
+		HTTPClient: &http.Client{
+			Timeout: time.Second,
+		},
+	})
+	if !metadata.Available() {
+		return "", errors.New("unable to retrieve metadata lookup")
+	}
+
+	region, err = metadata.Region()
+	if err != nil {
+		return "", errors.New("unable to retrieve region from instance metadata")
+	}
+	return region, nil
 }
