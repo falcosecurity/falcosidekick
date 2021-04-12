@@ -324,12 +324,7 @@ func (c *Client) putLogEvents(svc *cloudwatchlogs.CloudWatchLogs, input *cloudwa
 }
 
 /*
-Our chosen approach is:
-	"More specific takes precedence over less specific."
-1. User-provided configuration is the most explicit.
-2. Environment variables are potentially shared across many invocations and so they have less precedence.
-3. Configuration in `~/.aws/config` is shared across all invocations of a given user and so this has even less precedence.
-4. Configuration retrieved from the EC2 instance metadata service is shared by all invocations on a given machine, and so it has the lowest precedence.
+Configuration retrieved from the EC2 instance metadata service is shared by all invocations on a given machine, and so it has the lowest precedence.
 This approach should be used in future updates to this logic.
 */
 
