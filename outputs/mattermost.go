@@ -17,23 +17,6 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 	)
 
 	if config.Mattermost.OutputFormat == All || config.Mattermost.OutputFormat == Fields || config.Mattermost.OutputFormat == "" {
-		for i, j := range falcopayload.OutputFields {
-			switch v := j.(type) {
-			case string:
-				field.Title = i
-				field.Value = v
-				if len([]rune(v)) < 36 {
-					field.Short = true
-				} else {
-					field.Short = false
-				}
-			default:
-				continue
-			}
-
-			fields = append(fields, field)
-		}
-
 		field.Title = Rule
 		field.Value = falcopayload.Rule
 		field.Short = true
@@ -42,6 +25,18 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 		field.Value = falcopayload.Priority.String()
 		field.Short = true
 		fields = append(fields, field)
+
+		for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
+			field.Title = i
+			field.Value = falcopayload.OutputFields[i].(string)
+			if len([]rune(falcopayload.OutputFields[i].(string))) < 36 {
+				field.Short = true
+			} else {
+				field.Short = false
+			}
+			fields = append(fields, field)
+		}
+
 		field.Title = Time
 		field.Short = false
 		field.Value = falcopayload.Time.String()

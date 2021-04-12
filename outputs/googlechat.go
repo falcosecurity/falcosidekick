@@ -54,20 +54,13 @@ func newGooglechatPayload(falcopayload types.FalcoPayload, config *types.Configu
 		}
 	}
 
-	for i, j := range falcopayload.OutputFields {
-		var w widget
-		switch v := j.(type) {
-		case string:
-			w = widget{
-				KeyValue: keyValue{
-					TopLabel: i,
-					Content:  v,
-				},
-			}
-		default:
-			continue
+	for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
+		w := widget{
+			KeyValue: keyValue{
+				TopLabel: i,
+				Content:  falcopayload.OutputFields[i].(string),
+			},
 		}
-
 		widgets = append(widgets, w)
 	}
 

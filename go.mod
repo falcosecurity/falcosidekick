@@ -20,7 +20,7 @@ require (
 	github.com/prometheus/client_golang v1.9.0
 	github.com/segmentio/kafka-go v0.4.10
 	github.com/spf13/viper v1.7.1
-	github.com/streadway/amqp v1.0.0 // indirect
+	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/oauth2 v0.0.0-20210220000619-9bb904979d93
 	google.golang.org/api v0.40.0
