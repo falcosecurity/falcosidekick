@@ -23,11 +23,6 @@ func TestNewRocketchatPayload(t *testing.T) {
 				Footer:   "",
 				Fields: []slackAttachmentField{
 					{
-						Title: "proc.name",
-						Value: "falcosidekick",
-						Short: true,
-					},
-					{
 						Title: "rule",
 						Value: "Test rule",
 						Short: true,
@@ -35,6 +30,11 @@ func TestNewRocketchatPayload(t *testing.T) {
 					{
 						Title: "priority",
 						Value: "Debug",
+						Short: true,
+					},
+					{
+						Title: "proc.name",
+						Value: "falcosidekick",
 						Short: true,
 					},
 					{
