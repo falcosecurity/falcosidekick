@@ -55,6 +55,15 @@ func init() {
 	stats = getInitStats()
 	promStats = getInitPromStats()
 
+	nullClient = &outputs.Client{
+		OutputType:      "null",
+		Config:          config,
+		Stats:           stats,
+		PromStats:       promStats,
+		StatsdClient:    statsdClient,
+		DogstatsdClient: dogstatsdClient,
+	}
+
 	if config.Statsd.Forwarder != "" {
 		var err error
 		statsdClient, err = outputs.NewStatsdClient("StatsD", config, stats)
@@ -62,6 +71,7 @@ func init() {
 			config.Statsd.Forwarder = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "StatsD")
+			nullClient.DogstatsdClient = statsdClient
 		}
 	}
 
@@ -71,18 +81,9 @@ func init() {
 		if err != nil {
 			config.Statsd.Forwarder = ""
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "StatsD")
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "DogStatsD")
 			nullClient.DogstatsdClient = dogstatsdClient
 		}
-	}
-
-	nullClient = &outputs.Client{
-		OutputType:      "null",
-		Config:          config,
-		Stats:           stats,
-		PromStats:       promStats,
-		StatsdClient:    statsdClient,
-		DogstatsdClient: dogstatsdClient,
 	}
 
 	if config.Slack.WebhookURL != "" {
