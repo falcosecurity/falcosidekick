@@ -107,5 +107,4 @@ func (c *Client) DiscordPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:discord", "status:ok"})
 	c.Stats.Discord.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": OK}).Inc()
-	log.Printf("[INFO] : Discord - Publish OK\n")
 }

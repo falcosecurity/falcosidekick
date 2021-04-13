@@ -43,5 +43,4 @@ func (c *Client) InfluxdbPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:influxdb", "status:ok"})
 	c.Stats.Influxdb.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "influxdb", "status": OK}).Inc()
-	log.Printf("[INFO] : InfluxDB - Publish OK\n")
 }

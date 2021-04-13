@@ -118,5 +118,4 @@ func (c *Client) TeamsPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:teams", "status:ok"})
 	c.Stats.Teams.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "teams", "status": OK}).Inc()
-	log.Printf("[INFO] : Teams - Publish OK\n")
 }
