@@ -157,6 +157,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Rabbitmq.Queue", "")
 	v.SetDefault("Rabbitmq.MinimumPriority", "")
 
+	v.SetDefault("Wavefront.EndpointType", "")
+	v.SetDefault("Wavefront.EndpointHost", "")
+	v.SetDefault("Wavefront.EndpointToken", "")
+	v.SetDefault("Wavefront.MetricName", "falco.alert")
+	v.SetDefault("Wavefront.EndpointMetricPort", 2878)
+	v.SetDefault("Wavefront.MinimumPriority", "")
+	v.SetDefault("Wavefront.FlushIntervalSecods", 1)
+	v.SetDefault("Wavefront.BatchSize", 10000)
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -245,6 +254,7 @@ func getConfig() *types.Configuration {
 	c.Kubeless.MinimumPriority = checkPriority(c.Kubeless.MinimumPriority)
 	c.Openfaas.MinimumPriority = checkPriority(c.Openfaas.MinimumPriority)
 	c.Rabbitmq.MinimumPriority = checkPriority(c.Rabbitmq.MinimumPriority)
+	c.Wavefront.MinimumPriority = checkPriority(c.Wavefront.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

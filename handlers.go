@@ -237,6 +237,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go rabbitmqClient.Publish(falcopayload)
 	}
 
+	if config.Wavefront.EndpointHost != "" && config.Wavefront.EndpointType != "" && (falcopayload.Priority >= types.Priority(config.Wavefront.MinimumPriority) || falcopayload.Rule == testRule) {
+		go wavefrontClient.WavefrontPost(falcopayload)
+	}
+
 	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
 	}

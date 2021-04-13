@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/streadway/amqp"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/streadway/amqp"
+	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
@@ -67,6 +69,7 @@ type Client struct {
 	CloudEventsClient cloudevents.Client
 	KubernetesClient  kubernetes.Interface
 	RabbitmqClient    *amqp.Channel
+	WavefrontSender   *wavefront.Sender
 }
 
 // NewClient returns a new output.Client for accessing the different API.

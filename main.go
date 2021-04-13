@@ -43,6 +43,7 @@ var (
 	openfaasClient      *outputs.Client
 	webUIClient         *outputs.Client
 	rabbitmqClient      *outputs.Client
+	wavefrontClient     *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -393,6 +394,17 @@ func init() {
 			config.Rabbitmq.URL = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "RabbitMQ")
+		}
+	}
+
+	if config.Wavefront.EndpointType != "" && config.Wavefront.EndpointHost != "" {
+		var err error
+		wavefrontClient, err = outputs.NewWavefrontClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			log.Printf("[ERROR] : Wavefront - %v\n", err)
+			config.Wavefront.EndpointHost = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Wavefront")
 		}
 	}
 
