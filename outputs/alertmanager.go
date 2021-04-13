@@ -102,5 +102,4 @@ func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:ok"})
 	c.Stats.Alertmanager.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": OK}).Inc()
-	log.Printf("[INFO]  : AlertManager - Publish OK\n")
 }

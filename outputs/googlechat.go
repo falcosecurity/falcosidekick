@@ -103,5 +103,4 @@ func (c *Client) GooglechatPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:googlechat", "status:ok"})
 	c.Stats.GoogleChat.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "googlechat", "status": OK}).Inc()
-	log.Printf("[INFO]  : GoogleChat - Publish OK\n")
 }

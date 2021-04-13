@@ -26,7 +26,7 @@ func (c *Client) PagerdutyPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:pagerduty", "status:ok"})
 	c.Stats.Pagerduty.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "pagerduty", "status": OK}).Inc()
-	log.Printf("[INFO] : Pagerduty - Create Incident OK\n")
+	log.Printf("[INFO]  : Pagerduty - Create Incident OK\n")
 }
 
 func createPagerdutyEvent(falcopayload types.FalcoPayload, config types.PagerdutyConfig) pagerduty.V2Event {

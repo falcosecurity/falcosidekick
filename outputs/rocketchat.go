@@ -119,5 +119,4 @@ func (c *Client) RocketchatPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:rocketchat", "status:ok"})
 	c.Stats.Rocketchat.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "rocketchat", "status": OK}).Inc()
-	log.Printf("[INFO] : RocketChat - Publish OK\n")
 }
