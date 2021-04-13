@@ -59,7 +59,7 @@ func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:azureeventhub", "status:ok"})
 	c.Stats.AzureEventHub.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": OK}).Inc()
-	log.Printf("[INFO] : %v EventHub - Publish OK", c.OutputType)
+	log.Printf("[INFO]  : %v EventHub - Publish OK", c.OutputType)
 }
 
 // setEventHubErrorMetrics set the error stats

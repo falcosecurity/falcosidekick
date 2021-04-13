@@ -136,5 +136,4 @@ func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:slack", "status:ok"})
 	c.Stats.Slack.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "slack", "status": OK}).Inc()
-	log.Printf("[INFO] : Slack - Publish OK\n")
 }

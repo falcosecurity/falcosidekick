@@ -65,5 +65,4 @@ func (c *Client) OpsgeniePost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:opsgenie", "status:ok"})
 	c.Stats.Opsgenie.Add("ok", 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "opsgenie", "status": OK}).Inc()
-	log.Printf("[INFO] : OpsGenie - Publish OK\n")
 }

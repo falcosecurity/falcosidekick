@@ -60,5 +60,4 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:loki", "status:ok"})
 	c.Stats.Loki.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": OK}).Inc()
-	log.Printf("[INFO] : Loki - Publish OK\n")
 }

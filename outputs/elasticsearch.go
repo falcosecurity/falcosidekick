@@ -44,7 +44,6 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:elasticsearch", "status:ok"})
 	c.Stats.Elasticsearch.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "elasticsearch", "status": OK}).Inc()
-	log.Printf("[INFO]  : ElasticSearch - Publish OK\n")
 }
 
 // setElasticSearchErrorMetrics set the error stats

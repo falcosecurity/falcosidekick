@@ -67,5 +67,4 @@ func (c *Client) DatadogPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:datadog", "status:ok"})
 	c.Stats.Datadog.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": OK}).Inc()
-	log.Printf("[INFO] : Datadog - Publish OK\n")
 }

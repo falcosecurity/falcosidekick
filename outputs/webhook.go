@@ -23,5 +23,4 @@ func (c *Client) WebhookPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:webhook", "status:ok"})
 	c.Stats.Webhook.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "webhook", "status": OK}).Inc()
-	log.Printf("[INFO] : WebHook - Publish OK\n")
 }
