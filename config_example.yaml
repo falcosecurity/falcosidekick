@@ -186,3 +186,13 @@ rabbitmq:
   queue: "" # Rabbitmq Queue name
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
+wavefront:
+  endpointtype: "" # Wavefront endpoint type, must be 'direct' or 'proxy'. If not empty, with endpointhost, Wavefront output is enabled
+  endpointhost: "" # Wavefront endpoint address (only the host). If not empty, with endpointhost, Wavefront output is enabled
+  endpointtoken: "" # Wavefront token. Must be used only when endpointtype is 'direct'
+  # endpointmetricport: 2878 # Port to send metrics. Only used when endpointtype is 'proxy'. Defaults to 2878
+  # metricname: "falco.alert" # Metric to be created in Wavefront. Defaults to falco.alert
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # batchsize: 10000 # Wavefront batch size. If empty uses the default 10000. Only used when endpointtype is 'direct'
+  # flushintervalseconds: 1 # Wavefront flush interval in seconds. Defaults to 1
+

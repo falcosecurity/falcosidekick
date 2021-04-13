@@ -53,6 +53,7 @@ type Configuration struct {
 	Openfaas      openfaasConfig
 	WebUI         WebUIOutputConfig
 	Rabbitmq      RabbitmqConfig
+	Wavefront     WavefrontOutputConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -89,6 +90,17 @@ type MattermostOutputConfig struct {
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
+}
+
+type WavefrontOutputConfig struct {
+	EndpointType         string // direct or proxy
+	EndpointHost         string // Endpoint hostname (only IP or hostname)
+	EndpointToken        string // Token for API access. Only for direct mode
+	EndpointMetricPort   int    // Port to send metrics. Only for proxy mode
+	MetricName           string // The Name of the metric
+	FlushIntervalSeconds int    // Time between flushes.
+	BatchSize            int    // BatchSize to send. Only for direct mode
+	MinimumPriority      string
 }
 
 type teamsOutputConfig struct {
@@ -343,6 +355,7 @@ type Statistics struct {
 	Openfaas          *expvar.Map
 	WebUI             *expvar.Map
 	Rabbitmq          *expvar.Map
+	Wavefront         *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

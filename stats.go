@@ -55,6 +55,7 @@ func getInitStats() *types.Statistics {
 		Openfaas:          getOutputNewMap("openfaas"),
 		WebUI:             getOutputNewMap("webui"),
 		Rabbitmq:          getOutputNewMap("rabbitmq"),
+		Wavefront:         getOutputNewMap("wavefront"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

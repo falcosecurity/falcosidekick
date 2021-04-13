@@ -57,6 +57,7 @@ Currently available outputs are :
 - [**Kubeless**](https://kubeless.io/)
 - [**OpenFaaS**](https://www.openfaas.com)
 - [**RabbitMQ**](https://www.rabbitmq.com/)
+- [**Wavefront**](https://www.wavefront.com)
 - [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
 
 ## Usage
@@ -315,6 +316,17 @@ openfaas:
   gatewaynamespace: "openfaas" # Namespace of OpenFaaS Gateway, "openfaas" (default)
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+wavefront:
+  endpointtype: "direct" # Wavefront endpoint type, must be 'direct' or 'proxy'. If not empty, with endpointhost, Wavefront output is enabled
+  endpointhost: "" # Wavefront endpoint address (only the host). If not empty, with endpointhost, Wavefront output is enabled
+  endpointmetricport: 2878 # Wavefront endpoint port when type is 'proxy'
+  endpointtoken: "" # Wavefront token. Must be used only when endpointtype is 'direct'
+  metricname: "falco.alert" # Metric to be created in Wavefront. Defaults to falco.alert
+  batchsize: 10000 # max batch of data sent per flush interval. defaults to 10,000. Used only in direct mode
+  flushintervalseconds: 1 # Time in seconds between flushing metrics to Wavefront. Defaults to 1s
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
@@ -591,6 +603,15 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **RABBITMQ_QUEUE**: # Rabbitmq Queue name
 - **RABBITMQ_MINIMUMPRIORITY**: "debug" # minimum priority of event for using
   this output, order is
+- **WAVEFRONT_ENDPOINTTYPE**: Wavefront endpoint type: direct or proxy
+- **WAVEFRONT_ENDPOINTHOST**: Wavefront endpoint host
+- **WAVEFRONT_ENDPOINTTOKEN**: Wavefront API token to be used when the type is 'direct'
+- **WAVEFRONT_ENDPOINTMETRICPORT**: Wavefront endpoint port when type is 'proxy'
+- **WAVEFRONT_FLUSHINTERVALSECONDS**: Time in seconds between flushing metrics to Wavefront. Defaults to 1s
+- **WAVEFRONT_BATCHSIZE**: Max batch of data sent per flush interval. Used only in direct mode. Defaults to 10000.
+- **WAVEFRONT_METRICNAME**: "falco.alert" # Metric name to be created/used in Wavefront
+- **WAVEFRONT_MINIMUMPRIORITY**: "debug" # minimum priority of event for using
+  this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML
