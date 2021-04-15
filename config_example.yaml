@@ -40,35 +40,35 @@ teams:
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 datadog:
-  # apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
-  # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+# apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
+# host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
+# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 alertmanager:
-  # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+# hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
+# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 elasticsearch:
-  # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
-  # index: "falco" # index (default: falco)
-  # type: "event"
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
+# hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
+# index: "falco" # index (default: falco)
+# type: "event"
+# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+# suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
 
 influxdb:
-  # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
-  # database: "falco" # Influxdb database (default: falco)
-  # user: "" # user to use if auth is enabled in Influxdb
-  # password: "" # pasword to use if auth is enabled in Influxdb
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+# hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
+# database: "falco" # Influxdb database (default: falco)
+# user: "" # user to use if auth is enabled in Influxdb
+# password: "" # pasword to use if auth is enabled in Influxdb
+# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 loki:
-  # hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+# hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
+# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 nats:
-  # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+# hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
+# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 aws:
   # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
@@ -78,29 +78,29 @@ aws:
   # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sqs:
-    # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
-    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sns:
     # topicarn : "" # SNS TopicArn, if not empty, AWS SNS output is enabled
     rawjson: false # Send Raw JSON or parse it (default: false)
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   cloudwatchlogs:
-    # loggroup : "" #  AWS CloudWatch Logs Group name, if not empty, CloudWatch Logs output is enabled
-    # logstream : "" # AWS CloudWatch Logs Stream name, if empty, Falcosidekick will try to create a log stream
-    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # loggroup : "" #  AWS CloudWatch Logs Group name, if not empty, CloudWatch Logs output is enabled
+  # logstream : "" # AWS CloudWatch Logs Stream name, if empty, Falcosidekick will try to create a log stream
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   s3:
   # bucket: "falcosidekick" # AWS S3, bucket name
   # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
-  # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
-  # user: "" # user to access SMTP server
-  # password: "" # password to access SMTP server
-  # from: "" # Sender address (mandatory if SMTP output is enabled)
-  # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
-  # outputformat: "" # html (default), text
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+# hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
+# user: "" # user to access SMTP server
+# password: "" # password to access SMTP server
+# from: "" # Sender address (mandatory if SMTP output is enabled)
+# to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
+# outputformat: "" # html (default), text
+# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 statsd:
   forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
@@ -118,10 +118,10 @@ opsgenie:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 webhook:
-  # address: "" # Webhook address, if not empty, Webhook output is enabled
-  # customHeaders: # Custom headers to add in POST, useful for Authentication
-  #   key: value
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+# address: "" # Webhook address, if not empty, Webhook output is enabled
+# customHeaders: # Custom headers to add in POST, useful for Authentication
+#   key: value
+# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 cloudevents:
 # address: "" # CloudEvents consumer http address, if not empty, CloudEvents output is enabled
@@ -170,11 +170,11 @@ kubeless:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 openfaas:
-  gatewayservice: "" # Service of OpenFaaS Gateway, "gateway" (default)
-  gatewaynamespace: "" # Namespace of OpenFaaS Gateway, "openfaas" (default)
-  gatewayport: 8080 # Port of service of OpenFaaS Gateway
   functionname: "" # Name of OpenFaaS function, if not empty, OpenFaaS is enabled
-  functionnamespace: "" # Namespace of OpenFaaS function, "openfaas-fn" (default)
+  functionnamespace: "openfaas-fn" # Namespace of OpenFaaS function, "openfaas-fn" (default)
+  gatewayservice: "gateway" # Service of OpenFaaS Gateway, "gateway" (default)
+  gatewayport: 8080 # Port of service of OpenFaaS Gateway
+  gatewaynamespace: "openfaas" # Namespace of OpenFaaS Gateway, "openfaas" (default)
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
