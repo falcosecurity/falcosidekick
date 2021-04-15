@@ -307,11 +307,11 @@ kubeless:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 openfaas:
-  gatewayservice: "" # Service of OpenFaaS Gateway, "gateway" (default)
-  gatewaynamespace: "" # Namespace of OpenFaaS Gateway, "openfaas" (default)
-  gatewayport: 8080 # Port of service of OpenFaaS Gateway
   functionname: "" # Name of OpenFaaS function, if not empty, OpenFaaS is enabled
-  functionnamespace: "" # Namespace of OpenFaaS function, "openfaas-fn" (default)
+  functionnamespace: "openfaas-fn" # Namespace of OpenFaaS function, "openfaas-fn" (default)
+  gatewayservice: "gateway" # Service of OpenFaaS Gateway, "gateway" (default)
+  gatewayport: 8080 # Port of service of OpenFaaS Gateway
+  gatewaynamespace: "openfaas" # Namespace of OpenFaaS Gateway, "openfaas" (default)
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
