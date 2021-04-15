@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.22.0 - 2021-04-06
+#### New
+- New output : **AWS S3** ([PR#195](https://github.com/falcosecurity/falcosidekick/pull/195) thanks to [@evalsocket](https://github.com/evalsocket))
+- New output : **GCP Storage** ([PR#202](https://github.com/falcosecurity/falcosidekick/pull/202) thanks to [@evalsocket](https://github.com/evalsocket))
+- New output : **RabbitMQ** ([PR#210](https://github.com/falcosecurity/falcosidekick/pull/210) thanks to [@evalsocket](https://github.com/evalsocket))
+- New output : **OpenFaas** ([PR#208](https://github.com/falcosecurity/falcosidekick/pull/208) thanks to [@developper-guy](https://github.com/developper-guy))
+#### Enhancement
+- Use higher level Writer api for **Kafka** ([PR#206](https://github.com/falcosecurity/falcosidekick/pull/206) thanks to [@zemek](https://github.com/zemek))
+- Reorder *imports* to follow good practices ([PR#205](https://github.com/falcosecurity/falcosidekick/pull/205))
+- Prevent misleading error message when *CUSTOMFIELDS* env var is set ([PR#201](https://github.com/falcosecurity/falcosidekick/pull/201) thanks to [@zemek](https://github.com/zemek))
+- Use *Events v2* API for **PagerDuty** output ([PR#200](https://github.com/falcosecurity/falcosidekick/pull/200) thanks to [@caWhite](https://github.com/caWhite))
+#### Fix
+- Fix *outputformat* when using fields or text in **Slack** output ([PR#204](https://github.com/falcosecurity/falcosidekick/pull/204))
+- Fix HTML template for **SMTP** output ([PR#199](https://github.com/falcosecurity/falcosidekick/pull/199))
+
 ## 2.21.0 - 2021-02-12
 #### New
 - New output : **Cloud Events** ([PR#169](https://github.com/falcosecurity/falcosidekick/pull/169) thanks to [@n3wscott](https://github.com/n3wscott))
