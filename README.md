@@ -56,6 +56,7 @@ Currently available outputs are :
 - [**PagerDuty**](https://pagerduty.com/)
 - [**Kubeless**](https://kubeless.io/)
 - [**OpenFaaS**](https://www.openfaas.com)
+- [**RabbitMQ**](https://www.rabbitmq.com/)
 - [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
 
 ## Usage
