@@ -32,17 +32,27 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 	var storageClient *storage.Client
 
 	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" {
-		credentials, err := google.CredentialsFromJSON(context.Background(), []byte(googleCredentialsData), pubsub.ScopePubSub)
-		if err != nil {
-			log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while loading GCP Credentials")
-			return nil, errors.New("Error while loading GCP Credentials")
+		if googleCredentialsData != "" {
+			credentials, err := google.CredentialsFromJSON(context.Background(), []byte(googleCredentialsData), pubsub.ScopePubSub)
+			if err != nil {
+				log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while loading GCP Credentials")
+				return nil, errors.New("Error while loading GCP Credentials")
+			}
+			pubSubClient, err := pubsub.NewClient(context.Background(), config.GCP.PubSub.ProjectID, option.WithCredentials(credentials))
+			if err != nil {
+				log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while creating GCP PubSub Client")
+				return nil, errors.New("Error while creating GCP PubSub Client")
+			}
+			topicClient = pubSubClient.Topic(config.GCP.PubSub.Topic)
+		} else {
+			log.Printf("Workload Identity!")
+			pubSubClient, err := pubsub.NewClient(context.Background(), config.GCP.PubSub.ProjectID)
+			if err != nil {
+				log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while creating GCP PubSub Client")
+				return nil, errors.New("Error while creating GCP PubSub Client")
+			}
+			topicClient = pubSubClient.Topic(config.GCP.PubSub.Topic)
 		}
-		pubSubClient, err := pubsub.NewClient(context.Background(), config.GCP.PubSub.ProjectID, option.WithCredentials(credentials))
-		if err != nil {
-			log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while creating GCP PubSub Client")
-			return nil, errors.New("Error while creating GCP PubSub Client")
-		}
-		topicClient = pubSubClient.Topic(config.GCP.PubSub.Topic)
 	}
 
 	if config.GCP.Storage.Bucket != "" {

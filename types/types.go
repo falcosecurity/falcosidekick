@@ -249,9 +249,10 @@ type eventHub struct {
 }
 
 type gcpOutputConfig struct {
-	Credentials string
-	PubSub      gcpPubSub
-	Storage     gcpStorage
+	Credentials      string
+	WorkloadIdentity bool
+	PubSub           gcpPubSub
+	Storage          gcpStorage
 }
 
 type gcpPubSub struct {
