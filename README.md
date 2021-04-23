@@ -138,7 +138,7 @@ customfields: # custom fields are added to falco events
   Akey: "AValue"
   Bkey: "BValue"
   Ckey: "CValue"
-checkCert: true # check if ssl certificate of the output is valid (default: true)
+
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
@@ -149,6 +149,7 @@ slack:
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   messageformat: 'Alert : rule *{{ .Rule }}* triggered by user *{{ index
     .OutputFields "user.name" }}*' # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 rocketchat:
   webhookurl: "" # Rocketchat WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Rocketchat output is enabled
@@ -157,6 +158,7 @@ rocketchat:
   outputformat: "all" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Rocketchat Text above Attachment, displayed in addition to the output from `ROCKETCHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 mattermost:
   webhookurl: "" # Mattermost WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Mattermost output is enabled
@@ -166,21 +168,26 @@ mattermost:
   outputformat: "all" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # messageformat: "Alert : rule **{{ .Rule }}** triggered by user **{{ index .OutputFields \"user.name\" }}**" # a Go template to format Mattermost Text above Attachment, displayed in addition to the output from `MATTERMOST_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 teams:
   webhookurl: "" # Teams WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Teams output is enabled
   #activityimage: "" # Image for message section
   outputformat: "text" # all (default), text, facts
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 datadog:
   # apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
   # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 alertmanager:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
@@ -188,6 +195,8 @@ elasticsearch:
   # type: "event"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
@@ -195,14 +204,19 @@ influxdb:
   # user: "" # user to use if auth is enabled in Influxdb
   # password: "" # pasword to use if auth is enabled in Influxdb
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 loki:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 nats:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 stan:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, STAN output is enabled
@@ -256,12 +270,15 @@ opsgenie:
   # apikey: "2c771471-e2af-4dc6-bd35-e7f6ff479b64" # Opsgenie API Key, if not empty, Opsgenie output is enabled
   region: "eu" # (us|eu) region of your domain
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 webhook:
   # address: "" # Webhook address, if not empty, Webhook output is enabled
   # customHeaders: # Custom headers to add in POST, useful for Authentication
   #   key: value
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 azure:
   # eventHub:
@@ -273,6 +290,7 @@ discord:
   webhookurl: "" # discord WebhookURL (ex: https://discord.com/api/webhooks/xxxxxxxxxx...), if not empty, Discord output is enabled
   # icon: "" # Discord icon (avatar)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 gcp:
   credentials: "" # The base64-encoded JSON key file for the GCP service account
@@ -291,6 +309,7 @@ googlechat:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   messageformat: 'Alert : rule *{{ .Rule }}* triggered by user *{{ index
     .OutputFields "user.name" }}*' # a Go template to format Google Chat Text above Attachment, displayed in addition to the output from `GOOGLECHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 kafka:
   hostport: "" # Apache Kafka Host:Port (ex: localhost:9092). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
@@ -300,6 +319,7 @@ kafka:
 pagerduty:
   routingKey: "" # Pagerduty Routing Key, if not empty, Pagerduty output is enabled
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 kubeless:
   function: "" # Name of Kubeless function, if not empty, Kubeless is enabled
@@ -356,8 +376,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   (default: false)
 - **CUSTOMFIELDS** : a list of comma separated custom fields to add to falco
   events, syntax is "key:value,key:value"
-- **CHECKCERT**: check if ssl certificate of the output is valid (default:
-  `true`)
+  **MUTUALTLSFILESPATH**: path which will be used to stored certs and key for mutual tls authentication
 - **SLACK_WEBHOOKURL** : Slack Webhook URL (ex:
   https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output
   is _enabled_
@@ -373,6 +392,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see
   [Slack Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before Attachment.
+- **SLACK_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **ROCKETCHAT_WEBHOOKURL** : Rocketchat Webhook URL (ex:
   https://XXXX/hooks/YYYY), if not `empty`, Rocketchat output is _enabled_
 - **ROCKETCHAT_ICON** : Rocketchat icon (avatar)
@@ -387,6 +408,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `ROCKETCHAT_OUTPUTFORMAT`, see
   [Slack Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before Attachment.
+- **ROCKETCHAT_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **MATTERMOST_WEBHOOKURL** : Mattermost Webhook URL (ex:
   https://XXXX/hooks/YYYY), if not `empty`, Mattermost output is _enabled_
 - **MATTERMOST_FOOTER** : Mattermost footer
@@ -402,6 +425,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `MATTERMOST_OUTPUTFORMAT`, see
   [Mattermost Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before Attachment.
+- **MATTERMOST_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **TEAMS_WEBHOOKURL** : Teams Webhook URL (ex:
   https://outlook.office.com/webhook/XXXXXX/IncomingWebhook/YYYYYY"), if not
   `empty`, Teams output is _enabled_
@@ -411,6 +436,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **TEAMS_MINIMUMPRIORITY** : minimum priority of event for using use this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **MATTERMOST_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **DATADOG_APIKEY** : Datadog API Key, if not `empty`, Datadog output is
   _enabled_
 - **DATADOG_HOST** : Datadog host. Override if you are on the Datadog EU site.
@@ -418,6 +445,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **DATADOG_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **DATADOG_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **DISCORD_WEBHOOKURL** : Discord WebhookURL (ex:
   https://discord.com/api/webhooks/xxxxxxxxxx...), if not empty, Discord output
   is _enabled_
@@ -430,6 +459,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **ALERTMANAGER_MINIMUMPRIORITY** : minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **ALERTMANAGER_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **ELASTICSEARCH_HOSTPORT** : Elasticsearch http://host:port, if not `empty`,
   Elasticsearch is _enabled_
 - **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)
@@ -439,6 +470,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **ELASTICSEARCH_SUFFIX** : date suffix for index rotation : `daily` (default),
   `monthly`, `annually`, `none`
+- **ELASTICSEARCH_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **INFLUXDB_HOSTPORT** : Influxdb http://host:port, if not `empty`, Influxdb is
   _enabled_
 - **INFLUXDB_DATABASE** : Influxdb database (default: falco)
@@ -447,14 +480,20 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **INFLUXDB_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **LOKI_HOSTPORT** : Loki http://host:port, if not `empty`, Loki is _enabled_
 - **LOKI_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **LOKI_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **NATS_HOSTPORT** : NATS "nats://host:port", if not `empty`, NATS is _enabled_
 - **NATS_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **NATS_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **STAN_HOSTPORT** : NATS "nats://host:port", if not `empty`, STAN is _enabled_
 - **STAN_CLUSTERID** : Cluster name, if not `empty`, STAN is _enabled_
 - **STAN_CLIENTID** : Client ID to use, if not `empty`, STAN is _enabled_
@@ -510,6 +549,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **OPSGENIE_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **STATSD_FORWARDER**: The address for the StatsD forwarder, in the form
   http://host:port, if not empty StatsD is _enabled_
 - **STATSD_NAMESPACE**: A prefix for all metrics (default: "falcosidekick.")
@@ -524,6 +565,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **WEBHOOK_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **CLOUDEVENTS_ADDRESS** : CloudEvents consumer address, if not empty,
   CloudEvents output is _enabled_
 - **CLOUDEVENTS_EXTENSIONS** : a list of comma separated extensions to add,
@@ -531,6 +574,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **CLOUDEVENTS_MINIMUMPRIORITY** : minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **CLOUDEVENTS_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **AZURE_EVENTHUB_NAME**: Name of the Hub, if not empty, EventHub is _enabled_
 - **AZURE_EVENTHUB_NAMESPACE**: Name of the space the Hub is in
 - **AZURE_EVENTHUB_MINIMUMPRIORITY**: minimum priority of event for using this
@@ -560,6 +605,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `GOOGLECHAT_OUTPUTFORMAT`, see
   [Slack Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before sections.
+- **GOOGLECHAT_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **KAFKA_HOSTPORT**: The Host:Port of the Kafka (ex: localhost:9092), if not
   empty, Kafka is _enabled_
 - **KAFKA_TOPIC**: The name of the Kafka topic
@@ -578,6 +625,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **PAGERDUTY_MINIMUMPRIORITY**: minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **PAGERDUTY_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
 - **KUBELESS_FUNCTION**: Name of Kubeless function, if not empty, Kubeless is
   _enabled_
 - **KUBELESS_NAMESPACE**: Namespace of Kubeless function (mandatory)
@@ -655,6 +704,15 @@ All logs are sent to `stdout`.
 2019/05/10 14:32:06 [INFO] : Enabled Outputs : Slack Datadog
 ```
 
+## Mutual TLS ##
+
+Outputs with mutualtls enabled in their configuration require *client.crt*, *client.key* and *ca.crt* files to be stored in the path configured in **mutualtlsfilespath** global parameter (**important**: files' name must be preserved)
+
+```bash
+docker run -d -p 2801:2801 -e MUTUALTLSFILESPATH=/certs -e ALERTMANAGER_HOSTPORT=https://XXXX -e ALERTMANAGER_MUTUALTLS=true -e INFLUXDB_HOSTPORT=https://XXXX -e INFLUXDB_MUTUALTLS=true -e WEBHOOK_ADDRESS=XXXX -v /tmp/myclientcert.crt:/certs/client.crt -v /tmp/myclientkey.key:/certs/client.key -v /tmp/ca.crt:/certs/ca.crt falcosecurity/falcosidekick
+```
+
+In above example, the same client certificate will be used for both Alertmanager & InfluxDB outputs which have mutualtls flag set to true.
 ## Metrics
 
 ### Golang ExpVar
