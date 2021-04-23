@@ -3,6 +3,7 @@ package outputs
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,17 +53,24 @@ var ErrClientCreation = errors.New("Client creation Error")
 // EnabledOutputs list all enabled outputs
 var EnabledOutputs []string
 
+// files names are static fo the shake of helm and single docker compatibility
+const MutualTLSClientCertFilename = "/client.crt"
+const MutualTLSClientKeyFilename = "/client.key"
+const MutualTLSCacertFilename = "/ca.crt"
+
 // Client communicates with the different API.
 type Client struct {
-	OutputType      string
-	EndpointURL     *url.URL
-	Config          *types.Configuration
-	Stats           *types.Statistics
-	PromStats       *types.PromStatistics
-	AWSSession      *session.Session
-	StatsdClient    *statsd.Client
-	DogstatsdClient *statsd.Client
-	GCPTopicClient  *pubsub.Topic
+	OutputType       string
+	EndpointURL      *url.URL
+	MutualTLSEnabled bool
+	CheckCert        bool
+	Config           *types.Configuration
+	Stats            *types.Statistics
+	PromStats        *types.PromStatistics
+	AWSSession       *session.Session
+	StatsdClient     *statsd.Client
+	DogstatsdClient  *statsd.Client
+	GCPTopicClient   *pubsub.Topic
 
 	GCSStorageClient  *storage.Client
 	KafkaProducer     *kafka.Writer
@@ -73,7 +81,7 @@ type Client struct {
 }
 
 // NewClient returns a new output.Client for accessing the different API.
-func NewClient(outputType string, defaultEndpointURL string, config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bool, checkCert bool, config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad Endpoint")
@@ -88,7 +96,7 @@ func NewClient(outputType string, defaultEndpointURL string, config *types.Confi
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
 }
 
 // Post sends event (payload) to Output.
@@ -115,10 +123,32 @@ func (c *Client) Post(payload interface{}) error {
 
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 
-	if c.Config.CheckCert == false {
-		// #nosec G402 This is only set as a result of explicit configuration
+	if c.MutualTLSEnabled {
+		// Load client cert
+		cert, err := tls.LoadX509KeyPair(c.Config.MutualTLSFilesPath+MutualTLSClientCertFilename, c.Config.MutualTLSFilesPath+MutualTLSClientKeyFilename)
+		if err != nil {
+			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		}
+
+		// Load CA cert
+		caCert, err := ioutil.ReadFile(c.Config.MutualTLSFilesPath + MutualTLSCacertFilename)
+		if err != nil {
+			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
 		customTransport.TLSClientConfig = &tls.Config{
-			InsecureSkipVerify: true,
+			Certificates: []tls.Certificate{cert},
+			RootCAs:      caCertPool,
+			MinVersion:   tls.VersionTLS12,
+		}
+	} else {
+		// With MutualTLS enabled, the check cert flag is ignored
+		if c.CheckCert == false {
+			// #nosec G402 This is only set as a result of explicit configuration
+			customTransport.TLSClientConfig = &tls.Config{
+				InsecureSkipVerify: true,
+			}
 		}
 	}
 

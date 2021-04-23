@@ -5,7 +5,7 @@ customfields: # custom fields are added to falco events
   Akey: "AValue"
   Bkey: "BValue"
   Ckey: "CValue"
-checkCert: true # check if ssl certificate of the output is valid (default: true)
+mutualtlsfilespath: "/mutualtls-files/" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
@@ -15,6 +15,7 @@ slack:
   outputformat: "all" # all (default), text, fields
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   #messageformat: 'Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields "user.name" }}*' # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 rocketchat:
   webhookurl: "" # Rocketchat WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Rocketchat output is enabled
@@ -23,6 +24,7 @@ rocketchat:
   outputformat: "all" # all (default), text, fields
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Rocketchat Text above Attachment, displayed in addition to the output from `ROCKETCHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 mattermost:
   webhookurl: "" # Mattermost WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Mattermosst output is enabled
@@ -32,43 +34,55 @@ mattermost:
   outputformat: "all" # all (default), text, fields
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # messageformat: "Alert : rule **{{ .Rule }}** triggered by user **{{ index .OutputFields \"user.name\" }}**" # a Go template to format Mattermost Text above Attachment, displayed in addition to the output from `MATTERMOST_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 teams:
   webhookurl: "" # Teams WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Teams output is enabled
   #activityimage: "" # Image for message section
   outputformat: "all" # all (default), text, facts
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 datadog:
-# apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
-# host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
-# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
+  # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 alertmanager:
-# hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
-# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 elasticsearch:
-# hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
-# index: "falco" # index (default: falco)
-# type: "event"
-# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-# suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
+  # index: "falco" # index (default: falco)
+  # type: "event"
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 influxdb:
-# hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
-# database: "falco" # Influxdb database (default: falco)
-# user: "" # user to use if auth is enabled in Influxdb
-# password: "" # pasword to use if auth is enabled in Influxdb
-# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
+  # database: "falco" # Influxdb database (default: falco)
+  # user: "" # user to use if auth is enabled in Influxdb
+  # password: "" # pasword to use if auth is enabled in Influxdb
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 loki:
-# hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
-# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 nats:
-# hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
-# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 aws:
   # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
@@ -85,22 +99,22 @@ aws:
     rawjson: false # Send Raw JSON or parse it (default: false)
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   cloudwatchlogs:
-  # loggroup : "" #  AWS CloudWatch Logs Group name, if not empty, CloudWatch Logs output is enabled
-  # logstream : "" # AWS CloudWatch Logs Stream name, if empty, Falcosidekick will try to create a log stream
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # loggroup : "" #  AWS CloudWatch Logs Group name, if not empty, CloudWatch Logs output is enabled
+    # logstream : "" # AWS CloudWatch Logs Stream name, if empty, Falcosidekick will try to create a log stream
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   s3:
   # bucket: "falcosidekick" # AWS S3, bucket name
   # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
-# hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
-# user: "" # user to access SMTP server
-# password: "" # password to access SMTP server
-# from: "" # Sender address (mandatory if SMTP output is enabled)
-# to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
-# outputformat: "" # html (default), text
-# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
+  # user: "" # user to access SMTP server
+  # password: "" # password to access SMTP server
+  # from: "" # Sender address (mandatory if SMTP output is enabled)
+  # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
+  # outputformat: "" # html (default), text
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 statsd:
   forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
@@ -118,10 +132,11 @@ opsgenie:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 webhook:
-# address: "" # Webhook address, if not empty, Webhook output is enabled
-# customHeaders: # Custom headers to add in POST, useful for Authentication
-#   key: value
-# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # address: "" # Webhook address, if not empty, Webhook output is enabled
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
 
 cloudevents:
 # address: "" # CloudEvents consumer http address, if not empty, CloudEvents output is enabled

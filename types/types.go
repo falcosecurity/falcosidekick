@@ -20,40 +20,40 @@ type FalcoPayload struct {
 
 // Configuration is a struct to store configuration
 type Configuration struct {
-	CheckCert     bool
-	Debug         bool
-	ListenAddress string
-	ListenPort    int
-	Customfields  map[string]string
-	Slack         SlackOutputConfig
-	Mattermost    MattermostOutputConfig
-	Rocketchat    RocketchatOutputConfig
-	Teams         teamsOutputConfig
-	Datadog       datadogOutputConfig
-	Discord       DiscordOutputConfig
-	Alertmanager  alertmanagerOutputConfig
-	Elasticsearch elasticsearchOutputConfig
-	Influxdb      influxdbOutputConfig
-	Loki          lokiOutputConfig
-	Nats          natsOutputConfig
-	Stan          stanOutputConfig
-	AWS           awsOutputConfig
-	SMTP          smtpOutputConfig
-	Opsgenie      opsgenieOutputConfig
-	Statsd        statsdOutputConfig
-	Dogstatsd     statsdOutputConfig
-	Webhook       WebhookOutputConfig
-	CloudEvents   CloudEventsOutputConfig
-	Azure         azureConfig
-	GCP           gcpOutputConfig
-	Googlechat    GooglechatConfig
-	Kafka         kafkaConfig
-	Pagerduty     PagerdutyConfig
-	Kubeless      kubelessConfig
-	Openfaas      openfaasConfig
-	WebUI         WebUIOutputConfig
-	Rabbitmq      RabbitmqConfig
-	Wavefront     WavefrontOutputConfig
+	MutualTLSFilesPath string
+	Debug              bool
+	ListenAddress      string
+	ListenPort         int
+	Customfields       map[string]string
+	Slack              SlackOutputConfig
+	Mattermost         MattermostOutputConfig
+	Rocketchat         RocketchatOutputConfig
+	Teams              teamsOutputConfig
+	Datadog            datadogOutputConfig
+	Discord            DiscordOutputConfig
+	Alertmanager       alertmanagerOutputConfig
+	Elasticsearch      elasticsearchOutputConfig
+	Influxdb           influxdbOutputConfig
+	Loki               lokiOutputConfig
+	Nats               natsOutputConfig
+	Stan               stanOutputConfig
+	AWS                awsOutputConfig
+	SMTP               smtpOutputConfig
+	Opsgenie           opsgenieOutputConfig
+	Statsd             statsdOutputConfig
+	Dogstatsd          statsdOutputConfig
+	Webhook            WebhookOutputConfig
+	CloudEvents        CloudEventsOutputConfig
+	Azure              azureConfig
+	GCP                gcpOutputConfig
+	Googlechat         GooglechatConfig
+	Kafka              kafkaConfig
+	Pagerduty          PagerdutyConfig
+	Kubeless           kubelessConfig
+	Openfaas           openfaasConfig
+	WebUI              WebUIOutputConfig
+	Rabbitmq           RabbitmqConfig
+	Wavefront          WavefrontOutputConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -66,6 +66,8 @@ type SlackOutputConfig struct {
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
+	CheckCert             bool
+	MutualTLS             bool
 }
 
 // RocketchatOutputConfig .
@@ -78,6 +80,8 @@ type RocketchatOutputConfig struct {
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
+	CheckCert             bool
+	MutualTLS             bool
 }
 
 // MattermostOutputConfig represents parameters for Mattermost
@@ -90,6 +94,8 @@ type MattermostOutputConfig struct {
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
+	CheckCert             bool
+	MutualTLS             bool
 }
 
 type WavefrontOutputConfig struct {
@@ -108,12 +114,16 @@ type teamsOutputConfig struct {
 	ActivityImage   string
 	OutputFormat    string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type datadogOutputConfig struct {
 	APIKey          string
 	Host            string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 // DiscordOutputConfig .
@@ -121,11 +131,15 @@ type DiscordOutputConfig struct {
 	WebhookURL      string
 	MinimumPriority string
 	Icon            string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type alertmanagerOutputConfig struct {
 	HostPort        string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type elasticsearchOutputConfig struct {
@@ -134,6 +148,8 @@ type elasticsearchOutputConfig struct {
 	Type            string
 	MinimumPriority string
 	Suffix          string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type influxdbOutputConfig struct {
@@ -142,16 +158,22 @@ type influxdbOutputConfig struct {
 	User            string
 	Password        string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type lokiOutputConfig struct {
 	HostPort        string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type natsOutputConfig struct {
 	HostPort        string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type stanOutputConfig struct {
@@ -159,6 +181,8 @@ type stanOutputConfig struct {
 	ClusterID       string
 	ClientID        string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type awsOutputConfig struct {
@@ -216,6 +240,8 @@ type opsgenieOutputConfig struct {
 	Region          string
 	APIKey          string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 // WebhookOutputConfig represents parameters for Webhook
@@ -223,6 +249,8 @@ type WebhookOutputConfig struct {
 	Address         string
 	CustomHeaders   map[string]string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 // CloudEventsOutputConfig represents parameters for CloudEvents
@@ -230,6 +258,8 @@ type CloudEventsOutputConfig struct {
 	Address         string
 	Extensions      map[string]string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type statsdOutputConfig struct {
@@ -273,6 +303,8 @@ type GooglechatConfig struct {
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
+	CheckCert             bool
+	MutualTLS             bool
 }
 
 type kafkaConfig struct {
@@ -284,6 +316,8 @@ type kafkaConfig struct {
 type PagerdutyConfig struct {
 	RoutingKey      string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type kubelessConfig struct {
@@ -306,7 +340,9 @@ type openfaasConfig struct {
 
 // WebUIOutputConfig represents parameters for WebUI
 type WebUIOutputConfig struct {
-	URL string
+	URL       string
+	CheckCert bool
+	MutualTLS bool
 }
 
 // RabbitmqConfig represents parameters for rabbitmq

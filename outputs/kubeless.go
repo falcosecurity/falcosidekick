@@ -38,6 +38,8 @@ func NewKubelessClient(config *types.Configuration, stats *types.Statistics, pro
 	return NewClient(
 		"Kubeless",
 		"http://"+config.Kubeless.Function+"."+config.Kubeless.Namespace+".svc.cluster.local:"+strconv.Itoa(config.Kubeless.Port),
+		false,
+		true,
 		config,
 		stats,
 		promStats,
