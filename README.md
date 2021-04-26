@@ -11,7 +11,7 @@
 ## Description
 
 A simple daemon for enhancing available outputs for
-[Falco](https://sysdig.com/opensource/falco/). It takes a falco's event and
+[Falco](https://github.com/falcosecurity/falco). It takes a Falco's event and
 forwards it to different outputs.
 
 It works as a single endpoint for as many as you want `falco` instances :
@@ -758,7 +758,7 @@ permissions to access the resources you selected to use, like `SQS`, `Lambda`,
 
 ## Examples
 
-Run you daemon and try (from falco's documentation) :
+Run you daemon and try (from Falco's documentation) :
 
 ```bash
 curl "http://localhost:2801/" -d'{"output":"16:31:56.746609046: Error File below a known binary directory opened for writing (user=root command=touch /bin/hack file=/bin/hack)","priority":"Error","rule":"Write below binary dir","time":"2019-05-17T15:31:56.746609046Z", "output_fields": {"evt.time":1507591916746609046,"fd.name":"/bin/hack","proc.cmdline":"touch /bin/hack","user.name":"root"}}'
