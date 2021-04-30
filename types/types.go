@@ -326,6 +326,8 @@ type kubelessConfig struct {
 	Port            int
 	Kubeconfig      string
 	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type openfaasConfig struct {
@@ -336,6 +338,8 @@ type openfaasConfig struct {
 	GatewayPort       int
 	Kubeconfig        string
 	MinimumPriority   string
+	CheckCert         bool
+	MutualTLS         bool
 }
 
 // WebUIOutputConfig represents parameters for WebUI

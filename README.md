@@ -138,7 +138,7 @@ customfields: # custom fields are added to falco events
   Akey: "AValue"
   Bkey: "BValue"
   Ckey: "CValue"
-
+mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls (default: "/etc/certs")
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
@@ -149,7 +149,6 @@ slack:
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   messageformat: 'Alert : rule *{{ .Rule }}* triggered by user *{{ index
     .OutputFields "user.name" }}*' # a Go template to format Slack Text above Attachment, displayed in addition to the output from `SLACK_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
-  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 rocketchat:
   webhookurl: "" # Rocketchat WebhookURL (ex: http://XXXX/hooks/YYYY), if not empty, Rocketchat output is enabled
@@ -158,6 +157,7 @@ rocketchat:
   outputformat: "all" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # messageformat: "Alert : rule *{{ .Rule }}* triggered by user *{{ index .OutputFields \"user.name\" }}*" # a Go template to format Rocketchat Text above Attachment, displayed in addition to the output from `ROCKETCHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 mattermost:
@@ -168,6 +168,7 @@ mattermost:
   outputformat: "all" # all (default), text, fields
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # messageformat: "Alert : rule **{{ .Rule }}** triggered by user **{{ index .OutputFields \"user.name\" }}**" # a Go template to format Mattermost Text above Attachment, displayed in addition to the output from `MATTERMOST_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 teams:
@@ -175,13 +176,11 @@ teams:
   #activityimage: "" # Image for message section
   outputformat: "text" # all (default), text, facts
   minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 datadog:
   # apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
   # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 alertmanager:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
@@ -223,6 +222,7 @@ stan:
   # clusterid: "" # Cluster name, if not empty, STAN output is enabled
   # clientid: "" # Client ID, if not empty, STAN output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 aws:
   # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
@@ -290,7 +290,6 @@ discord:
   webhookurl: "" # discord WebhookURL (ex: https://discord.com/api/webhooks/xxxxxxxxxx...), if not empty, Discord output is enabled
   # icon: "" # Discord icon (avatar)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 gcp:
   credentials: "" # The base64-encoded JSON key file for the GCP service account
@@ -309,7 +308,6 @@ googlechat:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   messageformat: 'Alert : rule *{{ .Rule }}* triggered by user *{{ index
     .OutputFields "user.name" }}*' # a Go template to format Google Chat Text above Attachment, displayed in addition to the output from `GOOGLECHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
-  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 kafka:
   hostport: "" # Apache Kafka Host:Port (ex: localhost:9092). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
@@ -327,6 +325,7 @@ kubeless:
   port: 8080 # Port of service of Kubeless function
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcoside is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 openfaas:
   functionname: "" # Name of OpenFaaS function, if not empty, OpenFaaS is enabled
@@ -336,6 +335,7 @@ openfaas:
   gatewaynamespace: "openfaas" # Namespace of OpenFaaS Gateway, "openfaas" (default)
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 wavefront:
   endpointtype: "direct" # Wavefront endpoint type, must be 'direct' or 'proxy'. If not empty, with endpointhost, Wavefront output is enabled
@@ -709,7 +709,7 @@ All logs are sent to `stdout`.
 Outputs with mutualtls enabled in their configuration require *client.crt*, *client.key* and *ca.crt* files to be stored in the path configured in **mutualtlsfilespath** global parameter (**important**: files' name must be preserved)
 
 ```bash
-docker run -d -p 2801:2801 -e MUTUALTLSFILESPATH=/certs -e ALERTMANAGER_HOSTPORT=https://XXXX -e ALERTMANAGER_MUTUALTLS=true -e INFLUXDB_HOSTPORT=https://XXXX -e INFLUXDB_MUTUALTLS=true -e WEBHOOK_ADDRESS=XXXX -v /tmp/myclientcert.crt:/certs/client.crt -v /tmp/myclientkey.key:/certs/client.key -v /tmp/ca.crt:/certs/ca.crt falcosecurity/falcosidekick
+docker run -d -p 2801:2801 -e MUTUALTLSFILESPATH=/etc/certs -e ALERTMANAGER_HOSTPORT=https://XXXX -e ALERTMANAGER_MUTUALTLS=true -e INFLUXDB_HOSTPORT=https://XXXX -e INFLUXDB_MUTUALTLS=true -e WEBHOOK_ADDRESS=XXXX -v /localpath/myclientcert.crt:/etc/certs/client.crt -v /localpath/myclientkey.key:/etc/certs/client.key -v /localpath/ca.crt:/etc/certs/ca.crt falcosecurity/falcosidekick
 ```
 
 In above example, the same client certificate will be used for both Alertmanager & InfluxDB outputs which have mutualtls flag set to true.

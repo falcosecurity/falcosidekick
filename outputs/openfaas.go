@@ -38,8 +38,8 @@ func NewOpenfaasClient(config *types.Configuration, stats *types.Statistics, pro
 	return NewClient(
 		Openfaas,
 		"http://"+config.Openfaas.GatewayService+"."+config.Openfaas.GatewayNamespace+":"+strconv.Itoa(config.Openfaas.GatewayPort)+"/function/"+config.Openfaas.FunctionName+"."+config.Openfaas.FunctionNamespace,
-		false,
-		true,
+		config.Openfaas.MutualTLS,
+		config.Openfaas.CheckCert,
 		config,
 		stats,
 		promStats,
