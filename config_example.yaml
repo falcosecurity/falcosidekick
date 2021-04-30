@@ -88,6 +88,7 @@ stan:
   # clusterid: "" # Cluster name, if not empty, STAN output is enabled
   # clientid: "" # Client ID, if not empty, STAN output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   
 nats:
@@ -142,7 +143,6 @@ opsgenie:
   # apikey: "2c771471-e2af-4dc6-bd35-e7f6ff479b64" # Opsgenie API Key, if not empty, Opsgenie output is enabled
   region: "eu" # (us|eu) region of your domain
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 webhook:
   # address: "" # Webhook address, if not empty, Webhook output is enabled
@@ -194,7 +194,6 @@ kafka:
 pagerduty:
   routingKey: "" # Pagerduty Routing Key, if not empty, Pagerduty output is enabled
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 kubeless:
   function: "" # Name of Kubeless function, if not empty, Kubeless is enabled
@@ -214,9 +213,6 @@ openfaas:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
-webui:
-  url: "" # WebUI URL, if not empty, WebUI output is enabled
-
 rabbitmq:
   url: "" # Rabbitmq URL, if not empty, Rabbitmq output is enabled
   queue: "" # Rabbitmq Queue name
@@ -232,3 +228,5 @@ wavefront:
   # batchsize: 10000 # Wavefront batch size. If empty uses the default 10000. Only used when endpointtype is 'direct'
   # flushintervalseconds: 1 # Wavefront flush interval in seconds. Defaults to 1
 
+webui:
+  url: "" # WebUI URL, if not empty, WebUI output is enabled
