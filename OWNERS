@@ -6,6 +6,7 @@ approvers:
   - cpanato
   - KeisukeYamashita
   - fjogeleit
+  - developer-guy
 reviewers:
   - Issif
   - leodido
@@ -14,3 +15,4 @@ reviewers:
   - cpanato
   - KeisukeYamashita
   - fjogeleit
+  - developer-guy
