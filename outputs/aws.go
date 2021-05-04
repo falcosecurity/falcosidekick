@@ -46,7 +46,7 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 		return nil, errors.New("Error while creating AWS Session")
 	}
 
-	_, err = sts.New(session.New()).GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	_, err = sts.New(sess).GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		log.Printf("[ERROR] : AWS - %v\n", "Error while getting AWS Token")
 		return nil, errors.New("Error while getting AWS Token")
