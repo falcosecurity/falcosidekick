@@ -45,7 +45,6 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 			}
 			topicClient = pubSubClient.Topic(config.GCP.PubSub.Topic)
 		} else {
-			log.Printf("Workload Identity!")
 			pubSubClient, err := pubsub.NewClient(context.Background(), config.GCP.PubSub.ProjectID)
 			if err != nil {
 				log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while creating GCP PubSub Client")
