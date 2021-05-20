@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 
+	gcpfunctions "cloud.google.com/go/functions/apiv1"
 	"github.com/streadway/amqp"
 	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
 
@@ -60,17 +61,18 @@ const MutualTLSCacertFilename = "/ca.crt"
 
 // Client communicates with the different API.
 type Client struct {
-	OutputType       string
-	EndpointURL      *url.URL
-	MutualTLSEnabled bool
-	CheckCert        bool
-	Config           *types.Configuration
-	Stats            *types.Statistics
-	PromStats        *types.PromStatistics
-	AWSSession       *session.Session
-	StatsdClient     *statsd.Client
-	DogstatsdClient  *statsd.Client
-	GCPTopicClient   *pubsub.Topic
+	OutputType              string
+	EndpointURL             *url.URL
+	MutualTLSEnabled        bool
+	CheckCert               bool
+	Config                  *types.Configuration
+	Stats                   *types.Statistics
+	PromStats               *types.PromStatistics
+	AWSSession              *session.Session
+	StatsdClient            *statsd.Client
+	DogstatsdClient         *statsd.Client
+	GCPTopicClient          *pubsub.Topic
+	GCPCloudFunctionsClient *gcpfunctions.CloudFunctionsClient
 
 	GCSStorageClient  *storage.Client
 	KafkaProducer     *kafka.Writer

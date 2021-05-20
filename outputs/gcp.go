@@ -9,10 +9,13 @@ import (
 	"log"
 	"time"
 
+	gcpfunctions "cloud.google.com/go/functions/apiv1"
 	"cloud.google.com/go/storage"
+	gcpfunctionspb "google.golang.org/genproto/googleapis/cloud/functions/v1"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/googleapis/gax-go"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 
@@ -30,6 +33,7 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 	googleCredentialsData := string(base64decodedCredentialsData)
 	var topicClient *pubsub.Topic
 	var storageClient *storage.Client
+	var cloudFunctionsClient *gcpfunctions.CloudFunctionsClient
 
 	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" {
 		if googleCredentialsData != "" {
@@ -67,16 +71,65 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 		}
 	}
 
+	if config.GCP.CloudFunctions.Name != "" {
+		if googleCredentialsData != "" {
+			credentials, err := google.CredentialsFromJSON(context.Background(), []byte(googleCredentialsData), gcpfunctions.DefaultAuthScopes()...)
+			if err != nil {
+				log.Printf("[ERROR] : GCP CloudFunctions - %v\n", "Error while loading GCS Credentials")
+				return nil, errors.New("Error while loading GCP Credentials")
+			}
+			cloudFunctionsClient, err = gcpfunctions.NewCloudFunctionsClient(context.Background(), option.WithCredentials(credentials))
+			if err != nil {
+				log.Printf("[ERROR]: GCP CloudFunctions - %v\n", "Error while creating GCP CloudFunctions Client")
+				return nil, errors.New("Error while creating GCP CloudFunctions Client")
+			}
+		} else {
+			cloudFunctionsClient, err = gcpfunctions.NewCloudFunctionsClient(context.Background())
+			if err != nil {
+				log.Printf("[ERROR]: GCP CloudFunctions - %v\n", "Error while creating GCP CloudFunctions Client")
+				return nil, errors.New("Error while creating GCP CloudFunctions Client")
+			}
+		}
+	}
+
 	return &Client{
-		OutputType:       "GCP",
-		Config:           config,
-		GCPTopicClient:   topicClient,
-		GCSStorageClient: storageClient,
-		Stats:            stats,
-		PromStats:        promStats,
-		StatsdClient:     statsdClient,
-		DogstatsdClient:  dogstatsdClient,
+		OutputType:              "GCP",
+		Config:                  config,
+		GCPTopicClient:          topicClient,
+		GCSStorageClient:        storageClient,
+		GCPCloudFunctionsClient: cloudFunctionsClient,
+		Stats:                   stats,
+		PromStats:               promStats,
+		StatsdClient:            statsdClient,
+		DogstatsdClient:         dogstatsdClient,
 	}, nil
+}
+
+// GCPCallCloudFunction calls the given Cloud Function
+func (c *Client) GCPCallCloudFunction(falcopayload types.FalcoPayload) {
+	c.Stats.GCPCloudFunctions.Add(Total, 1)
+
+	payload, _ := json.Marshal(falcopayload)
+	data := string(payload)
+
+	result, err := c.GCPCloudFunctionsClient.CallFunction(context.Background(), &gcpfunctionspb.CallFunctionRequest{
+		Name: c.Config.GCP.CloudFunctions.Name,
+		Data: data,
+	}, gax.WithGRPCOptions())
+
+	if err != nil {
+		log.Printf("[ERROR] : GCPCloudFunctions - %v - %v\n", "Error while calling CloudFunction", err.Error())
+		c.Stats.GCPPubSub.Add(Error, 1)
+		go c.CountMetric("outputs", 1, []string{"output:gcpcloudfunctions", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "gcpcloudfunctions", "status": Error}).Inc()
+
+		return
+	}
+
+	log.Printf("[INFO]  : GCPCloudFunctions - Call CloudFunction OK (%v)\n", result.ExecutionId)
+	c.Stats.GCPCloudFunctions.Add(OK, 1)
+	go c.CountMetric("outputs", 1, []string{"output:gcpcloudfunctions", "status:ok"})
+
 }
 
 // GCPPublishTopic sends a message to a GCP PubSub Topic
