@@ -283,6 +283,12 @@ type gcpOutputConfig struct {
 	WorkloadIdentity bool
 	PubSub           gcpPubSub
 	Storage          gcpStorage
+	CloudFunctions   gcpCloudFunctions
+}
+
+type gcpCloudFunctions struct {
+	Name            string
+	MinimumPriority string
 }
 
 type gcpPubSub struct {
@@ -388,6 +394,7 @@ type Statistics struct {
 	AzureEventHub     *expvar.Map
 	GCPPubSub         *expvar.Map
 	GCPStorage        *expvar.Map
+	GCPCloudFunctions *expvar.Map
 	GoogleChat        *expvar.Map
 	Kafka             *expvar.Map
 	Pagerduty         *expvar.Map

@@ -51,6 +51,7 @@ Currently available outputs are :
   `falcosidekick`)
 - [**GCP PubSub**](https://cloud.google.com/pubsub)
 - [**GCP Storage**](https://cloud.google.com/storage)
+- [**GCP Cloud Functions**](https://cloud.google.com/functions)
 - [**Google Chat**](https://workspace.google.com/products/chat/)
 - [**Apache Kafka**](https://kafka.apache.org/)
 - [**PagerDuty**](https://pagerduty.com/)
@@ -296,11 +297,14 @@ gcp:
   pubsub:
     projectid: "" # The GCP Project ID containing the Pub/Sub Topic
     topic: "" # The name of the Pub/Sub topic
-  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   storage:
     # prefix : "" # name of prefix, keys will have format: gs://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
     bucket: "" # The name of the bucket
-  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  cloudfunctions:
+    name: "" # The name of the Cloud Function
+    # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 googlechat:
   webhookurl: "" # Google Chat WebhookURL (ex: https://chat.googleapis.com/v1/spaces/XXXXXX/YYYYYY), if not empty, Google Chat output is enabled
@@ -599,9 +603,13 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **GCP_PUBSUB_TOPIC**: The name of the Pub/Sub topic
 - **GCP_PUBSUB_MINIMUMPRIORITY**: minimum priority of event for using this
   output, order is
-- **GCP_STORAGE_BUCKET**: # The name of the bucket
+- **GCP_STORAGE_BUCKET**: The name of the bucket
 - **GCP_STORAGE_PREFIX**: name of prefix, keys will have format: gs://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
 - **GCP_STORAGE_MINIMUMPRIORITY**: minimum priority of event for using this
+  output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **GCP_CLOUDFUNCTIONS_NAME**: The name of the Cloud Function
+- **GCP_CLOUDFUNCTIONS_MINIMUMPRIORITY**: minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **GOOGLECHAT_WEBHOOKURL** : Google Chat URL (ex:
