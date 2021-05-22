@@ -278,12 +278,19 @@ type eventHub struct {
 	MinimumPriority string
 }
 
+type gcpCloudRun struct {
+	Endpoint        string
+	JWT             string
+	MinimumPriority string
+}
+
 type gcpOutputConfig struct {
 	Credentials      string
 	WorkloadIdentity bool
 	PubSub           gcpPubSub
 	Storage          gcpStorage
 	CloudFunctions   gcpCloudFunctions
+	CloudRun         gcpCloudRun
 }
 
 type gcpCloudFunctions struct {
@@ -395,6 +402,7 @@ type Statistics struct {
 	GCPPubSub         *expvar.Map
 	GCPStorage        *expvar.Map
 	GCPCloudFunctions *expvar.Map
+	GCPCloudRun       *expvar.Map
 	GoogleChat        *expvar.Map
 	Kafka             *expvar.Map
 	Pagerduty         *expvar.Map

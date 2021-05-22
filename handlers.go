@@ -213,6 +213,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go gcpClient.GCPCallCloudFunction(falcopayload)
 	}
 
+	if config.GCP.CloudRun.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.GCP.CloudRun.MinimumPriority) || falcopayload.Rule == testRule) {
+		go gcpCloudRunClient.CloudRunFunctionPost(falcopayload)
+	}
+
 	if config.GCP.Storage.Bucket != "" && (falcopayload.Priority >= types.Priority(config.GCP.Storage.MinimumPriority) || falcopayload.Rule == testRule) {
 		go gcpClient.UploadGCS(falcopayload)
 	}

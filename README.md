@@ -52,6 +52,7 @@ Currently available outputs are :
 - [**GCP PubSub**](https://cloud.google.com/pubsub)
 - [**GCP Storage**](https://cloud.google.com/storage)
 - [**GCP Cloud Functions**](https://cloud.google.com/functions)
+- [** GCP Cloud Run**](https://cloud.google.com/run)
 - [**Google Chat**](https://workspace.google.com/products/chat/)
 - [**Apache Kafka**](https://kafka.apache.org/)
 - [**PagerDuty**](https://pagerduty.com/)
@@ -304,6 +305,10 @@ gcp:
     # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   cloudfunctions:
     name: "" # The name of the Cloud Function
+    # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  cloudrun:
+    endpoint: "" # The URL of the Cloud Function
+    jwt: "" # Appropriate JWT to invoke the Cloud Function
     # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 googlechat:
@@ -610,6 +615,11 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **GCP_CLOUDFUNCTIONS_NAME**: The name of the Cloud Function
 - **GCP_CLOUDFUNCTIONS_MINIMUMPRIORITY**: minimum priority of event for using this
+  output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **GCP_CLOUDRUN_ENDPOINT**: The URL of the Cloud Function
+- **GCP_CLOUDRUN_JWT**: Appropriate token for invoking Cloud Function
+- **GCP_CLOUDRUN_MINIMUMPRIORITY**: minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **GOOGLECHAT_WEBHOOKURL** : Google Chat URL (ex:
