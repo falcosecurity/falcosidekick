@@ -49,6 +49,7 @@ func getInitStats() *types.Statistics {
 		GCPPubSub:         getOutputNewMap("gcppubsub"),
 		GCPStorage:        getOutputNewMap("gcpstorage"),
 		GCPCloudFunctions: getOutputNewMap("gcpcloudfunctions"),
+		GCPCloudRun:       getOutputNewMap("gcpcloudrun"),
 		GoogleChat:        getOutputNewMap("googlechat"),
 		Kafka:             getOutputNewMap("kafka"),
 		Pagerduty:         getOutputNewMap("pagerduty"),

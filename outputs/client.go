@@ -178,6 +178,10 @@ func (c *Client) Post(payload interface{}) error {
 		req.Header.Add("event-namespace", c.Config.Kubeless.Namespace)
 	}
 
+	if c.OutputType == "GCPCloudRun" && c.Config.GCP.CloudRun.JWT != "" {
+		req.Header.Add("Authorization", "Bearer "+c.Config.GCP.CloudRun.JWT)
+	}
+
 	req.Header.Add("User-Agent", "Falcosidekick")
 
 	if len(c.Config.Webhook.CustomHeaders) != 0 && c.OutputType == "Webhook" {

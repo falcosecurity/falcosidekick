@@ -39,6 +39,7 @@ var (
 	googleChatClient    *outputs.Client
 	kafkaClient         *outputs.Client
 	pagerdutyClient     *outputs.Client
+	gcpCloudRunClient   *outputs.Client
 	kubelessClient      *outputs.Client
 	openfaasClient      *outputs.Client
 	webUIClient         *outputs.Client
@@ -322,6 +323,19 @@ func init() {
 			if config.GCP.CloudFunctions.Name != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "GCPCloudFunctions")
 			}
+		}
+	}
+
+	if config.GCP.CloudRun.Endpoint != "" && config.GCP.CloudRun.JWT != "" {
+		var err error
+		var outputName = "GCPCloudRun"
+
+		gcpCloudRunClient, err = outputs.NewClient(outputName, config.GCP.CloudRun.Endpoint, false, false, config, stats, promStats, statsdClient, dogstatsdClient)
+
+		if err != nil {
+			config.GCP.CloudRun.Endpoint = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, outputName)
 		}
 	}
 
