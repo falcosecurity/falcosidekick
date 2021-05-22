@@ -161,7 +161,12 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	log.Printf("[INFO]  : %v S3 - Upload payload OK (%v)\n", c.OutputType, *resp.SSECustomerKeyMD5)
+	if resp.SSECustomerAlgorithm != nil {
+		log.Printf("[INFO]  : %v S3 - Upload payload OK (%v)\n", c.OutputType, *resp.SSECustomerKeyMD5)
+	} else {
+		log.Printf("[INFO]  : %v S3 - Upload payload OK\n", c.OutputType)
+	}
+
 	go c.CountMetric("outputs", 1, []string{"output:awss3", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "awss3", "status": "ok"}).Inc()
 }
