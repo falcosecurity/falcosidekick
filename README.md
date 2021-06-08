@@ -52,7 +52,7 @@ Currently available outputs are :
 - [**GCP PubSub**](https://cloud.google.com/pubsub)
 - [**GCP Storage**](https://cloud.google.com/storage)
 - [**GCP Cloud Functions**](https://cloud.google.com/functions)
-- [** GCP Cloud Run**](https://cloud.google.com/run)
+- [**GCP Cloud Run**](https://cloud.google.com/run)
 - [**Google Chat**](https://workspace.google.com/products/chat/)
 - [**Apache Kafka**](https://kafka.apache.org/)
 - [**PagerDuty**](https://pagerduty.com/)
