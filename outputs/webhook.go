@@ -10,6 +10,12 @@ import (
 func (c *Client) WebhookPost(falcopayload types.FalcoPayload) {
 	c.Stats.Webhook.Add(Total, 1)
 
+	if len(c.Config.Webhook.CustomHeaders) != 0 {
+		for i, j := range c.Config.Webhook.CustomHeaders {
+			c.AddHeader(i, j)
+		}
+	}
+
 	err := c.Post(falcopayload)
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:webhook", "status:error"})

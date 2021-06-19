@@ -33,6 +33,10 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 	}
 
 	c.EndpointURL = endpointURL
+	if c.Config.Elasticsearch.Username != "" && c.Config.Elasticsearch.Password != "" {
+		c.BasicAuth(c.Config.Elasticsearch.Username, c.Config.Elasticsearch.Password)
+	}
+
 	err = c.Post(falcopayload)
 	if err != nil {
 		c.setElasticSearchErrorMetrics()

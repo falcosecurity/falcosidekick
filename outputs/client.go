@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,7 +24,6 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"k8s.io/client-go/kubernetes"
 
@@ -54,10 +54,19 @@ var ErrClientCreation = errors.New("Client creation Error")
 // EnabledOutputs list all enabled outputs
 var EnabledOutputs []string
 
+// defaultContentType is the default Content-Type header to send along with the Client's POST Request
+const defaultContentType = "application/json; charset=utf-8"
+
 // files names are static fo the shake of helm and single docker compatibility
 const MutualTLSClientCertFilename = "/client.crt"
 const MutualTLSClientKeyFilename = "/client.key"
 const MutualTLSCacertFilename = "/ca.crt"
+
+// Headers to add to the client before sending the request
+type Header struct {
+	Key   string
+	Value string
+}
 
 // Client communicates with the different API.
 type Client struct {
@@ -65,6 +74,8 @@ type Client struct {
 	EndpointURL             *url.URL
 	MutualTLSEnabled        bool
 	CheckCert               bool
+	HeaderList              []Header
+	ContentType             string
 	Config                  *types.Configuration
 	Stats                   *types.Statistics
 	PromStats               *types.PromStatistics
@@ -98,7 +109,7 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, HeaderList: []Header{}, ContentType: defaultContentType, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
 }
 
 // Post sends event (payload) to Output.
@@ -162,32 +173,12 @@ func (c *Client) Post(payload interface{}) error {
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 	}
-	contentType := "application/json; charset=utf-8"
-	if c.OutputType == "Loki" || c.OutputType == Kubeless {
-		contentType = "application/json"
-	}
-	req.Header.Add("Content-Type", contentType)
 
-	if c.OutputType == "Opsgenie" {
-		req.Header.Add("Authorization", "GenieKey "+c.Config.Opsgenie.APIKey)
-	}
-
-	if c.OutputType == Kubeless {
-		req.Header.Add("event-id", uuid.New().String())
-		req.Header.Add("event-type", "falco")
-		req.Header.Add("event-namespace", c.Config.Kubeless.Namespace)
-	}
-
-	if c.OutputType == "GCPCloudRun" && c.Config.GCP.CloudRun.JWT != "" {
-		req.Header.Add("Authorization", "Bearer "+c.Config.GCP.CloudRun.JWT)
-	}
-
+	req.Header.Add("Content-Type", c.ContentType)
 	req.Header.Add("User-Agent", "Falcosidekick")
 
-	if len(c.Config.Webhook.CustomHeaders) != 0 && c.OutputType == "Webhook" {
-		for i, j := range c.Config.Webhook.CustomHeaders {
-			req.Header.Add(i, j)
-		}
+	for _, headerObj := range c.HeaderList {
+		req.Header.Add(headerObj.Key, headerObj.Value)
 	}
 
 	resp, err := client.Do(req)
@@ -233,4 +224,17 @@ func (c *Client) Post(payload interface{}) error {
 		log.Printf("[ERROR] : %v - Unexpected Response  (%v)\n", c.OutputType, resp.StatusCode)
 		return errors.New(resp.Status)
 	}
+}
+
+func (c *Client) BasicAuth(username, password string) {
+	// Check out RFC7617 for the specifics on this code.
+	// https://datatracker.ietf.org/doc/html/rfc7617
+	// This might break I18n, but we can cross that bridge when we come to it.
+	userPass := username + ":" + password
+	b64UserPass := base64.StdEncoding.EncodeToString([]byte(userPass))
+	c.HeaderList = append(c.HeaderList, Header{Key: "Authorization", Value: "Basic " + b64UserPass})
+}
+
+func (c *Client) AddHeader(key, value string) {
+	c.HeaderList = append(c.HeaderList, Header{Key: key, Value: value})
 }
