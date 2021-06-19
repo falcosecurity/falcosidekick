@@ -22,6 +22,9 @@ type lokiEntry struct {
 	Line string `json:"line"`
 }
 
+// The Content-Type to send along with the request
+const lokiContentType = "application/json"
+
 func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration) lokiPayload {
 	le := lokiEntry{Ts: falcopayload.Time.Format(time.RFC3339), Line: falcopayload.Output}
 	ls := lokiStream{Entries: []lokiEntry{le}}
@@ -47,7 +50,7 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 // LokiPost posts event to Loki
 func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	c.Stats.Loki.Add(Total, 1)
-
+	c.ContentType = lokiContentType
 	err := c.Post(newLokiPayload(falcopayload, c.Config))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:loki", "status:error"})

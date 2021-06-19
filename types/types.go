@@ -148,6 +148,8 @@ type elasticsearchOutputConfig struct {
 	Type            string
 	MinimumPriority string
 	Suffix          string
+	Username        string
+	Password        string
 	CheckCert       bool
 	MutualTLS       bool
 }
