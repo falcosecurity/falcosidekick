@@ -15,7 +15,7 @@ import (
 )
 
 // Some constant strings to use in request headers
-const KubelessEventIdKey = "event-id"
+const KubelessEventIDKey = "event-id"
 const KubelessUserAgentKey = "User-Agent"
 const KubelessEventTypeKey = "event-type"
 const KubelessEventNamespaceKey = "event-namespace"
@@ -63,7 +63,7 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 	if c.Config.Kubeless.Kubeconfig != "" {
 		str, _ := json.Marshal(falcopayload)
 		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath("/api/v1/namespaces/" + c.Config.Kubeless.Namespace + "/services/" + c.Config.Kubeless.Function + ":" + strconv.Itoa(c.Config.Kubeless.Port) + "/proxy/").Body(str)
-		req.SetHeader(KubelessEventIdKey, uuid.New().String())
+		req.SetHeader(KubelessEventIDKey, uuid.New().String())
 		req.SetHeader(ContentTypeHeaderKey, KubelessContentType)
 		req.SetHeader(UserAgentHeaderKey, UserAgentHeaderValue)
 		req.SetHeader(KubelessEventTypeKey, KubelessEventTypeValue)
@@ -80,7 +80,7 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 		}
 		log.Printf("[INFO]  : Kubeless - Function Response : %v\n", string(rawbody))
 	} else {
-		c.AddHeader(KubelessEventIdKey, uuid.New().String())
+		c.AddHeader(KubelessEventIDKey, uuid.New().String())
 		c.AddHeader(KubelessEventTypeKey, KubelessEventTypeValue)
 		c.AddHeader(KubelessEventNamespaceKey, c.Config.Kubeless.Namespace)
 		c.ContentType = KubelessContentType
