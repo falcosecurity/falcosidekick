@@ -21,3 +21,5 @@ This project uses GitHub to manage reviews of pull requests.
 * Commits should be as small as possible, while ensuring that each commit is correct independently (i.e., each commit should compile and pass tests).
 
 * Add tests relevant to the fixed bug or new feature.
+
+# THIS IS A BAD CONTRIBUTION
