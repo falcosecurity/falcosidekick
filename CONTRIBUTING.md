@@ -20,4 +20,7 @@ This project uses GitHub to manage reviews of pull requests.
 
 * Commits should be as small as possible, while ensuring that each commit is correct independently (i.e., each commit should compile and pass tests).
 
+* All commits must include a `Signed-off-by` line. This line must point to the author's Full Name and their valid email address.
+    * This can be accomplished by adding the `-s` flag in git.
+
 * Add tests relevant to the fixed bug or new feature.
