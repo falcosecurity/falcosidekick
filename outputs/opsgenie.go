@@ -51,7 +51,8 @@ func newOpsgeniePayload(falcopayload types.FalcoPayload, config *types.Configura
 // OpsgeniePost posts event to OpsGenie
 func (c *Client) OpsgeniePost(falcopayload types.FalcoPayload) {
 	c.Stats.Opsgenie.Add(Total, 1)
-	c.AddHeader("Authorization", "GenieKey "+c.Config.Opsgenie.APIKey)
+	c.AddHeader(AuthorizationHeaderKey, "GenieKey "+c.Config.Opsgenie.APIKey)
+
 	err := c.Post(newOpsgeniePayload(falcopayload, c.Config))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:opsgenie", "status:error"})
