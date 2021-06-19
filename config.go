@@ -85,6 +85,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Elasticsearch.Suffix", "daily")
 	v.SetDefault("Elasticsearch.MutualTls", false)
 	v.SetDefault("Elasticsearch.CheckCert", true)
+	v.SetDefault("Elasticsearch.Username", "")
+	v.SetDefault("Elasticsearch.Password", "")
 	v.SetDefault("Influxdb.HostPort", "")
 	v.SetDefault("Influxdb.Database", "falco")
 	v.SetDefault("Influxdb.User", "")
