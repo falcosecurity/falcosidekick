@@ -14,8 +14,13 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-// The Content-Type to send along with the request
-const kubelessContentType string = "application/json"
+// Some constant strings to use in request headers
+const KubelessEventIdKey = "event-id"
+const KubelessUserAgentKey = "User-Agent"
+const KubelessEventTypeKey = "event-type"
+const KubelessEventNamespaceKey = "event-namespace"
+const KubelessEventTypeValue = "falco"
+const KubelessContentType = "application/json"
 
 // NewKubelessClient returns a new output.Client for accessing Kubernetes.
 func NewKubelessClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
@@ -58,11 +63,11 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 	if c.Config.Kubeless.Kubeconfig != "" {
 		str, _ := json.Marshal(falcopayload)
 		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath("/api/v1/namespaces/" + c.Config.Kubeless.Namespace + "/services/" + c.Config.Kubeless.Function + ":" + strconv.Itoa(c.Config.Kubeless.Port) + "/proxy/").Body(str)
-		req.SetHeader("event-id", uuid.New().String())
-		req.SetHeader("Content-Type", kubelessContentType)
-		req.SetHeader("User-Agent", "Falcosidekick")
-		req.SetHeader("event-type", "falco")
-		req.SetHeader("event-namespace", c.Config.Kubeless.Namespace)
+		req.SetHeader(KubelessEventIdKey, uuid.New().String())
+		req.SetHeader(ContentTypeHeaderKey, KubelessContentType)
+		req.SetHeader(UserAgentHeaderKey, UserAgentHeaderValue)
+		req.SetHeader(KubelessEventTypeKey, KubelessEventTypeValue)
+		req.SetHeader(KubelessEventNamespaceKey, c.Config.Kubeless.Namespace)
 
 		res := req.Do(context.TODO())
 		rawbody, err := res.Raw()
@@ -75,10 +80,11 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 		}
 		log.Printf("[INFO]  : Kubeless - Function Response : %v\n", string(rawbody))
 	} else {
-		c.AddHeader("event-id", uuid.New().String())
-		c.AddHeader("event-type", "falco")
-		c.AddHeader("event-namespace", c.Config.Kubeless.Namespace)
-		c.ContentType = kubelessContentType
+		c.AddHeader(KubelessEventIdKey, uuid.New().String())
+		c.AddHeader(KubelessEventTypeKey, KubelessEventTypeValue)
+		c.AddHeader(KubelessEventNamespaceKey, c.Config.Kubeless.Namespace)
+		c.ContentType = KubelessContentType
+
 		err := c.Post(falcopayload)
 		if err != nil {
 			go c.CountMetric(Outputs, 1, []string{"output:kubeless", "status:error"})

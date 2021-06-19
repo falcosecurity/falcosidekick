@@ -54,8 +54,14 @@ var ErrClientCreation = errors.New("Client creation Error")
 // EnabledOutputs list all enabled outputs
 var EnabledOutputs []string
 
-// defaultContentType is the default Content-Type header to send along with the Client's POST Request
-const defaultContentType = "application/json; charset=utf-8"
+// DefaultContentType is the default Content-Type header to send along with the Client's POST Request
+const DefaultContentType = "application/json; charset=utf-8"
+
+// Some common header values that may be needed in other files
+const ContentTypeHeaderKey = "Content-Type"
+const UserAgentHeaderKey = "User-Agent"
+const AuthorizationHeaderKey = "Authorization"
+const UserAgentHeaderValue = "Falcosidekick"
 
 // files names are static fo the shake of helm and single docker compatibility
 const MutualTLSClientCertFilename = "/client.crt"
@@ -109,7 +115,7 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, HeaderList: []Header{}, ContentType: defaultContentType, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, HeaderList: []Header{}, ContentType: DefaultContentType, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
 }
 
 // Post sends event (payload) to Output.
@@ -174,8 +180,8 @@ func (c *Client) Post(payload interface{}) error {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 	}
 
-	req.Header.Add("Content-Type", c.ContentType)
-	req.Header.Add("User-Agent", "Falcosidekick")
+	req.Header.Add(ContentTypeHeaderKey, c.ContentType)
+	req.Header.Add(UserAgentHeaderKey, UserAgentHeaderValue)
 
 	for _, headerObj := range c.HeaderList {
 		req.Header.Add(headerObj.Key, headerObj.Value)
@@ -232,7 +238,7 @@ func (c *Client) BasicAuth(username, password string) {
 	// This might break I18n, but we can cross that bridge when we come to it.
 	userPass := username + ":" + password
 	b64UserPass := base64.StdEncoding.EncodeToString([]byte(userPass))
-	c.HeaderList = append(c.HeaderList, Header{Key: "Authorization", Value: "Basic " + b64UserPass})
+	c.AddHeader(AuthorizationHeaderKey, "Basic "+b64UserPass)
 }
 
 func (c *Client) AddHeader(key, value string) {
