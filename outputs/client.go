@@ -232,6 +232,7 @@ func (c *Client) Post(payload interface{}) error {
 	}
 }
 
+// BasicAuth adds an HTTP Basic Authentication compliant header to the Client.
 func (c *Client) BasicAuth(username, password string) {
 	// Check out RFC7617 for the specifics on this code.
 	// https://datatracker.ietf.org/doc/html/rfc7617
@@ -241,6 +242,7 @@ func (c *Client) BasicAuth(username, password string) {
 	c.AddHeader(AuthorizationHeaderKey, "Basic "+b64UserPass)
 }
 
+// AddHeader adds an HTTP Header to the Client.
 func (c *Client) AddHeader(key, value string) {
 	c.HeaderList = append(c.HeaderList, Header{Key: key, Value: value})
 }
