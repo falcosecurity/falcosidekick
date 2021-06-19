@@ -198,6 +198,8 @@ elasticsearch:
   # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # username: "" # use this username to perform HTTP Basic Auth to the Elasticsearch server. Do not perform auth if this parameter is empty.
+  # password: "" # use this password to perform HTTP Basic Auth to the Elasticsearch server. Do not perform auth if this parameter is empty.
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
@@ -487,6 +489,10 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `false`)
 - **ELASTICSEARCH_CHECKCERT** : check if ssl certificate of the output is valid (default:
   `true`)
+- **ELASTICSEARCH_USERNAME** : use this username to authenticate to Elasticsearch if the
+  username is not empty (default: "")
+- **ELASTICSEARCH_PASSWORD** : use this password to authenticate to Elasticsearch if the
+  password is not empty (default: "")
 - **INFLUXDB_HOSTPORT** : Influxdb http://host:port, if not `empty`, Influxdb is
   _enabled_
 - **INFLUXDB_DATABASE** : Influxdb database (default: falco)
