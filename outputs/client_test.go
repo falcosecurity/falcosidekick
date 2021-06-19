@@ -140,6 +140,9 @@ func TestAddBasicAuth(t *testing.T) {
 
 		require.Equal(t, passedUsername, username)
 		require.Equal(t, passedPassword, password)
+		// I used https://www.base64encode.org/ to encode "user:pass" in base64,
+		// and that should be the provided value.
+		require.Equal(t, digest, "dXNlcjpwYXNz")
 	}))
 	nc, err := NewClient("", ts.URL, false, true, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
 	require.Nil(t, err)
