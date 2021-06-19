@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,6 +85,69 @@ func TestPost(t *testing.T) {
 		errPost := nc.Post("")
 		require.Equal(t, errPost, j)
 	}
+}
+
+func TestAddHeader(t *testing.T) {
+	headerKey, headerVal := "key", "val"
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		passedVal := r.Header.Get(headerKey)
+		require.Equal(t, passedVal, headerVal)
+	}))
+	nc, err := NewClient("", ts.URL, false, true, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
+	require.Nil(t, err)
+	require.NotEmpty(t, nc)
+
+	nc.AddHeader(headerKey, headerVal)
+
+	nc.Post("")
+}
+
+func TestAddBasicAuth(t *testing.T) {
+	username, password := "user", "pass"
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// I'm not comfortable using the constants here - seems too easy to fat-finger a change in
+		// one location and break auth across a bunch of apps. Seems like the solution will be
+		// more robust if we check against the _actual string_ "Authorization".
+		passedVal := r.Header.Get("Authorization")
+		// We have to have content here
+		if passedVal == "" {
+			t.Fatalf("Input Authorization header was empty")
+		}
+
+		splitVal := strings.Split(passedVal, " ")
+
+		if len(splitVal) != 2 {
+			t.Fatalf("Basic Authorization header value must be able to be split by a space into \"Basic\" and a digest")
+		}
+
+		basicDeclarator := splitVal[0]
+		digest := splitVal[1]
+
+		require.Equal(t, basicDeclarator, "Basic")
+
+		decodedDigestBytes, err := base64.StdEncoding.DecodeString(digest)
+		require.Nil(t, err)
+		decodedDigest := string(decodedDigestBytes)
+
+		splitDigest := strings.Split(decodedDigest, ":")
+
+		if len(splitDigest) != 2 {
+			t.Fatalf("Decoded digest split on a colon must have two elements - user and password.")
+		}
+
+		passedUsername := splitDigest[0]
+		passedPassword := splitDigest[1]
+
+		require.Equal(t, passedUsername, username)
+		require.Equal(t, passedPassword, password)
+	}))
+	nc, err := NewClient("", ts.URL, false, true, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
+	require.Nil(t, err)
+	require.NotEmpty(t, nc)
+
+	nc.BasicAuth(username, password)
+
+	nc.Post("")
 }
 
 func TestMutualTlsPost(t *testing.T) {
