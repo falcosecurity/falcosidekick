@@ -35,7 +35,7 @@ func TestNewClient(t *testing.T) {
 	stats := &types.Statistics{}
 	promStats := &types.PromStatistics{}
 
-	testClientOutput := Client{OutputType: "test", EndpointURL: u, MutualTLSEnabled: false, Config: config, Stats: stats, PromStats: promStats}
+	testClientOutput := Client{OutputType: "test", EndpointURL: u, MutualTLSEnabled: false, HeaderList: []Header{}, ContentType: "application/json; charset=utf-8", Config: config, Stats: stats, PromStats: promStats}
 	_, err := NewClient("test", "localhost/%*$¨^!/:;", false, true, config, stats, promStats, nil, nil)
 	require.NotNil(t, err)
 
