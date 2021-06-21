@@ -92,12 +92,6 @@ stan:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
-  
-nats:
-  # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
-  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 aws:
   # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
