@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.23.0 - 2021-06-23
+#### New
+- New output : **Wavefront** ([PR#229](https://github.com/falcosecurity/falcosidekick/pull/229) thanks to [@rikatz](https://github.com/rikatz))
+- New output : **GCP Cloud Run** ([PR#243](https://github.com/falcosecurity/falcosidekick/pull/243))
+- Allow MutualTLS for some outputs ([PR#231](https://github.com/falcosecurity/falcosidekick/pull/231) thanks to [@jasiam](https://github.com/jasiam))
+- Allow *Workload identity* for *GCP* output ([PR#235](https://github.com/falcosecurity/falcosidekick/pull/235) thanks to [@cartyc](https://github.com/cartyc))
+- Add basic auth for *Elasticsearch* output ([PR#245](https://github.com/falcosecurity/falcosidekick/pull/245) thanks to [@distortedsignal](https://github.com/distortedsignal))
+#### Enhancement
+- Reorder fields in *Slack*t, *RocketChat* and *Mattermost* outputs + sort `customer_fields` alphabetically ([PR#226](https://github.com/falcosecurity/falcosidekick/pull/226))
+- Set default values for *OpenFaas* output ([PR#232](https://github.com/falcosecurity/falcosidekick/pull/232))
+- Re-use session for *AWS* output instead of deprecated `session.New()` ([PR#238](https://github.com/falcosecurity/falcosidekick/pull/238) thanks to [@dchoy](https://github.com/dchoy))
+- Reorganize management of headers for outputs ([PR#245](https://github.com/falcosecurity/falcosidekick/pull/245) thanks to [@distortedsignal](https://github.com/distortedsignal))
+#### Fix
+- Fix init of **DogstatsD** output ([PR#227](https://github.com/falcosecurity/falcosidekick/pull/227))
+- Remove duplicated logs + fix some of prefixes ([PR#228](https://github.com/falcosecurity/falcosidekick/pull/228))
+- Fif *S3* output when "Default encryption" setting is disabled ([PR#242](https://github.com/falcosecurity/falcosidekick/pull/242) thanks to [@Kaizhe](https://github.com/Kaizhe))
+
 ## 2.22.0 - 2021-04-06
 #### New
 - New output : **AWS S3** ([PR#195](https://github.com/falcosecurity/falcosidekick/pull/195) thanks to [@evalsocket](https://github.com/evalsocket))
