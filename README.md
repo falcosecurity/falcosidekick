@@ -10,56 +10,77 @@
 
 ## Description
 
-A simple daemon for enhancing available outputs for
-[Falco](https://github.com/falcosecurity/falco). It takes a Falco's event and
-forwards it to different outputs.
+A simple daemon for connecting [`Falco`](https://github.com/falcosecurity/falco) to your ecossytem. It takes a `Falco`'s events and
+forward them to different outputs in a fan-out way.
 
-It works as a single endpoint for as many as you want `falco` instances :
+It works as a single endpoint for as many as you want `Falco` instances :
 
 ![falco_with_falcosidekick](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/falco_with_falcosidekick.png)
 
 ## Outputs
 
-Currently available outputs are :
+`Falcosidekick` manages a large variety of outputs with different purposes.
+
+### Chat
 
 - [**Slack**](https://slack.com)
 - [**Rocketchat**](https://rocket.chat/)
 - [**Mattermost**](https://mattermost.com/)
 - [**Teams**](https://products.office.com/en-us/microsoft-teams/group-chat-software)
-- [**Datadog**](https://www.datadoghq.com/)
 - [**Discord**](https://www.discord.com/)
+- [**Google Chat**](https://workspace.google.com/products/chat/)
+
+### Metrics / Observability
+
+- [**Datadog**](https://www.datadoghq.com/)
+- [**Influxdb**](https://www.influxdata.com/products/influxdb-overview/)
+- [**StatsD**](https://github.com/statsd/statsd) (for monitoring of `falcosidekick`)
+- [**DogStatsD**](https://docs.datadoghq.com/developers/dogstatsd/?tab=go) (for monitoring of `falcosidekick`)
+- [**Prometheus**](https://prometheus.io/) (for both events and monitoring of `falcosidekick`)
+- [**Wavefront**](https://www.wavefront.com)
+
+### Alerting
+
 - [**AlertManager**](https://prometheus.io/docs/alerting/alertmanager/)
+- [**Opsgenie**](https://www.opsgenie.com/)
+- [**PagerDuty**](https://pagerduty.com/)
+
+### Logs
+
 - [**Elasticsearch**](https://www.elastic.co/)
 - [**Loki**](https://grafana.com/oss/loki)
-- [**NATS**](https://nats.io/)
-- [**STAN (NATS Streaming)**](https://docs.nats.io/nats-streaming-concepts/intro)
-- [**Influxdb**](https://www.influxdata.com/products/influxdb-overview/)
-- [**AWS Lambda**](https://aws.amazon.com/lambda/features/)
-- [**AWS SQS**](https://aws.amazon.com/sqs/features/)
-- [**AWS SNS**](https://aws.amazon.com/sns/features/)
 - [**AWS CloudWatchLogs**](https://aws.amazon.com/cloudwatch/features/)
+### Object Storage
+
 - [**AWS S3**](https://aws.amazon.com/s3/features/)
-- **SMTP** (email)
-- [**Opsgenie**](https://www.opsgenie.com/)
-- [**StatsD**](https://github.com/statsd/statsd) (for monitoring of
-  `falcosidekick`)
-- [**DogStatsD**](https://docs.datadoghq.com/developers/dogstatsd/?tab=go) (for
-  monitoring of `falcosidekick`)
-- **Webhook**
-- [**Azure Event Hubs**](https://azure.microsoft.com/en-in/services/event-hubs/)
-- [**Prometheus**](https://prometheus.io/) (for both events and monitoring of
-  `falcosidekick`)
-- [**GCP PubSub**](https://cloud.google.com/pubsub)
 - [**GCP Storage**](https://cloud.google.com/storage)
-- [**GCP Cloud Functions**](https://cloud.google.com/functions)
-- [**GCP Cloud Run**](https://cloud.google.com/run)
-- [**Google Chat**](https://workspace.google.com/products/chat/)
-- [**Apache Kafka**](https://kafka.apache.org/)
-- [**PagerDuty**](https://pagerduty.com/)
+
+### FaaS / Serverless
+
+- [**AWS Lambda**](https://aws.amazon.com/lambda/features/)
 - [**Kubeless**](https://kubeless.io/)
 - [**OpenFaaS**](https://www.openfaas.com)
+- [**GCP Cloud Functions**](https://cloud.google.com/functions)
+- [**GCP Cloud Run**](https://cloud.google.com/run)
+
+### Message queue / Streaming
+
+- [**NATS**](https://nats.io/)
+- [**STAN (NATS Streaming)**](https://docs.nats.io/nats-streaming-concepts/intro)
+- [**AWS SQS**](https://aws.amazon.com/sqs/features/)
+- [**AWS SNS**](https://aws.amazon.com/sns/features/)
+- [**GCP PubSub**](https://cloud.google.com/pubsub)
+- [**Apache Kafka**](https://kafka.apache.org/)
 - [**RabbitMQ**](https://www.rabbitmq.com/)
-- [**Wavefront**](https://www.wavefront.com)
+- [**Azure Event Hubs**](https://azure.microsoft.com/en-in/services/event-hubs/)
+  
+### Email
+
+- **SMTP**
+
+### Web
+
+- **Webhook**
 - [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
 
 ## Usage
