@@ -3,6 +3,7 @@
 ## 2.23.0 - 2021-06-23
 #### New
 - New output : **Wavefront** ([PR#229](https://github.com/falcosecurity/falcosidekick/pull/229) thanks to [@rikatz](https://github.com/rikatz))
+- New output : **GCP Cloud Functions** ([PR#241](https://github.com/falcosecurity/falcosidekick/pull/241))
 - New output : **GCP Cloud Run** ([PR#243](https://github.com/falcosecurity/falcosidekick/pull/243))
 - Allow MutualTLS for some outputs ([PR#231](https://github.com/falcosecurity/falcosidekick/pull/231) thanks to [@jasiam](https://github.com/jasiam))
 - Allow *Workload identity* for *GCP* output ([PR#235](https://github.com/falcosecurity/falcosidekick/pull/235) thanks to [@cartyc](https://github.com/cartyc))
