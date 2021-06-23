@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.23.1 - 2021-06-23
+#### Fix
+- Fix memory leak with `AddHeaders` method ([PR#252](https://github.com/falcosecurity/falcosidekick/pull/252) thanks to [@distortedsignal](https://github.com/distortedsignal))
+
 ## 2.23.0 - 2021-06-23
 #### New
 - New output : **Wavefront** ([PR#229](https://github.com/falcosecurity/falcosidekick/pull/229) thanks to [@rikatz](https://github.com/rikatz))
