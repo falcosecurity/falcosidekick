@@ -154,7 +154,7 @@ func TestAddBasicAuth(t *testing.T) {
 }
 
 func TestHeadersResetAfterReq(t *testing.T) {
-	headerKey, headerVal := "Key", "Val"
+	headerKey, headerVal := http.CanonicalHeaderKey("key"), "val"
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		passedList := r.Header[headerKey]
 		require.Equal(t, 1, len(passedList), "Expected %v to have 1 element", passedList)
