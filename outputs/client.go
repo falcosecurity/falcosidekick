@@ -195,6 +195,9 @@ func (c *Client) Post(payload interface{}) error {
 	}
 	defer resp.Body.Close()
 
+	// Clear out headers - they will be set for the next request.
+	c.HeaderList = []Header{}
+
 	go c.CountMetric("outputs", 1, []string{"output:" + strings.ToLower(c.OutputType), "status:" + strings.ToLower(http.StatusText(resp.StatusCode))})
 
 	switch resp.StatusCode {

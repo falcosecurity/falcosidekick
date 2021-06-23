@@ -36,7 +36,7 @@ falcosidekick:
 
 .PHONY: build-image
 build-image:
-	$(DOCKER) build . -t falcosecurity/falcosidekick:latest
+	$(DOCKER) build . -t distortedsignal/falcosidekick:latest
 
 ## --------------------------------------
 ## Test

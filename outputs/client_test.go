@@ -153,6 +153,26 @@ func TestAddBasicAuth(t *testing.T) {
 	nc.Post("")
 }
 
+func TestHeadersResetAfterReq(t *testing.T) {
+	headerKey, headerVal := "Key", "Val"
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		passedList := r.Header[headerKey]
+		require.Equal(t, 1, len(passedList), "Expected %v to have 1 element", passedList)
+	}))
+
+	nc, err := NewClient("", ts.URL, false, true, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
+	require.Nil(t, err)
+	require.NotEmpty(t, nc)
+
+	nc.AddHeader(headerKey, headerVal)
+
+	nc.Post("")
+
+	nc.AddHeader(headerKey, headerVal)
+
+	nc.Post("")
+}
+
 func TestMutualTlsPost(t *testing.T) {
 	config := &types.Configuration{}
 	config.MutualTLSFilesPath = "/tmp/falcosidekicktests"
