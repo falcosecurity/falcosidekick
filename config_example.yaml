@@ -77,6 +77,7 @@ influxdb:
 loki:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 nats:
@@ -149,10 +150,12 @@ webhook:
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 cloudevents:
-# address: "" # CloudEvents consumer http address, if not empty, CloudEvents output is enabled
-# extensions: # Extensions to add in the outbound Event, useful for routing
-#   key: value
-# minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # address: "" # CloudEvents consumer http address, if not empty, CloudEvents output is enabled
+  # extensions: # Extensions to add in the outbound Event, useful for routing
+  #   key: value
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 azure:
   eventHub:
@@ -204,6 +207,7 @@ kubeless:
   port: 8080 # Port of service of Kubeless function
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcoside is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 openfaas:
@@ -214,6 +218,7 @@ openfaas:
   gatewaynamespace: "openfaas" # Namespace of OpenFaaS Gateway, "openfaas" (default)
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 rabbitmq:
@@ -230,6 +235,16 @@ wavefront:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # batchsize: 10000 # Wavefront batch size. If empty uses the default 10000. Only used when endpointtype is 'direct'
   # flushintervalseconds: 1 # Wavefront flush interval in seconds. Defaults to 1
+
+grafana:
+  hostport: "" # http://{domain or ip}:{port}, if not empty, Grafana output is enabled
+  apikey: "" # API Key to authenticate to Grafana, if not empty, Grafana output is enabled
+  # dashboardid:  # annotations are scoped to a specific dashboard. Optionnal.
+  # panelid: "" # annotations are scoped to a specific panel. Optionnal.
+  # allfieldsastags: false # if true, all custom fields are added as tags (default: false)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled

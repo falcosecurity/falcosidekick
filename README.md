@@ -50,6 +50,8 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**Elasticsearch**](https://www.elastic.co/)
 - [**Loki**](https://grafana.com/oss/loki)
 - [**AWS CloudWatchLogs**](https://aws.amazon.com/cloudwatch/features/)
+- [**Grafana](https://grafana.com/) (annotations)
+  
 ### Object Storage
 
 - [**AWS S3**](https://aws.amazon.com/s3/features/)
@@ -392,6 +394,15 @@ fission:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+grafana:
+  hostport: "" # http://{domain or ip}:{port}, if not empty, Grafana output is enabled
+  apikey: "" # API Key to authenticate to Grafana, if not empty, Grafana output is enabled
+  # dashboardid:  # annotations are scoped to a specific dashboard. Optionnal.
+  # panelid: "" # annotations are scoped to a specific panel. Optionnal.
+  # allfieldsastags: false # if true, all custom fields are added as tags (default: false)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
@@ -735,6 +746,15 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **FISSION_MUTUALTLS**: if true, checkcert flag will be ignored (server cert will always be checked)
 - **FISSION_CHECKCERT**: check if ssl certificate of the output is valid (default: `true`)
+- **GRAFANA_HOSTPORT**: http://{domain or ip}:{port}, if not empty, Grafana output is enabled
+- **GRAFANA_APIKEY**: API Key to authenticate to Grafana, if not empty, Grafana output is enabled
+- **GRAFANA_DASHBOARDID**: annotations are scoped to a specific dashboard. Optionnal.
+- **GRAFANA_PANELID**: annotations are scoped to a specific panel. Optionnal.
+- **GRAFANA_ALLFIELDSASTAGS**: if true, all custom fields are added as tags (default: false)
+- **GRAFANA_MUTUALTLS**: if true, checkcert flag will be ignored (server cert will always be checked)
+- **GRAFANA_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
+- **GRAFANA_MINIMUMPRIORITY**: minimum priority of event for using this output, order is 
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
