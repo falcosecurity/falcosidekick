@@ -31,6 +31,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("ListenPort", 2801)
 	v.SetDefault("Debug", false)
 	v.SetDefault("MutualTlsFilesPath", "/etc/certs")
+
 	v.SetDefault("Slack.WebhookURL", "")
 	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")
 	v.SetDefault("Slack.Username", "Falcosidekick")
@@ -40,6 +41,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Slack.MinimumPriority", "")
 	v.SetDefault("Slack.MutualTLS", false)
 	v.SetDefault("Slack.CheckCert", true)
+
 	v.SetDefault("Rocketchat.WebhookURL", "")
 	v.SetDefault("Rocketchat.Footer", "https://github.com/falcosecurity/falcosidekick")
 	v.SetDefault("Rocketchat.Username", "Falcosidekick")
@@ -49,6 +51,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Rocketchat.MinimumPriority", "")
 	v.SetDefault("Rocketchat.MutualTLS", false)
 	v.SetDefault("Rocketchat.CheckCert", true)
+
 	v.SetDefault("Mattermost.WebhookURL", "")
 	v.SetDefault("Mattermost.Footer", "https://github.com/falcosecurity/falcosidekick")
 	v.SetDefault("Mattermost.Username", "Falcosidekick")
@@ -58,26 +61,31 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Mattermost.MinimumPriority", "")
 	v.SetDefault("Mattermost.MutualTLS", false)
 	v.SetDefault("Mattermost.CheckCert", true)
+
 	v.SetDefault("Teams.WebhookURL", "")
 	v.SetDefault("Teams.ActivityImage", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
 	v.SetDefault("Teams.OutputFormat", "all")
 	v.SetDefault("Teams.MinimumPriority", "")
 	v.SetDefault("Teams.MutualTLS", false)
 	v.SetDefault("Teams.CheckCert", true)
+
 	v.SetDefault("Datadog.APIKey", "")
 	v.SetDefault("Datadog.Host", "https://api.datadoghq.com")
 	v.SetDefault("Datadog.MinimumPriority", "")
 	v.SetDefault("Datadog.MutualTLS", false)
 	v.SetDefault("Datadog.CheckCert", true)
+
 	v.SetDefault("Discord.WebhookURL", "")
 	v.SetDefault("Discord.MinimumPriority", "")
 	v.SetDefault("Discord.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
 	v.SetDefault("Discord.MutualTLS", false)
 	v.SetDefault("Discord.CheckCert", true)
+
 	v.SetDefault("Alertmanager.HostPort", "")
 	v.SetDefault("Alertmanager.MinimumPriority", "")
 	v.SetDefault("Alertmanager.MutualTls", false)
 	v.SetDefault("Alertmanager.CheckCert", true)
+
 	v.SetDefault("Elasticsearch.HostPort", "")
 	v.SetDefault("Elasticsearch.Index", "falco")
 	v.SetDefault("Elasticsearch.Type", "event")
@@ -87,6 +95,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Elasticsearch.CheckCert", true)
 	v.SetDefault("Elasticsearch.Username", "")
 	v.SetDefault("Elasticsearch.Password", "")
+
 	v.SetDefault("Influxdb.HostPort", "")
 	v.SetDefault("Influxdb.Database", "falco")
 	v.SetDefault("Influxdb.User", "")
@@ -94,28 +103,36 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Influxdb.MinimumPriority", "")
 	v.SetDefault("Influxdb.MutualTls", false)
 	v.SetDefault("Influxdb.CheckCert", true)
+
 	v.SetDefault("Loki.HostPort", "")
 	v.SetDefault("Loki.MinimumPriority", "")
 	v.SetDefault("Loki.MutualTLS", false)
 	v.SetDefault("Loki.CheckCert", true)
+
 	v.SetDefault("AWS.AccessKeyID", "")
 	v.SetDefault("AWS.SecretAccessKey", "")
 	v.SetDefault("AWS.Region", "")
+
 	v.SetDefault("AWS.Lambda.FunctionName", "")
 	v.SetDefault("AWS.Lambda.InvocationType", "RequestResponse")
 	v.SetDefault("AWS.Lambda.Logtype", "Tail")
 	v.SetDefault("AWS.Lambda.MinimumPriority", "")
+
 	v.SetDefault("AWS.SQS.URL", "")
 	v.SetDefault("AWS.SQS.MinimumPriority", "")
+
 	v.SetDefault("AWS.SNS.TopicArn", "")
 	v.SetDefault("AWS.SNS.MinimumPriority", "")
 	v.SetDefault("AWS.SNS.RawJSON", false)
+
 	v.SetDefault("AWS.CloudWatchLogs.LogGroup", "")
 	v.SetDefault("AWS.CloudWatchLogs.LogStream", "")
 	v.SetDefault("AWS.CloudWatchLogs.MinimumPriority", "")
+
 	v.SetDefault("AWS.S3.Bucket", "")
 	v.SetDefault("AWS.S3.Prefix", "falco")
 	v.SetDefault("AWS.S3.MinimumPriority", "")
+
 	v.SetDefault("SMTP.HostPort", "")
 	v.SetDefault("SMTP.User", "")
 	v.SetDefault("SMTP.Password", "")
@@ -123,62 +140,79 @@ func getConfig() *types.Configuration {
 	v.SetDefault("SMTP.To", "")
 	v.SetDefault("SMTP.OutputFormat", "html")
 	v.SetDefault("SMTP.MinimumPriority", "")
+
 	v.SetDefault("STAN.HostPort", "")
 	v.SetDefault("STAN.ClusterID", "")
 	v.SetDefault("STAN.ClientID", "")
 	v.SetDefault("STAN.MutualTls", false)
 	v.SetDefault("STAN.CheckCert", true)
+
 	v.SetDefault("NATS.HostPort", "")
 	v.SetDefault("NATS.ClusterID", "")
 	v.SetDefault("NATS.ClientID", "")
 	v.SetDefault("NATS.MutualTls", false)
 	v.SetDefault("NATS.CheckCert", true)
+
 	v.SetDefault("Opsgenie.Region", "us")
 	v.SetDefault("Opsgenie.APIKey", "")
 	v.SetDefault("Opsgenie.MinimumPriority", "")
 	v.SetDefault("Opsgenie.MutualTLS", false)
 	v.SetDefault("Opsgenie.CheckCert", true)
+
 	v.SetDefault("Statsd.Forwarder", "")
 	v.SetDefault("Statsd.Namespace", "falcosidekick.")
+
 	v.SetDefault("Dogstatsd.Forwarder", "")
 	v.SetDefault("Dogstatsd.Namespace", "falcosidekick.")
 	v.SetDefault("Dogstatsd.Tags", []string{})
+
 	v.SetDefault("Webhook.Address", "")
 	v.SetDefault("Webhook.MinimumPriority", "")
 	v.SetDefault("Webhook.MutualTls", false)
 	v.SetDefault("Webhook.CheckCert", true)
+
 	v.SetDefault("CloudEvents.Address", "")
 	v.SetDefault("CloudEvents.MinimumPriority", "")
 	v.SetDefault("CloudEvents.MutualTls", false)
 	v.SetDefault("CloudEvents.CheckCert", true)
+
 	v.SetDefault("Azure.eventHub.Namespace", "")
 	v.SetDefault("Azure.eventHub.Name", "")
 	v.SetDefault("Azure.eventHub.MinimumPriority", "")
+
 	v.SetDefault("GCP.Credentials", "")
+
 	v.SetDefault("GCP.PubSub.ProjectID", "")
 	v.SetDefault("GCP.PubSub.Topic", "")
 	v.SetDefault("GCP.PubSub.MinimumPriority", "")
+
 	v.SetDefault("GCP.Storage.Prefix", "")
 	v.SetDefault("GCP.Storage.Bucket", "")
 	v.SetDefault("GCP.Storage.MinimumPriority", "")
+
 	v.SetDefault("GCP.CloudFunctions.Name", "")
 	v.SetDefault("GCP.CloudFunctions.MinimumPriority", "")
+
 	v.SetDefault("GCP.CloudRun.Endpoint", "")
 	v.SetDefault("GCP.CloudRun.JWT", "")
 	v.SetDefault("GCP.CloudRun.MinimumPriority", "")
+
 	v.SetDefault("Googlechat.WebhookURL", "")
 	v.SetDefault("Googlechat.OutputFormat", "all")
 	v.SetDefault("Googlechat.MessageFormat", "")
 	v.SetDefault("Googlechat.MinimumPriority", "")
 	v.SetDefault("Googlechat.MutualTls", false)
 	v.SetDefault("Googlechat.CheckCert", true)
+
 	v.SetDefault("Kafka.HostPort", "")
 	v.SetDefault("Kafka.Topic", "")
 	v.SetDefault("Kafka.MinimumPriority", "")
+
 	v.SetDefault("Pagerduty.RoutingKey", "")
 	v.SetDefault("Pagerduty.MinimumPriority", "")
-	v.SetDefault("Googlechat.MutualTls", false)
+	v.SetDefault("Pagerduty.MutualTls", false)
 	v.SetDefault("Pagerduty.CheckCert", true)
+
 	v.SetDefault("Kubeless.Namespace", "")
 	v.SetDefault("Kubeless.Function", "")
 	v.SetDefault("Kubeless.Port", 8080)
@@ -222,6 +256,23 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Wavefront.MinimumPriority", "")
 	v.SetDefault("Wavefront.FlushIntervalSecods", 1)
 	v.SetDefault("Wavefront.BatchSize", 10000)
+
+	v.SetDefault("Grafana.HostPort", "")
+	v.SetDefault("Grafana.DashboardID", 0)
+	v.SetDefault("Grafana.PanelID", 0)
+	v.SetDefault("Grafana.APIKey", "")
+	v.SetDefault("Grafana.AllFieldsAsTags", false)
+	v.SetDefault("Grafana.MinimumPriority", "")
+	v.SetDefault("Grafana.MutualTls", false)
+	v.SetDefault("Grafana.CheckCert", true)
+
+	v.SetDefault("Yandex.AccessKeyID", "")
+	v.SetDefault("Yandex.SecretAccessKey", "")
+	v.SetDefault("Yandex.Endpoint", "https://storage.yandexcloud.net")
+	v.SetDefault("Yandex.Region", "ru-central1")
+	v.SetDefault("Yandex.S3.Bucket", "")
+	v.SetDefault("Yandex.S3.Prefix", "falco")
+	v.SetDefault("Yamdex.S3.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

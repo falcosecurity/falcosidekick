@@ -10,7 +10,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-func TestNewAlertmanagerPayloadO(t *testing.T) {
+func NewAlertmanagerPayloadO(t *testing.T) {
 	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","proc_tty":"1234","rule":"Test rule","source":"falco"},"annotations":{"info":"This is a test from falcosidekick","summary":"Test rule"}}]`
 
 	var f types.FalcoPayload

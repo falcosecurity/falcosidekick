@@ -59,6 +59,8 @@ func getInitStats() *types.Statistics {
 		Rabbitmq:          getOutputNewMap("rabbitmq"),
 		Wavefront:         getOutputNewMap("wavefront"),
 		Fission:           getOutputNewMap("fission"),
+		Grafana:           getOutputNewMap("grafana"),
+		YandexS3:          getOutputNewMap("yandexs3"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

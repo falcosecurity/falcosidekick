@@ -16,37 +16,38 @@ import (
 
 // Globale variables
 var (
-	nullClient          *outputs.Client
-	slackClient         *outputs.Client
-	rocketchatClient    *outputs.Client
-	mattermostClient    *outputs.Client
-	teamsClient         *outputs.Client
-	datadogClient       *outputs.Client
-	discordClient       *outputs.Client
-	alertmanagerClient  *outputs.Client
-	elasticsearchClient *outputs.Client
-	influxdbClient      *outputs.Client
-	lokiClient          *outputs.Client
-	natsClient          *outputs.Client
-	stanClient          *outputs.Client
-	awsClient           *outputs.Client
-	smtpClient          *outputs.Client
-	opsgenieClient      *outputs.Client
-	webhookClient       *outputs.Client
-	cloudeventsClient   *outputs.Client
-	azureClient         *outputs.Client
-	gcpClient           *outputs.Client
-	googleChatClient    *outputs.Client
-	kafkaClient         *outputs.Client
-	pagerdutyClient     *outputs.Client
-	gcpCloudRunClient   *outputs.Client
-	kubelessClient      *outputs.Client
-	openfaasClient      *outputs.Client
-	webUIClient         *outputs.Client
-	rabbitmqClient      *outputs.Client
-	wavefrontClient     *outputs.Client
-	fissionClient       *outputs.Client
-
+	nullClient                    *outputs.Client
+	slackClient                   *outputs.Client
+	rocketchatClient              *outputs.Client
+	mattermostClient              *outputs.Client
+	teamsClient                   *outputs.Client
+	datadogClient                 *outputs.Client
+	discordClient                 *outputs.Client
+	alertmanagerClient            *outputs.Client
+	elasticsearchClient           *outputs.Client
+	influxdbClient                *outputs.Client
+	lokiClient                    *outputs.Client
+	natsClient                    *outputs.Client
+	stanClient                    *outputs.Client
+	awsClient                     *outputs.Client
+	smtpClient                    *outputs.Client
+	opsgenieClient                *outputs.Client
+	webhookClient                 *outputs.Client
+	cloudeventsClient             *outputs.Client
+	azureClient                   *outputs.Client
+	gcpClient                     *outputs.Client
+	googleChatClient              *outputs.Client
+	kafkaClient                   *outputs.Client
+	pagerdutyClient               *outputs.Client
+	gcpCloudRunClient             *outputs.Client
+	kubelessClient                *outputs.Client
+	openfaasClient                *outputs.Client
+	webUIClient                   *outputs.Client
+	rabbitmqClient                *outputs.Client
+	wavefrontClient               *outputs.Client
+	fissionClient                 *outputs.Client
+	grafanaClient                 *outputs.Client
+	yandexS3Client                *outputs.Client
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
 	stats                         *types.Statistics
@@ -437,7 +438,31 @@ func init() {
 		}
 	}
 
-	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
+	if config.Yandex.S3.Bucket != "" {
+		var err error
+		yandexS3Client, err = outputs.NewYandexS3Client(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			log.Printf("[ERROR] : Yandex - %v\n", err)
+		} else {
+			if config.Yandex.S3.Bucket != "" {
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "YandexS3Client")
+			}
+		}
+		log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
+	}
+
+	if config.Grafana.HostPort != "" && config.Grafana.APIKey != "" {
+		var err error
+		var outputName = "Grafana"
+		grafanaClient, err = outputs.NewClient(outputName, config.Grafana.HostPort+"/api/annotations", config.Grafana.MutualTLS, config.Grafana.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Grafana.HostPort = ""
+			config.Grafana.APIKey = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, outputName)
+		}
+		log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
+	}
 }
 
 func main() {

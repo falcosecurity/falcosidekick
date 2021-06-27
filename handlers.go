@@ -185,6 +185,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go awsClient.UploadS3(falcopayload)
 	}
 
+	if config.Yandex.S3.Bucket != "" && (falcopayload.Priority >= types.Priority(config.Yandex.S3.MinimumPriority) || falcopayload.Rule == testRule) {
+		go yandexS3Client.UploadYandexS3(falcopayload)
+	}
+
 	if config.SMTP.HostPort != "" && (falcopayload.Priority >= types.Priority(config.SMTP.MinimumPriority) || falcopayload.Rule == testRule) {
 		go smtpClient.SendMail(falcopayload)
 	}
@@ -247,6 +251,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 
 	if config.Wavefront.EndpointHost != "" && config.Wavefront.EndpointType != "" && (falcopayload.Priority >= types.Priority(config.Wavefront.MinimumPriority) || falcopayload.Rule == testRule) {
 		go wavefrontClient.WavefrontPost(falcopayload)
+	}
+
+	if config.Grafana.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Grafana.MinimumPriority) || falcopayload.Rule == testRule) {
+		go grafanaClient.GrafanaPost(falcopayload)
 	}
 
 	if config.WebUI.URL != "" {
