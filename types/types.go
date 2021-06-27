@@ -55,6 +55,7 @@ type Configuration struct {
 	Rabbitmq           RabbitmqConfig
 	Wavefront          WavefrontOutputConfig
 	Fission            fissionConfig
+	Grafana            grafanaOutputConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -373,6 +374,18 @@ type RabbitmqConfig struct {
 	MinimumPriority string
 }
 
+// grafanaOutputConfig represents parameters for Grafana
+type grafanaOutputConfig struct {
+	HostPort        string
+	APIKey          string
+	DashboardID     int
+	PanelID         int
+	AllFieldsAsTags bool
+	CheckCert       bool
+	MutualTLS       bool
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -416,6 +429,7 @@ type Statistics struct {
 	Rabbitmq          *expvar.Map
 	Wavefront         *expvar.Map
 	Fission           *expvar.Map
+	Grafana           *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

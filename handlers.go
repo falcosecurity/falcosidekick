@@ -249,6 +249,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go wavefrontClient.WavefrontPost(falcopayload)
 	}
 
+	if config.Grafana.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Grafana.MinimumPriority) || falcopayload.Rule == testRule) {
+		go grafanaClient.GrafanaPost(falcopayload)
+	}
+
 	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
 	}

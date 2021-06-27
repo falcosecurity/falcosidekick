@@ -46,6 +46,7 @@ var (
 	rabbitmqClient      *outputs.Client
 	wavefrontClient     *outputs.Client
 	fissionClient       *outputs.Client
+	grafanaClient       *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -437,7 +438,18 @@ func init() {
 		}
 	}
 
-	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
+	if config.Grafana.HostPort != "" && config.Grafana.APIKey != "" {
+		var err error
+		var outputName = "Grafana"
+		grafanaClient, err = outputs.NewClient(outputName, config.Grafana.HostPort+"/api/annotations", config.Grafana.MutualTLS, config.Grafana.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Grafana.HostPort = ""
+			config.Grafana.APIKey = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, outputName)
+		}
+		log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
+	}
 }
 
 func main() {
