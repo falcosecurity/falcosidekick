@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -251,5 +252,9 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 
 	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
+	}
+	if config.PolicyAdapter.Enabled != false {
+		fmt.Println("Hello World to the Policy Adapter")
+		go policyAdapterClient.PolicyAdapterPost(falcopayload)
 	}
 }

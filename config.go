@@ -200,6 +200,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Webui.URL", "")
 	v.SetDefault("Webui.MutualTls", false)
 	v.SetDefault("Webui.CheckCert", true)
+
+	v.SetDefault("PolicyAdapter.Enabled", false)
+
 	v.SetDefault("Rabbitmq.URL", "")
 	v.SetDefault("Rabbitmq.Queue", "")
 	v.SetDefault("Rabbitmq.MinimumPriority", "")
