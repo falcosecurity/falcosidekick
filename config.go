@@ -197,6 +197,14 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Openfaas.MutualTls", false)
 	v.SetDefault("Openfaas.CheckCert", true)
 
+	v.SetDefault("Fission.Namespace", "fission-function")
+	v.SetDefault("Fission.Function", "")
+	v.SetDefault("Fission.Port", 8080)
+	v.SetDefault("Fission.Kubeconfig", "")
+	v.SetDefault("Fission.MinimumPriority", "")
+	v.SetDefault("Fission.MutualTls", false)
+	v.SetDefault("Fission.CheckCert", true)
+
 	v.SetDefault("Webui.URL", "")
 	v.SetDefault("Webui.MutualTls", false)
 	v.SetDefault("Webui.CheckCert", true)

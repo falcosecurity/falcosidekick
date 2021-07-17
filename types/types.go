@@ -54,6 +54,7 @@ type Configuration struct {
 	WebUI              WebUIOutputConfig
 	Rabbitmq           RabbitmqConfig
 	Wavefront          WavefrontOutputConfig
+	Fission            fissionConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -414,6 +415,7 @@ type Statistics struct {
 	WebUI             *expvar.Map
 	Rabbitmq          *expvar.Map
 	Wavefront         *expvar.Map
+	Fission           *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
@@ -421,4 +423,14 @@ type PromStatistics struct {
 	Falco   *prometheus.CounterVec
 	Inputs  *prometheus.CounterVec
 	Outputs *prometheus.CounterVec
+}
+
+type fissionConfig struct {
+	Namespace       string
+	Function        string
+	Port            int
+	KubeConfig      string
+	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
 }
