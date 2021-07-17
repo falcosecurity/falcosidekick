@@ -397,7 +397,7 @@ func init() {
 	}
 	if config.PolicyAdapter.Enabled != false {
 		var err error
-		policyAdapterClient, err = outputs.NewClient("WebUI", config.WebUI.URL, config.WebUI.MutualTLS, config.WebUI.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		policyAdapterClient, err = outputs.PolicyAdapterClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.PolicyAdapter.Enabled = false
 		} else {

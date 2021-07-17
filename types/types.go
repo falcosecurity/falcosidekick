@@ -368,7 +368,8 @@ type WebUIOutputConfig struct {
 
 // PolicyadapterConfig represents parameters for policyadapter
 type PolicyAdapterConfig struct {
-	Enabled bool
+	Enabled    bool
+	Kubeconfig string
 }
 
 // RabbitmqConfig represents parameters for rabbitmq
