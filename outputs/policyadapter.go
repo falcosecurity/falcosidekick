@@ -13,10 +13,10 @@ import (
 	// "github.com/google/uuid"
 )
 
-func PolicyAdapterClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func PolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
-	if config.PolicyAdapter.Kubeconfig != "" {
-		restConfig, err := clientcmd.BuildConfigFromFlags("", config.PolicyAdapter.Kubeconfig)
+	if config.PolicyReport.Kubeconfig != "" {
+		restConfig, err := clientcmd.BuildConfigFromFlags("", config.PolicyReport.Kubeconfig)
 		if err != nil {
 			return nil, err
 		}

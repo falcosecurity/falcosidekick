@@ -253,8 +253,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
 	}
-	if config.PolicyAdapter.Enabled != false {
+	if config.PolicyReport.Enabled != false {
 		fmt.Println("Hello World to the Policy Adapter")
-		go policyAdapterClient.PolicyAdapterPost(falcopayload)
+		go policyReportClient.PolicyAdapterPost(falcopayload)
 	}
 }

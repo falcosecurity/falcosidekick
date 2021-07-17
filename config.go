@@ -201,8 +201,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Webui.MutualTls", false)
 	v.SetDefault("Webui.CheckCert", true)
 
-	v.SetDefault("PolicyAdapter.Enabled", false)
-	v.SetDefault("PolicyAdapter.Kubeconfig", "")
+	v.SetDefault("PolicyReport.Enabled", false)
+	v.SetDefault("PolicyReport.Kubeconfig", "")
 
 	v.SetDefault("Rabbitmq.URL", "")
 	v.SetDefault("Rabbitmq.Queue", "")

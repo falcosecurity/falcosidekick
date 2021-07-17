@@ -52,7 +52,7 @@ type Configuration struct {
 	Kubeless           kubelessConfig
 	Openfaas           openfaasConfig
 	WebUI              WebUIOutputConfig
-	PolicyAdapter      PolicyAdapterConfig
+	PolicyReport       PolicyReportConfig
 	Rabbitmq           RabbitmqConfig
 	Wavefront          WavefrontOutputConfig
 }
@@ -367,7 +367,7 @@ type WebUIOutputConfig struct {
 }
 
 // PolicyadapterConfig represents parameters for policyadapter
-type PolicyAdapterConfig struct {
+type PolicyReportConfig struct {
 	Enabled    bool
 	Kubeconfig string
 }
