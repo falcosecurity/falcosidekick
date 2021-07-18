@@ -401,7 +401,7 @@ func init() {
 		if err != nil {
 			config.PolicyReport.Enabled = false
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "PolicyAdapter")
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "PolicyReport")
 		}
 	}
 	if config.Openfaas.FunctionName != "" {
