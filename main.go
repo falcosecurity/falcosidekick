@@ -43,6 +43,7 @@ var (
 	kubelessClient      *outputs.Client
 	openfaasClient      *outputs.Client
 	webUIClient         *outputs.Client
+	policyReportClient  *outputs.Client
 	rabbitmqClient      *outputs.Client
 	wavefrontClient     *outputs.Client
 
@@ -394,7 +395,15 @@ func init() {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
 		}
 	}
-
+	if config.PolicyReport.Enabled == true {
+		var err error
+		policyReportClient, err = outputs.NewPolicyReportClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.PolicyReport.Enabled = false
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "PolicyReport")
+		}
+	}
 	if config.Openfaas.FunctionName != "" {
 		var err error
 		openfaasClient, err = outputs.NewOpenfaasClient(config, stats, promStats, statsdClient, dogstatsdClient)

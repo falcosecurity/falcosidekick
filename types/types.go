@@ -52,6 +52,7 @@ type Configuration struct {
 	Kubeless           kubelessConfig
 	Openfaas           openfaasConfig
 	WebUI              WebUIOutputConfig
+	PolicyReport       PolicyReportConfig
 	Rabbitmq           RabbitmqConfig
 	Wavefront          WavefrontOutputConfig
 }
@@ -363,6 +364,13 @@ type WebUIOutputConfig struct {
 	URL       string
 	CheckCert bool
 	MutualTLS bool
+}
+
+// PolicyadapterConfig represents parameters for policyadapter
+type PolicyReportConfig struct {
+	Enabled         bool
+	Kubeconfig      string
+	MinimumPriority string
 }
 
 // RabbitmqConfig represents parameters for rabbitmq

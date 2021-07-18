@@ -252,4 +252,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
 	}
+	if config.PolicyReport.Enabled != false {
+
+		go policyReportClient.PolicyReportPost(falcopayload)
+	}
 }
