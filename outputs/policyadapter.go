@@ -56,5 +56,5 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 
 // PolicyAdapterPost receives falco payload
 func (c *Client) PolicyReportPost(falcopayload types.FalcoPayload) {
-	fmt.Println("Hello world to policyadapter.go in outputs")
+	//to do
 }
