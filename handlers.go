@@ -255,6 +255,6 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	}
 	if config.PolicyReport.Enabled != false {
 		fmt.Println("Hello World to the Policy Adapter")
-		go policyReportClient.PolicyAdapterPost(falcopayload)
+		go policyReportClient.PolicyReportPost(falcopayload)
 	}
 }

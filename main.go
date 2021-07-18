@@ -395,9 +395,9 @@ func init() {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
 		}
 	}
-	if config.PolicyReport.Enabled != false {
+	if config.PolicyReport.Enabled == true {
 		var err error
-		policyReportClient, err = outputs.PolicyReportClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		policyReportClient, err = outputs.NewPolicyReportClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.PolicyReport.Enabled = false
 		} else {
