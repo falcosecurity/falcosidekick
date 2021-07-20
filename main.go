@@ -45,6 +45,7 @@ var (
 	webUIClient         *outputs.Client
 	rabbitmqClient      *outputs.Client
 	wavefrontClient     *outputs.Client
+	fissionClient       *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -423,6 +424,16 @@ func init() {
 			config.Wavefront.EndpointHost = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Wavefront")
+		}
+	}
+
+	if config.Fission.Function != "" {
+		var err error
+		fissionClient, err = outputs.NewFissionClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			log.Printf("[ERROR] : Fission - %v\n", err)
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, outputs.Fission)
 		}
 	}
 

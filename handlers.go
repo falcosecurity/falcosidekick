@@ -252,4 +252,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
 	}
+
+	if config.Fission.Function != "" && (falcopayload.Priority >= types.Priority(config.Fission.MinimumPriority) || falcopayload.Rule == testRule) {
+		go fissionClient.FissionCall(falcopayload)
+	}
 }
