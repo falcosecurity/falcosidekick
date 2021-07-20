@@ -197,6 +197,16 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Openfaas.MutualTls", false)
 	v.SetDefault("Openfaas.CheckCert", true)
 
+	v.SetDefault("Fission.RouterNamespace", "fission")
+	v.SetDefault("Fission.RouterService", "router")
+	v.SetDefault("Fission.RouterPort", 80)
+	v.SetDefault("Fission.FunctionNamespace", "fission-function")
+	v.SetDefault("Fission.Function", "")
+	v.SetDefault("Fission.Kubeconfig", "")
+	v.SetDefault("Fission.MinimumPriority", "")
+	v.SetDefault("Fission.MutualTls", false)
+	v.SetDefault("Fission.CheckCert", true)
+
 	v.SetDefault("Webui.URL", "")
 	v.SetDefault("Webui.MutualTls", false)
 	v.SetDefault("Webui.CheckCert", true)
@@ -302,6 +312,7 @@ func getConfig() *types.Configuration {
 	c.Pagerduty.MinimumPriority = checkPriority(c.Pagerduty.MinimumPriority)
 	c.Kubeless.MinimumPriority = checkPriority(c.Kubeless.MinimumPriority)
 	c.Openfaas.MinimumPriority = checkPriority(c.Openfaas.MinimumPriority)
+	c.Fission.MinimumPriority = checkPriority(c.Fission.MinimumPriority)
 	c.Rabbitmq.MinimumPriority = checkPriority(c.Rabbitmq.MinimumPriority)
 	c.Wavefront.MinimumPriority = checkPriority(c.Wavefront.MinimumPriority)
 

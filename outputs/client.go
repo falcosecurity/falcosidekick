@@ -209,6 +209,8 @@ func (c *Client) Post(payload interface{}) error {
 		} else if c.OutputType == Openfaas {
 			log.Printf("[INFO]  : %v - Function Response : %v\n", Openfaas,
 				string(body))
+		} else if c.OutputType == Fission {
+			log.Printf("[INFO]  : %v - Function Response : %v\n", Fission, string(body))
 		}
 		return nil
 	case http.StatusBadRequest: //400
