@@ -76,11 +76,10 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 			go c.CountMetric(Outputs, 1, []string{"output:Fission", "status:error"})
 			c.Stats.Fission.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "Fission", "status": Error}).Inc()
-			log.Println("[INFO] : Fission - KubeConfig not empty")
-			log.Printf("[ERROR] : Fission - %v\n", err.Error())
+			log.Printf("[ERROR] : %s - %v\n", Fission, err.Error())
 			return
 		}
-		log.Printf("[INFO]  : Fission - Function Response : %v\n", string(rawbody))
+		log.Printf("[INFO]  : %s - Function Response : %v\n", Fission, string(rawbody))
 	} else {
 		c.AddHeader(FissionEventIDKey, uuid.New().String())
 		c.ContentType = FissionContentType
@@ -90,7 +89,6 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 			go c.CountMetric(Outputs, 1, []string{"output:Fission", "status:error"})
 			c.Stats.Fission.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "Fission", "status": Error}).Inc()
-			log.Println("[INFO] : Fission - KubeConfig empty")
 			log.Printf("[ERROR] : %s - %v\n", Fission, err.Error())
 			return
 		}
