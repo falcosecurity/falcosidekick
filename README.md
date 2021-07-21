@@ -62,6 +62,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**OpenFaaS**](https://www.openfaas.com)
 - [**GCP Cloud Run**](https://cloud.google.com/run)
 - [**GCP Cloud Functions**](https://cloud.google.com/functions)
+- [**Fission**](https://fission.io)
 
 ### Message queue / Streaming
 
@@ -382,7 +383,15 @@ wavefront:
   batchsize: 10000 # max batch of data sent per flush interval. defaults to 10,000. Used only in direct mode
   flushintervalseconds: 1 # Time in seconds between flushing metrics to Wavefront. Defaults to 1s
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  
+
+fission:
+  function: "" # Name of Fission function, if not empty, Fission is enabled
+  routernamespace: "fission" # Namespace of Fission Router, "fission" (default)
+  routerservice: "router" # Service of Fission Router, "router" (default)
+  routerport: 80 # Port of service of Fission Router
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
@@ -718,6 +727,15 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **WAVEFRONT_METRICNAME**: "falco.alert" # Metric name to be created/used in Wavefront
 - **WAVEFRONT_MINIMUMPRIORITY**: "debug" # minimum priority of event for using
   this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **FISSION_FUNCTION**: Name of Fission function, if not empty, Fission is enabled
+- **FISSION_ROUTERNAMESPACE**: Namespace of Fission Router, "fission" (default)
+- **FISSION_ROUTERSERVICE**: Service of Fission Router, "router" (default)
+- **FISSION_ROUTERPORT**: Port of service of Fission Router
+- **FISSION_MINIMUMPRIORITY**: "debug" # minimum priority of event for using
+  this output, order is `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **FISSION_MUTUALTLS**: if true, checkcert flag will be ignored (server cert will always be checked)
+- **FISSION_CHECKCERT**: check if ssl certificate of the output is valid (default: `true`)
+
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML

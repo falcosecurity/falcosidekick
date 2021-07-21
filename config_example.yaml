@@ -233,3 +233,12 @@ wavefront:
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
+
+fission:
+  function: "" # Name of Fission function, if not empty, Fission is enabled
+  routernamespace: "fission" # Namespace of Fission Router, "fission" (default)
+  routerservice: "router" # Service of Fission Router, "router" (default)
+  routerport: 80 # Port of service of Fission Router
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
