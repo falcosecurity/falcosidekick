@@ -15,6 +15,8 @@ import (
 	"regexp"
 	"strings"
 
+	crdClient "github.com/anushkamittal20/falcoadapter/pkg/generated/v1alpha2/clientset/versioned"
+
 	gcpfunctions "cloud.google.com/go/functions/apiv1"
 	"github.com/streadway/amqp"
 	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
@@ -97,6 +99,7 @@ type Client struct {
 	KubernetesClient  kubernetes.Interface
 	RabbitmqClient    *amqp.Channel
 	WavefrontSender   *wavefront.Sender
+	Crdclient         *crdClient.Clientset
 }
 
 // NewClient returns a new output.Client for accessing the different API.

@@ -1,0 +1,38 @@
+apiVersion: v1
+items:
+- apiVersion: wgpolicyk8s.io/v1alpha2
+  kind: ClusterPolicyReport
+  metadata:
+    creationTimestamp: "2021-07-23T09:39:37Z"
+    generation: 1
+    name: dummy-policy-report
+    resourceVersion: "552"
+    uid: 079aedba-9f5e-4d16-afa2-ab197abec908
+  results:
+  - message: |
+      Grep private keys or passwords activities found (user=%user.name user_loginuid=%user.loginuid command=%proc.cmdline container_id=%container.id container_name=%container.name image=%container.image.repository:%container.image.tag)
+    policy: Search Private Keys or Passwords
+    properties:
+      container.id: '%container.id'
+      container.image.repository: '%container.image.repository'
+      container.image.tag: '%container.image.tag'
+      container.name: '%container.name'
+      proc.cmdline: '%proc.cmdline'
+      user.loginuid: '%user.loginuid'
+      user.name: '%user.name'
+    result: fail
+    severity: medium
+    source: Falco
+    timestamp:
+      nanos: 96459877
+      seconds: 37
+  summary:
+    error: 0
+    fail: 1
+    pass: 0
+    skip: 0
+    warn: 0
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""

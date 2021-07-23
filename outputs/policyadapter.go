@@ -3,51 +3,35 @@ package outputs
 import (
 	"context"
 	"fmt"
+	"log"
 
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/anushkamittal20/falcoadapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
 	clusterpolicyreport "github.com/anushkamittal20/falcoadapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
 	crdClient "github.com/anushkamittal20/falcoadapter/pkg/generated/v1alpha2/clientset/versioned"
+	"github.com/falcosecurity/falcosidekick/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
-	//"log"
-	"github.com/DataDog/datadog-go/statsd"
-	"github.com/anushkamittal20/falcoadapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
-	"github.com/falcosecurity/falcosidekick/types"
 	"k8s.io/client-go/tools/clientcmd"
-	// "github.com/google/uuid"
 )
 
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
-
-	if config.PolicyReport.Kubeconfig != "" {
-		restConfig, err := clientcmd.BuildConfigFromFlags("", config.PolicyReport.Kubeconfig)
-		if err != nil {
-			return nil, fmt.Errorf("unable to load kube config file: %v", err)
-		}
-		clientset, err := kubernetes.NewForConfig(restConfig)
-		if err != nil {
-			return nil, err
-		}
-		return &Client{
-			OutputType:       "PolicyReport",
-			Config:           config,
-			Stats:            stats,
-			PromStats:        promStats,
-			StatsdClient:     statsdClient,
-			DogstatsdClient:  dogstatsdClient,
-			KubernetesClient: clientset,
-		}, nil
-	}
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("unable to load in-cluster config: %v", err)
+		restConfig, err = clientcmd.BuildConfigFromFlags("", config.PolicyReport.Kubeconfig)
+		if err != nil {
+			fmt.Printf("unable to load kube config file: %v", err)
+		}
 	}
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
-
+	crdclient, err := crdClient.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
 	return &Client{
 		OutputType:       "PolicyReport",
 		Config:           config,
@@ -56,6 +40,7 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 		StatsdClient:     statsdClient,
 		DogstatsdClient:  dogstatsdClient,
 		KubernetesClient: clientset,
+		Crdclient:        crdclient,
 	}, nil
 
 }
@@ -63,43 +48,25 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 // PolicyReportPost creates Policy Report Resource in Kubernetes
 func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
 	//to do
-	var crdclient *crdClient.Clientset
-	if c.Config.PolicyReport.Kubeconfig != "" {
-		restConfig, err := clientcmd.BuildConfigFromFlags("", c.Config.PolicyReport.Kubeconfig)
-		if err != nil {
-			fmt.Printf("unable to load kube config file: %v", err)
-		}
-		crdclient, err = crdClient.NewForConfig(restConfig)
-		if err != nil {
-			fmt.Printf("u %v", err)
-		}
-	}
-	restConfig, err := rest.InClusterConfig()
-	if err != nil {
-		fmt.Printf("unable to load in-cluster config: %v", err)
-	}
 
-	crdclient, err = crdClient.NewForConfig(restConfig)
-	if err != nil {
-		fmt.Printf("u %v", err)
-	}
-	ats := crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports()
+	ats := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports()
 	report := &clusterpolicyreport.ClusterPolicyReport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "dummy-policy-report",
 		},
 		Summary: v1alpha2.PolicyReportSummary{
-			//Fail: len(controls.Alert),
+			Fail: 1,
 		},
 	}
 	report.Results = append(report.Results, newResult(falcopayload))
 	result, err := ats.Create(context.TODO(), report, metav1.CreateOptions{})
 	if err != nil {
-		panic(err)
+		log.Printf("[ERROR] : %v\n", err)
 	}
 	fmt.Printf("Created policy-report %q.\n", result.GetObjectMeta().GetName())
 }
 
+//mapping
 func newResult(FalcoPayload types.FalcoPayload) *clusterpolicyreport.PolicyReportResult {
 	const PolicyReportSource string = "Falco"
 	var pri string
