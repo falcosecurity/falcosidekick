@@ -15,7 +15,7 @@ import (
 	"regexp"
 	"strings"
 
-	crdClient "github.com/anushkamittal20/falcoadapter/pkg/generated/v1alpha2/clientset/versioned"
+	crdClient "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/generated/v1alpha2/clientset/versioned"
 
 	gcpfunctions "cloud.google.com/go/functions/apiv1"
 	"github.com/streadway/amqp"
