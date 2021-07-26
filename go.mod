@@ -9,13 +9,14 @@ require (
 	github.com/Azure/azure-event-hubs-go/v3 v3.3.4
 	github.com/DataDog/datadog-go v4.2.0+incompatible
 	github.com/PagerDuty/go-pagerduty v1.3.0
-	github.com/anushkamittal20/falcoadapter v0.0.0-20210702142110-6f029121c457
 	github.com/aws/aws-sdk-go v1.37.22
 	github.com/cloudevents/sdk-go/v2 v2.3.1
 	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21
 	github.com/emersion/go-smtp v0.14.0
 	github.com/google/uuid v1.2.0
 	github.com/googleapis/gax-go v1.0.3
+	github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter v0.0.0-20210714174227-a3d56502c383
+	github.com/nats-io/nats-streaming-server v0.19.0 // indirect
 	github.com/nats-io/nats.go v1.10.0
 	github.com/nats-io/stan.go v0.8.3
 	github.com/prometheus/client_golang v1.9.0

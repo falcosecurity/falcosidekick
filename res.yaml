@@ -3,20 +3,19 @@ items:
 - apiVersion: wgpolicyk8s.io/v1alpha2
   kind: ClusterPolicyReport
   metadata:
-    creationTimestamp: "2021-07-26T13:35:06Z"
-    generation: 16
+    creationTimestamp: "2021-07-26T15:03:19Z"
+    generation: 5
     name: dummy-policy-report
-    resourceVersion: "1390"
-    uid: 212f815f-919e-456f-8753-788b3f786165
+    resourceVersion: "1752"
+    uid: a72eb0f9-c519-494b-992f-685362253116
   results:
-  - message: |
-      Grep private keys or passwords activities found (user=%user.name user_loginuid=%user.loginuid command=%proc.cmdline container_id=%container.id container_name=%container.name image=%container.image.repository:%container.image.tag)
-    policy: Search Private Keys or Passwords
+  - message: Disallowed inbound connection source (command=%proc.cmdline connection=%fd.name
+      user=%user.name user_loginuid=%user.loginuid container_id=%container.id image=%container.image.repository)
+    policy: Unexpected inbound connection source
     properties:
       container.id: '%container.id'
       container.image.repository: '%container.image.repository'
-      container.image.tag: '%container.image.tag'
-      container.name: '%container.name'
+      fd.name: '%fd.name'
       proc.cmdline: '%proc.cmdline'
       user.loginuid: '%user.loginuid'
       user.name: '%user.name'
@@ -24,38 +23,30 @@ items:
     severity: medium
     source: Falco
     timestamp:
-      nanos: 739691631
-      seconds: 49
-  - message: K8s Serviceaccount Created (user=%ka.user.name user=%ka.target.name ns=%ka.target.namespace
-      resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
-    policy: K8s Serviceaccount Created
+      nanos: 607075439
+      seconds: 47
+  - message: Packet socket was created in a container (user=%user.name user_loginuid=%user.loginuid
+      command=%proc.cmdline socket_info=%evt.args container_id=%container.id container_name=%container.name
+      image=%container.image.repository:%container.image.tag)
+    policy: Packet socket created in container
     properties:
-      ka.auth.decision: '%ka.auth.decision'
-      ka.auth.reason: '%ka.auth.reason'
-      ka.response.code: '%ka.response.code'
-      ka.target.name: '%ka.target.name'
-      ka.target.namespace: '%ka.target.namespace'
-      ka.user.name: '%ka.user.name'
-    result: fail
-    severity: low
-    source: Falco
-    timestamp:
-      nanos: 741423227
-      seconds: 51
-  - message: Disallowed namespace created (user=%ka.user.name ns=%ka.target.name)
-    policy: Create Disallowed Namespace
-    properties:
-      ka.target.name: '%ka.target.name'
-      ka.user.name: '%ka.user.name'
+      container.id: '%container.id'
+      container.image.repository: '%container.image.repository'
+      container.image.tag: '%container.image.tag'
+      container.name: '%container.name'
+      evt.args: '%evt.args'
+      proc.cmdline: '%proc.cmdline'
+      user.loginuid: '%user.loginuid'
+      user.name: '%user.name'
     result: fail
     severity: medium
     source: Falco
     timestamp:
-      nanos: 743455923
-      seconds: 55
+      nanos: 608346686
+      seconds: 49
   summary:
     error: 0
-    fail: 3
+    fail: 2
     pass: 0
     skip: 0
     warn: 0
