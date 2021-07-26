@@ -19,6 +19,16 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+var report *clusterpolicyreport.ClusterPolicyReport = &clusterpolicyreport.ClusterPolicyReport{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "dummy-policy-report",
+	},
+	Summary: v1alpha2.PolicyReportSummary{
+		Fail: 0,
+		Warn: 0, //to-do
+	},
+}
+
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	restConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -45,22 +55,13 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 		KubernetesClient: clientset,
 		Crdclient:        crdclient,
 	}, nil
-
 }
 
 // PolicyReportPost creates Policy Report Resource in Kubernetes
 func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
+	report.Summary.Fail++
 	ats := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports()
-	report := &clusterpolicyreport.ClusterPolicyReport{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "dummy-policy-report",
-		},
-		Summary: v1alpha2.PolicyReportSummary{
-			Fail: 1, //hardcoded for time being; to-do
-		},
-	}
 	report.Results = append(report.Results, newResult(falcopayload))
-
 	_, getErr := ats.Get(context.Background(), report.Name, metav1.GetOptions{})
 	if errors.IsNotFound(getErr) {
 		result, err := ats.Create(context.TODO(), report, metav1.CreateOptions{})
@@ -70,22 +71,17 @@ func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
 		fmt.Printf("[INFO] :Created policy-report %q.\n", result.GetObjectMeta().GetName())
 	} else {
 		// Update existing Policy Report
-		fmt.Println("[INFO] :updating policy report...")
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-
 			result, err := ats.Get(context.Background(), report.GetName(), metav1.GetOptions{})
 			if errors.IsNotFound(err) {
 				// This doesnt ever happen even if it is already deleted or not found
 				log.Printf("[ERROR] :%v not found", report.GetName())
 				return nil
 			}
-
 			if err != nil {
 				return err
 			}
-
 			report.SetResourceVersion(result.GetResourceVersion())
-
 			_, updateErr := ats.Update(context.Background(), report, metav1.UpdateOptions{})
 			return updateErr
 		})

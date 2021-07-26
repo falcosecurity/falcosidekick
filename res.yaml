@@ -3,11 +3,11 @@ items:
 - apiVersion: wgpolicyk8s.io/v1alpha2
   kind: ClusterPolicyReport
   metadata:
-    creationTimestamp: "2021-07-23T09:39:37Z"
-    generation: 1
+    creationTimestamp: "2021-07-26T13:35:06Z"
+    generation: 16
     name: dummy-policy-report
-    resourceVersion: "552"
-    uid: 079aedba-9f5e-4d16-afa2-ab197abec908
+    resourceVersion: "1390"
+    uid: 212f815f-919e-456f-8753-788b3f786165
   results:
   - message: |
       Grep private keys or passwords activities found (user=%user.name user_loginuid=%user.loginuid command=%proc.cmdline container_id=%container.id container_name=%container.name image=%container.image.repository:%container.image.tag)
@@ -24,11 +24,38 @@ items:
     severity: medium
     source: Falco
     timestamp:
-      nanos: 96459877
-      seconds: 37
+      nanos: 739691631
+      seconds: 49
+  - message: K8s Serviceaccount Created (user=%ka.user.name user=%ka.target.name ns=%ka.target.namespace
+      resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+    policy: K8s Serviceaccount Created
+    properties:
+      ka.auth.decision: '%ka.auth.decision'
+      ka.auth.reason: '%ka.auth.reason'
+      ka.response.code: '%ka.response.code'
+      ka.target.name: '%ka.target.name'
+      ka.target.namespace: '%ka.target.namespace'
+      ka.user.name: '%ka.user.name'
+    result: fail
+    severity: low
+    source: Falco
+    timestamp:
+      nanos: 741423227
+      seconds: 51
+  - message: Disallowed namespace created (user=%ka.user.name ns=%ka.target.name)
+    policy: Create Disallowed Namespace
+    properties:
+      ka.target.name: '%ka.target.name'
+      ka.user.name: '%ka.user.name'
+    result: fail
+    severity: medium
+    source: Falco
+    timestamp:
+      nanos: 743455923
+      seconds: 55
   summary:
     error: 0
-    fail: 1
+    fail: 3
     pass: 0
     skip: 0
     warn: 0
