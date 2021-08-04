@@ -47,6 +47,7 @@ var (
 	wavefrontClient     *outputs.Client
 	fissionClient       *outputs.Client
 	grafanaClient       *outputs.Client
+	yandexS3Client      *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -450,6 +451,20 @@ func init() {
 		}
 		log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
 	}
+
+	if config.Yandex.S3.Bucket != "" {
+		var err error
+		yandexS3Client, err = outputs.NewYandexS3Client(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			log.Printf("[ERROR] : Yandex - %v\n", err)
+		} else {
+			if config.Yandex.S3.Bucket != "" {
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "YandexS3Client")
+			}
+		}
+		log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
+	}
+
 }
 
 func main() {
