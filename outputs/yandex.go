@@ -34,9 +34,10 @@ func NewYandexS3Client(config *types.Configuration, stats *types.Statistics, pro
 	if err != nil {
 		log.Printf("[ERROR] : AWS - %v\n", "Error while creating AWS Session")
 		return nil, errors.New("Error while creating AWS Session")
-	} else {
-		log.Printf("[INFO] : Yandex S3 session has been configured successfully")
-	}
+	} 
+	
+	log.Printf("[INFO] : Yandex S3 session has been configured successfully")
+	
 
 	return &Client{
 		OutputType:      "YandexS3",
