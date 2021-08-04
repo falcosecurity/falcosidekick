@@ -266,6 +266,14 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Grafana.MutualTls", false)
 	v.SetDefault("Grafana.CheckCert", true)
 
+	v.SetDefault("Yandex.AccessKeyID", "")
+	v.SetDefault("Yandex.SecretAccessKey", "")
+	v.SetDefault("Yandex.Endpoint", "https://storage.yandexcloud.net")
+	v.SetDefault("Yandex.Region", "ru-central1")
+	v.SetDefault("Yandex.S3.Bucket", "")
+	v.SetDefault("Yandex.S3.Prefix", "falco")
+	v.SetDefault("Yamdex.S3.MinimumPriority", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -358,6 +366,7 @@ func getConfig() *types.Configuration {
 	c.Fission.MinimumPriority = checkPriority(c.Fission.MinimumPriority)
 	c.Rabbitmq.MinimumPriority = checkPriority(c.Rabbitmq.MinimumPriority)
 	c.Wavefront.MinimumPriority = checkPriority(c.Wavefront.MinimumPriority)
+	c.Yandex.S3.MinimumPriority = checkPriority(c.Wavefront.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

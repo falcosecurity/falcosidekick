@@ -260,4 +260,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Fission.Function != "" && (falcopayload.Priority >= types.Priority(config.Fission.MinimumPriority) || falcopayload.Rule == testRule) {
 		go fissionClient.FissionCall(falcopayload)
 	}
+
+	if config.Yandex.S3.Bucket != "" && (falcopayload.Priority >= types.Priority(config.Yandex.S3.MinimumPriority) || falcopayload.Rule == testRule) {
+		go yandexS3Client.UploadYandexS3(falcopayload)
+	}
 }
