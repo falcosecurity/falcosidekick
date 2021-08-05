@@ -390,11 +390,11 @@ type grafanaOutputConfig struct {
 type YandexOutputConfig struct {
 	AccessKeyID     string
 	SecretAccessKey string
-	Endpoint        string
 	Region          string
 	S3              YandexS3Config
 }
 type YandexS3Config struct {
+	Endpoint        string
 	Prefix          string
 	Bucket          string
 	MinimumPriority string
