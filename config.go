@@ -208,6 +208,12 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Kafka.Topic", "")
 	v.SetDefault("Kafka.MinimumPriority", "")
 
+	v.SetDefault("KafkaRest.Address", "")
+	v.SetDefault("KafkaRest.Version", 2)
+	v.SetDefault("KafkaRest.MinimumPriority", "")
+	v.SetDefault("KafkaRest.MutualTls", false)
+	v.SetDefault("KafkaRest.CheckCert", true)
+
 	v.SetDefault("Pagerduty.RoutingKey", "")
 	v.SetDefault("Pagerduty.MinimumPriority", "")
 	v.SetDefault("Pagerduty.MutualTls", false)
@@ -360,6 +366,7 @@ func getConfig() *types.Configuration {
 	c.GCP.CloudRun.MinimumPriority = checkPriority(c.GCP.CloudRun.MinimumPriority)
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
 	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
+	c.KafkaRest.MinimumPriority = checkPriority(c.KafkaRest.MinimumPriority)
 	c.Pagerduty.MinimumPriority = checkPriority(c.Pagerduty.MinimumPriority)
 	c.Kubeless.MinimumPriority = checkPriority(c.Kubeless.MinimumPriority)
 	c.Openfaas.MinimumPriority = checkPriority(c.Openfaas.MinimumPriority)

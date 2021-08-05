@@ -75,6 +75,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**AWS SNS**](https://aws.amazon.com/sns/features/)
 - [**GCP PubSub**](https://cloud.google.com/pubsub)
 - [**Apache Kafka**](https://kafka.apache.org/)
+- [**Kafka Rest Proxy**](https://docs.confluent.io/platform/current/kafka-rest/index.html)  
 - [**RabbitMQ**](https://www.rabbitmq.com/)
 - [**Azure Event Hubs**](https://azure.microsoft.com/en-in/services/event-hubs/)
   
@@ -349,6 +350,13 @@ kafka:
   hostport: "" # Apache Kafka Host:Port (ex: localhost:9092). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+kafkarest:
+  address: "" # The full URL to the topic (example "http://kafkarest:8082/topics/test")
+  #version: 2 # Kafka Rest Proxy API version 2|1 (default: 2)
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 pagerduty:
   routingKey: "" # Pagerduty Routing Key, if not empty, Pagerduty output is enabled
@@ -699,6 +707,12 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **KAFKA_MINIMUMPRIORITY**: minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **KAFKAREST_ADDRESS**: The full URL to the topic (example "http://kafkarest:8082/topics/test")
+- **KAFKAREST_VERSION**: Kafka Rest Proxy API version 2|1 (default: 2)
+- **KAFKAREST_MINIMUMPRIORITY** : minimum priority of event for using this output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **KAFKAREST_MUTUALTLS** : enable mutual tls authentication for this output (default: `false`)
+- **KAFKAREST_CHECKCERT** : check if ssl certificate of the output is valid (default: `true`)
 - **PAGERDUTY_APIKEY**: Pagerduty API Key, if not empty, Pagerduty output is
   _enabled_
 - **PAGERDUTY_SERVICE**: Service to create an incident (mandatory)
