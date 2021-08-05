@@ -394,11 +394,12 @@ type WebUIOutputConfig struct {
 	MutualTLS bool
 }
 
-// PolicyadapterConfig represents parameters for policyadapter
+// PolicyReportConfig represents parameters for policyadapter
 type PolicyReportConfig struct {
 	Enabled         bool
 	Kubeconfig      string
 	MinimumPriority string
+	Warning         int
 }
 
 // RabbitmqConfig represents parameters for rabbitmq

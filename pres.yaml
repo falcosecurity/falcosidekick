@@ -1,0 +1,167 @@
+apiVersion: v1
+items:
+- apiVersion: wgpolicyk8s.io/v1alpha2
+  kind: PolicyReport
+  metadata:
+    creationTimestamp: "2021-08-05T11:57:18Z"
+    generation: 4
+    name: dummy-policy-report
+    namespace: default
+    resourceVersion: "6323"
+    uid: c85220de-fda6-4fb1-bc3a-9a063e16f9c0
+  results:
+  - message: Disallowed inbound connection source (command=%proc.cmdline connection=%fd.name
+      user=%user.name user_loginuid=%user.loginuid container_id=%container.id image=%container.image.repository)
+    policy: Unexpected inbound connection source
+    properties:
+      container.id: '%container.id'
+      container.image.repository: '%container.image.repository'
+      fd.name: '%fd.name'
+      proc.cmdline: '%proc.cmdline'
+      user.loginuid: '%user.loginuid'
+      user.name: '%user.name'
+    result: fail
+    severity: medium
+    source: Falco
+    timestamp:
+      nanos: 622589337
+      seconds: 57
+  - message: Packet socket was created in a container (user=%user.name user_loginuid=%user.loginuid
+      command=%proc.cmdline socket_info=%evt.args container_id=%container.id container_name=%container.name
+      image=%container.image.repository:%container.image.tag)
+    policy: Packet socket created in container
+    properties:
+      container.id: '%container.id'
+      container.image.repository: '%container.image.repository'
+      container.image.tag: '%container.image.tag'
+      container.name: '%container.name'
+      evt.args: '%evt.args'
+      proc.cmdline: '%proc.cmdline'
+      user.loginuid: '%user.loginuid'
+      user.name: '%user.name'
+    result: fail
+    severity: medium
+    source: Falco
+    timestamp:
+      nanos: 624629194
+      seconds: 59
+  - message: |
+      Package management process launched in container (user=%user.name user_loginuid=%user.loginuid command=%proc.cmdline container_id=%container.id container_name=%container.name image=%container.image.repository:%container.image.tag)
+    policy: Launch Package Management Process in Container
+    properties:
+      container.id: '%container.id'
+      container.image.repository: '%container.image.repository'
+      container.image.tag: '%container.image.tag'
+      container.name: '%container.name'
+      proc.cmdline: '%proc.cmdline'
+      user.loginuid: '%user.loginuid'
+      user.name: '%user.name'
+    result: fail
+    severity: high
+    source: Falco
+    timestamp:
+      nanos: 626522810
+      seconds: 3
+  - message: Disallowed namespace created (user=%ka.user.name ns=%ka.target.name)
+    policy: Create Disallowed Namespace
+    properties:
+      ka.target.name: '%ka.target.name'
+      ka.user.name: '%ka.user.name'
+    result: fail
+    severity: high
+    source: Falco
+    timestamp:
+      nanos: 628570633
+      seconds: 6
+  - message: |
+      File below a known binary directory opened for writing (user=%user.name user_loginuid=%user.loginuid command=%proc.cmdline file=%fd.name parent=%proc.pname pcmdline=%proc.pcmdline gparent=%proc.aname[2] container_id=%container.id image=%container.image.repository)
+    policy: Write below binary dir
+    properties:
+      container.id: '%container.id'
+      container.image.repository: '%container.image.repository'
+      fd.name: '%fd.name'
+      proc.aname: '%proc.aname'
+      proc.cmdline: '%proc.cmdline'
+      proc.pcmdline: '%proc.pcmdline'
+      proc.pname: '%proc.pname'
+      user.loginuid: '%user.loginuid'
+      user.name: '%user.name'
+    result: fail
+    severity: high
+    source: Falco
+    timestamp:
+      nanos: 629177643
+      seconds: 6
+  - message: Unexpected connection to K8s API Server from container (command=%proc.cmdline
+      %container.info image=%container.image.repository:%container.image.tag connection=%fd.name)
+    policy: Contact K8S API Server From Container
+    properties:
+      container.image.repository: '%container.image.repository'
+      container.image.tag: '%container.image.tag'
+      container.info: '%container.info'
+      fd.name: '%fd.name'
+      proc.cmdline: '%proc.cmdline'
+    result: fail
+    severity: medium
+    source: Falco
+    timestamp:
+      nanos: 629726055
+      seconds: 6
+  - message: Debugfs launched started in a privileged container (user=%user.name user_loginuid=%user.loginuid
+      command=%proc.cmdline %container.info image=%container.image.repository:%container.image.tag)
+    policy: Debugfs Launched in Privileged Container
+    properties:
+      container.image.repository: '%container.image.repository'
+      container.image.tag: '%container.image.tag'
+      container.info: '%container.info'
+      proc.cmdline: '%proc.cmdline'
+      user.loginuid: '%user.loginuid'
+      user.name: '%user.name'
+    result: fail
+    severity: high
+    source: Falco
+    timestamp:
+      nanos: 630716672
+      seconds: 7
+  - message: |
+      a shell configuration file was read by a non-shell program (user=%user.name user_loginuid=%user.loginuid command=%proc.cmdline file=%fd.name container_id=%container.id image=%container.image.repository)
+    policy: Read Shell Configuration File
+    properties:
+      container.id: '%container.id'
+      container.image.repository: '%container.image.repository'
+      fd.name: '%fd.name'
+      proc.cmdline: '%proc.cmdline'
+      user.loginuid: '%user.loginuid'
+      user.name: '%user.name'
+    result: fail
+    severity: high
+    source: Falco
+    timestamp:
+      nanos: 632967180
+      seconds: 11
+  - message: K8s Service Deleted (user=%ka.user.name service=%ka.target.name ns=%ka.target.namespace
+      resp=%ka.response.code decision=%ka.auth.decision reason=%ka.auth.reason)
+    policy: K8s Service Deleted
+    properties:
+      ka.auth.decision: '%ka.auth.decision'
+      ka.auth.reason: '%ka.auth.reason'
+      ka.response.code: '%ka.response.code'
+      ka.target.name: '%ka.target.name'
+      ka.target.namespace: '%ka.target.namespace'
+      ka.user.name: '%ka.user.name'
+    result: fail
+    severity: low
+    source: Falco
+    timestamp:
+      nanos: 634468268
+      seconds: 15
+  summary:
+    error: 0
+    fail: 0
+    pass: 0
+    skip: 0
+    warn: 1
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
