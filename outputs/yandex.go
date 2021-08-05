@@ -17,29 +17,28 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-// NewAWSClient returns a new output.Client for accessing the AWS API.
-func NewYandexS3Client(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+// NewYandexClient returns a new output.Client for accessing the Yandex API.
+func NewYandexClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	if config.Yandex.AccessKeyID != "" && config.Yandex.SecretAccessKey != "" {
 		err1 := os.Setenv("AWS_ACCESS_KEY_ID", config.Yandex.AccessKeyID)
 		err2 := os.Setenv("AWS_SECRET_ACCESS_KEY", config.Yandex.SecretAccessKey)
 		if err1 != nil || err2 != nil {
-			log.Printf("[ERROR] : AWS - Error setting AWS env vars")
-			return nil, errors.New("Error setting AWS env vars")
+			log.Printf("[ERROR] : Yandex - Error setting Yandex env vars")
+			return nil, errors.New("Error setting Yandex env vars")
 		}
 	}
 	sess, err := session.NewSession(&aws.Config{
 		Region:   aws.String(config.Yandex.Region),
 		Endpoint: aws.String(config.Yandex.Endpoint)})
 	if err != nil {
-		log.Printf("[ERROR] : AWS - %v\n", "Error while creating AWS Session")
-		return nil, errors.New("Error while creating AWS Session")
+		log.Printf("[ERROR] : AWS - %v\n", "Error while creating Yandex Session")
+		return nil, errors.New("Error while creating Yandex Session")
 	}
 
-	log.Printf("[INFO] : Yandex S3 session has been configured successfully")
 
 	return &Client{
-		OutputType:      "YandexS3",
+		OutputType:      "Yandex",
 		Config:          config,
 		AWSSession:      sess,
 		Stats:           stats,
@@ -49,7 +48,7 @@ func NewYandexS3Client(config *types.Configuration, stats *types.Statistics, pro
 	}, nil
 }
 
-// UploadS3 upload payload to S3
+// UploadYandexS3 uploads payload to Yandex S3
 func (c *Client) UploadYandexS3(falcopayload types.FalcoPayload) {
 	f, _ := json.Marshal(falcopayload)
 	prefix := ""
@@ -64,14 +63,14 @@ func (c *Client) UploadYandexS3(falcopayload types.FalcoPayload) {
 		Body:   bytes.NewReader(f),
 	})
 	if err != nil {
-		go c.CountMetric("outputs", 1, []string{"output:awss3", "status:error"})
-		c.PromStats.Outputs.With(map[string]string{"destination": "awss3", "status": Error}).Inc()
+		go c.CountMetric("outputs", 1, []string{"output:yandexs3", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": Error}).Inc()
 		log.Printf("[ERROR] : %v S3 - %v\n", c.OutputType, err.Error())
 		return
 	}
 
 	log.Printf("[INFO]  : %v S3 - Upload payload OK\n", c.OutputType)
 
-	go c.CountMetric("outputs", 1, []string{"output:awss3", "status:ok"})
-	c.PromStats.Outputs.With(map[string]string{"destination": "awss3", "status": "ok"}).Inc()
+	go c.CountMetric("outputs", 1, []string{"output:yandexs3", "status:ok"})
+	c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": "ok"}).Inc()
 }
