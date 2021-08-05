@@ -272,6 +272,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("PolicyReport.Enabled", false)
 	v.SetDefault("PolicyReport.Kubeconfig", "")
 	v.SetDefault("PolicyReport.MinimumPriority", "")
+	v.SetDefault("PolicyReport.Warning", 4)
 
 	v.SetDefault("Rabbitmq.URL", "")
 	v.SetDefault("Rabbitmq.Queue", "")

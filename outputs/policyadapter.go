@@ -5,21 +5,21 @@ import (
 	"fmt"
 	"log"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/util/retry"
-
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
 	clusterpolicyreport "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
+	policyreport "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
 	crdClient "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/generated/v1alpha2/clientset/versioned"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/retry"
 )
 
-var report *clusterpolicyreport.ClusterPolicyReport = &clusterpolicyreport.ClusterPolicyReport{
+var polreport *policyreport.PolicyReport = &policyreport.PolicyReport{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "dummy-policy-report",
 	},
@@ -28,6 +28,16 @@ var report *clusterpolicyreport.ClusterPolicyReport = &clusterpolicyreport.Clust
 		Warn: 0, //to-do
 	},
 }
+var report *clusterpolicyreport.ClusterPolicyReport = &clusterpolicyreport.ClusterPolicyReport{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "dummy-cluster-policy-report",
+	},
+	Summary: v1alpha2.PolicyReportSummary{
+		Fail: 0,
+		Warn: 0, //to-do
+	},
+}
+var warnbound int
 
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	restConfig, err := rest.InClusterConfig()
@@ -57,55 +67,110 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 	}, nil
 }
 
+//make one more input ns string
 // PolicyReportPost creates Policy Report Resource in Kubernetes
 func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
-	report.Summary.Fail++
-	ats := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports()
-	report.Results = append(report.Results, newResult(falcopayload))
-	_, getErr := ats.Get(context.Background(), report.Name, metav1.GetOptions{})
-	if errors.IsNotFound(getErr) {
-		result, err := ats.Create(context.TODO(), report, metav1.CreateOptions{})
-		if err != nil {
-			log.Printf("[ERROR] : %v\n", err)
-		}
-		fmt.Printf("[INFO] :Created policy-report %q.\n", result.GetObjectMeta().GetName())
-	} else {
-		// Update existing Policy Report
-		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			result, err := ats.Get(context.Background(), report.GetName(), metav1.GetOptions{})
-			if errors.IsNotFound(err) {
-				// This doesnt ever happen even if it is already deleted or not found
-				log.Printf("[ERROR] :%v not found", report.GetName())
-				return nil
-			}
+	warnbound = c.Config.PolicyReport.Warning
+	r, count := newResult(falcopayload)
+	if count == 0 {
+		policyr := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports("default")
+		polreport.Results = append(report.Results, r)
+		_, getErr := policyr.Get(context.Background(), polreport.Name, metav1.GetOptions{})
+		if errors.IsNotFound(getErr) {
+			result, err := policyr.Create(context.TODO(), polreport, metav1.CreateOptions{})
 			if err != nil {
-				return err
+				log.Printf("[ERROR] : %v\n", err)
 			}
-			report.SetResourceVersion(result.GetResourceVersion())
-			_, updateErr := ats.Update(context.Background(), report, metav1.UpdateOptions{})
-			return updateErr
-		})
-		if retryErr != nil {
-			fmt.Printf("[ERROR] :update failed: %v", retryErr)
+			fmt.Printf("[INFO] :Created policy-report %q.\n", result.GetObjectMeta().GetName())
+		} else {
+			// Update existing Policy Report
+			retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				result, err := policyr.Get(context.Background(), polreport.GetName(), metav1.GetOptions{})
+				if errors.IsNotFound(err) {
+					// This doesnt ever happen even if it is already deleted or not found
+					log.Printf("[ERROR] :%v not found", polreport.GetName())
+					return nil
+				}
+				if err != nil {
+					return err
+				}
+				polreport.SetResourceVersion(result.GetResourceVersion())
+				_, updateErr := policyr.Update(context.Background(), polreport, metav1.UpdateOptions{})
+				return updateErr
+			})
+			if retryErr != nil {
+				fmt.Printf("[ERROR] :update failed: %v", retryErr)
+			}
+			fmt.Println("[INFO] :updated policy report...")
 		}
-		fmt.Println("[INFO] :updated policy report...")
+	} else {
+		clusterpr := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports()
+		report.Results = append(report.Results, r)
+		_, getErr := clusterpr.Get(context.Background(), report.Name, metav1.GetOptions{})
+		if errors.IsNotFound(getErr) {
+			result, err := clusterpr.Create(context.TODO(), report, metav1.CreateOptions{})
+			if err != nil {
+				log.Printf("[ERROR] : %v\n", err)
+			}
+			fmt.Printf("[INFO] :Created cluster-policy-report %q.\n", result.GetObjectMeta().GetName())
+		} else {
+			// Update existing Policy Report
+			retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+				result, err := clusterpr.Get(context.Background(), report.GetName(), metav1.GetOptions{})
+				if errors.IsNotFound(err) {
+					// This doesnt ever happen even if it is already deleted or not found
+					log.Printf("[ERROR] :%v not found", report.GetName())
+					return nil
+				}
+				if err != nil {
+					return err
+				}
+				report.SetResourceVersion(result.GetResourceVersion())
+				_, updateErr := clusterpr.Update(context.Background(), report, metav1.UpdateOptions{})
+				return updateErr
+			})
+			if retryErr != nil {
+				fmt.Printf("[ERROR] :update failed: %v", retryErr)
+			}
+			fmt.Println("[INFO] :updated cluster policy report...")
+		}
 	}
 }
 
-//mapping for the policy report
-func newResult(FalcoPayload types.FalcoPayload) *clusterpolicyreport.PolicyReportResult {
-	const PolicyReportSource string = "Falco"
-	var pri string //initial hardcoded priority bounds
-	if FalcoPayload.Priority > 4 {
-		pri = "high"
-	} else if FalcoPayload.Priority < 3 {
-		pri = "low"
-	} else {
-		pri = "medium"
-	}
+//mapping for clusterpolicyreport
+func newResult(FalcoPayload types.FalcoPayload) (c *clusterpolicyreport.PolicyReportResult, count int) {
+
+	count = 1 // decision variable to increment for policyreport and clusterpolicyreport //to do
 	var m = make(map[string]string)
 	for index, element := range FalcoPayload.OutputFields {
+		if index == "ka.target.namespace" {
+			count = 0
+		}
 		m[index] = fmt.Sprintf("%v", element)
+	}
+	const PolicyReportSource string = "Falco"
+	var pri string //initial hardcoded priority bounds
+	if FalcoPayload.Priority > types.PriorityType(warnbound) {
+		if count == 1 {
+			report.Summary.Fail++
+		} else {
+			polreport.Summary.Fail++
+		}
+		pri = "high"
+	} else if FalcoPayload.Priority < types.PriorityType(warnbound) {
+		if count == 1 {
+			report.Summary.Warn++
+		} else {
+			polreport.Summary.Warn++
+		}
+		pri = "low"
+	} else {
+		if count == 1 {
+			report.Summary.Warn++
+		} else {
+			polreport.Summary.Warn++
+		}
+		pri = "medium"
 	}
 	return &clusterpolicyreport.PolicyReportResult{
 		Policy:      FalcoPayload.Rule,
@@ -116,5 +181,5 @@ func newResult(FalcoPayload types.FalcoPayload) *clusterpolicyreport.PolicyRepor
 		Result:      "fail",
 		Description: FalcoPayload.Output,
 		Properties:  m,
-	}
+	}, count
 }
