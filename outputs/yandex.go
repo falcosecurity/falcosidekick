@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -14,28 +13,23 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewYandexClient returns a new output.Client for accessing the Yandex API.
 func NewYandexClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
-	if config.Yandex.AccessKeyID != "" && config.Yandex.SecretAccessKey != "" {
-		err1 := os.Setenv("AWS_ACCESS_KEY_ID", config.Yandex.AccessKeyID)
-		err2 := os.Setenv("AWS_SECRET_ACCESS_KEY", config.Yandex.SecretAccessKey)
-		if err1 != nil || err2 != nil {
-			log.Printf("[ERROR] : Yandex - Error setting Yandex env vars")
-			return nil, errors.New("Error setting Yandex env vars")
-		}
-	}
 	sess, err := session.NewSession(&aws.Config{
-		Region:   aws.String(config.Yandex.Region),
-		Endpoint: aws.String(config.Yandex.Endpoint)})
+		Region:      aws.String(config.Yandex.Region),
+		Endpoint:    aws.String(config.Yandex.S3.Endpoint),
+		Credentials: credentials.NewStaticCredentials(config.Yandex.AccessKeyID, config.Yandex.SecretAccessKey, ""),
+	})
 	if err != nil {
-		log.Printf("[ERROR] : AWS - %v\n", "Error while creating Yandex Session")
+		log.Printf("[ERROR] : Yandex - %v\n", "Error while creating Yandex Session")
 		return nil, errors.New("Error while creating Yandex Session")
 	}
-
+	log.Printf("[INFO] : Yandex Session has been configured successfully")
 
 	return &Client{
 		OutputType:      "Yandex",

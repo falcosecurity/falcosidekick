@@ -262,6 +262,6 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	}
 
 	if config.Yandex.S3.Bucket != "" && (falcopayload.Priority >= types.Priority(config.Yandex.S3.MinimumPriority) || falcopayload.Rule == testRule) {
-		go yandexS3Client.UploadYandexS3(falcopayload)
+		go yandexClient.UploadYandexS3(falcopayload)
 	}
 }
