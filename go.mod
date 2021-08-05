@@ -20,7 +20,7 @@ require (
 	github.com/nats-io/nats.go v1.10.0
 	github.com/nats-io/stan.go v0.8.3
 	github.com/prometheus/client_golang v1.9.0
-	github.com/segmentio/kafka-go v0.4.10
+	github.com/segmentio/kafka-go v0.4.17
 	github.com/spf13/viper v1.7.1
 	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.7.0

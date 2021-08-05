@@ -38,6 +38,7 @@ var (
 	gcpClient           *outputs.Client
 	googleChatClient    *outputs.Client
 	kafkaClient         *outputs.Client
+	kafkaRestClient     *outputs.Client
 	pagerdutyClient     *outputs.Client
 	gcpCloudRunClient   *outputs.Client
 	kubelessClient      *outputs.Client
@@ -359,6 +360,16 @@ func init() {
 			config.Kafka.HostPort = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Kafka")
+		}
+	}
+
+	if config.KafkaRest.Address != "" {
+		var err error
+		kafkaRestClient, err = outputs.NewClient("KafkaRest", config.KafkaRest.Address, config.KafkaRest.MutualTLS, config.KafkaRest.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.KafkaRest.Address = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "KafkaRest")
 		}
 	}
 

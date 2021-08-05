@@ -48,6 +48,7 @@ type Configuration struct {
 	GCP                gcpOutputConfig
 	Googlechat         GooglechatConfig
 	Kafka              kafkaConfig
+	KafkaRest          KafkaRestConfig
 	Pagerduty          PagerdutyConfig
 	Kubeless           kubelessConfig
 	Openfaas           openfaasConfig
@@ -332,6 +333,14 @@ type kafkaConfig struct {
 	MinimumPriority string
 }
 
+type KafkaRestConfig struct {
+	Address         string
+	Version         int
+	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
+}
+
 type PagerdutyConfig struct {
 	RoutingKey      string
 	MinimumPriority string
@@ -435,6 +444,7 @@ type Statistics struct {
 	GCPCloudRun       *expvar.Map
 	GoogleChat        *expvar.Map
 	Kafka             *expvar.Map
+	KafkaRest         *expvar.Map
 	Pagerduty         *expvar.Map
 	CloudEvents       *expvar.Map
 	Kubeless          *expvar.Map

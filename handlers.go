@@ -229,6 +229,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go kafkaClient.KafkaProduce(falcopayload)
 	}
 
+	if config.KafkaRest.Address != "" && (falcopayload.Priority >= types.Priority(config.KafkaRest.MinimumPriority) || falcopayload.Rule == testRule) {
+		go kafkaRestClient.KafkaRestPost(falcopayload)
+	}
+
 	if config.Pagerduty.RoutingKey != "" && (falcopayload.Priority >= types.Priority(config.Pagerduty.MinimumPriority) || falcopayload.Rule == testRule) {
 		go pagerdutyClient.PagerdutyPost(falcopayload)
 	}
