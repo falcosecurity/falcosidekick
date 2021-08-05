@@ -409,11 +409,11 @@ webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
 
 yandex:
-  aws:
-  # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
-  # secretaccesskey: "" # aws secret access key (optional if you use EC2 Instance Profile)
+  # accesskeyid: "" # yandex access key
+  # secretaccesskey: "" # yandex secret access key
+  # region : "" # yandex region (default: ru-central-1)
   s3:
-    # bucket: "falcosidekick" # AWS S3, bucket name
+    # bucket: "falcosidekick" # Yandex S3, bucket name
     # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|erro
 ```
