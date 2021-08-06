@@ -767,9 +767,9 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **GRAFANA_MINIMUMPRIORITY**: minimum priority of event for using this output, order is 
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **YANDEX_ACCESSKEYID** : Yandex Access Key Id 
-- **YANDEX_SECRETACCESSKEY** : AWS Secret Access Key 
-- **YANDEX_REGION**: Yandex  region (default: ru-central-1)
-- **YANDEX_S3_ENDPOINT**: yandex storage endpoint (default: https://storage.yandexcloud.net) 
+- **YANDEX_SECRETACCESSKEY** : Yandex Secret Access Key 
+- **YANDEX_REGION**: Yandex region (default: ru-central-1)
+- **YANDEX_S3_ENDPOINT**: Yandex storage endpoint (default: https://storage.yandexcloud.net) 
 - **YANDEX_S3_BUCKET**: Yandex storage, bucket name
 - **YANDEX_S3_PREFIX**: name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
 - **YANDEX_S3_MINIMUMPRIORITY**: # minimum priority of event for using this output, order is emergency|alert|critical|erro
