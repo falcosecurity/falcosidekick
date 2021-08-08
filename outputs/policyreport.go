@@ -67,12 +67,12 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 	}, nil
 }
 
-//make one more input ns string
+//to do n+1 logic
 // PolicyReportPost creates Policy Report Resource in Kubernetes
 func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
 	warnbound = c.Config.PolicyReport.Warning
-	r, count := newResult(falcopayload)
-	if count == 0 {
+	r, namespaceScoped := newResult(falcopayload)
+	if namespaceScoped == true {
 		policyr := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports("default")
 		polreport.Results = append(report.Results, r)
 		_, getErr := policyr.Get(context.Background(), polreport.Name, metav1.GetOptions{})
@@ -103,6 +103,7 @@ func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
 			}
 			fmt.Println("[INFO] :updated policy report...")
 		}
+
 	} else {
 		clusterpr := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports()
 		report.Results = append(report.Results, r)
@@ -138,37 +139,36 @@ func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
 }
 
 //mapping for clusterpolicyreport
-func newResult(FalcoPayload types.FalcoPayload) (c *clusterpolicyreport.PolicyReportResult, count int) {
-
-	count = 1 // decision variable to increment for policyreport and clusterpolicyreport //to do
+func newResult(FalcoPayload types.FalcoPayload) (c *clusterpolicyreport.PolicyReportResult, namespaceScoped bool) {
+	namespaceScoped = false // decision variable to increment for policyreport and clusterpolicyreport //to do //false for clusterpolicyreport
 	var m = make(map[string]string)
 	for index, element := range FalcoPayload.OutputFields {
-		if index == "ka.target.namespace" {
-			count = 0
+		if index == "ka.target.namespace" || index == "k8s.ns.name" {
+			namespaceScoped = true //true for policyreport
 		}
 		m[index] = fmt.Sprintf("%v", element)
 	}
 	const PolicyReportSource string = "Falco"
 	var pri string //initial hardcoded priority bounds
 	if FalcoPayload.Priority > types.PriorityType(warnbound) {
-		if count == 1 {
-			report.Summary.Fail++
-		} else {
+		if namespaceScoped == true {
 			polreport.Summary.Fail++
+		} else {
+			report.Summary.Fail++
 		}
 		pri = "high"
 	} else if FalcoPayload.Priority < types.PriorityType(warnbound) {
-		if count == 1 {
-			report.Summary.Warn++
-		} else {
+		if namespaceScoped == true {
 			polreport.Summary.Warn++
+		} else {
+			report.Summary.Warn++
 		}
 		pri = "low"
 	} else {
-		if count == 1 {
-			report.Summary.Warn++
-		} else {
+		if namespaceScoped == true {
 			polreport.Summary.Warn++
+		} else {
+			report.Summary.Warn++
 		}
 		pri = "medium"
 	}
@@ -181,5 +181,5 @@ func newResult(FalcoPayload types.FalcoPayload) (c *clusterpolicyreport.PolicyRe
 		Result:      "fail",
 		Description: FalcoPayload.Output,
 		Properties:  m,
-	}, count
+	}, namespaceScoped
 }
