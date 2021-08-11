@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+//to do - work on uuid approach
 var polreport *policyreport.PolicyReport = &policyreport.PolicyReport{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "dummy-policy-report",
@@ -138,7 +139,8 @@ func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
 	}
 }
 
-//mapping for clusterpolicyreport
+//to-do work on
+//newResult creates a new entry for Reports
 func newResult(FalcoPayload types.FalcoPayload) (c *clusterpolicyreport.PolicyReportResult, namespaceScoped bool) {
 	namespaceScoped = false // decision variable to increment for policyreport and clusterpolicyreport //to do //false for clusterpolicyreport
 	var m = make(map[string]string)
