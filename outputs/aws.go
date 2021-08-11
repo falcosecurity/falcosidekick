@@ -153,6 +153,7 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 		Bucket: aws.String(c.Config.AWS.S3.Bucket),
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(f),
+		ACL:    aws.String(s3.ObjectCannedACLBucketOwnerFullControl),
 	})
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:awss3", "status:error"})
