@@ -50,7 +50,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**Elasticsearch**](https://www.elastic.co/)
 - [**Loki**](https://grafana.com/oss/loki)
 - [**AWS CloudWatchLogs**](https://aws.amazon.com/cloudwatch/features/)
-- [**Grafana](https://grafana.com/) (annotations)
+- [**Grafana**](https://grafana.com/) (annotations)
   
 ### Object Storage
 
