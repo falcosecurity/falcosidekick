@@ -3,9 +3,6 @@ executors:
   default:
     docker:
     - image: circleci/golang:1.16.0
-  docker-build:
-    docker:
-    - image: docker:stable
 
 jobs:
   lint:
@@ -44,7 +41,7 @@ jobs:
 
   build-push-ecr:
     executor:
-      name: docker-build
+      name: default
     steps:
     - checkout
     - setup_remote_docker
