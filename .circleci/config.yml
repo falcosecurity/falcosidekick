@@ -3,6 +3,9 @@ executors:
   default:
     docker:
     - image: circleci/golang:1.16.0
+  docker-build:
+    docker:
+    - image: docker:stable
 
 jobs:
   lint:
@@ -41,11 +44,15 @@ jobs:
 
   build-push-ecr:
     executor:
-      name: default
+      name: docker-build
     steps:
     - checkout
     - setup_remote_docker
-    - run: make build-image
+    - run:
+        command: |
+          apk update
+          apk add --update make
+          make build-image
     - run:
         command: |
           docker tag falcosecurity/falcosidekick:latest \
