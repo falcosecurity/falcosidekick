@@ -51,7 +51,7 @@ jobs:
     - run:
         command: |
           apk update
-          apk add --update make
+          apk add --update make bash
           make build-image
     - run:
         command: |
