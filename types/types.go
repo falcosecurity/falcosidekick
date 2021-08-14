@@ -399,8 +399,8 @@ type PolicyReportConfig struct {
 	Enabled         bool
 	Kubeconfig      string
 	MinimumPriority string
-	Warning         int
-	MaxReports      int
+	FailThreshold   int
+	MaxEvents       int
 }
 
 // RabbitmqConfig represents parameters for rabbitmq
