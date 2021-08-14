@@ -277,5 +277,5 @@ fission:
 policyreport:
   enabled: false  #if true policyreport output is enabled
   kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcoside is running outside the cluster)
-  warning: 4 #events with priority above this specified integer are mapped to false and lower that those are mapped to warn (default=4)
-  maxreports: 100 #the max number of events that can be in a policyreport(default=10)
+  failthreshold: 4 #events with priority above this specified integer are mapped to false and lower that those are mapped to warn (default=4)
+  maxevents: 100 #the max number of events that can be in a policyreport(default=10)

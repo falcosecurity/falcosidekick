@@ -19,7 +19,6 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-//to do - work on uuid approach
 var polreport *policyreport.PolicyReport = &policyreport.PolicyReport{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "dummy-policy-report",
@@ -38,7 +37,11 @@ var report *clusterpolicyreport.ClusterPolicyReport = &clusterpolicyreport.Clust
 		Warn: 0, //to-do
 	},
 }
-var warnbound int
+
+//in accordance with PolicyReport CRD
+var failbound int
+var repcount int = 0
+var polrepcount int = 0
 
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	restConfig, err := rest.InClusterConfig()
@@ -68,13 +71,24 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 	}, nil
 }
 
-//to do n+1 logic
 // PolicyReportPost creates Policy Report Resource in Kubernetes
 func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
-	warnbound = c.Config.PolicyReport.Warning
+	failbound = c.Config.PolicyReport.FailThreshold
 	r, namespaceScoped := newResult(falcopayload)
 	if namespaceScoped == true {
+		//policyreport to be created
 		policyr := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports("default")
+		polrepcount++
+		if polrepcount > c.Config.PolicyReport.MaxEvents {
+			//To do for pruning
+			checklowvalue := checklow(report.Results)
+			if checklowvalue > 0 {
+				polreport.Results[checklowvalue] = polreport.Results[0]
+			}
+			polreport.Results[0] = nil
+			polreport.Results = polreport.Results[1:]
+			polrepcount = polrepcount - 1
+		}
 		polreport.Results = append(report.Results, r)
 		_, getErr := policyr.Get(context.Background(), polreport.Name, metav1.GetOptions{})
 		if errors.IsNotFound(getErr) {
@@ -104,9 +118,20 @@ func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
 			}
 			fmt.Println("[INFO] :updated policy report...")
 		}
-
 	} else {
+		//clusterpolicyreport to be created
 		clusterpr := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports()
+		repcount++
+		if repcount > c.Config.PolicyReport.MaxEvents {
+			//To do for pruning
+			checklowvalue := checklow(report.Results)
+			if checklowvalue > 0 {
+				report.Results[checklowvalue] = report.Results[0]
+			}
+			report.Results[0] = nil
+			report.Results = report.Results[1:]
+			repcount = repcount - 1
+		}
 		report.Results = append(report.Results, r)
 		_, getErr := clusterpr.Get(context.Background(), report.Name, metav1.GetOptions{})
 		if errors.IsNotFound(getErr) {
@@ -136,10 +161,10 @@ func (c *Client) PolicyReportCreate(falcopayload types.FalcoPayload) {
 			}
 			fmt.Println("[INFO] :updated cluster policy report...")
 		}
+
 	}
 }
 
-//to-do work on
 //newResult creates a new entry for Reports
 func newResult(FalcoPayload types.FalcoPayload) (c *clusterpolicyreport.PolicyReportResult, namespaceScoped bool) {
 	namespaceScoped = false // decision variable to increment for policyreport and clusterpolicyreport //to do //false for clusterpolicyreport
@@ -152,14 +177,14 @@ func newResult(FalcoPayload types.FalcoPayload) (c *clusterpolicyreport.PolicyRe
 	}
 	const PolicyReportSource string = "Falco"
 	var pri string //initial hardcoded priority bounds
-	if FalcoPayload.Priority > types.PriorityType(warnbound) {
+	if FalcoPayload.Priority > types.PriorityType(failbound) {
 		if namespaceScoped == true {
 			polreport.Summary.Fail++
 		} else {
 			report.Summary.Fail++
 		}
 		pri = "high"
-	} else if FalcoPayload.Priority < types.PriorityType(warnbound) {
+	} else if FalcoPayload.Priority < types.PriorityType(failbound) {
 		if namespaceScoped == true {
 			polreport.Summary.Warn++
 		} else {
@@ -184,4 +209,13 @@ func newResult(FalcoPayload types.FalcoPayload) (c *clusterpolicyreport.PolicyRe
 		Description: FalcoPayload.Output,
 		Properties:  m,
 	}, namespaceScoped
+}
+func checklow(result []*policyreport.PolicyReportResult) (swapint int) {
+	var i int
+	for i = 0; i < len(result); i++ {
+		if result[i].Severity == "medium" || result[i].Severity == "low" {
+			return i
+		}
+	}
+	return -1
 }

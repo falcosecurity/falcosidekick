@@ -68,7 +68,6 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**GCP Cloud Run**](https://cloud.google.com/run)
 - [**GCP Cloud Functions**](https://cloud.google.com/functions)
 - [**Fission**](https://fission.io)
-- [**Policy Report**]()
 
 ### Message queue / Streaming
 
@@ -90,6 +89,9 @@ It works as a single endpoint for as many as you want `Falco` instances :
 
 - **Webhook**
 - [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
+
+**Other**
+- [**Policy Report**](https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report) (enable to get a policy report for all events received by falcosidekick)
 
 ## Usage
 
@@ -428,10 +430,10 @@ grafana:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 policyreport:
-  enabled: "" # Name of Fission function, if not empty, Fission is enabled
-  kubeconfig: "fission" # Namespace of Fission Router, "fission" (default)
-  warning: "router" # Service of Fission Router, "router" (default)
-  maxreports: 80 # Port of service of Fission Router
+  enabled: false  #if true policyreport output is enabled
+  kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcoside is running outside the cluster)
+ failthreshold: 4 #events with priority above this specified integer are mapped to false and lower that those are mapped to warn (default=4)
+  maxevents: 100 #the max number of events that can be in a policyreport(default=10)
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
