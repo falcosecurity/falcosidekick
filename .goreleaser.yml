@@ -20,6 +20,8 @@ dockers:
     image_templates:
       - "falcosecurity/falcosidekick:stable"
       - "falcosecurity/falcosidekick:{{ .Version }}"
+      - "public.ecr.aws/falcosecurity/falcosidekick:stable"
+      - "public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}"
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
