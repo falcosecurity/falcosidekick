@@ -73,10 +73,22 @@ jobs:
       - checkout
       - setup_remote_docker
       - run:
+          name: Install pre-requisites
+          command: |
+            DIR=$(mktemp -d) && pushd $DIR
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            ./aws/install -i $HOME/.local/aws-cli -b $HOME/.local/bin
+            popd && rm -r $DIR
+      - run:
           name: Prepare env
           command: |
             echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
-      - run: curl -sL https://git.io/goreleaser | bash
+            aws ecr-public get-login-password --region us-east-1 | \
+              docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
+      - run:
+          name: Release
+          command: curl -sL https://git.io/goreleaser | bash
 
 workflows:
   main:
@@ -115,7 +127,9 @@ workflows:
             branches:
               only: master
       - release:
-          context: falco
+          context:
+            - falco
+            - test-infra
           requires:
             - test
             - lint
