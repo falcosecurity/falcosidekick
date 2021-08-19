@@ -90,7 +90,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - **Webhook**
 - [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
 
-**Other**
+### Other
 - [**Policy Report**](https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report) (enable to get a policy report for all events received by falcosidekick)
 
 ## Usage
@@ -430,10 +430,10 @@ grafana:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 policyreport:
-  enabled: false  #if true policyreport output is enabled
-  kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcoside is running outside the cluster)
- failthreshold: 4 #events with priority above this specified integer are mapped to false and lower that those are mapped to warn (default=4)
-  maxevents: 100 #the max number of events that can be in a policyreport(default=10)
+  enabled: false  # if true; policyreport output is enabled
+  kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
+ failthreshold: 4 # events with a priority above this threshold are mapped to fail in PolicyReport Summary and lower that those are mapped to warn (default=4)
+  maxevents: 10 # the max number of events that can be in a policyreport (default=10)
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
@@ -838,9 +838,9 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **SYSLOG_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "debug")
 
 - **POLICYREPORT_ENABLED**: if true policyreport output is enabled (default: `false`)
-- **POLICYREPORT_KUBECONFIG**: Kubeconfig file to use (only if falcoside is running outside the cluster)
-- **POLICYREPORT_WARNING**: events with priority above this specified integer are mapped to false and lower that those are mapped to warn (default=4)
-- **POLICYREPORT_MAXREPORTS**: the max number of events that can be in a policyreport (default=10)
+- **POLICYREPORT_KUBECONFIG**: Kubeconfig file to use (only if falcosidekick is running outside the cluster)
+- **POLICYREPORT_FAILTHRESHOLD**: events with priority above this threshold are mapped to fail in PolicyReport summary and lower that those are mapped to warn (default=4)
+- **POLICYREPORT_MAXEVENTS**: the max number of events that can be per report (default=10)
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML

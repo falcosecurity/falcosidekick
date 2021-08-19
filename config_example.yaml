@@ -275,7 +275,7 @@ fission:
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
 
 policyreport:
-  enabled: false  #if true policyreport output is enabled
-  kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcoside is running outside the cluster)
-  failthreshold: 4 #events with priority above this specified integer are mapped to false and lower that those are mapped to warn (default=4)
-  maxevents: 100 #the max number of events that can be in a policyreport(default=10)
+  enabled: false  # if true policyreport output is enabled
+  kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
+  failthreshold: 4 # events with priority above this threshold are mapped to fail in PolicyReport Summary and lower that those are mapped to warn (default=4)
+  maxevents: 100 # the max number of events per report(default=10)
