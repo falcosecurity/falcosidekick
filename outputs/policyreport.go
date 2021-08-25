@@ -26,6 +26,7 @@ type pr struct {
 const (
 	clusterPolicyReportBaseName = "falco-cluster-policy-report"
 	policyReportSource          = "Falco"
+	highpri                     = "high"
 )
 
 var (
@@ -93,7 +94,7 @@ func newResult(FalcoPayload types.FalcoPayload) (c *wgpolicy.PolicyReportResult,
 	}
 	var pri string //initial hardcoded priority bounds
 	if FalcoPayload.Priority > types.PriorityType(failbound) {
-		pri = "high"
+		pri = highpri
 	} else if FalcoPayload.Priority < types.PriorityType(failbound) {
 		pri = "low"
 	} else {
@@ -133,7 +134,7 @@ func repexist(ns string) int {
 
 //update summary for clusterpolicyreport 'report'
 func updateClusterSummary(r *wgpolicy.PolicyReportResult) {
-	if r.Severity == "high" {
+	if r.Severity == highpri {
 		report.Summary.Fail++
 	} else {
 		report.Summary.Warn++
@@ -142,7 +143,7 @@ func updateClusterSummary(r *wgpolicy.PolicyReportResult) {
 
 //update summary for specific policyreport in 'polreports' at index 'n'
 func updatePolicyReportSummary(n int, r *wgpolicy.PolicyReportResult) {
-	if r.Severity == "high" {
+	if r.Severity == highpri {
 		polreports[n].report.Summary.Fail++
 	} else {
 		polreports[n].report.Summary.Warn++
