@@ -170,13 +170,13 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 		polreports = append(polreports, toappend)
 	}
 	policyr := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace)
-	fmt.Println(namespace)
+	// fmt.Println(namespace)
 	updatePolicyReportSummary(n, r)
 	polreports[n].count++
 	if polreports[n].count > c.Config.PolicyReport.MaxEvents {
 		pruningLogicForPolicyReports(n)
 	}
-	polreports[n].report.Results = append(report.Results, r)
+	polreports[n].report.Results = append(polreports[n].report.Results, r)
 	_, getErr := policyr.Get(context.Background(), polreports[n].report.Name, metav1.GetOptions{})
 	if errors.IsNotFound(getErr) {
 		result, err := policyr.Create(context.TODO(), polreports[n].report, metav1.CreateOptions{})
@@ -206,6 +206,7 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 		fmt.Println("[INFO] :updated policy report...")
 	}
 }
+
 func forClusterPolicyReport(c *Client, r *wgpolicy.PolicyReportResult) {
 	updateClusterSummary(r)
 	//clusterpolicyreport to be created
@@ -246,19 +247,20 @@ func forClusterPolicyReport(c *Client, r *wgpolicy.PolicyReportResult) {
 		fmt.Println("[INFO] :updated cluster policy report...")
 	}
 }
+
 func pruningLogicForPolicyReports(n int) {
-	//To do for pruning
-	checklowvalue := checklow(report.Results)
+	//To do for pruning for pruning one of policyreports
+	checklowvalue := checklow(polreports[n].report.Results)
 	if checklowvalue > 0 {
 		polreports[n].report.Results[checklowvalue] = polreports[n].report.Results[0]
 	}
 	polreports[n].report.Results[0] = nil
 	polreports[n].report.Results = polreports[n].report.Results[1:]
 	polreports[n].count = polreports[n].count - 1
-
 }
+
 func pruningLogicForClusterReport() {
-	//To do for pruning
+	//To do for pruning cluster report
 	checklowvalue := checklow(report.Results)
 	if checklowvalue > 0 {
 		report.Results[checklowvalue] = report.Results[0]
