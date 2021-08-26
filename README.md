@@ -51,6 +51,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**Loki**](https://grafana.com/oss/loki)
 - [**AWS CloudWatchLogs**](https://aws.amazon.com/cloudwatch/features/)
 - [**Grafana**](https://grafana.com/) (annotations)
+- **Syslog**
   
 ### Object Storage
 
@@ -425,6 +426,12 @@ yandex:
     # bucket: "falcosidekick" # Yandex storage, bucket name
     # prefix: "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|erro
+
+syslog:
+  # host: "" # Syslog host, if not empty, Syslog output is enabled
+  # port: "" # Syslog endpoint port number
+  # protocol: "" # Syslog transport protocol. It can be either "tcp" or "udp"
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -787,7 +794,10 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **YANDEX_S3_BUCKET**: Yandex storage, bucket name
 - **YANDEX_S3_PREFIX**: name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
 - **YANDEX_S3_MINIMUMPRIORITY**: # minimum priority of event for using this output, order is emergency|alert|critical|erro
-
+- **SYSLOG_HOST**: Syslog Host, if not empty, Syslog output is enabled
+- **SYSLOG_PORT**: Syslog endpoint port number
+- **SYSLOG_PROTOCOL**: Syslog transport protocol. It can be either "tcp" or "udp"
+- **SYSLOG_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "debug")
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
