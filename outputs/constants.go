@@ -39,4 +39,5 @@ const (
 	Kubeless string = "Kubeless"
 	Openfaas string = "OpenFaas"
 	Fission  string = "Fission"
+	Falco    string = "Falco"
 )

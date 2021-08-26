@@ -62,6 +62,7 @@ func getInitStats() *types.Statistics {
 		Fission:           getOutputNewMap("fission"),
 		Grafana:           getOutputNewMap("grafana"),
 		YandexS3:          getOutputNewMap("yandexs3"),
+		Syslog:            getOutputNewMap("Syslog"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)
