@@ -413,7 +413,7 @@ type YandexS3Config struct {
 type SyslogConfig struct {
 	Host            string
 	Port            string
-	Mode            string
+	Protocol        string
 	MinimumPriority string
 }
 

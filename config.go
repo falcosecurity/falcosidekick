@@ -282,7 +282,7 @@ func getConfig() *types.Configuration {
 
 	v.SetDefault("Syslog.Host", "")
 	v.SetDefault("Syslog.Port", "")
-	v.SetDefault("Syslog.Mode", "")
+	v.SetDefault("Syslog.Protocol", "")
 	v.SetDefault("Syslog.MinimumPriority", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
