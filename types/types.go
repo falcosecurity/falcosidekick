@@ -397,11 +397,11 @@ type WebUIOutputConfig struct {
 // PolicyReportConfig represents parameters for policyadapter
 type PolicyReportConfig struct {
 	Enabled         bool
+	PruneByPriority bool
 	Kubeconfig      string
 	MinimumPriority string
 	FailThreshold   int
 	MaxEvents       int
-	PruneByPriority bool
 }
 
 // RabbitmqConfig represents parameters for rabbitmq
