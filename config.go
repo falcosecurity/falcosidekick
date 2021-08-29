@@ -274,6 +274,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("PolicyReport.MinimumPriority", "")
 	v.SetDefault("PolicyReport.FailThreshold", 4)
 	v.SetDefault("PolicyReport.MaxEvents", 10)
+	v.SetDefault("PolicyReport.PruneByPriority", false)
 
 	v.SetDefault("Rabbitmq.URL", "")
 	v.SetDefault("Rabbitmq.Queue", "")

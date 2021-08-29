@@ -174,7 +174,13 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 	updatePolicyReportSummary(n, r)
 	polreports[n].count++
 	if polreports[n].count > c.Config.PolicyReport.MaxEvents {
-		pruningLogicForPolicyReports(n)
+		if c.Config.PolicyReport.PruneByPriority == true {
+			pruningLogicForPolicyReports(n)
+		} else {
+			polreports[n].report.Results[0] = nil
+			polreports[n].report.Results = polreports[n].report.Results[1:]
+			polreports[n].count = polreports[n].count - 1
+		}
 	}
 	polreports[n].report.Results = append(polreports[n].report.Results, r)
 	_, getErr := policyr.Get(context.Background(), polreports[n].report.Name, metav1.GetOptions{})
@@ -215,7 +221,13 @@ func forClusterPolicyReport(c *Client, r *wgpolicy.PolicyReportResult) {
 	repcount++
 	if repcount > c.Config.PolicyReport.MaxEvents {
 		//To do for pruning
-		pruningLogicForClusterReport()
+		if c.Config.PolicyReport.PruneByPriority == true {
+			pruningLogicForClusterReport()
+		} else {
+			report.Results[0] = nil
+			report.Results = report.Results[1:]
+			repcount = repcount - 1
+		}
 	}
 	report.Results = append(report.Results, r)
 	_, getErr := clusterpr.Get(context.Background(), report.Name, metav1.GetOptions{})
