@@ -177,6 +177,11 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 		if c.Config.PolicyReport.PruneByPriority == true {
 			pruningLogicForPolicyReports(n)
 		} else {
+			if polreports[n].report.Results[0].Severity == highpri {
+				summaryDeletion(polreports[n].report, true)
+			} else {
+				summaryDeletion(polreports[n].report, false)
+			}
 			polreports[n].report.Results[0] = nil
 			polreports[n].report.Results = polreports[n].report.Results[1:]
 			polreports[n].count = polreports[n].count - 1
@@ -209,7 +214,7 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 		if retryErr != nil {
 			fmt.Printf("[ERROR] :update failed: %v", retryErr)
 		}
-		fmt.Println("[INFO] :updated policy report...")
+		fmt.Println("[INFO] :updated policy report...", r.Severity)
 	}
 }
 
@@ -224,6 +229,11 @@ func forClusterPolicyReport(c *Client, r *wgpolicy.PolicyReportResult) {
 		if c.Config.PolicyReport.PruneByPriority == true {
 			pruningLogicForClusterReport()
 		} else {
+			if report.Results[0].Severity == highpri {
+				summaryDeletionCluster(report, true)
+			} else {
+				summaryDeletionCluster(report, false)
+			}
 			report.Results[0] = nil
 			report.Results = report.Results[1:]
 			repcount = repcount - 1
@@ -256,7 +266,7 @@ func forClusterPolicyReport(c *Client, r *wgpolicy.PolicyReportResult) {
 		if retryErr != nil {
 			fmt.Printf("[ERROR] :update failed: %v", retryErr)
 		}
-		fmt.Println("[INFO] :updated cluster policy report...")
+		fmt.Println("[INFO] :updated cluster policy report...", r.Severity)
 	}
 }
 
@@ -265,6 +275,11 @@ func pruningLogicForPolicyReports(n int) {
 	checklowvalue := checklow(polreports[n].report.Results)
 	if checklowvalue > 0 {
 		polreports[n].report.Results[checklowvalue] = polreports[n].report.Results[0]
+	}
+	if checklowvalue == -1 {
+		summaryDeletion(polreports[n].report, true)
+	} else {
+		summaryDeletion(polreports[n].report, false)
 	}
 	polreports[n].report.Results[0] = nil
 	polreports[n].report.Results = polreports[n].report.Results[1:]
@@ -277,7 +292,30 @@ func pruningLogicForClusterReport() {
 	if checklowvalue > 0 {
 		report.Results[checklowvalue] = report.Results[0]
 	}
+	if checklowvalue == -1 {
+		summaryDeletionCluster(report, true)
+	} else {
+		summaryDeletionCluster(report, false)
+	}
 	report.Results[0] = nil
 	report.Results = report.Results[1:]
 	repcount = repcount - 1
+}
+
+func summaryDeletionCluster(rep *wgpolicy.ClusterPolicyReport, faildel bool) {
+	if faildel == true {
+		rep.Summary.Fail--
+	} else {
+		rep.Summary.Warn--
+	}
+
+}
+
+func summaryDeletion(rep *wgpolicy.PolicyReport, faildel bool) {
+	if faildel == true {
+		rep.Summary.Fail--
+	} else {
+		rep.Summary.Warn--
+	}
+
 }
