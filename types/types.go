@@ -401,6 +401,7 @@ type PolicyReportConfig struct {
 	MinimumPriority string
 	FailThreshold   int
 	MaxEvents       int
+	PruneByPriority bool
 }
 
 // RabbitmqConfig represents parameters for rabbitmq
