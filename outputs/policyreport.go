@@ -68,13 +68,12 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 		DogstatsdClient: dogstatsdClient,
 		Crdclient:       crdclient,
 	}, nil
-} //KubernetesClient: clientset,
+}
 
 // CreateReport creates PolicyReport/ClusterPolicyReport Resource in Kubernetes
 func (c *Client) CreateReport(falcopayload types.FalcoPayload) {
 	failbound = c.Config.PolicyReport.FailThreshold
 	r, namespaceScoped := newResult(falcopayload)
-
 	if namespaceScoped != "" {
 		forPolicyReports(c, namespaceScoped, r)
 	} else {
@@ -214,7 +213,7 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 		if retryErr != nil {
 			fmt.Printf("[ERROR] :update failed: %v", retryErr)
 		}
-		fmt.Println("[INFO] :updated policy report...", r.Severity)
+		fmt.Println("[INFO] :updated policy report...")
 	}
 }
 
@@ -266,7 +265,7 @@ func forClusterPolicyReport(c *Client, r *wgpolicy.PolicyReportResult) {
 		if retryErr != nil {
 			fmt.Printf("[ERROR] :update failed: %v", retryErr)
 		}
-		fmt.Println("[INFO] :updated cluster policy report...", r.Severity)
+		fmt.Println("[INFO] :updated cluster policy report...")
 	}
 }
 
@@ -308,7 +307,6 @@ func summaryDeletionCluster(rep *wgpolicy.ClusterPolicyReport, faildel bool) {
 	} else {
 		rep.Summary.Warn--
 	}
-
 }
 
 func summaryDeletion(rep *wgpolicy.PolicyReport, faildel bool) {
@@ -317,5 +315,4 @@ func summaryDeletion(rep *wgpolicy.PolicyReport, faildel bool) {
 	} else {
 		rep.Summary.Warn--
 	}
-
 }
