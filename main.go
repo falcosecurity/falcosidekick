@@ -49,6 +49,7 @@ var (
 	fissionClient       *outputs.Client
 	grafanaClient       *outputs.Client
 	yandexClient        *outputs.Client
+	syslogClient        *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -475,6 +476,18 @@ func init() {
 			}
 		}
 	}
+
+	if config.Syslog.Host != "" {
+		var err error
+		syslogClient, err = outputs.NewSyslogClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Syslog.Host = ""
+			log.Printf("[ERROR] : Syslog - %v\n", err)
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Syslog")
+		}
+	}
+
 	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
 
 }
