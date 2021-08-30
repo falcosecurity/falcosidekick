@@ -280,6 +280,11 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Yandex.S3.Prefix", "falco")
 	v.SetDefault("Yamdex.S3.MinimumPriority", "")
 
+	v.SetDefault("Syslog.Host", "")
+	v.SetDefault("Syslog.Port", "")
+	v.SetDefault("Syslog.Mode", "")
+	v.SetDefault("Syslog.MinimumPriority", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -374,6 +379,7 @@ func getConfig() *types.Configuration {
 	c.Rabbitmq.MinimumPriority = checkPriority(c.Rabbitmq.MinimumPriority)
 	c.Wavefront.MinimumPriority = checkPriority(c.Wavefront.MinimumPriority)
 	c.Yandex.S3.MinimumPriority = checkPriority(c.Yandex.S3.MinimumPriority)
+	c.Syslog.MinimumPriority = checkPriority(c.Syslog.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

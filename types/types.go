@@ -58,6 +58,7 @@ type Configuration struct {
 	Fission            fissionConfig
 	Grafana            grafanaOutputConfig
 	Yandex             YandexOutputConfig
+	Syslog             SyslogConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -409,6 +410,13 @@ type YandexS3Config struct {
 	MinimumPriority string
 }
 
+type SyslogConfig struct {
+	Host            string
+	Port            string
+	Mode            string
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -455,6 +463,7 @@ type Statistics struct {
 	Fission           *expvar.Map
 	Grafana           *expvar.Map
 	YandexS3          *expvar.Map
+	Syslog            *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
