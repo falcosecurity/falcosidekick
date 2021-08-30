@@ -44,7 +44,7 @@ func (c *Client) SyslogPost(falcopayload types.FalcoPayload) {
 		priority = syslog.LOG_DEBUG
 	}
 
-	sysLog, err := syslog.Dial(c.Config.Syslog.Mode, endpoint, priority, Falco)
+	sysLog, err := syslog.Dial(c.Config.Syslog.Protocol, endpoint, priority, Falco)
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:syslog", "status:error"})
 		c.Stats.Syslog.Add(Error, 1)
