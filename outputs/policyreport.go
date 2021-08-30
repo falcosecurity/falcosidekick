@@ -34,7 +34,7 @@ var (
 	//count for cluster policy report
 	repcount int
 	//slice of policyreports and their counts(type pr)
-	polreports []pr
+	polreports = make(map[string]*pr)
 	//for cluster policyreport
 	report *wgpolicy.ClusterPolicyReport = &wgpolicy.ClusterPolicyReport{
 		ObjectMeta: metav1.ObjectMeta{
@@ -122,13 +122,9 @@ func checklow(result []*wgpolicy.PolicyReportResult) (swapint int) {
 }
 
 //check if policy report exists
-func repexist(ns string) int {
-	for i, j := range polreports {
-		if j.report.ObjectMeta.Name == ns {
-			return i
-		}
-	}
-	return len(polreports)
+func repexist(ns string) bool {
+	_, ok := polreports[ns]
+	return ok
 }
 
 //update summary for clusterpolicyreport 'report'
@@ -141,11 +137,11 @@ func updateClusterSummary(r *wgpolicy.PolicyReportResult) {
 }
 
 //update summary for specific policyreport in 'polreports' at index 'n'
-func updatePolicyReportSummary(n int, r *wgpolicy.PolicyReportResult) {
+func updatePolicyReportSummary(rep *wgpolicy.PolicyReport, r *wgpolicy.PolicyReportResult) {
 	if r.Severity == highpri {
-		polreports[n].report.Summary.Fail++
+		rep.Summary.Fail++
 	} else {
-		polreports[n].report.Summary.Warn++
+		rep.Summary.Warn++
 	}
 }
 
@@ -154,8 +150,8 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 	//find if the specific namespace report exists and assign its index to n
 	n := repexist(repname)
 	//policyreport to be created
-	if n == len(polreports) {
-		//n == len(slice) ; report doesnt exist so we append a new report to the slice
+	if n == false {
+		//n false ; report doesnt exist so we append a new report to the slice
 		var polreport *wgpolicy.PolicyReport = &wgpolicy.PolicyReport{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: repname,
@@ -166,30 +162,30 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 			},
 		}
 		toappend := pr{report: polreport, count: 0}
-		polreports = append(polreports, toappend)
+		polreports[repname] = &toappend
 	}
 	policyr := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace)
 	// fmt.Println(namespace)
-	updatePolicyReportSummary(n, r)
-	polreports[n].count++
-	if polreports[n].count > c.Config.PolicyReport.MaxEvents {
+	updatePolicyReportSummary(polreports[repname].report, r)
+	polreports[repname].count++
+	if polreports[repname].count > c.Config.PolicyReport.MaxEvents {
 		if c.Config.PolicyReport.PruneByPriority == true {
-			pruningLogicForPolicyReports(n)
+			pruningLogicForPolicyReports(repname)
 		} else {
-			if polreports[n].report.Results[0].Severity == highpri {
-				summaryDeletion(polreports[n].report, true)
+			if polreports[repname].report.Results[0].Severity == highpri {
+				summaryDeletion(polreports[repname].report, true)
 			} else {
-				summaryDeletion(polreports[n].report, false)
+				summaryDeletion(polreports[repname].report, false)
 			}
-			polreports[n].report.Results[0] = nil
-			polreports[n].report.Results = polreports[n].report.Results[1:]
-			polreports[n].count = polreports[n].count - 1
+			polreports[repname].report.Results[0] = nil
+			polreports[repname].report.Results = polreports[repname].report.Results[1:]
+			polreports[repname].count = polreports[repname].count - 1
 		}
 	}
-	polreports[n].report.Results = append(polreports[n].report.Results, r)
-	_, getErr := policyr.Get(context.Background(), polreports[n].report.Name, metav1.GetOptions{})
+	polreports[repname].report.Results = append(polreports[repname].report.Results, r)
+	_, getErr := policyr.Get(context.Background(), polreports[repname].report.Name, metav1.GetOptions{})
 	if errors.IsNotFound(getErr) {
-		result, err := policyr.Create(context.TODO(), polreports[n].report, metav1.CreateOptions{})
+		result, err := policyr.Create(context.TODO(), polreports[repname].report, metav1.CreateOptions{})
 		if err != nil {
 			log.Printf("[ERROR] : %v\n", err)
 		}
@@ -197,23 +193,23 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 	} else {
 		// Update existing Policy Report
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			result, err := policyr.Get(context.Background(), polreports[n].report.GetName(), metav1.GetOptions{})
+			result, err := policyr.Get(context.Background(), polreports[repname].report.GetName(), metav1.GetOptions{})
 			if errors.IsNotFound(err) {
 				// This doesnt ever happen even if it is already deleted or not found
-				log.Printf("[ERROR] :%v not found", polreports[n].report.GetName())
+				log.Printf("[ERROR] :%v not found", polreports[repname].report.GetName())
 				return nil
 			}
 			if err != nil {
 				return err
 			}
-			polreports[n].report.SetResourceVersion(result.GetResourceVersion())
-			_, updateErr := policyr.Update(context.Background(), polreports[n].report, metav1.UpdateOptions{})
+			polreports[repname].report.SetResourceVersion(result.GetResourceVersion())
+			_, updateErr := policyr.Update(context.Background(), polreports[repname].report, metav1.UpdateOptions{})
 			return updateErr
 		})
 		if retryErr != nil {
 			fmt.Printf("[ERROR] :update failed: %v", retryErr)
 		}
-		fmt.Println("[INFO] :updated policy report...")
+		fmt.Println("[INFO] :updated policy report...", r.Severity)
 	}
 }
 
@@ -265,24 +261,24 @@ func forClusterPolicyReport(c *Client, r *wgpolicy.PolicyReportResult) {
 		if retryErr != nil {
 			fmt.Printf("[ERROR] :update failed: %v", retryErr)
 		}
-		fmt.Println("[INFO] :updated cluster policy report...")
+		fmt.Println("[INFO] :updated cluster policy report...", r.Severity)
 	}
 }
 
-func pruningLogicForPolicyReports(n int) {
+func pruningLogicForPolicyReports(repname string) {
 	//To do for pruning for pruning one of policyreports
-	checklowvalue := checklow(polreports[n].report.Results)
+	checklowvalue := checklow(polreports[repname].report.Results)
 	if checklowvalue > 0 {
-		polreports[n].report.Results[checklowvalue] = polreports[n].report.Results[0]
+		polreports[repname].report.Results[checklowvalue] = polreports[repname].report.Results[0]
 	}
 	if checklowvalue == -1 {
-		summaryDeletion(polreports[n].report, true)
+		summaryDeletion(polreports[repname].report, true)
 	} else {
-		summaryDeletion(polreports[n].report, false)
+		summaryDeletion(polreports[repname].report, false)
 	}
-	polreports[n].report.Results[0] = nil
-	polreports[n].report.Results = polreports[n].report.Results[1:]
-	polreports[n].count = polreports[n].count - 1
+	polreports[repname].report.Results[0] = nil
+	polreports[repname].report.Results = polreports[repname].report.Results[1:]
+	polreports[repname].count = polreports[repname].count - 1
 }
 
 func pruningLogicForClusterReport() {
