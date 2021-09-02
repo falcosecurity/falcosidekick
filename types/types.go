@@ -410,6 +410,10 @@ type YandexS3Config struct {
 	MinimumPriority string
 }
 
+// SyslogConfig represents config parameters for the syslog client
+// Host: the remote syslog host. It can be either an IP address or a domain.
+// Port: the remote port address. Ex: 514.
+// Protocol: the type of transfer protocol to use. It should be either "tcp" or "udp".
 type SyslogConfig struct {
 	Host            string
 	Port            string
