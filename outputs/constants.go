@@ -40,4 +40,7 @@ const (
 	Openfaas string = "OpenFaas"
 	Fission  string = "Fission"
 	Falco    string = "Falco"
+
+	UDP string = "udp"
+	TCP string = "tcp"
 )
