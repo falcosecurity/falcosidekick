@@ -10,6 +10,11 @@ import (
 )
 
 func NewSyslogClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	ok := validateProtocol(config.Syslog.Protocol)
+	if !ok {
+		return nil, fmt.Errorf("failed to configure Syslog client: invalid protocol %s", config.Syslog.Protocol)
+	}
+
 	return &Client{
 		OutputType:      "Syslog",
 		Config:          config,
@@ -18,6 +23,10 @@ func NewSyslogClient(config *types.Configuration, stats *types.Statistics, promS
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
+}
+
+func validateProtocol(protocol string) bool {
+	return protocol == TCP || protocol == UDP
 }
 
 func (c *Client) SyslogPost(falcopayload types.FalcoPayload) {
