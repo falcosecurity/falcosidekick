@@ -399,7 +399,6 @@ type PolicyReportConfig struct {
 	Enabled         bool
 	PruneByPriority bool
 	Kubeconfig      string
-	MinimumPriority string
 	FailThreshold   int
 	MaxEvents       int
 }
