@@ -60,7 +60,7 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 	if err != nil {
 		return nil, err
 	}
-	report.ObjectMeta.Name += uuid.NewString()
+	report.ObjectMeta.Name += uuid.NewString()[:8]
 	return &Client{
 		OutputType:      "PolicyReport",
 		Config:          config,
@@ -103,6 +103,7 @@ func newResult(FalcoPayload types.FalcoPayload) (c *wgpolicy.PolicyReportResult,
 	}
 	return &wgpolicy.PolicyReportResult{
 		Policy:      FalcoPayload.Rule,
+		Category:    "SI - System and Information Integrity",
 		Source:      policyReportSource,
 		Scored:      false,
 		Timestamp:   metav1.Timestamp{Seconds: int64(FalcoPayload.Time.Second()), Nanos: int32(FalcoPayload.Time.Nanosecond())},
@@ -155,7 +156,7 @@ func forPolicyReports(c *Client, namespace string, r *wgpolicy.PolicyReportResul
 		//n false ; report doesnt exist so we append a new report to the slice
 		var polreport *wgpolicy.PolicyReport = &wgpolicy.PolicyReport{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "falcoreport-" + uuid.NewString(),
+				Name: "falcoreport-" + uuid.NewString()[:8],
 			},
 			Summary: v1alpha2.PolicyReportSummary{
 				Fail: 0,
