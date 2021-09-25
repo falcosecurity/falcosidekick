@@ -394,7 +394,7 @@ type WebUIOutputConfig struct {
 	MutualTLS bool
 }
 
-// PolicyReportConfig represents parameters for policyadapter
+// PolicyReportConfig represents parameters for policyreport
 type PolicyReportConfig struct {
 	Enabled         bool
 	PruneByPriority bool

@@ -91,7 +91,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
 
 ### Other
-- [**Policy Report**](https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report) (enable to get a policy report for all events received by falcosidekick)
+- [**Policy Report**](https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report/falco-adapter)
 
 ## Usage
 
@@ -433,8 +433,8 @@ policyreport:
   enabled: false  # if true; policyreport output is enabled
   kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
  failthreshold: 4 # events with a priority above this threshold are mapped to fail in PolicyReport Summary and lower that those are mapped to warn (default=4)
-  maxevents: 10 # the max number of events that can be in a policyreport (default=10)
-  prunebypriority : false # decides the pruning order of reports i.e. if set to true prunes the report by deleting the low severity events first in FIFO order
+  maxevents: 1000 # the max number of events that can be in a policyreport (default=10)
+  prunebypriority : false # if true; the events with lowest severity are pruned first, in FIFO order
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
@@ -841,8 +841,9 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **POLICYREPORT_ENABLED**: if true policyreport output is enabled (default: `false`)
 - **POLICYREPORT_KUBECONFIG**: Kubeconfig file to use (only if falcosidekick is running outside the cluster)
 - **POLICYREPORT_FAILTHRESHOLD**: events with priority above this threshold are mapped to fail in PolicyReport summary and lower that those are mapped to warn (default=4)
-- **POLICYREPORT_MAXEVENTS**: the max number of events that can be per report (default=10)
-- **POLICYREPORT_PRUNEBYPRIORITY**: if set to true prunes the report by deleting the low severity events first in FIFO order(default=false)
+- **POLICYREPORT_MAXEVENTS**: the max number of events that can be per report (default=1000)
+- **POLICYREPORT_PRUNEBYPRIORITY**: if true; the events with lowest severity are pruned first, in FIFO order(default=false)
+
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML
