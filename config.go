@@ -272,7 +272,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("PolicyReport.Enabled", false)
 	v.SetDefault("PolicyReport.Kubeconfig", "")
 	v.SetDefault("PolicyReport.FailThreshold", 4)
-	v.SetDefault("PolicyReport.MaxEvents", 10)
+	v.SetDefault("PolicyReport.MaxEvents", 1000)
 	v.SetDefault("PolicyReport.PruneByPriority", false)
 
 	v.SetDefault("Rabbitmq.URL", "")
