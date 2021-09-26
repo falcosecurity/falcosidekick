@@ -49,17 +49,6 @@ var (
 			Warn: 0,
 		},
 	}
-	stringToIntForPriority = map[string]int{
-		"emergency":     8,
-		"alert":         7,
-		"critical":      6,
-		"error":         5,
-		"warning":       4,
-		"notice":        3,
-		"informational": 2,
-		"debug":         1,
-		"":              0,
-	}
 )
 
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
@@ -108,10 +97,9 @@ func newResult(FalcoPayload types.FalcoPayload) (c *wgpolicy.PolicyReportResult,
 		}
 		properties[property] = fmt.Sprintf("%v", value)
 	}
-	fmt.Println(minimumPriority)
-	if FalcoPayload.Priority > types.PriorityType(stringToIntForPriority[minimumPriority]) {
+	if FalcoPayload.Priority > types.Priority(minimumPriority) {
 		severity = highpriority
-	} else if FalcoPayload.Priority < types.PriorityType(stringToIntForPriority[minimumPriority]) {
+	} else if FalcoPayload.Priority < types.Priority(minimumPriority) {
 		severity = lowpriority
 	} else {
 		severity = mediumpriority
@@ -279,7 +267,7 @@ func forClusterPolicyReport(c *Client, alert *wgpolicy.PolicyReportResult) {
 		if retryErr != nil {
 			log.Printf("[ERROR] : PolicyReport - Update has failed: %v", retryErr)
 		}
-		log.Printf("[INFO] : PolicyReport - Cluster policy report has been updated", alert.Severity)
+		log.Printf("[INFO] : PolicyReport - Cluster policy report has been updated")
 
 	}
 }
