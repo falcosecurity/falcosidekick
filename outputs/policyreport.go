@@ -77,6 +77,7 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 func (c *Client) CreateReport(falcopayload types.FalcoPayload) {
 	alert, namespaceScoped := newResult(falcopayload)
 	if namespaceScoped != "" {
+		// case where the alert is namespace specific
 		forPolicyReports(c, namespaceScoped, alert)
 	} else {
 		forClusterPolicyReport(c, alert)
@@ -85,13 +86,13 @@ func (c *Client) CreateReport(falcopayload types.FalcoPayload) {
 
 //newResult creates a new entry for Reports
 func newResult(FalcoPayload types.FalcoPayload) (c *wgpolicy.PolicyReportResult, namespaceScoped string) {
-	var m = make(map[string]string)
-	for index, element := range FalcoPayload.OutputFields {
-		if index == "ka.target.namespace" || index == "k8s.ns.name" {
-			namespaceScoped = fmt.Sprintf("%v", element) // not empty for policy reports
+	var properties = make(map[string]string)
+	for property, value := range FalcoPayload.OutputFields {
+		if property == "ka.target.namespace" || property == "k8s.ns.name" {
+			namespaceScoped = fmt.Sprintf("%v", value) // not empty for policy reports
 
 		}
-		m[index] = fmt.Sprintf("%v", element)
+		properties[property] = fmt.Sprintf("%v", value)
 	}
 	var pri string //initial hardcoded priority bounds
 	if FalcoPayload.Priority > types.PriorityType(failThreshold) {
@@ -110,7 +111,7 @@ func newResult(FalcoPayload types.FalcoPayload) (c *wgpolicy.PolicyReportResult,
 		Severity:    v1alpha2.PolicyResultSeverity(pri),
 		Result:      "fail",
 		Description: FalcoPayload.Output,
-		Properties:  m,
+		Properties:  properties,
 	}, namespaceScoped
 }
 
@@ -125,8 +126,8 @@ func checklow(result []*wgpolicy.PolicyReportResult) (swapint int) {
 }
 
 //check if policy report exists
-func repexist(ns string) bool {
-	_, ok := polreports[ns]
+func repexist(namespace string) bool {
+	_, ok := polreports[namespace]
 	return ok
 }
 
@@ -150,9 +151,9 @@ func updatePolicyReportSummary(rep *wgpolicy.PolicyReport, alert *wgpolicy.Polic
 
 func forPolicyReports(c *Client, namespace string, alert *wgpolicy.PolicyReportResult) {
 	//find if the specific namespace report exists and assign its index to n
-	n := repexist(namespace)
+	isNamespaceReportPresent := repexist(namespace)
 	//policyreport to be created
-	if n == false {
+	if isNamespaceReportPresent == false {
 		//n false ; report doesnt exist so we append a new report to the slice
 		var polreport *wgpolicy.PolicyReport = &wgpolicy.PolicyReport{
 			ObjectMeta: metav1.ObjectMeta{
@@ -269,20 +270,20 @@ func forClusterPolicyReport(c *Client, alert *wgpolicy.PolicyReportResult) {
 	}
 }
 
-func pruningLogicForPolicyReports(ns string) {
+func pruningLogicForPolicyReports(namespace string) {
 	//To do for pruning for pruning one of policyreports
-	checklowvalue := checklow(polreports[ns].report.Results)
+	checklowvalue := checklow(polreports[namespace].report.Results)
 	if checklowvalue > 0 {
-		polreports[ns].report.Results[checklowvalue] = polreports[ns].report.Results[0]
+		polreports[namespace].report.Results[checklowvalue] = polreports[namespace].report.Results[0]
 	}
 	if checklowvalue == -1 {
-		summaryDeletion(polreports[ns].report, true)
+		summaryDeletion(polreports[namespace].report, true)
 	} else {
-		summaryDeletion(polreports[ns].report, false)
+		summaryDeletion(polreports[namespace].report, false)
 	}
-	polreports[ns].report.Results[0] = nil
-	polreports[ns].report.Results = polreports[ns].report.Results[1:]
-	polreports[ns].count = polreports[ns].count - 1
+	polreports[namespace].report.Results[0] = nil
+	polreports[namespace].report.Results = polreports[namespace].report.Results[1:]
+	polreports[namespace].count = polreports[namespace].count - 1
 }
 
 func pruningLogicForClusterReport() {
@@ -301,16 +302,16 @@ func pruningLogicForClusterReport() {
 	repcount = repcount - 1
 }
 
-func summaryDeletionCluster(rep *wgpolicy.ClusterPolicyReport, faildel bool) {
-	if faildel == true {
+func summaryDeletionCluster(rep *wgpolicy.ClusterPolicyReport, deleteFailAlert bool) {
+	if deleteFailAlert == true {
 		rep.Summary.Fail--
 	} else {
 		rep.Summary.Warn--
 	}
 }
 
-func summaryDeletion(rep *wgpolicy.PolicyReport, faildel bool) {
-	if faildel == true {
+func summaryDeletion(rep *wgpolicy.PolicyReport, deleteFailAlert bool) {
+	if deleteFailAlert == true {
 		rep.Summary.Fail--
 	} else {
 		rep.Summary.Warn--
