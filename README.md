@@ -432,7 +432,7 @@ grafana:
 policyreport:
   enabled: false  # if true; policyreport output is enabled
   kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
- failthreshold: 4 # events with a priority above this threshold are mapped to fail in PolicyReport Summary and lower that those are mapped to warn (default=4)
+  minimumpriority: "debug" # events with a priority above this are mapped to fail in PolicyReport Summary and lower that those are mapped to warn (default="")
   maxevents: 1000 # the max number of events that can be in a policyreport (default=10)
   prunebypriority : false # if true; the events with lowest severity are pruned first, in FIFO order
 
@@ -840,7 +840,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 
 - **POLICYREPORT_ENABLED**: if true policyreport output is enabled (default: `false`)
 - **POLICYREPORT_KUBECONFIG**: Kubeconfig file to use (only if falcosidekick is running outside the cluster)
-- **POLICYREPORT_FAILTHRESHOLD**: events with priority above this threshold are mapped to fail in PolicyReport summary and lower that those are mapped to warn (default=4)
+- **POLICYREPORT_MINIMUMPRIORITY**: events with priority above this are mapped to fail in PolicyReport summary and lower that those are mapped to warn 
 - **POLICYREPORT_MAXEVENTS**: the max number of events that can be per report (default=1000)
 - **POLICYREPORT_PRUNEBYPRIORITY**: if true; the events with lowest severity are pruned first, in FIFO order(default=false)
 
