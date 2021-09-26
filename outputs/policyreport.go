@@ -28,10 +28,13 @@ const (
 	clusterPolicyReportBaseName = "falco-cluster-policy-report-"
 	policyReportSource          = "Falco"
 	highpriority                = "high"
+	lowpriority                 = "low"
+	mediumpriority              = "medium"
 )
 
 var (
-	failThreshold int
+	minimumPriority string
+	severity        string
 	//count for cluster policy report
 	repcount int
 	//slice of policyreports and their counts(type pr)
@@ -45,6 +48,17 @@ var (
 			Fail: 0,
 			Warn: 0,
 		},
+	}
+	stringToIntForPriority = map[string]int{
+		"emergency":     8,
+		"alert":         7,
+		"critical":      6,
+		"error":         5,
+		"warning":       4,
+		"notice":        3,
+		"informational": 2,
+		"debug":         1,
+		"":              0,
 	}
 )
 
@@ -61,7 +75,7 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 		return nil, err
 	}
 	report.ObjectMeta.Name += uuid.NewString()[:8]
-	failThreshold = config.PolicyReport.FailThreshold
+	minimumPriority = config.PolicyReport.MinimumPriority
 	return &Client{
 		OutputType:      "PolicyReport",
 		Config:          config,
@@ -94,13 +108,13 @@ func newResult(FalcoPayload types.FalcoPayload) (c *wgpolicy.PolicyReportResult,
 		}
 		properties[property] = fmt.Sprintf("%v", value)
 	}
-	var pri string //initial hardcoded priority bounds
-	if FalcoPayload.Priority > types.PriorityType(failThreshold) {
-		pri = highpriority
-	} else if FalcoPayload.Priority < types.PriorityType(failThreshold) {
-		pri = "low"
+	fmt.Println(minimumPriority)
+	if FalcoPayload.Priority > types.PriorityType(stringToIntForPriority[minimumPriority]) {
+		severity = highpriority
+	} else if FalcoPayload.Priority < types.PriorityType(stringToIntForPriority[minimumPriority]) {
+		severity = lowpriority
 	} else {
-		pri = "medium"
+		severity = mediumpriority
 	}
 	return &wgpolicy.PolicyReportResult{
 		Policy:      FalcoPayload.Rule,
@@ -108,7 +122,7 @@ func newResult(FalcoPayload types.FalcoPayload) (c *wgpolicy.PolicyReportResult,
 		Source:      policyReportSource,
 		Scored:      false,
 		Timestamp:   metav1.Timestamp{Seconds: int64(FalcoPayload.Time.Second()), Nanos: int32(FalcoPayload.Time.Nanosecond())},
-		Severity:    v1alpha2.PolicyResultSeverity(pri),
+		Severity:    v1alpha2.PolicyResultSeverity(severity),
 		Result:      "fail",
 		Description: FalcoPayload.Output,
 		Properties:  properties,
@@ -118,7 +132,7 @@ func newResult(FalcoPayload types.FalcoPayload) (c *wgpolicy.PolicyReportResult,
 //check for low priority events to delete first
 func checklow(result []*wgpolicy.PolicyReportResult) (swapint int) {
 	for i, j := range result {
-		if j.Severity == "medium" || j.Severity == "low" {
+		if j.Severity == mediumpriority || j.Severity == lowpriority {
 			return i
 		}
 	}
@@ -265,7 +279,7 @@ func forClusterPolicyReport(c *Client, alert *wgpolicy.PolicyReportResult) {
 		if retryErr != nil {
 			log.Printf("[ERROR] : PolicyReport - Update has failed: %v", retryErr)
 		}
-		log.Printf("[INFO] : PolicyReport - Cluster policy report has been updated")
+		log.Printf("[INFO] : PolicyReport - Cluster policy report has been updated", alert.Severity)
 
 	}
 }
