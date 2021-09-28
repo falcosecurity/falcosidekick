@@ -270,7 +270,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	}
 	if config.PolicyReport.Enabled == true {
 
-		go policyReportClient.CreateReport(falcopayload)
+		go policyReportClient.UpdateOrCreatePolicyReport(falcopayload)
 	}
 
 	if config.Yandex.S3.Bucket != "" && (falcopayload.Priority >= types.Priority(config.Yandex.S3.MinimumPriority) || falcopayload.Rule == testRule) {
