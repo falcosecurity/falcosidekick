@@ -64,6 +64,7 @@ func getInitStats() *types.Statistics {
 		Grafana:           getOutputNewMap("grafana"),
 		YandexS3:          getOutputNewMap("yandexs3"),
 		Syslog:            getOutputNewMap("syslog"),
+		PolicyReport:      getOutputNewMap("policyreport"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

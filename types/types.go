@@ -494,6 +494,7 @@ type Statistics struct {
 	YandexS3          *expvar.Map
 	Syslog            *expvar.Map
 	Cliq              *expvar.Map
+	PolicyReport      *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
