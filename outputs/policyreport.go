@@ -155,7 +155,7 @@ func updatePolicyReportSummary(rep *wgpolicy.PolicyReport, event *wgpolicy.Polic
 
 func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyReportResult) error {
 	//policyReport to be created
-	if policyReports[namespace] != nil {
+	if policyReports[namespace] == nil {
 		//n false ; report doesnt exist so we append a new report to the slice
 		policyReports[namespace] = &wgpolicy.PolicyReport{
 			ObjectMeta: metav1.ObjectMeta{
