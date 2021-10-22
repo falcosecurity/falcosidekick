@@ -75,6 +75,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**STAN (NATS Streaming)**](https://docs.nats.io/nats-streaming-concepts/intro)
 - [**AWS SQS**](https://aws.amazon.com/sqs/features/)
 - [**AWS SNS**](https://aws.amazon.com/sns/features/)
+- [**AWS Kinesis**](https://aws.amazon.com/kinesis/)
 - [**GCP PubSub**](https://cloud.google.com/pubsub)
 - [**Apache Kafka**](https://kafka.apache.org/)
 - [**Kafka Rest Proxy**](https://docs.confluent.io/platform/current/kafka-rest/index.html)
@@ -285,6 +286,9 @@ aws:
   s3:
     # bucket: "falcosidekick" # AWS S3, bucket name
     # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  kinesis:
+    # streamname: "" # AWS Kinesis Stream Name, if not empty, Kinesis output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 smtp:
@@ -656,6 +660,10 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **AWS_S3_PREFIX** : Prefix name of the object, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
 - **AWS_S3_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
+- **AWS_KINESIS_STREAMNAME** : AWS Kinesis Stream Name, if not empty, Kinesis output is enabled
+- **AWS_KINESIS_MINIMUMPRIORITY** : minimum priority of event for using
+  this output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **SMTP_HOSTPORT** : "host:port" address of SMTP server, if not empty, SMTP
   output is _enabled_
 - **SMTP_USER** : user to access SMTP server
