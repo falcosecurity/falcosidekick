@@ -18,11 +18,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/google/uuid"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -344,4 +346,32 @@ func (c *Client) putLogEvents(svc *cloudwatchlogs.CloudWatchLogs, input *cloudwa
 	}
 
 	return resp, nil
+}
+
+// PutRecord puts a record in Kinesis
+func (c *Client) PutRecord(falcoPayLoad types.FalcoPayload) {
+	svc := kinesis.New(c.AWSSession)
+
+	c.Stats.AWSKinesis.Add(Total, 1)
+
+	f, _ := json.Marshal(falcoPayLoad)
+	input := &kinesis.PutRecordInput{
+		Data:         f,
+		PartitionKey: aws.String(uuid.NewString()),
+		StreamName:   aws.String(c.Config.AWS.Kinesis.StreamName),
+	}
+
+	resp, err := svc.PutRecord(input)
+	if err != nil {
+		go c.CountMetric("outputs", 1, []string{"output:awskinesis", "status:error"})
+		c.Stats.AWSKinesis.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "awskinesis", "status": Error}).Inc()
+		log.Printf("[ERROR] : %v Kinesis - %v\n", c.OutputType, err.Error())
+		return
+	}
+
+	log.Printf("[INFO] : %v Kinesis - Put Record OK (%v)\n", c.OutputType, resp.SequenceNumber)
+	go c.CountMetric("outputs", 1, []string{"output:awskinesis", "status:ok"})
+	c.Stats.AWSKinesis.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "awskinesis", "status": "ok"}).Inc()
 }

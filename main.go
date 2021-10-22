@@ -241,7 +241,8 @@ func init() {
 	}
 
 	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" ||
-		config.AWS.SNS.TopicArn != "" || config.AWS.CloudWatchLogs.LogGroup != "" || config.AWS.S3.Bucket != "" {
+		config.AWS.SNS.TopicArn != "" || config.AWS.CloudWatchLogs.LogGroup != "" || config.AWS.S3.Bucket != "" ||
+		config.AWS.Kinesis.StreamName != "" {
 		var err error
 		awsClient, err = outputs.NewAWSClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
@@ -254,6 +255,7 @@ func init() {
 			config.AWS.SNS.TopicArn = ""
 			config.AWS.CloudWatchLogs.LogGroup = ""
 			config.AWS.CloudWatchLogs.LogStream = ""
+			config.AWS.Kinesis.StreamName = ""
 		} else {
 			if config.AWS.Lambda.FunctionName != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSLambda")
@@ -269,6 +271,9 @@ func init() {
 			}
 			if config.AWS.S3.Bucket != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSS3")
+			}
+			if config.AWS.Kinesis.StreamName != "" {
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSKinesis")
 			}
 		}
 	}

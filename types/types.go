@@ -219,6 +219,7 @@ type awsOutputConfig struct {
 	SNS             awsSNSConfig
 	S3              awsS3Config
 	CloudWatchLogs  awsCloudWatchLogs
+	Kinesis         awsKinesisConfig
 }
 
 type awsLambdaConfig struct {
@@ -249,6 +250,10 @@ type awsS3Config struct {
 	Prefix          string
 	Bucket          string
 	MinimumPriority string
+}
+
+type awsKinesisConfig struct {
+	StreamName string
 }
 
 type smtpOutputConfig struct {
@@ -471,6 +476,7 @@ type Statistics struct {
 	AWSSNS            *expvar.Map
 	AWSCloudWatchLogs *expvar.Map
 	AWSS3             *expvar.Map
+	AWSKinesis        *expvar.Map
 	SMTP              *expvar.Map
 	Opsgenie          *expvar.Map
 	Statsd            *expvar.Map
