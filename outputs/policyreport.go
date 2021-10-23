@@ -30,6 +30,7 @@ const (
 var (
 	minimumPriority string
 	severity        string
+	result          string
 	//slice of policy reports
 	policyReports = make(map[string]*wgpolicy.PolicyReport)
 	//cluster policy report
@@ -106,10 +107,13 @@ func newResult(FalcoPayload types.FalcoPayload) (_ *wgpolicy.PolicyReportResult,
 	}
 	if FalcoPayload.Priority > types.Priority(minimumPriority) {
 		severity = highpriority
+		result = "fail"
 	} else if FalcoPayload.Priority < types.Priority(minimumPriority) {
 		severity = lowpriority
+		result = "warn"
 	} else {
 		severity = mediumpriority
+		result = "warn"
 	}
 
 	return &wgpolicy.PolicyReportResult{
@@ -119,7 +123,7 @@ func newResult(FalcoPayload types.FalcoPayload) (_ *wgpolicy.PolicyReportResult,
 		Scored:      false,
 		Timestamp:   metav1.Timestamp{Seconds: int64(FalcoPayload.Time.Second()), Nanos: int32(FalcoPayload.Time.Nanosecond())},
 		Severity:    v1alpha2.PolicyResultSeverity(severity),
-		Result:      "fail",
+		Result:      v1alpha2.PolicyResult(result),
 		Description: FalcoPayload.Output,
 		Properties:  properties,
 	}, namespace
@@ -156,7 +160,6 @@ func updatePolicyReportSummary(rep *wgpolicy.PolicyReport, event *wgpolicy.Polic
 func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyReportResult) error {
 	//policyReport to be created
 	if policyReports[namespace] == nil {
-		//n false ; report doesnt exist so we append a new report to the slice
 		policyReports[namespace] = &wgpolicy.PolicyReport{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: policyReportBaseName + uuid.NewString()[:8],
@@ -170,7 +173,7 @@ func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyRepo
 
 	policyr := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace)
 	updatePolicyReportSummary(policyReports[namespace], event)
-	if len(policyReports[namespace].Results) > c.Config.PolicyReport.MaxEvents {
+	if len(policyReports[namespace].Results) == c.Config.PolicyReport.MaxEvents {
 		if c.Config.PolicyReport.PruneByPriority == true {
 			pruningLogicForPolicyReports(namespace)
 		} else {
@@ -223,8 +226,7 @@ func updateClusterPolicyReport(c *Client, event *wgpolicy.PolicyReportResult) er
 	//clusterpolicyreport to be created
 	clusterpr := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports()
 
-	if len(clusterPolicyReport.Results) > c.Config.PolicyReport.MaxEvents {
-		//To do for pruning
+	if len(clusterPolicyReport.Results) == c.Config.PolicyReport.MaxEvents {
 		if c.Config.PolicyReport.PruneByPriority == true {
 			pruningLogicForClusterPolicyReport()
 		} else {
