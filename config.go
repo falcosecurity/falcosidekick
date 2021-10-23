@@ -144,6 +144,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.S3.Prefix", "falco")
 	v.SetDefault("AWS.S3.MinimumPriority", "")
 
+	v.SetDefault("AWS.Kinesis.StreamName", "")
+	v.SetDefault("AWS.Kinesis.MinimumPriority", "")
+
 	v.SetDefault("SMTP.HostPort", "")
 	v.SetDefault("SMTP.User", "")
 	v.SetDefault("SMTP.Password", "")
@@ -388,6 +391,7 @@ func getConfig() *types.Configuration {
 	c.AWS.SNS.MinimumPriority = checkPriority(c.AWS.SNS.MinimumPriority)
 	c.AWS.S3.MinimumPriority = checkPriority(c.AWS.S3.MinimumPriority)
 	c.AWS.CloudWatchLogs.MinimumPriority = checkPriority(c.AWS.CloudWatchLogs.MinimumPriority)
+	c.AWS.Kinesis.MinimumPriority = checkPriority(c.AWS.Kinesis.MinimumPriority)
 	c.Opsgenie.MinimumPriority = checkPriority(c.Opsgenie.MinimumPriority)
 	c.Webhook.MinimumPriority = checkPriority(c.Webhook.MinimumPriority)
 	c.CloudEvents.MinimumPriority = checkPriority(c.CloudEvents.MinimumPriority)
