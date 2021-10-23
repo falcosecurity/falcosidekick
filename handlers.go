@@ -185,6 +185,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go awsClient.UploadS3(falcopayload)
 	}
 
+	if config.AWS.Kinesis.StreamName != "" && (falcopayload.Priority >= types.Priority(config.AWS.Kinesis.MinimumPriority) || falcopayload.Rule == testRule) {
+		go awsClient.PutRecord(falcopayload)
+	}
+
 	if config.SMTP.HostPort != "" && (falcopayload.Priority >= types.Priority(config.SMTP.MinimumPriority) || falcopayload.Rule == testRule) {
 		go smtpClient.SendMail(falcopayload)
 	}

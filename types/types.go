@@ -235,7 +235,8 @@ type awsS3Config struct {
 }
 
 type awsKinesisConfig struct {
-	StreamName string
+	StreamName      string
+	MinimumPriority string
 }
 
 type smtpOutputConfig struct {
