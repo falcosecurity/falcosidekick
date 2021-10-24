@@ -141,7 +141,7 @@ func checklow(result []*wgpolicy.PolicyReportResult) (swapint int) {
 
 //update summary for clusterpolicyreport 'report'
 func updateClusterPolicyReportSummary(event *wgpolicy.PolicyReportResult) {
-	if event.Severity == highpriority {
+	if event.Result == "fail" {
 		clusterPolicyReport.Summary.Fail++
 	} else {
 		clusterPolicyReport.Summary.Warn++
@@ -150,7 +150,7 @@ func updateClusterPolicyReportSummary(event *wgpolicy.PolicyReportResult) {
 
 //update summary for specific policyreport in 'policyReports' at index 'n'
 func updatePolicyReportSummary(rep *wgpolicy.PolicyReport, event *wgpolicy.PolicyReportResult) {
-	if event.Severity == highpriority {
+	if event.Result == "fail" {
 		rep.Summary.Fail++
 	} else {
 		rep.Summary.Warn++
