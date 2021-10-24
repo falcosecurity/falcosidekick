@@ -25,6 +25,8 @@ const (
 	highpriority                = "high"
 	lowpriority                 = "low"
 	mediumpriority              = "medium"
+	fail                        = "fail"
+	warn                        = "warn"
 )
 
 var (
@@ -107,13 +109,13 @@ func newResult(FalcoPayload types.FalcoPayload) (_ *wgpolicy.PolicyReportResult,
 	}
 	if FalcoPayload.Priority > types.Priority(minimumPriority) {
 		severity = highpriority
-		result = "fail"
+		result = fail
 	} else if FalcoPayload.Priority < types.Priority(minimumPriority) {
 		severity = lowpriority
-		result = "warn"
+		result = warn
 	} else {
 		severity = mediumpriority
-		result = "warn"
+		result = warn
 	}
 
 	return &wgpolicy.PolicyReportResult{
@@ -141,7 +143,7 @@ func checklow(result []*wgpolicy.PolicyReportResult) (swapint int) {
 
 //update summary for clusterpolicyreport 'report'
 func updateClusterPolicyReportSummary(event *wgpolicy.PolicyReportResult) {
-	if event.Result == "fail" {
+	if event.Result == fail {
 		clusterPolicyReport.Summary.Fail++
 	} else {
 		clusterPolicyReport.Summary.Warn++
@@ -150,7 +152,7 @@ func updateClusterPolicyReportSummary(event *wgpolicy.PolicyReportResult) {
 
 //update summary for specific policyreport in 'policyReports' at index 'n'
 func updatePolicyReportSummary(rep *wgpolicy.PolicyReport, event *wgpolicy.PolicyReportResult) {
-	if event.Result == "fail" {
+	if event.Result == fail {
 		rep.Summary.Fail++
 	} else {
 		rep.Summary.Warn++
