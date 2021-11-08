@@ -10,7 +10,7 @@
 
 ## Description
 
-A simple daemon for connecting [`Falco`](https://github.com/falcosecurity/falco) to your ecossytem. It takes a `Falco`'s events and
+A simple daemon for connecting [`Falco`](https://github.com/falcosecurity/falco) to your ecosystem. It takes a `Falco`'s events and
 forward them to different outputs in a fan-out way.
 
 It works as a single endpoint for as many as you want `Falco` instances :
