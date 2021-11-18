@@ -145,6 +145,7 @@ type alertmanagerOutputConfig struct {
 	MinimumPriority string
 	CheckCert       bool
 	MutualTLS       bool
+	Endpoint        string
 }
 
 type elasticsearchOutputConfig struct {
