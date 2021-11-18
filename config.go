@@ -85,6 +85,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Alertmanager.MinimumPriority", "")
 	v.SetDefault("Alertmanager.MutualTls", false)
 	v.SetDefault("Alertmanager.CheckCert", true)
+	v.SetDefault("Alertmanager.Endpoint", "/api/v1/alerts")
 
 	v.SetDefault("Elasticsearch.HostPort", "")
 	v.SetDefault("Elasticsearch.Index", "falco")

@@ -9,11 +9,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-const (
-	// AlertmanagerURI is default endpoint where to send events
-	AlertmanagerURI string = "/api/v1/alerts"
-)
-
 type alertmanagerPayload struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`

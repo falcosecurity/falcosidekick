@@ -216,6 +216,8 @@ alertmanager:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # endpoint: "" # alertmanager endpoint for posting alerts: "/api/v1/alerts" or "/api/v2/alerts" (default: "/api/v1/alerts")
+
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
@@ -543,6 +545,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `false`)
 - **ALERTMANAGER_CHECKCERT** : check if ssl certificate of the output is valid (default:
   `true`)
+- **ALERTMANAGER_ENDPOINT** : alertmanager endpoint on which falcosidekick posts alerts, choice is:
+  `"/api/v1/alerts" or "/api/v2/alerts" , default is "/api/v1/alerts"`
 - **ELASTICSEARCH_HOSTPORT** : Elasticsearch http://host:port, if not `empty`,
   Elasticsearch is _enabled_
 - **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)
