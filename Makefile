@@ -36,7 +36,7 @@ falcosidekick:
 
 .PHONY: build-image
 build-image:
-	$(DOCKER) buildx built --platform linux/arm64,linux/amd64 . -t falcosecurity/falcosidekick:latest --push .
+	$(DOCKER) buildx build --platform linux/arm64,linux/amd64 . -t falcosecurity/falcosidekick:latest --push .
 
 ## --------------------------------------
 ## Test
