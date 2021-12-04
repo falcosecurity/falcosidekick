@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"log"
+	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -19,7 +20,7 @@ func newOpsgeniePayload(falcopayload types.FalcoPayload, config *types.Configura
 	for i, j := range falcopayload.OutputFields {
 		switch v := j.(type) {
 		case string:
-			details[i] = v
+			details[strings.ReplaceAll(i, ".", "_")] = v
 		default:
 			continue
 		}

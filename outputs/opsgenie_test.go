@@ -15,7 +15,7 @@ func TestNewOpsgeniePayload(t *testing.T) {
 		Entity:      "Falcosidekick",
 		Description: "Test rule",
 		Details: map[string]string{
-			"proc.name": "falcosidekick",
+			"proc_name": "falcosidekick",
 		},
 		Priority: "P5",
 	}
