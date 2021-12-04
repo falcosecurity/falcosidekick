@@ -69,7 +69,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 // testHandler sends a test event to all enabled outputs.
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	r.Body = ioutil.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","outputfields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`)))
+	r.Body = ioutil.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`)))
 	mainHandler(w, r)
 }
 
