@@ -52,7 +52,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**AWS CloudWatchLogs**](https://aws.amazon.com/cloudwatch/features/)
 - [**Grafana**](https://grafana.com/) (annotations)
 - **Syslog**
-  
+
 ### Object Storage
 
 - [**AWS S3**](https://aws.amazon.com/s3/features/)
@@ -76,10 +76,10 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**AWS SNS**](https://aws.amazon.com/sns/features/)
 - [**GCP PubSub**](https://cloud.google.com/pubsub)
 - [**Apache Kafka**](https://kafka.apache.org/)
-- [**Kafka Rest Proxy**](https://docs.confluent.io/platform/current/kafka-rest/index.html)  
+- [**Kafka Rest Proxy**](https://docs.confluent.io/platform/current/kafka-rest/index.html)
 - [**RabbitMQ**](https://www.rabbitmq.com/)
 - [**Azure Event Hubs**](https://azure.microsoft.com/en-in/services/event-hubs/)
-  
+
 ### Email
 
 - **SMTP**
@@ -424,7 +424,7 @@ yandex:
   # secretaccesskey: "" # yandex secret access key
   # region: "" # yandex storage region (default: ru-central-1)
   s3:
-    # endpoint: "" yandex storage endpoint (default: https://storage.yandexcloud.net) 
+    # endpoint: "" yandex storage endpoint (default: https://storage.yandexcloud.net)
     # bucket: "falcosidekick" # Yandex storage, bucket name
     # prefix: "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|erro
@@ -491,7 +491,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   [Slack Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before Attachment.
 - **ROCKETCHAT_MUTUALTLS** : enable mutual tls authentication for this output (default:
-  `false`)  
+  `false`)
 - **ROCKETCHAT_CHECKCERT** : check if ssl certificate of the output is valid (default:
   `true`)
 - **MATTERMOST_WEBHOOKURL** : Mattermost Webhook URL (ex:
@@ -510,7 +510,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   [Mattermost Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before Attachment.
 - **MATTERMOST_MUTUALTLS** : enable mutual tls authentication for this output (default:
-  `false`)  
+  `false`)
 - **MATTERMOST_CHECKCERT** : check if ssl certificate of the output is valid (default:
   `true`)
 - **TEAMS_WEBHOOKURL** : Teams Webhook URL (ex:
@@ -759,7 +759,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **OPENFAAS_CHECKCERT** : check if ssl certificate of the output is valid (default:
   `true`)
-- **WEBUI_URL** : WebUI URL, if not empty, WebUI output is 
+- **WEBUI_URL** : WebUI URL, if not empty, WebUI output is
   _enabled_
 - **RABBITMQ_URL**: Rabbitmq URL, if not empty, Rabbitmq output is enabled
 - **RABBITMQ_QUEUE**: # Rabbitmq Queue name
@@ -789,12 +789,12 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **GRAFANA_ALLFIELDSASTAGS**: if true, all custom fields are added as tags (default: false)
 - **GRAFANA_MUTUALTLS**: if true, checkcert flag will be ignored (server cert will always be checked)
 - **GRAFANA_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
-- **GRAFANA_MINIMUMPRIORITY**: minimum priority of event for using this output, order is 
+- **GRAFANA_MINIMUMPRIORITY**: minimum priority of event for using this output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-- **YANDEX_ACCESSKEYID** : Yandex Access Key Id 
-- **YANDEX_SECRETACCESSKEY** : Yandex Secret Access Key 
+- **YANDEX_ACCESSKEYID** : Yandex Access Key Id
+- **YANDEX_SECRETACCESSKEY** : Yandex Secret Access Key
 - **YANDEX_REGION**: Yandex region (default: ru-central-1)
-- **YANDEX_S3_ENDPOINT**: Yandex storage endpoint (default: https://storage.yandexcloud.net) 
+- **YANDEX_S3_ENDPOINT**: Yandex storage endpoint (default: https://storage.yandexcloud.net)
 - **YANDEX_S3_BUCKET**: Yandex storage, bucket name
 - **YANDEX_S3_PREFIX**: name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
 - **YANDEX_S3_MINIMUMPRIORITY**: # minimum priority of event for using this output, order is emergency|alert|critical|erro
