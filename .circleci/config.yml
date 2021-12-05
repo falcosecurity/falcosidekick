@@ -2,10 +2,7 @@ version: 2.1
 executors:
   default:
     docker:
-    - image: circleci/golang:1.16.0
-  docker-build:
-    docker:
-    - image: docker:stable
+    - image: cimg/go:1.16.11
 
 install_buildx: &install_buildx
   name: Install Docker buildx
