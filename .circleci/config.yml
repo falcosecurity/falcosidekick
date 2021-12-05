@@ -76,9 +76,9 @@ jobs:
     - run:
         command: |
           export PATH=$PATH:/usr/local/goreleaser
-          goreleaser --snapshot --rm-dist
+          make goreleaser-snapshot
           docker images
-          docker run falcosecurity/falcosidekick:latest-amd64 --help
+          docker run falcosecurity/falcosidekick:latest-amd64 --version
 
   build-push-main:
     executor:
@@ -92,8 +92,8 @@ jobs:
     - run:
         command: |
           export PATH=$PATH:/usr/local/goreleaser
-          goreleaser --snapshot --rm-dist
-          docker run falcosecurity/falcosidekick:latest-amd64 --help
+          make goreleaser-snapshot
+          docker run falcosecurity/falcosidekick:latest-amd64 --version
     - run:
         command: |
           echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
@@ -118,7 +118,7 @@ jobs:
         command: |
           export PATH=$PATH:/usr/local/goreleaser
           goreleaser --snapshot --rm-dist
-          docker run public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 --help
+          docker run public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 --version
     - run:
         command: |
           aws ecr-public get-login-password --region us-east-1 | \
@@ -152,7 +152,7 @@ jobs:
             docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
     - run:
         name: Release
-        command: goreleaser release --rm-dist
+        command: make goreleaser
 
 workflows:
   main:

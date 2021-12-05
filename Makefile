@@ -15,6 +15,25 @@ GO ?= go
 DOCKER ?= docker
 TEST_FLAGS ?= -v -race
 
+GIT_TAG ?= dirty-tag
+GIT_VERSION ?= $(shell git describe --tags --always --dirty)
+GIT_HASH ?= $(shell git rev-parse HEAD)
+DATE_FMT = +'%Y-%m-%dT%H:%M:%SZ'
+SOURCE_DATE_EPOCH ?= $(shell git log -1 --pretty=%ct)
+ifdef SOURCE_DATE_EPOCH
+    BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
+else
+    BUILD_DATE ?= $(shell date "$(DATE_FMT)")
+endif
+GIT_TREESTATE = "clean"
+DIFF = $(shell git diff --quiet >/dev/null 2>&1; if [ $$? -eq 1 ]; then echo "1"; fi)
+ifeq ($(DIFF), 1)
+    GIT_TREESTATE = "dirty"
+endif
+
+PKG=main
+LDFLAGS=-X $(PKG).GitVersion=$(GIT_VERSION) -X $(PKG).gitCommit=$(GIT_HASH) -X $(PKG).gitTreeState=$(GIT_TREESTATE) -X $(PKG).buildDate=$(BUILD_DATE)
+
 # Directories.
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TOOLS_DIR := hack/tools
@@ -32,7 +51,7 @@ GOLANGCI_LINT := $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER)
 
 .PHONY: falcosidekick
 falcosidekick:
-	$(GO) build -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o $@ .
+	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o $@ .
 
 .PHONY: falcosidekick-linux-amd64
 falcosidekick-linux-amd64:
@@ -67,6 +86,18 @@ lint-full: $(GOLANGCI_LINT) ## Run slower linters to detect possible issues
 	$(GOLANGCI_LINT) run -v --fast=false
 
 ## --------------------------------------
+## Release
+## --------------------------------------
+
+.PHONY: goreleaser
+goreleaser: ## Release using goreleaser
+	LDFLAGS="$(LDFLAGS)" goreleaser release --rm-dist
+
+.PHONY: goreleaser-snapshot
+goreleaser-snapshot: ## Release snapshot using goreleaser
+	LDFLAGS="$(LDFLAGS)" goreleaser --snapshot --rm-dist
+
+## --------------------------------------
 ## Tooling Binaries
 ## --------------------------------------
 
@@ -80,3 +111,4 @@ $(GOLANGCI_LINT): ## Build golangci-lint from tools folder.
 .PHONY: clean
 clean:
 	rm -rf hack/tools/bin
+	rm -rf dist

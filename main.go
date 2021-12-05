@@ -461,7 +461,6 @@ func init() {
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, outputName)
 		}
-		log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
 	}
 
 	if config.Yandex.S3.Bucket != "" {
@@ -488,6 +487,7 @@ func init() {
 		}
 	}
 
+	log.Printf("[INFO]  : Falco Sidekick version: %s\n", GetVersionInfo().GitVersion)
 	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
 
 }

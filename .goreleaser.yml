@@ -24,6 +24,8 @@ builds:
       - CGO_ENABLED=0
     flags:
       - -trimpath
+    ldflags:
+      - "{{ .Env.LDFLAGS }}"
     binary: falcosidekick
 
 dockers:

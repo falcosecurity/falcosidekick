@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -24,7 +25,14 @@ func getConfig() *types.Configuration {
 	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
+	version := kingpin.Flag("version", "falcosidekick version").Short('v').Bool()
 	kingpin.Parse()
+
+	if *version != false {
+		v := GetVersionInfo()
+		fmt.Println(v.String())
+		os.Exit(0)
+	}
 
 	v := viper.New()
 	v.SetDefault("ListenAddress", "")
