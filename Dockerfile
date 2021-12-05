@@ -1,16 +1,4 @@
-ARG BUILDER_IMAGE=golang:1.16-buster
 ARG BASE_IMAGE=alpine:3.12
-
-FROM ${BUILDER_IMAGE} AS build-stage
-
-ENV CGO_ENABLED=0
-
-WORKDIR /src
-COPY . .
-
-RUN go mod download
-RUN make falcosidekick
-
 # Final Docker image
 FROM ${BASE_IMAGE} AS final-stage
 LABEL MAINTAINER "Thomas Labarussias <issif+falcosidekick@gadz.org>"
@@ -24,8 +12,8 @@ RUN addgroup -S falcosidekick && adduser -u 1234 -S falcosidekick -G falcosideki
 USER 1234
 
 WORKDIR ${HOME}/app
-COPY --from=build-stage /src/LICENSE .
-COPY --from=build-stage /src/falcosidekick .
+COPY LICENSE .
+COPY falcosidekick .
 
 EXPOSE 2801
 
