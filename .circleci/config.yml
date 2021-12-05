@@ -7,6 +7,47 @@ executors:
     docker:
     - image: docker:stable
 
+install_buildx: &install_buildx
+  name: Install Docker buildx
+  command: |
+    mkdir -p ~/.docker/cli-plugins
+    curl -sSL -o ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.7.0/buildx-v0.7.0.linux-amd64
+    chmod a+x ~/.docker/cli-plugins/docker-buildx
+
+setup_docker_multiarch: &setup_docker_multiarch
+  name: Create Docker context
+  command: |
+    docker context create falco-environment
+    docker buildx install
+    docker run --rm --privileged tonistiigi/binfmt:latest --install "$BUILDX_PLATFORMS"
+    docker buildx create --name docker-multiarch falco-environment \
+      --platform linux/amd64,linux/arm/v7,linux/arm64
+    docker buildx inspect --builder docker-multiarch --bootstrap
+    docker buildx use docker-multiarch
+
+install_goreleaser: &install_goreleaser
+  name: Install goreleaser
+  command: |
+    GORELEASER_URL="https://github.com/goreleaser/goreleaser/releases/download/v1.1.0/goreleaser_Linux_x86_64.tar.gz"
+
+    curl --output goreleaser_Linux_x86_64.tar.gz \
+      --silent --show-error --location --fail --retry 3 \
+      "$GORELEASER_URL"
+
+    sudo mkdir -p /usr/local/goreleaser
+    sudo tar -C /usr/local/goreleaser -xzf goreleaser_Linux_x86_64.tar.gz
+    export PATH=$PATH:/usr/local/goreleaser
+    goreleaser --version
+
+install_awscli: &install_awscli
+  name: Install pre-requisites
+  command: |
+    DIR=$(mktemp -d) && pushd $DIR
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip awscliv2.zip
+    ./aws/install -i $HOME/.local/aws-cli -b $HOME/.local/bin
+    popd && rm -r $DIR
+
 jobs:
   lint:
     executor:
@@ -25,13 +66,22 @@ jobs:
   build-image:
     executor:
       name: default
+    environment:
+      DOCKER_BUILDKIT: 1
+      BUILDX_PLATFORMS: linux/amd64,linux/arm64,linux/arm/v7
+      DOCKER_CLI_EXPERIMENTAL: "enabled"
     steps:
     - checkout
     - setup_remote_docker
+    - run: *install_buildx
+    - run: *setup_docker_multiarch
+    - run: *install_goreleaser
     - run:
         command: |
-          make build-image
-          docker run falcosecurity/falcosidekick:latest --help
+          export PATH=$PATH:/usr/local/goreleaser
+          goreleaser --snapshot --rm-dist
+          docker images
+          docker run falcosecurity/falcosidekick:latest-amd64 --help
 
   build-push-main:
     executor:
@@ -39,93 +89,73 @@ jobs:
     steps:
     - checkout
     - setup_remote_docker
+    - run: *install_buildx
+    - run: *setup_docker_multiarch
+    - run: *install_goreleaser
     - run:
         command: |
-          make build-image
-          docker run falcosecurity/falcosidekick:latest --help
+          export PATH=$PATH:/usr/local/goreleaser
+          goreleaser --snapshot --rm-dist
+          docker run falcosecurity/falcosidekick:latest-amd64 --help
     - run:
         command: |
           echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
-          docker push falcosecurity/falcosidekick:latest
+          docker push falcosecurity/falcosidekick:latest-amd64
+          docker push falcosecurity/falcosidekick:latest-arm64
+          docker push falcosecurity/falcosidekick:latest-armv7
+          docker manifest create --amend falcosecurity/falcosidekick:latest falcosecurity/falcosidekick:latest-amd64 \
+            falcosecurity/falcosidekick:latest-arm64 falcosecurity/falcosidekick:latest-armv7
+          docker manifest push --purge falcosecurity/falcosidekick:latest
 
   build-push-ecr:
     executor:
-      name: docker-build
+      name: default
     steps:
     - checkout
     - setup_remote_docker
+    - run: *install_buildx
+    - run: *setup_docker_multiarch
+    - run: *install_goreleaser
+    - run: *install_awscli
     - run:
         command: |
-          apk update
-          apk add --update make bash
-          make build-image
-          docker run falcosecurity/falcosidekick:latest --help
+          export PATH=$PATH:/usr/local/goreleaser
+          goreleaser --snapshot --rm-dist
+          docker run public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 --help
     - run:
         command: |
-          docker tag falcosecurity/falcosidekick:latest \
-            public.ecr.aws/falcosecurity/falcosidekick:latest
-    - run:
-        command: |
-          apk update
-          apk add --update groff less py-pip
-          pip install awscli
           aws ecr-public get-login-password --region us-east-1 | \
             docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
-          docker push public.ecr.aws/falcosecurity/falcosidekick:latest
+          docker push public.ecr.aws/falcosecurity/falcosidekick:latest-amd64
+          docker push public.ecr.aws/falcosecurity/falcosidekick:latest-arm64
+          docker push public.ecr.aws/falcosecurity/falcosidekick:latest-armv7
+          docker manifest create --amend public.ecr.aws/falcosecurity/falcosidekick:latest public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 \
+            public.ecr.aws/falcosecurity/falcosidekick:latest-arm64 public.ecr.aws/falcosecurity/falcosidekick:latest-armv7
+          docker manifest push --purge public.ecr.aws/falcosecurity/falcosidekick:latest
 
   release:
-    machine:
-      image: ubuntu-2004:202111-01
+    executor:
+      name: default
     environment:
       DOCKER_BUILDKIT: 1
       BUILDX_PLATFORMS: linux/amd64,linux/arm64,linux/arm/v7
+      DOCKER_CLI_EXPERIMENTAL: "enabled"
     steps:
-      - checkout
-      - run:
-          name: Update Go
-          command: |
-            GOLANG_URL="https://go.dev/dl/go1.16.11.linux-amd64.tar.gz"
-
-            curl --output go1.16.11.linux-amd64.tar.gz \
-              --silent --show-error --location --fail --retry 3 \
-              "$GOLANG_URL"
-
-            sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.16.11.linux-amd64.tar.gz
-            go version
-      - run:
-          name: Install buildx
-          command: |
-            BUILDX_BINARY_URL="https://github.com/docker/buildx/releases/download/v0.7.0/buildx-v0.7.0.linux-amd64"
-
-            curl --output docker-buildx \
-              --silent --show-error --location --fail --retry 3 \
-              "$BUILDX_BINARY_URL"
-
-            mkdir -p ~/.docker/cli-plugins
-
-            mv docker-buildx ~/.docker/cli-plugins/
-            chmod a+x ~/.docker/cli-plugins/docker-buildx
-
-            docker buildx install
-            # Run binfmt
-            docker run --rm --privileged tonistiigi/binfmt:latest --install "$BUILDX_PLATFORMS"
-      - run:
-          name: Install pre-requisites
-          command: |
-            DIR=$(mktemp -d) && pushd $DIR
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            ./aws/install -i $HOME/.local/aws-cli -b $HOME/.local/bin
-            popd && rm -r $DIR
-      - run:
-          name: Login Registries
-          command: |
-            echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
-            aws ecr-public get-login-password --region us-east-1 | \
-              docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
-      - run:
-          name: Release
-          command: curl -sL https://git.io/goreleaser | bash
+    - checkout
+    - setup_remote_docker
+    - run: *install_buildx
+    - run: *setup_docker_multiarch
+    - run: *install_goreleaser
+    - run: *install_awscli
+    - run:
+        name: Login Registries
+        command: |
+          echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
+          aws ecr-public get-login-password --region us-east-1 | \
+            docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
+    - run:
+        name: Release
+        command: goreleaser release --rm-dist
 
 workflows:
   main:
