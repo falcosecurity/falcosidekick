@@ -28,7 +28,10 @@ jobs:
     steps:
     - checkout
     - setup_remote_docker
-    - run: make build-image
+    - run:
+        command: |
+          make build-image
+          docker run falcosecurity/falcosidekick:latest --help
 
   build-push-main:
     executor:
@@ -36,7 +39,10 @@ jobs:
     steps:
     - checkout
     - setup_remote_docker
-    - run: make build-image
+    - run:
+        command: |
+          make build-image
+          docker run falcosecurity/falcosidekick:latest --help
     - run:
         command: |
           echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
@@ -53,6 +59,7 @@ jobs:
           apk update
           apk add --update make bash
           make build-image
+          docker run falcosecurity/falcosidekick:latest --help
     - run:
         command: |
           docker tag falcosecurity/falcosidekick:latest \
@@ -67,11 +74,41 @@ jobs:
           docker push public.ecr.aws/falcosecurity/falcosidekick:latest
 
   release:
-    executor:
-      name: default
+    machine:
+      image: ubuntu-2004:202111-01
+    environment:
+      DOCKER_BUILDKIT: 1
+      BUILDX_PLATFORMS: linux/amd64,linux/arm64,linux/arm/v7
     steps:
       - checkout
-      - setup_remote_docker
+      - run:
+          name: Update Go
+          command: |
+            GOLANG_URL="https://go.dev/dl/go1.16.11.linux-amd64.tar.gz"
+
+            curl --output go1.16.11.linux-amd64.tar.gz \
+              --silent --show-error --location --fail --retry 3 \
+              "$GOLANG_URL"
+
+            sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.16.11.linux-amd64.tar.gz
+            go version
+      - run:
+          name: Install buildx
+          command: |
+            BUILDX_BINARY_URL="https://github.com/docker/buildx/releases/download/v0.7.0/buildx-v0.7.0.linux-amd64"
+
+            curl --output docker-buildx \
+              --silent --show-error --location --fail --retry 3 \
+              "$BUILDX_BINARY_URL"
+
+            mkdir -p ~/.docker/cli-plugins
+
+            mv docker-buildx ~/.docker/cli-plugins/
+            chmod a+x ~/.docker/cli-plugins/docker-buildx
+
+            docker buildx install
+            # Run binfmt
+            docker run --rm --privileged tonistiigi/binfmt:latest --install "$BUILDX_PLATFORMS"
       - run:
           name: Install pre-requisites
           command: |
@@ -81,7 +118,7 @@ jobs:
             ./aws/install -i $HOME/.local/aws-cli -b $HOME/.local/bin
             popd && rm -r $DIR
       - run:
-          name: Prepare env
+          name: Login Registries
           command: |
             echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
             aws ecr-public get-login-password --region us-east-1 | \
