@@ -74,6 +74,7 @@ jobs:
     - run: *setup_docker_multiarch
     - run: *install_goreleaser
     - run:
+        no_output_timeout: 30m
         command: |
           export PATH=$PATH:/usr/local/goreleaser
           make goreleaser-snapshot
@@ -90,11 +91,14 @@ jobs:
     - run: *setup_docker_multiarch
     - run: *install_goreleaser
     - run:
+        no_output_timeout: 30m
         command: |
           export PATH=$PATH:/usr/local/goreleaser
           make goreleaser-snapshot
           docker run falcosecurity/falcosidekick:latest-amd64 --version
     - run:
+        name: Push image to Dockerhub
+        no_output_timeout: 30m
         command: |
           echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
           docker push falcosecurity/falcosidekick:latest-amd64
@@ -115,11 +119,14 @@ jobs:
     - run: *install_goreleaser
     - run: *install_awscli
     - run:
+        no_output_timeout: 30m
         command: |
           export PATH=$PATH:/usr/local/goreleaser
           goreleaser --snapshot --rm-dist
           docker run public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 --version
     - run:
+        name: Push image to AWS ECR
+        no_output_timeout: 30m
         command: |
           aws ecr-public get-login-password --region us-east-1 | \
             docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
@@ -152,6 +159,7 @@ jobs:
             docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
     - run:
         name: Release
+        no_output_timeout: 30m
         command: make goreleaser
 
 workflows:
