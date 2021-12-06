@@ -122,7 +122,7 @@ jobs:
         no_output_timeout: 30m
         command: |
           export PATH=$PATH:/usr/local/goreleaser
-          goreleaser --snapshot --rm-dist
+          make goreleaser-snapshot
           docker run public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 --version
     - run:
         name: Push image to AWS ECR
