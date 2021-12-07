@@ -69,10 +69,6 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 		sess = session.Must(session.NewSessionWithOptions(session.Options{
 			SharedConfigState: session.SharedConfigEnable,
 		}))
-		if err != nil {
-			log.Printf("[ERROR] : AWS - %v\n", "Error while creating AWS Session")
-			return nil, errors.New("Error while creating AWS Session")
-		}
 	}
 
 	_, err = sts.New(sess).GetCallerIdentity(&sts.GetCallerIdentityInput{})
