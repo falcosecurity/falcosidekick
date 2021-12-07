@@ -53,7 +53,8 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 		provider := stscreds.NewWebIdentityRoleProvider(
 			sts.New(tmp),
 			os.Getenv("AWS_ROLE_ARN"),
-			os.Getenv("AWS_ROLE_SESSION_NAME"),
+			// TODO: add time formatting
+			os.Getenv("AWS_ROLE_SESSION_NAME")+time.Now().Format(""),
 			os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE"),
 		)
 
