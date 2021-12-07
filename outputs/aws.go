@@ -43,43 +43,35 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 	var sess *session.Session
 	var err error
 	if config.AWS.UseClusterOIDC {
-		sess, err = session.NewSession(&aws.Config{
+		// create a temporary session to ensure the AssumeRoleWithWebIdentity operation can proceed
+		tmp, err := session.NewSession(&aws.Config{
 			Region:      aws.String(config.AWS.Region),
 			Credentials: credentials.AnonymousCredentials,
 		},
 		)
-	} else {
-		sess, err = session.NewSession(&aws.Config{
-			Region: aws.String(config.AWS.Region)},
-		)
-	}
-	if err != nil {
-		log.Printf("[ERROR] : AWS - %v\n", "Error while creating AWS Session")
-		return nil, errors.New("Error while creating AWS Session")
-	}
 
-	var provider *stscreds.WebIdentityRoleProvider
-	if config.AWS.UseClusterOIDC {
-		provider = stscreds.NewWebIdentityRoleProvider(
-			sts.New(sess),
+		provider := stscreds.NewWebIdentityRoleProvider(
+			sts.New(tmp),
 			os.Getenv("AWS_ROLE_ARN"),
 			os.Getenv("AWS_ROLE_SESSION_NAME"),
 			os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE"),
 		)
 
-		resp, err := provider.Retrieve()
+		sess, err = session.NewSessionWithOptions(session.Options{
+			Config: aws.Config{Credentials: credentials.NewCredentials(provider)},
+		})
 		if err != nil {
-			log.Printf("[ERROR] : AWS - %v\n", "Error while assuming IAM role for service account")
-			return nil, errors.New("Error while assuming IAM role for service account")
+			log.Printf("[ERROR] : AWS - %v\n", "Error configuring IAM role for Service Account")
+			return nil, errors.New("Error configuring IAM role for Service Account")
 		}
-
-		err1 := os.Setenv("AWS_ACCESS_KEY_ID", resp.AccessKeyID)
-		err2 := os.Setenv("AWS_SECRET_ACCESS_KEY", resp.SecretAccessKey)
-		err3 := os.Setenv("AWS_SESSION_TOKEN", resp.SessionToken)
-
-		if err1 != nil && err2 != nil && err3 != nil {
-			log.Printf("[ERROR] : AWS - %v\n", "Error setting credential env vars")
-			return nil, errors.New("Error setting credential env vars")
+	} else {
+		// ensures default authentication flow is followed
+		sess = session.Must(session.NewSessionWithOptions(session.Options{
+			SharedConfigState: session.SharedConfigEnable,
+		}))
+		if err != nil {
+			log.Printf("[ERROR] : AWS - %v\n", "Error while creating AWS Session")
+			return nil, errors.New("Error while creating AWS Session")
 		}
 	}
 
@@ -97,15 +89,14 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 	}
 
 	return &Client{
-		OutputType:               "AWS",
-		EndpointURL:              endpointURL,
-		Config:                   config,
-		AWSSession:               sess,
-		AWSSTSCredentialProvider: provider,
-		Stats:                    stats,
-		PromStats:                promStats,
-		StatsdClient:             statsdClient,
-		DogstatsdClient:          dogstatsdClient,
+		OutputType:      "AWS",
+		EndpointURL:     endpointURL,
+		Config:          config,
+		AWSSession:      sess,
+		Stats:           stats,
+		PromStats:       promStats,
+		StatsdClient:    statsdClient,
+		DogstatsdClient: dogstatsdClient,
 	}, nil
 }
 
@@ -178,12 +169,6 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 
 // UploadS3 upload payload to S3
 func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
-	if c.AWSSTSCredentialProvider != nil {
-		c.AWSSession = session.New(aws.NewConfig().WithCredentials(
-			credentials.NewCredentials(c.AWSSTSCredentialProvider),
-		),
-		)
-	}
 	f, _ := json.Marshal(falcopayload)
 
 	prefix := ""
@@ -218,12 +203,6 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 
 // PublishTopic sends a message to a SNS Topic
 func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
-	if c.AWSSTSCredentialProvider != nil {
-		c.AWSSession = session.New(aws.NewConfig().WithCredentials(
-			credentials.NewCredentials(c.AWSSTSCredentialProvider),
-		),
-		)
-	}
 	svc := sns.New(c.AWSSession)
 
 	var msg *sns.PublishInput
@@ -286,12 +265,6 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 
 // SendCloudWatchLog sends a message to CloudWatch Log
 func (c *Client) SendCloudWatchLog(falcopayload types.FalcoPayload) {
-	if c.AWSSTSCredentialProvider != nil {
-		c.AWSSession = session.New(aws.NewConfig().WithCredentials(
-			credentials.NewCredentials(c.AWSSTSCredentialProvider),
-		),
-		)
-	}
 	svc := cloudwatchlogs.New(c.AWSSession)
 
 	f, _ := json.Marshal(falcopayload)
