@@ -197,6 +197,7 @@ type awsOutputConfig struct {
 	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
+	UseClusterOIDC  bool
 	Lambda          awsLambdaConfig
 	SQS             awsSQSConfig
 	SNS             awsSNSConfig

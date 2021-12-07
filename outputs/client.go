@@ -22,6 +22,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/segmentio/kafka-go"
@@ -76,20 +77,21 @@ type Header struct {
 
 // Client communicates with the different API.
 type Client struct {
-	OutputType              string
-	EndpointURL             *url.URL
-	MutualTLSEnabled        bool
-	CheckCert               bool
-	HeaderList              []Header
-	ContentType             string
-	Config                  *types.Configuration
-	Stats                   *types.Statistics
-	PromStats               *types.PromStatistics
-	AWSSession              *session.Session
-	StatsdClient            *statsd.Client
-	DogstatsdClient         *statsd.Client
-	GCPTopicClient          *pubsub.Topic
-	GCPCloudFunctionsClient *gcpfunctions.CloudFunctionsClient
+	OutputType               string
+	EndpointURL              *url.URL
+	MutualTLSEnabled         bool
+	CheckCert                bool
+	HeaderList               []Header
+	ContentType              string
+	Config                   *types.Configuration
+	Stats                    *types.Statistics
+	PromStats                *types.PromStatistics
+	AWSSession               *session.Session
+	AWSSTSCredentialProvider *stscreds.WebIdentityRoleProvider
+	StatsdClient             *statsd.Client
+	DogstatsdClient          *statsd.Client
+	GCPTopicClient           *pubsub.Topic
+	GCPCloudFunctionsClient  *gcpfunctions.CloudFunctionsClient
 
 	GCSStorageClient  *storage.Client
 	KafkaProducer     *kafka.Writer
