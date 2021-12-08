@@ -49,12 +49,16 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 			Credentials: credentials.AnonymousCredentials,
 		},
 		)
+		if err != nil {
+			log.Printf("[ERROR] : AWS - %v\n", "Error setting temporary session to configure WebIdentityRoleProvider")
+			return nil, errors.New("Error setting temporary session to configure WebIdentityRoleProvider")
+		}
 
 		provider := stscreds.NewWebIdentityRoleProvider(
 			sts.New(tmp),
 			os.Getenv("AWS_ROLE_ARN"),
 			// TODO: add time formatting
-			os.Getenv("AWS_ROLE_SESSION_NAME")+time.Now().Format(""),
+			os.Getenv("AWS_ROLE_SESSION_NAME")+time.Now().Format("20060102150405"),
 			os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE"),
 		)
 
@@ -66,7 +70,7 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 			return nil, errors.New("Error configuring IAM role for Service Account")
 		}
 	} else {
-		// ensures default authentication flow is followed
+		// ensures default authentication flow is followed, env -> shared config -> EC2 instance metadata
 		sess = session.Must(session.NewSessionWithOptions(session.Options{
 			SharedConfigState: session.SharedConfigEnable,
 		}))
