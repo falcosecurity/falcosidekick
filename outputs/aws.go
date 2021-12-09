@@ -41,18 +41,27 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 		}
 	}
 
+	var regionalEndpoints bool
 	var sess *session.Session
 	var err error
 
 	// if we are not using regional endpoints, the provider is configured manually
 	// in almost all cases this should be set as per https://github.com/aws/amazon-eks-pod-identity-webhook#aws_sts_regional_endpoints-injection
-	regionalEndpoints, err := strconv.ParseBool(os.Getenv("AWS_STS_REGIONAL_ENDPOINTS"))
+	regionalEndpointsStr := os.Getenv("AWS_STS_REGIONAL_ENDPOINTS")
+	if regionalEndpointsStr != "" {
+		regionalEndpoints, err = strconv.ParseBool(regionalEndpointsStr)
+	} else {
+		regionalEndpoints = false
+	}
 	if err != nil {
-		log.Printf("[ERROR] : AWS - %v\n", "Error getting value for AWS_STS_REGIONAL_ENDPOINTS env var")
-		return nil, errors.New("Error getting value for AWS_STS_REGIONAL_ENDPOINTS env var")
+		log.Printf("[ERROR] : AWS - %v\n", "Error getting value for AWS_STS_REGIONAL_ENDPOINTS")
+		return nil, errors.New("Error getting value for AWS_STS_REGIONAL_ENDPOINTS")
 	}
 
-	if !regionalEndpoints {
+	roleArn := os.Getenv("AWS_ROLE_ARN")
+	tokenPath := os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
+
+	if !regionalEndpoints && roleArn != "" && tokenPath != "" {
 		// create a temporary session to ensure the AssumeRoleWithWebIdentity operation can succeed
 		tmp, err := session.NewSession(&aws.Config{
 			Region:      aws.String(config.AWS.Region),
