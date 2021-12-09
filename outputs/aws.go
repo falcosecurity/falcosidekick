@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -42,8 +43,17 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 
 	var sess *session.Session
 	var err error
-	if config.AWS.UseClusterOIDC {
-		// create a temporary session to ensure the AssumeRoleWithWebIdentity operation can proceed
+
+	// if we are not using regional endpoints, the provider is configured manually
+	// in almost all cases this should be set as per https://github.com/aws/amazon-eks-pod-identity-webhook#aws_sts_regional_endpoints-injection
+	regionalEndpoints, err := strconv.ParseBool(os.Getenv("AWS_STS_REGIONAL_ENDPOINTS"))
+	if err != nil {
+		log.Printf("[ERROR] : AWS - %v\n", "Error getting value for AWS_STS_REGIONAL_ENDPOINTS env var")
+		return nil, errors.New("Error getting value for AWS_STS_REGIONAL_ENDPOINTS env var")
+	}
+
+	if !regionalEndpoints {
+		// create a temporary session to ensure the AssumeRoleWithWebIdentity operation can succeed
 		tmp, err := session.NewSession(&aws.Config{
 			Region:      aws.String(config.AWS.Region),
 			Credentials: credentials.AnonymousCredentials,
@@ -57,7 +67,6 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 		provider := stscreds.NewWebIdentityRoleProvider(
 			sts.New(tmp),
 			os.Getenv("AWS_ROLE_ARN"),
-			// TODO: add time formatting
 			os.Getenv("AWS_ROLE_SESSION_NAME")+time.Now().Format("20060102150405"),
 			os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE"),
 		)
