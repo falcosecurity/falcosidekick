@@ -44,6 +44,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**AlertManager**](https://prometheus.io/docs/alerting/alertmanager/)
 - [**Opsgenie**](https://www.opsgenie.com/)
 - [**PagerDuty**](https://pagerduty.com/)
+- [**Squadcast**](https://squadcast.com/)
 
 ### Logs
 
