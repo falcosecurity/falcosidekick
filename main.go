@@ -18,6 +18,7 @@ import (
 var (
 	nullClient          *outputs.Client
 	slackClient         *outputs.Client
+	cliqClient          *outputs.Client
 	rocketchatClient    *outputs.Client
 	mattermostClient    *outputs.Client
 	teamsClient         *outputs.Client
@@ -100,6 +101,16 @@ func init() {
 			config.Slack.WebhookURL = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Slack")
+		}
+	}
+
+	if config.Cliq.WebhookURL != "" {
+		var err error
+		cliqClient, err = outputs.NewClient("Cliq", config.Cliq.WebhookURL, config.Cliq.MutualTLS, config.Cliq.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Cliq.WebhookURL = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Cliq")
 		}
 	}
 

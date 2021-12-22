@@ -213,6 +213,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Googlechat.MutualTls", false)
 	v.SetDefault("Googlechat.CheckCert", true)
 
+	v.SetDefault("Cliq.WebhookURL", "")
+	v.SetDefault("Cliq.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
+	v.SetDefault("Cliq.OutputFormat", "all")
+	v.SetDefault("Cliq.UseEmoji", false)
+	v.SetDefault("Cliq.MessageFormat", "")
+	v.SetDefault("Cliq.MinimumPriority", "")
+	v.SetDefault("Cliq.MutualTls", false)
+	v.SetDefault("Cliq.CheckCert", true)
+
 	v.SetDefault("Kafka.HostPort", "")
 	v.SetDefault("Kafka.Topic", "")
 	v.SetDefault("Kafka.MinimumPriority", "")
@@ -379,6 +388,7 @@ func getConfig() *types.Configuration {
 	c.GCP.CloudFunctions.MinimumPriority = checkPriority(c.GCP.CloudFunctions.MinimumPriority)
 	c.GCP.CloudRun.MinimumPriority = checkPriority(c.GCP.CloudRun.MinimumPriority)
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
+	c.Cliq.MinimumPriority = checkPriority(c.Cliq.MinimumPriority)
 	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
 	c.KafkaRest.MinimumPriority = checkPriority(c.KafkaRest.MinimumPriority)
 	c.Pagerduty.MinimumPriority = checkPriority(c.Pagerduty.MinimumPriority)
@@ -394,6 +404,7 @@ func getConfig() *types.Configuration {
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
 	c.Mattermost.MessageFormatTemplate = getMessageFormatTemplate("Mattermost", c.Mattermost.MessageFormat)
 	c.Googlechat.MessageFormatTemplate = getMessageFormatTemplate("Googlechat", c.Googlechat.MessageFormat)
+	c.Cliq.MessageFormatTemplate = getMessageFormatTemplate("Cliq", c.Cliq.MessageFormat)
 	return c
 }
 

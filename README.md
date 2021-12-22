@@ -29,6 +29,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**Teams**](https://products.office.com/en-us/microsoft-teams/group-chat-software)
 - [**Discord**](https://www.discord.com/)
 - [**Google Chat**](https://workspace.google.com/products/chat/)
+- [**Zoho Cliq**](https://www.zoho.com/cliq/)
 
 ### Metrics / Observability
 
@@ -348,6 +349,15 @@ googlechat:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   messageformat: 'Alert : rule *{{ .Rule }}* triggered by user *{{ index
     .OutputFields "user.name" }}*' # a Go template to format Google Chat Text above Attachment, displayed in addition to the output from `GOOGLECHAT_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Attachment.
+
+cliq:
+  webhookurl: "" # WebhookURL (ex: https://cliq.zoho.eu/api/v2/channelsbyname/XXXX/message?zapikey=YYYY), if not empty, Cliq output is enabled
+  # icon: "" # Cliq icon (avatar)
+  # useemoji: true # Prefix message text with an emoji
+  # outputformat: "all" # all (default), text, fields
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  messageformat: 'Alert : rule *{{ .Rule }}* triggered by user *{{ index
+    .OutputFields "user.name" }}*' # a Go template to format Cliq Text above Table, displayed in addition to the output from `CLIQ_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Table.
 
 kafka:
   hostport: "" # Apache Kafka Host:Port (ex: localhost:9092). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
@@ -710,6 +720,21 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **GOOGLECHAT_MESSAGEFORMAT** : a Go template to format Google Chat Text above
   Attachment, displayed in addition to the output from
   `GOOGLECHAT_OUTPUTFORMAT`, see
+  [Slack Message Formatting](#slack-message-formatting) in the README for
+  details. If empty, no Text is displayed before sections.
+- **CLIQ_WEBHOOKURL** : Zoho Cliq Channel URL (ex:
+  https://cliq.zoho.eu/api/v2/channelsbyname/XXXX/message?zapikey=YYYY), if not `empty`, Cliq
+  Chat output is _enabled_
+- **CLIQ_ICON** : Cliq icon (avatar)
+- **CLIQ_USEEMOJI** : Prefix message text with an emoji
+- **CLIQ_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in
+  Cliq), `fields` (only fields are displayed in Cliq)
+- **CLIQ_MINIMUMPRIORITY** : minimum priority of event for using this
+  output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **CLIQ_MESSAGEFORMAT** : a Go template to format Google Chat Text above
+  Attachment, displayed in addition to the output from
+  `CLIQ_OUTPUTFORMAT`, see
   [Slack Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before sections.
 - **KAFKA_HOSTPORT**: The Host:Port of the Kafka (ex: localhost:9092), if not
