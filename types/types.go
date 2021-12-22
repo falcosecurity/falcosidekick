@@ -26,6 +26,7 @@ type Configuration struct {
 	ListenPort         int
 	Customfields       map[string]string
 	Slack              SlackOutputConfig
+	Cliq               CliqOutputConfig
 	Mattermost         MattermostOutputConfig
 	Rocketchat         RocketchatOutputConfig
 	Teams              teamsOutputConfig
@@ -71,6 +72,19 @@ type SlackOutputConfig struct {
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
+	CheckCert             bool
+	MutualTLS             bool
+}
+
+// CliqOutputConfig represents parameters for Zoho Cliq
+type CliqOutputConfig struct {
+	WebhookURL            string
+	Icon                  string
+	OutputFormat          string
+	MinimumPriority       string
+	MessageFormat         string
+	MessageFormatTemplate *template.Template
+	UseEmoji              bool
 	CheckCert             bool
 	MutualTLS             bool
 }
@@ -469,6 +483,7 @@ type Statistics struct {
 	Grafana           *expvar.Map
 	YandexS3          *expvar.Map
 	Syslog            *expvar.Map
+	Cliq              *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

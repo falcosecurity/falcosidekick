@@ -23,6 +23,7 @@ func getInitStats() *types.Statistics {
 		GRPC:              getInputNewMap("grpc"),
 		Falco:             expvar.NewMap("falco.priority"),
 		Slack:             getOutputNewMap("slack"),
+		Cliq:              getOutputNewMap("cliq"),
 		Rocketchat:        getOutputNewMap("rocketchat"),
 		Mattermost:        getOutputNewMap("mattermost"),
 		Teams:             getOutputNewMap("teams"),
