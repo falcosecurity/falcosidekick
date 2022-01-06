@@ -25,15 +25,15 @@ setup_docker_multiarch: &setup_docker_multiarch
 install_goreleaser: &install_goreleaser
   name: Install goreleaser
   command: |
-    GORELEASER_URL="https://github.com/goreleaser/goreleaser/releases/download/v1.1.0/goreleaser_Linux_x86_64.tar.gz"
+    GORELEASER_URL="https://github.com/goreleaser/goreleaser/releases/download/v1.2.5/goreleaser_Linux_x86_64.tar.gz"
 
     curl --output goreleaser_Linux_x86_64.tar.gz \
       --silent --show-error --location --fail --retry 3 \
       "$GORELEASER_URL"
 
-    sudo mkdir -p /usr/local/goreleaser
-    sudo tar -C /usr/local/goreleaser -xzf goreleaser_Linux_x86_64.tar.gz
-    export PATH=$PATH:/usr/local/goreleaser
+    sudo mkdir -p /tmp/goreleaser
+    sudo tar -C /tmp/goreleaser -xzf goreleaser_Linux_x86_64.tar.gz
+    sudo mv /tmp/goreleaser/goreleaser /usr/local/bin/
     goreleaser --version
 
 install_awscli: &install_awscli
@@ -44,6 +44,32 @@ install_awscli: &install_awscli
     unzip awscliv2.zip
     ./aws/install -i $HOME/.local/aws-cli -b $HOME/.local/bin
     popd && rm -r $DIR
+
+install_cosign: &install_cosign
+  name: Install cosign
+  command: |
+    COSIGN_URL="https://github.com/sigstore/cosign/releases/download/v1.4.1/cosign-linux-amd64"
+
+    curl --output cosign \
+      --silent --show-error --location --fail --retry 3 \
+      "$COSIGN_URL"
+
+    sudo chmod +x cosign
+    sudo mv cosign /usr/local/bin/
+    cosign version
+
+install_syft: &install_syft
+  name: Install syft
+  command: |
+    SYFT_URL="https://github.com/anchore/syft/releases/download/v0.34.0/syft_0.34.0_linux_amd64.tar.gz"
+
+    curl --output syft_0.34.0_linux_amd64.tar.gz \
+      --silent --show-error --location --fail --retry 3 \
+      "$SYFT_URL"
+
+    sudo tar -C /tmp -xzf syft_0.34.0_linux_amd64.tar.gz
+    sudo mv /tmp/syft /usr/local/bin/
+    syft version
 
 jobs:
   lint:
@@ -72,11 +98,12 @@ jobs:
     - setup_remote_docker
     - run: *install_buildx
     - run: *setup_docker_multiarch
+    - run: *install_cosign
+    - run: *install_syft
     - run: *install_goreleaser
     - run:
         no_output_timeout: 30m
         command: |
-          export PATH=$PATH:/usr/local/goreleaser
           make goreleaser-snapshot
           docker images
           docker run falcosecurity/falcosidekick:latest-amd64 --version
@@ -90,10 +117,11 @@ jobs:
     - run: *install_buildx
     - run: *setup_docker_multiarch
     - run: *install_goreleaser
+    - run: *install_cosign
+    - run: *install_syft
     - run:
         no_output_timeout: 30m
         command: |
-          export PATH=$PATH:/usr/local/goreleaser
           make goreleaser-snapshot
           docker run falcosecurity/falcosidekick:latest-amd64 --version
     - run:
@@ -118,10 +146,11 @@ jobs:
     - run: *setup_docker_multiarch
     - run: *install_goreleaser
     - run: *install_awscli
+    - run: *install_cosign
+    - run: *install_syft
     - run:
         no_output_timeout: 30m
         command: |
-          export PATH=$PATH:/usr/local/goreleaser
           make goreleaser-snapshot
           docker run public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 --version
     - run:
@@ -150,13 +179,15 @@ jobs:
     - run: *install_buildx
     - run: *setup_docker_multiarch
     - run: *install_goreleaser
+    - run: *install_cosign
+    - run: *install_syft
     - run: *install_awscli
     - run:
         name: Login Registries
         command: |
           echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
           aws ecr-public get-login-password --region us-east-1 | \
-            docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
+          docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
     - run:
         name: Release
         no_output_timeout: 30m
