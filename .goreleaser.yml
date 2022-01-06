@@ -1,10 +1,26 @@
 project_name: falcosidekick
 
+env:
+  - GO111MODULE=on
+  - DOCKER_CLI_EXPERIMENTAL=enabled
+  - COSIGN_EXPERIMENTAL=true
+
 snapshot:
   name_template: 'latest'
 
 checksum:
   name_template: 'checksums.txt'
+
+# Prevents parallel builds from stepping on each others toes downloading modules
+before:
+  hooks:
+  - go mod tidy
+
+gomod:
+  proxy: true
+
+sboms:
+- artifacts: archive
 
 builds:
   - id: "falcosidekick"
@@ -109,6 +125,30 @@ docker_manifests:
   - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-arm64'
   - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-armv7'
 
+signs:
+  - id: falcosidekick
+    signature: "${artifact}.sig"
+    cmd: cosign
+    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--key=./release/cosign.key", "${artifact}"]
+    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    artifacts: archive
+  - id: checksum
+    signature: "${artifact}.sig"
+    cmd: cosign
+    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--key=./release/cosign.key", "${artifact}"]
+    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    artifacts: checksum
+
+docker_signs:
+- id: falcosidekick
+  cmd: cosign
+  args: ["sign", "--key=./release/cosign.key", "--recursive", "${artifact}" ]
+  artifacts: manifests
+  stdin: '{{ .Env.COSIGN_PASSWORD }}'
+  output: true
+
 release:
   github:
   prerelease: auto
+  extra_files:
+    - glob: ./release/cosign.pub
