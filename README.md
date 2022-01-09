@@ -722,17 +722,17 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `GOOGLECHAT_OUTPUTFORMAT`, see
   [Slack Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before sections.
-- **CLIQ_WEBHOOKURL** : Zoho Cliq Channel URL (ex:
+- **CLIQ_WEBHOOKURL**: Zoho Cliq Channel URL (ex:
   https://cliq.zoho.eu/api/v2/channelsbyname/XXXX/message?zapikey=YYYY), if not `empty`, Cliq
   Chat output is _enabled_
-- **CLIQ_ICON** : Cliq icon (avatar)
-- **CLIQ_USEEMOJI** : Prefix message text with an emoji
-- **CLIQ_OUTPUTFORMAT** : `all` (default), `text` (only text is displayed in
+- **CLIQ_ICON**: Cliq icon (avatar)
+- **CLIQ_USEEMOJI**: Prefix message text with an emoji
+- **CLIQ_OUTPUTFORMAT**: `all` (default), `text` (only text is displayed in
   Cliq), `fields` (only fields are displayed in Cliq)
-- **CLIQ_MINIMUMPRIORITY** : minimum priority of event for using this
+- **CLIQ_MINIMUMPRIORITY**: minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-- **CLIQ_MESSAGEFORMAT** : a Go template to format Google Chat Text above
+- **CLIQ_MESSAGEFORMAT**: a Go template to format Google Chat Text above
   Attachment, displayed in addition to the output from
   `CLIQ_OUTPUTFORMAT`, see
   [Slack Message Formatting](#slack-message-formatting) in the README for
