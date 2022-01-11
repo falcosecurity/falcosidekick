@@ -1106,6 +1106,11 @@ time                akey    bkey    ckey    priority rule      value
 
 ![google chat text example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/google_chat_example.png)
 
+## Installing Policy Report Custom Resource Definition (CRD)
+
+Information about how to find and install the CRD for the reports can be found [here](https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report#installing). Installation of the Policy Report Custom Resource Definition (CRD) is a prerequisite for using Policy Report output.
+
+
 ## Development
 
 ### Build
