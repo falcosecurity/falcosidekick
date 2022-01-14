@@ -433,7 +433,7 @@ policyreport:
   enabled: false  # if true; policyreport output is enabled
   kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
   minimumpriority: "debug" # events with a priority above this are mapped to fail in PolicyReport Summary and lower that those are mapped to warn (default="")
-  maxevents: 1000 # the max number of events that can be in a policyreport (default=1000)
+  maxevents: 1000 # the max number of events that can be in a policyreport (default: 1000)
   prunebypriority: false # if true; the events with lowest severity are pruned first, in FIFO order (default: false)
 
 webui:
