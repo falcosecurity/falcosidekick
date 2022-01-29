@@ -235,6 +235,7 @@ workflows:
           context:
             - falco
             - test-infra
+            - cosign
           requires:
             - test
             - lint
