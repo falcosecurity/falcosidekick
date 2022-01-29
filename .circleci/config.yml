@@ -2,13 +2,13 @@ version: 2.1
 executors:
   default:
     docker:
-    - image: cimg/go:1.17.4
+    - image: cimg/go:1.17.6
 
 install_buildx: &install_buildx
   name: Install Docker buildx
   command: |
     mkdir -p ~/.docker/cli-plugins
-    curl -sSL -o ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.7.0/buildx-v0.7.0.linux-amd64
+    curl -sSL -o ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.7.1/buildx-v0.7.1.linux-amd64
     chmod a+x ~/.docker/cli-plugins/docker-buildx
 
 setup_docker_multiarch: &setup_docker_multiarch
@@ -25,7 +25,7 @@ setup_docker_multiarch: &setup_docker_multiarch
 install_goreleaser: &install_goreleaser
   name: Install goreleaser
   command: |
-    GORELEASER_URL="https://github.com/goreleaser/goreleaser/releases/download/v1.2.5/goreleaser_Linux_x86_64.tar.gz"
+    GORELEASER_URL="https://github.com/goreleaser/goreleaser/releases/download/v1.4.1/goreleaser_Linux_x86_64.tar.gz"
 
     curl --output goreleaser_Linux_x86_64.tar.gz \
       --silent --show-error --location --fail --retry 3 \
@@ -34,6 +34,7 @@ install_goreleaser: &install_goreleaser
     sudo mkdir -p /tmp/goreleaser
     sudo tar -C /tmp/goreleaser -xzf goreleaser_Linux_x86_64.tar.gz
     sudo mv /tmp/goreleaser/goreleaser /usr/local/bin/
+    rm -f goreleaser_Linux_x86_64.tar.gz
     goreleaser --version
 
 install_awscli: &install_awscli
@@ -48,7 +49,7 @@ install_awscli: &install_awscli
 install_cosign: &install_cosign
   name: Install cosign
   command: |
-    COSIGN_URL="https://github.com/sigstore/cosign/releases/download/v1.4.1/cosign-linux-amd64"
+    COSIGN_URL="https://github.com/sigstore/cosign/releases/download/v1.5.0/cosign-linux-amd64"
 
     curl --output cosign \
       --silent --show-error --location --fail --retry 3 \
@@ -61,14 +62,15 @@ install_cosign: &install_cosign
 install_syft: &install_syft
   name: Install syft
   command: |
-    SYFT_URL="https://github.com/anchore/syft/releases/download/v0.34.0/syft_0.34.0_linux_amd64.tar.gz"
+    SYFT_URL="https://github.com/anchore/syft/releases/download/v0.36.0/syft_0.36.0_linux_amd64.tar.gz"
 
-    curl --output syft_0.34.0_linux_amd64.tar.gz \
+    curl --output syft_0.36.0_linux_amd64.tar.gz \
       --silent --show-error --location --fail --retry 3 \
       "$SYFT_URL"
 
-    sudo tar -C /tmp -xzf syft_0.34.0_linux_amd64.tar.gz
+    sudo tar -C /tmp -xzf syft_0.36.0_linux_amd64.tar.gz
     sudo mv /tmp/syft /usr/local/bin/
+    rm -f syft_0.36.0_linux_amd64.tar.gz
     syft version
 
 jobs:
