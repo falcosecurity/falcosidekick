@@ -95,7 +95,7 @@ goreleaser: ## Release using goreleaser
 
 .PHONY: goreleaser-snapshot
 goreleaser-snapshot: ## Release snapshot using goreleaser
-	LDFLAGS="$(LDFLAGS)" goreleaser --snapshot --rm-dist
+	LDFLAGS="$(LDFLAGS)" goreleaser --snapshot --skip-sign --rm-dist
 
 ## --------------------------------------
 ## Tooling Binaries
