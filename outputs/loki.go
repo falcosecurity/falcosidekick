@@ -51,6 +51,9 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	c.Stats.Loki.Add(Total, 1)
 	c.ContentType = LokiContentType
+	if c.Config.Loki.Tenant != "" {
+		c.AddHeader("X-Scope-OrgID", c.Config.Loki.Tenant)
+	}
 
 	err := c.Post(newLokiPayload(falcopayload, c.Config))
 	if err != nil {
