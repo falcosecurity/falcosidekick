@@ -117,6 +117,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Loki.MinimumPriority", "")
 	v.SetDefault("Loki.MutualTLS", false)
 	v.SetDefault("Loki.CheckCert", true)
+	v.SetDefault("Loki.Tenant", "")
 
 	v.SetDefault("AWS.AccessKeyID", "")
 	v.SetDefault("AWS.SecretAccessKey", "")

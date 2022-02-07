@@ -190,6 +190,7 @@ type lokiOutputConfig struct {
 	MinimumPriority string
 	CheckCert       bool
 	MutualTLS       bool
+	Tenant          string
 }
 
 type natsOutputConfig struct {
