@@ -112,3 +112,13 @@ docker_manifests:
 release:
   github:
   prerelease: auto
+archives:
+  - id: falcosidekick-archive
+    builds:
+    - falcosidekick
+blobs:
+  - provider: s3
+    bucket: falco-distribution
+    folder: /packages/bin/noarch/
+    ids:
+    - falcosidekick-archive
