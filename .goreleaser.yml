@@ -119,6 +119,6 @@ archives:
 blobs:
   - provider: s3
     bucket: falco-distribution
-    folder: /packages/bin/noarch/
+    folder: /packages/bin/{{ .Arch }}/
     ids:
     - falcosidekick-archive
