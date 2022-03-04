@@ -191,6 +191,7 @@ type lokiOutputConfig struct {
 	CheckCert       bool
 	MutualTLS       bool
 	Tenant          string
+	Endpoint        string
 }
 
 type natsOutputConfig struct {

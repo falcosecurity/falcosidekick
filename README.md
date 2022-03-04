@@ -248,6 +248,7 @@ loki:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # tenant: "" # Add the tenant header if needed. Enabled if not empty
+  # endpoint: "/api/prom/push" # The endpoint URL path, default is "/api/prom/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
 
 stan:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, STAN output is enabled
@@ -604,6 +605,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **LOKI_CHECKCERT** : check if ssl certificate of the output is valid (default:
   `true`)
 - **LOKI_TENANT** : Loki tenant, if not `empty`, Loki tenant is _enabled_
+- **LOKI_ENDPOINT** : Loki endpoint URL path, default is "/api/prom/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
 - **NATS_HOSTPORT** : NATS "nats://host:port", if not `empty`, NATS is _enabled_
 - **NATS_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
