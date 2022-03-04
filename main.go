@@ -187,7 +187,7 @@ func init() {
 
 	if config.Loki.HostPort != "" {
 		var err error
-		lokiClient, err = outputs.NewClient("Loki", config.Loki.HostPort+"/api/prom/push", config.Loki.MutualTLS, config.Loki.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		lokiClient, err = outputs.NewClient("Loki", config.Loki.HostPort+config.Loki.Endpoint, config.Loki.MutualTLS, config.Loki.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Loki.HostPort = ""
 		} else {
