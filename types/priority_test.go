@@ -167,42 +167,6 @@ func TestPriority(t *testing.T) {
 		p:    "Alert",
 		want: Alert,
 	}, {
-		name: "Emergency",
-		p:    "Emergency",
-		want: Emergency,
-	}, {
-		name: "Debug",
-		p:    "debug",
-		want: Debug,
-	}, {
-		name: "Informational",
-		p:    "informational",
-		want: Informational,
-	}, {
-		name: "Notice",
-		p:    "notice",
-		want: Notice,
-	}, {
-		name: "Warning",
-		p:    "warning",
-		want: Warning,
-	}, {
-		name: "Error",
-		p:    "error",
-		want: Error,
-	}, {
-		name: "Critical",
-		p:    "critical",
-		want: Critical,
-	}, {
-		name: "Alert",
-		p:    "alert",
-		want: Alert,
-	}, {
-		name: "Emergency",
-		p:    "emergency",
-		want: Emergency,
-	}, {
 		name: "Unknown Key",
 		p:    "idk",
 		want: Default,

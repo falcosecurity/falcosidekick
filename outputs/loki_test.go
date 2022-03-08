@@ -13,7 +13,7 @@ func TestNewLokiPayload(t *testing.T) {
 	expectedOutput := lokiPayload{
 		Streams: []lokiStream{
 			{
-				Labels: "{procname=\"falcosidekick\",rule=\"Test rule\",priority=\"Debug\"}",
+				Labels: "{procname=\"falcosidekick\",tags=\"test,example\",rule=\"Test rule\",source=\"syscalls\",priority=\"Debug\"}",
 				Entries: []lokiEntry{
 					{
 						Ts:   "2001-01-01T01:10:00Z",

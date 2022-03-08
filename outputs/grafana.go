@@ -24,10 +24,14 @@ func newGrafanaPayload(falcopayload types.FalcoPayload, config *types.Configurat
 		"falco",
 		falcopayload.Priority.String(),
 		falcopayload.Rule,
+		falcopayload.Source,
 	}
 	if config.Grafana.AllFieldsAsTags {
 		for _, i := range falcopayload.OutputFields {
 			tags = append(tags, fmt.Sprintf("%v", i))
+		}
+		if len(falcopayload.Tags) != 0 {
+			tags = append(tags, falcopayload.Tags...)
 		}
 	}
 

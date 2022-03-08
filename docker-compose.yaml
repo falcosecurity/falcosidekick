@@ -1,0 +1,60 @@
+version: "3"
+services:
+  smtp:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    profiles: [smtp]
+  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.1.0
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment: #credentials: elastic/elastic
+      - ELASTIC_PASSWORD=elastic
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+    profiles: [elasticsearch]
+  
+  nats:
+    image: nats:latest
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: "--http_port 8222"
+    hostname: nats
+    profiles: [nats]
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    profiles: [loki]
+  grafana: #credentials: admin/admin
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    depends_on: [loki]
+    profiles: [loki]
+
+  influxdb: #credentials: admin/adminadmin
+    image: influxdb:latest
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminadmin
+      - DOCKER_INFLUXDB_INIT_ORG=falco
+      - DOCKER_INFLUXDB_INIT_BUCKET=falco
+    ports:
+      - "8086:8086"
+    profiles: [influxdb]
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    profiles: [alertmanager]

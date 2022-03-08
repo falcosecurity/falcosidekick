@@ -33,25 +33,25 @@ import (
 )
 
 // ErrHeaderMissing = 400
-var ErrHeaderMissing = errors.New("Header missing")
+var ErrHeaderMissing = errors.New("header missing")
 
 // ErrClientAuthenticationError = 401
-var ErrClientAuthenticationError = errors.New("Authentication Error")
+var ErrClientAuthenticationError = errors.New("authentication Error")
 
 // ErrForbidden = 403
-var ErrForbidden = errors.New("Access Denied")
+var ErrForbidden = errors.New("access Denied")
 
 // ErrNotFound = 404
-var ErrNotFound = errors.New("Resource not found")
+var ErrNotFound = errors.New("resource not found")
 
 // ErrUnprocessableEntityError = 422
-var ErrUnprocessableEntityError = errors.New("Bad Request")
+var ErrUnprocessableEntityError = errors.New("bad Request")
 
 // ErrTooManyRequest = 429
-var ErrTooManyRequest = errors.New("Exceeding post rate limit")
+var ErrTooManyRequest = errors.New("exceeding post rate limit")
 
 // ErrClientCreation is returned if client can't be created
-var ErrClientCreation = errors.New("Client creation Error")
+var ErrClientCreation = errors.New("client creation Error")
 
 // EnabledOutputs list all enabled outputs
 var EnabledOutputs []string
@@ -126,6 +126,7 @@ func (c *Client) Post(payload interface{}) error {
 	// defer + recover to catch panic if output doesn't respond
 	defer func() {
 		if err := recover(); err != nil {
+			log.Printf("[ERROR] : %v - %s", c.OutputType, err)
 		}
 	}()
 
@@ -139,7 +140,7 @@ func (c *Client) Post(payload interface{}) error {
 		}
 	}
 
-	if c.Config.Debug == true {
+	if c.Config.Debug {
 		log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
 	}
 
@@ -166,7 +167,7 @@ func (c *Client) Post(payload interface{}) error {
 		}
 	} else {
 		// With MutualTLS enabled, the check cert flag is ignored
-		if c.CheckCert == false {
+		if c.CheckCert {
 			// #nosec G402 This is only set as a result of explicit configuration
 			customTransport.TLSClientConfig = &tls.Config{
 				InsecureSkipVerify: true,

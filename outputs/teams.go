@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"log"
+	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -65,6 +66,14 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		fact.Name = Priority
 		fact.Value = falcopayload.Priority.String()
 		facts = append(facts, fact)
+		fact.Name = Source
+		fact.Value = falcopayload.Source
+		facts = append(facts, fact)
+		if len(falcopayload.Tags) != 0 {
+			fact.Name = Tags
+			fact.Value = strings.Join(falcopayload.Tags, ", ")
+			facts = append(facts, fact)
+		}
 	}
 
 	section.Facts = facts

@@ -69,7 +69,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 // testHandler sends a test event to all enabled outputs.
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	r.Body = ioutil.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}}`)))
+	r.Body = ioutil.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}, "tags":["test","example"]}`)))
 	mainHandler(w, r)
 }
 
@@ -84,7 +84,6 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		return types.FalcoPayload{}, err
 	}
 
-	// falcopayload.OutputFields = make(map[string]interface{})
 	if len(config.Customfields) > 0 {
 		if falcopayload.OutputFields == nil {
 			falcopayload.OutputFields = make(map[string]interface{})
@@ -92,6 +91,10 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		for key, value := range config.Customfields {
 			falcopayload.OutputFields[key] = value
 		}
+	}
+
+	if falcopayload.Source == "" {
+		falcopayload.Source = "syscalls"
 	}
 
 	var kn, kp string
@@ -112,7 +115,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 	promStats.Falco.With(promLabels).Inc()
 
-	if config.Debug == true {
+	if config.Debug {
 		body, _ := json.Marshal(falcopayload)
 		log.Printf("[DEBUG] : Falco's payload : %v", string(body))
 	}

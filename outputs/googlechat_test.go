@@ -38,6 +38,18 @@ func TestNewGoogleChatPayload(t *testing.T) {
 							},
 							{
 								keyValue{
+									TopLabel: "source",
+									Content:  "syscalls",
+								},
+							},
+							{
+								keyValue{
+									TopLabel: "tags",
+									Content:  "test, example",
+								},
+							},
+							{
+								keyValue{
 									TopLabel: "time",
 									Content:  "2001-01-01 01:10:00 +0000 UTC",
 								},

@@ -31,6 +31,10 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 			continue
 		}
 	}
+	tags = append(tags, "source:"+falcopayload.Source)
+	if len(falcopayload.Tags) != 0 {
+		tags = append(tags, falcopayload.Tags...)
+	}
 	d.Tags = tags
 
 	d.Title = falcopayload.Rule

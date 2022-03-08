@@ -1,5 +1,4 @@
 .circleci
-.git
 .github
 .golangci.yml
 _config.yml

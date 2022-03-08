@@ -3,6 +3,7 @@ package outputs
 import (
 	"bytes"
 	"log"
+	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -55,17 +56,27 @@ func newGooglechatPayload(falcopayload types.FalcoPayload, config *types.Configu
 	}
 
 	for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
-		w := widget{
+		widgets = append(widgets, widget{
 			KeyValue: keyValue{
 				TopLabel: i,
 				Content:  falcopayload.OutputFields[i].(string),
 			},
-		}
-		widgets = append(widgets, w)
+		})
 	}
 
 	widgets = append(widgets, widget{KeyValue: keyValue{"rule", falcopayload.Rule}})
 	widgets = append(widgets, widget{KeyValue: keyValue{"priority", falcopayload.Priority.String()}})
+	widgets = append(widgets, widget{KeyValue: keyValue{"source", falcopayload.Source}})
+
+	if len(falcopayload.Tags) != 0 {
+		widgets = append(widgets, widget{
+			KeyValue: keyValue{
+				TopLabel: "tags",
+				Content:  strings.Join(falcopayload.Tags, ", "),
+			},
+		})
+	}
+
 	widgets = append(widgets, widget{KeyValue: keyValue{"time", falcopayload.Time.String()}})
 
 	return googlechatPayload{

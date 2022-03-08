@@ -33,6 +33,14 @@ func TestNewTeamsPayload(t *testing.T) {
 						Name:  "priority",
 						Value: "Debug",
 					},
+					{
+						Name:  "source",
+						Value: "syscalls",
+					},
+					{
+						Name:  "tags",
+						Value: "test, example",
+					},
 				},
 			},
 		},
