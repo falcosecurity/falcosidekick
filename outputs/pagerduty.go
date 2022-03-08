@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/PagerDuty/go-pagerduty"
@@ -30,6 +31,13 @@ func (c *Client) PagerdutyPost(falcopayload types.FalcoPayload) {
 }
 
 func createPagerdutyEvent(falcopayload types.FalcoPayload, config types.PagerdutyConfig) pagerduty.V2Event {
+	details := make(map[string]interface{}, len(falcopayload.OutputFields)+4)
+	details["rule"] = falcopayload.Rule
+	details["priority"] = falcopayload.Priority.String()
+	details["source"] = falcopayload.Source
+	if len(falcopayload.Tags) != 0 {
+		details["tags"] = strings.Join(falcopayload.Tags, ", ")
+	}
 	event := pagerduty.V2Event{
 		RoutingKey: config.RoutingKey,
 		Action:     "trigger",

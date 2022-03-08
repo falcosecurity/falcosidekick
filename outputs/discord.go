@@ -3,6 +3,7 @@ package outputs
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -67,12 +68,15 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 		default:
 			continue
 		}
-
 		embedFields = append(embedFields, embedField)
 	}
 
 	embedFields = append(embedFields, discordEmbedFieldPayload{Rule, falcopayload.Rule, true})
 	embedFields = append(embedFields, discordEmbedFieldPayload{Priority, falcopayload.Priority.String(), true})
+	embedFields = append(embedFields, discordEmbedFieldPayload{Source, falcopayload.Source, true})
+	if len(falcopayload.Tags) != 0 {
+		embedFields = append(embedFields, discordEmbedFieldPayload{Tags, strings.Join(falcopayload.Tags, ", "), true})
+	}
 	embedFields = append(embedFields, discordEmbedFieldPayload{Time, falcopayload.Time.String(), true})
 
 	embed := discordEmbedPayload{

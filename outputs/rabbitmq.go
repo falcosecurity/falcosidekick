@@ -18,12 +18,12 @@ func NewRabbitmqClient(config *types.Configuration, stats *types.Statistics, pro
 		conn, err := amqp.Dial(config.Rabbitmq.URL)
 		if err != nil {
 			log.Printf("[ERROR] : Rabbitmq - %v\n", "Error while connecting rabbitmq")
-			return nil, errors.New("Error while connecting Rabbitmq")
+			return nil, errors.New("error while connecting Rabbitmq")
 		}
 		ch, err := conn.Channel()
 		if err != nil {
 			log.Printf("[ERROR] : Rabbitmq Channel - %v\n", "Error while creating rabbitmq channel")
-			return nil, errors.New("Error while creating rabbitmq channel")
+			return nil, errors.New("error while creating rabbitmq channel")
 		}
 		channel = ch
 	}

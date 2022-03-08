@@ -36,6 +36,16 @@ func TestNewDiscordPayload(t *testing.T) {
 						Inline: true,
 					},
 					{
+						Name:   "source",
+						Value:  "syscalls",
+						Inline: true,
+					},
+					{
+						Name:   "tags",
+						Value:  "test, example",
+						Inline: true,
+					},
+					{
 						Name:   "time",
 						Value:  "2001-01-01 01:10:00 +0000 UTC",
 						Inline: true,

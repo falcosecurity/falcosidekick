@@ -3,6 +3,7 @@ package outputs
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/types"
@@ -68,6 +69,7 @@ func (c *Client) WavefrontPost(falcopayload types.FalcoPayload) {
 	tags := make(map[string]string)
 	tags["severity"] = falcopayload.Priority.String()
 	tags["rule"] = falcopayload.Rule
+	tags["source"] = falcopayload.Source
 
 	for tag, value := range falcopayload.OutputFields {
 		switch v := value.(type) {
@@ -76,6 +78,11 @@ func (c *Client) WavefrontPost(falcopayload types.FalcoPayload) {
 		default:
 			continue
 		}
+	}
+
+	if len(falcopayload.Tags) != 0 {
+		tags["tags"] = strings.Join(falcopayload.Tags, ", ")
+
 	}
 
 	c.Stats.Wavefront.Add(Total, 1)

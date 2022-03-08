@@ -60,6 +60,8 @@ func Priority(p string) PriorityType {
 		return Notice
 	case "informational":
 		return Informational
+	case "info":
+		return Informational
 	case "debug":
 		return Debug
 	default:
@@ -86,6 +88,8 @@ func (p *PriorityType) UnmarshalJSON(b []byte) error {
 	case "notice":
 		*p = Notice
 	case "informational":
+		*p = Informational
+	case "info":
 		*p = Informational
 	case "debug":
 		*p = Debug

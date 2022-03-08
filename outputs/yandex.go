@@ -27,7 +27,7 @@ func NewYandexClient(config *types.Configuration, stats *types.Statistics, promS
 	})
 	if err != nil {
 		log.Printf("[ERROR] : Yandex - %v\n", "Error while creating Yandex Session")
-		return nil, errors.New("Error while creating Yandex Session")
+		return nil, errors.New("error while creating Yandex Session")
 	}
 	log.Printf("[INFO] : Yandex Session has been configured successfully")
 

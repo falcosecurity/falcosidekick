@@ -3,6 +3,7 @@ package outputs
 import (
 	"bytes"
 	"log"
+	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -25,6 +26,16 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 		field.Value = falcopayload.Priority.String()
 		field.Short = true
 		fields = append(fields, field)
+		field.Title = Source
+		field.Value = falcopayload.Source
+		field.Short = true
+		fields = append(fields, field)
+		if len(falcopayload.Tags) != 0 {
+			field.Title = Tags
+			field.Value = strings.Join(falcopayload.Tags, ", ")
+			field.Short = true
+			fields = append(fields, field)
+		}
 
 		for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
 			field.Title = i

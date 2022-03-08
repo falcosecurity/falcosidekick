@@ -31,6 +31,7 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 	event.SetType("falco.rule.output.v1")
 	event.SetExtension("priority", falcopayload.Priority.String())
 	event.SetExtension("rule", falcopayload.Rule)
+	event.SetExtension("source", falcopayload.Source)
 
 	// Set Extensions.
 	for k, v := range c.Config.CloudEvents.Extensions {

@@ -22,6 +22,8 @@ const (
 
 	Rule     string = "rule"
 	Priority string = "priority"
+	Source   string = "source"
+	Tags     string = "tags"
 	Time     string = "time"
 	Text     string = "text"
 

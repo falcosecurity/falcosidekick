@@ -26,7 +26,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-var falcoTestInput = `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"2001-01-01T01:10:00Z","output_fields": {"proc.name":"falcosidekick", "proc.tty": 1234}}`
+var falcoTestInput = `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"2001-01-01T01:10:00Z","source":"syscalls","output_fields": {"proc.name":"falcosidekick", "proc.tty": 1234}, "tags":["test","example"]}`
 
 func TestNewClient(t *testing.T) {
 	u, _ := url.Parse("http://localhost")

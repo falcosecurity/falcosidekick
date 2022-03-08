@@ -39,7 +39,12 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		}
 	}
 
+	if len(falcopayload.Tags) != 0 {
+		s += "tags=\"" + strings.Join(falcopayload.Tags, ",") + "\","
+	}
+
 	s += "rule=\"" + falcopayload.Rule + "\","
+	s += "source=\"" + falcopayload.Source + "\","
 	s += "priority=\"" + falcopayload.Priority.String() + "\","
 
 	ls.Labels = "{" + s[:len(s)-1] + "}"

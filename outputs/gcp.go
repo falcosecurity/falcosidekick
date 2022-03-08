@@ -27,7 +27,7 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 	base64decodedCredentialsData, err := base64.StdEncoding.DecodeString(config.GCP.Credentials)
 	if err != nil {
 		log.Printf("[ERROR] : GCP - %v\n", "Error while base64-decoding GCP Credentials")
-		return nil, errors.New("Error while base64-decoding GCP Credentials")
+		return nil, errors.New("error while base64-decoding GCP Credentials")
 	}
 
 	googleCredentialsData := string(base64decodedCredentialsData)
@@ -40,19 +40,19 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 			credentials, err := google.CredentialsFromJSON(context.Background(), []byte(googleCredentialsData), pubsub.ScopePubSub)
 			if err != nil {
 				log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while loading GCP Credentials")
-				return nil, errors.New("Error while loading GCP Credentials")
+				return nil, errors.New("error while loading GCP Credentials")
 			}
 			pubSubClient, err := pubsub.NewClient(context.Background(), config.GCP.PubSub.ProjectID, option.WithCredentials(credentials))
 			if err != nil {
 				log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while creating GCP PubSub Client")
-				return nil, errors.New("Error while creating GCP PubSub Client")
+				return nil, errors.New("error while creating GCP PubSub Client")
 			}
 			topicClient = pubSubClient.Topic(config.GCP.PubSub.Topic)
 		} else {
 			pubSubClient, err := pubsub.NewClient(context.Background(), config.GCP.PubSub.ProjectID)
 			if err != nil {
 				log.Printf("[ERROR] : GCP PubSub - %v\n", "Error while creating GCP PubSub Client")
-				return nil, errors.New("Error while creating GCP PubSub Client")
+				return nil, errors.New("error while creating GCP PubSub Client")
 			}
 			topicClient = pubSubClient.Topic(config.GCP.PubSub.Topic)
 		}
@@ -62,12 +62,12 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 		credentials, err := google.CredentialsFromJSON(context.Background(), []byte(googleCredentialsData))
 		if err != nil {
 			log.Printf("[ERROR] : GCP Storage - %v\n", "Error while loading GCS Credentials")
-			return nil, errors.New("Error while loading GCP Credentials")
+			return nil, errors.New("error while loading GCP Credentials")
 		}
 		storageClient, err = storage.NewClient(context.Background(), option.WithCredentials(credentials))
 		if err != nil {
 			log.Printf("[ERROR] : GCP Storage - %v\n", "Error while creating GCP Storage Client")
-			return nil, errors.New("Error while creating GCP Storage Client")
+			return nil, errors.New("error while creating GCP Storage Client")
 		}
 	}
 
@@ -76,18 +76,18 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 			credentials, err := google.CredentialsFromJSON(context.Background(), []byte(googleCredentialsData), gcpfunctions.DefaultAuthScopes()...)
 			if err != nil {
 				log.Printf("[ERROR] : GCP CloudFunctions - %v\n", "Error while loading GCS Credentials")
-				return nil, errors.New("Error while loading GCP Credentials")
+				return nil, errors.New("error while loading GCP Credentials")
 			}
 			cloudFunctionsClient, err = gcpfunctions.NewCloudFunctionsClient(context.Background(), option.WithCredentials(credentials))
 			if err != nil {
 				log.Printf("[ERROR]: GCP CloudFunctions - %v\n", "Error while creating GCP CloudFunctions Client")
-				return nil, errors.New("Error while creating GCP CloudFunctions Client")
+				return nil, errors.New("error while creating GCP CloudFunctions Client")
 			}
 		} else {
 			cloudFunctionsClient, err = gcpfunctions.NewCloudFunctionsClient(context.Background())
 			if err != nil {
 				log.Printf("[ERROR]: GCP CloudFunctions - %v\n", "Error while creating GCP CloudFunctions Client")
-				return nil, errors.New("Error while creating GCP CloudFunctions Client")
+				return nil, errors.New("error while creating GCP CloudFunctions Client")
 			}
 		}
 	}

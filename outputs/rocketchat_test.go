@@ -33,6 +33,16 @@ func TestNewRocketchatPayload(t *testing.T) {
 						Short: true,
 					},
 					{
+						Title: "source",
+						Value: "syscalls",
+						Short: true,
+					},
+					{
+						Title: "tags",
+						Value: "test, example",
+						Short: true,
+					},
+					{
 						Title: "proc.name",
 						Value: "falcosidekick",
 						Short: true,

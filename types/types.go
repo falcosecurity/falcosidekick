@@ -16,6 +16,8 @@ type FalcoPayload struct {
 	Rule         string                 `json:"rule"`
 	Time         time.Time              `json:"time"`
 	OutputFields map[string]interface{} `json:"output_fields"`
+	Source       string                 `json:"source"`
+	Tags         []string               `json:"tags,omitempty"`
 }
 
 // Configuration is a struct to store configuration

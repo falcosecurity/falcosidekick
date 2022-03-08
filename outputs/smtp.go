@@ -91,7 +91,7 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 	auth := sasl.NewPlainClient("", c.Config.SMTP.User, c.Config.SMTP.Password)
 	body := sp.To + "\n" + sp.Subject + "\n" + sp.Body
 
-	if c.Config.Debug == true {
+	if c.Config.Debug {
 		log.Printf("[DEBUG] : SMTP payload : \nServer: %v\nFrom: %v\nTo: %v\nSubject: %v\n", c.Config.SMTP.HostPort, c.Config.SMTP.From, sp.To, sp.Subject)
 	}
 

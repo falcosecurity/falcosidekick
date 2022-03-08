@@ -9,13 +9,12 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -38,56 +37,22 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 		err3 := os.Setenv("AWS_DEFAULT_REGION", config.AWS.Region)
 		if err1 != nil || err2 != nil || err3 != nil {
 			log.Printf("[ERROR] : AWS - Error setting AWS env vars")
-			return nil, errors.New("Error setting AWS env vars")
+			return nil, errors.New("error setting AWS env vars")
 		}
 	}
 
-	var sess *session.Session
-	var err error
-
-	// if we are not using regional endpoints, the provider is configured manually
-	// in almost all cases this should be set as per https://github.com/aws/amazon-eks-pod-identity-webhook#aws_sts_regional_endpoints-injection
-
-	roleArn := os.Getenv("AWS_ROLE_ARN")
-	tokenPath := os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE")
-
-	if os.Getenv("AWS_STS_REGIONAL_ENDPOINTS") != "regional" && roleArn != "" && tokenPath != "" {
-		// create a temporary session to ensure the AssumeRoleWithWebIdentity operation can succeed
-		tmp, err := session.NewSession(&aws.Config{
-			Region:      aws.String(config.AWS.Region),
-			Credentials: credentials.AnonymousCredentials,
-		},
-		)
-		if err != nil {
-			log.Printf("[ERROR] : AWS - %v\n", "Error setting temporary session to configure WebIdentityRoleProvider")
-			return nil, errors.New("Error setting temporary session to configure WebIdentityRoleProvider")
-		}
-
-		provider := stscreds.NewWebIdentityRoleProvider(
-			sts.New(tmp),
-			os.Getenv("AWS_ROLE_ARN"),
-			os.Getenv("AWS_ROLE_SESSION_NAME")+time.Now().Format("20060102150405"),
-			os.Getenv("AWS_WEB_IDENTITY_TOKEN_FILE"),
-		)
-
-		sess, err = session.NewSessionWithOptions(session.Options{
-			Config: aws.Config{Credentials: credentials.NewCredentials(provider)},
-		})
-		if err != nil {
-			log.Printf("[ERROR] : AWS - %v\n", "Error configuring IAM role for Service Account")
-			return nil, errors.New("Error configuring IAM role for Service Account")
-		}
-	} else {
-		// ensures default authentication flow is followed, env -> shared config -> EC2 instance metadata
-		sess = session.Must(session.NewSessionWithOptions(session.Options{
-			SharedConfigState: session.SharedConfigEnable,
-		}))
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(config.AWS.Region)},
+	)
+	if err != nil {
+		log.Printf("[ERROR] : AWS - %v\n", "Error while creating AWS Session")
+		return nil, errors.New("error while creating AWS Session")
 	}
 
 	_, err = sts.New(sess).GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		log.Printf("[ERROR] : AWS - %v\n", "Error while getting AWS Token")
-		return nil, errors.New("Error while getting AWS Token")
+		return nil, errors.New("error while getting AWS Token")
 	}
 
 	var endpointURL *url.URL
@@ -133,7 +98,7 @@ func (c *Client) InvokeLambda(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	if c.Config.Debug == true {
+	if c.Config.Debug {
 		r, _ := base64.StdEncoding.DecodeString(*resp.LogResult)
 		log.Printf("[DEBUG] : %v Lambda result : %v\n", c.OutputType, string(r))
 	}
@@ -166,7 +131,7 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	if c.Config.Debug == true {
+	if c.Config.Debug {
 		log.Printf("[DEBUG] : %v SQS - MD5OfMessageBody : %v\n", c.OutputType, *resp.MD5OfMessageBody)
 	}
 
@@ -216,7 +181,7 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 
 	var msg *sns.PublishInput
 
-	if c.Config.AWS.SNS.RawJSON == true {
+	if c.Config.AWS.SNS.RawJSON {
 		f, _ := json.Marshal(falcopayload)
 		msg = &sns.PublishInput{
 			Message:  aws.String(string(f)),
@@ -234,8 +199,19 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 					DataType:    aws.String("String"),
 					StringValue: aws.String(falcopayload.Rule),
 				},
+				"source": {
+					DataType:    aws.String("String"),
+					StringValue: aws.String(falcopayload.Source),
+				},
 			},
 			TopicArn: aws.String(c.Config.AWS.SNS.TopicArn),
+		}
+
+		if len(falcopayload.Tags) != 0 {
+			msg.MessageAttributes["tags"] = &sns.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(strings.Join(falcopayload.Tags, ",")),
+			}
 		}
 
 		for i, j := range falcopayload.OutputFields {
@@ -251,7 +227,7 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 		}
 	}
 
-	if c.Config.Debug == true {
+	if c.Config.Debug {
 		p, _ := json.Marshal(msg)
 		log.Printf("[DEBUG] : %v SNS - Message : %v\n", c.OutputType, string(p))
 	}
