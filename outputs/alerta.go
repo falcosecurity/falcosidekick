@@ -64,19 +64,19 @@ func newAlertaPayload(falcopayload types.FalcoPayload, config *types.Configurati
 }
 
 func (c *Client) AlertaPost(falcopayload types.FalcoPayload) {
-	c.Stats.Alertmanager.Add(Total, 1)
+	c.Stats.Alerta.Add(Total, 1)
 	c.AddHeader(AuthorizationHeaderKey, fmt.Sprintf("Key %s", c.Config.Alerta.AuthKey))
 
 	err := c.Post(newAlertaPayload(falcopayload, c.Config))
 	if err != nil {
-		go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:error"})
-		c.Stats.Alertmanager.Add(Error, 1)
+		go c.CountMetric(Outputs, 1, []string{"output:alerta", "status:error"})
+		c.Stats.Alerta.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "alerta", "status": Error}).Inc()
 		log.Printf("[ERROR] : Alerta - %v\n", err)
 		return
 	}
 
 	go c.CountMetric(Outputs, 1, []string{"output:alerta", "status:ok"})
-	c.Stats.Alertmanager.Add(OK, 1)
+	c.Stats.Alerta.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "alerta", "status": OK}).Inc()
 }
