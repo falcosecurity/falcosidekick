@@ -2,6 +2,8 @@ package outputs
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -30,12 +32,13 @@ type alertaPayload struct {
 	RawData    string `json:"rawData,omitempty"`
 }
 
-func newAlertaPayload(falcopayload types.FalcoPayload) alertaPayload {
+func newAlertaPayload(falcopayload types.FalcoPayload, config *types.Configuration) alertaPayload {
 	var ap alertaPayload
 	ap.Resource = "falco"
+	ap.Environment = config.Alerta.Environment
 	ap.Event = falcopayload.Rule
 	ap.Text = falcopayload.Output
-	ap.CreateTime = falcopayload.Time.Format("2006-01-02T15:04:05.999Z")
+	ap.CreateTime = falcopayload.Time.Format("2006-01-02T15:04:05.000Z")
 	ap.Attributes = make(map[string]string)
 	// set severity
 	switch falcopayload.Priority {
@@ -50,12 +53,7 @@ func newAlertaPayload(falcopayload types.FalcoPayload) alertaPayload {
 	}
 	// set attributes
 	for i, j := range falcopayload.OutputFields {
-		switch v := j.(type) {
-		case string:
-			ap.Attributes[i] = v
-		default:
-			continue
-		}
+		ap.Attributes[i] = fmt.Sprintf("%v", j)
 	}
 	// set rawdata to the json encoded falcopayload
 	rdb, err := json.Marshal(falcopayload)
@@ -63,4 +61,22 @@ func newAlertaPayload(falcopayload types.FalcoPayload) alertaPayload {
 		ap.RawData = string(rdb)
 	}
 	return ap
+}
+
+func (c *Client) AlertaPost(falcopayload types.FalcoPayload) {
+	c.Stats.Alertmanager.Add(Total, 1)
+	c.AddHeader(AuthorizationHeaderKey, fmt.Sprintf("Key %s", c.Config.Alerta.AuthKey))
+
+	err := c.Post(newAlertaPayload(falcopayload, c.Config))
+	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:error"})
+		c.Stats.Alertmanager.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "alerta", "status": Error}).Inc()
+		log.Printf("[ERROR] : Alerta - %v\n", err)
+		return
+	}
+
+	go c.CountMetric(Outputs, 1, []string{"output:alerta", "status:ok"})
+	c.Stats.Alertmanager.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "alerta", "status": OK}).Inc()
 }

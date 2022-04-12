@@ -125,6 +125,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go cliqClient.CliqPost(falcopayload)
 	}
 
+	if config.Alerta.Address != "" && (falcopayload.Priority >= types.Priority(config.Cliq.MinimumPriority) || falcopayload.Rule == testRule) {
+		go alertaClient.AlertaPost(falcopayload)
+	}
+
 	if config.Rocketchat.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Rocketchat.MinimumPriority) || falcopayload.Rule == testRule) {
 		go rocketchatClient.RocketchatPost(falcopayload)
 	}

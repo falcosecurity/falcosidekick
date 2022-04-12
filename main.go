@@ -18,6 +18,7 @@ import (
 var (
 	nullClient          *outputs.Client
 	slackClient         *outputs.Client
+	alertaClient        *outputs.Client
 	cliqClient          *outputs.Client
 	rocketchatClient    *outputs.Client
 	mattermostClient    *outputs.Client
@@ -102,6 +103,16 @@ func init() {
 			config.Slack.WebhookURL = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Slack")
+		}
+	}
+
+	if config.Alerta.Address != "" {
+		var err error
+		alertaClient, err = outputs.NewClient("Alerta", config.Alerta.Address, config.Alerta.MutualTLS, config.Alerta.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Alerta.Address = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Alerta")
 		}
 	}
 

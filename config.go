@@ -50,6 +50,12 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Slack.MutualTLS", false)
 	v.SetDefault("Slack.CheckCert", true)
 
+	v.SetDefault("Alerta.Address", "")
+	v.SetDefault("Alerta.AuthKey", "")
+	v.SetDefault("Alerta.Environment", "")
+	v.SetDefault("Alerta.CheckCert", false)
+	v.SetDefault("Alerta.MutualTLS", false)
+
 	v.SetDefault("Rocketchat.WebhookURL", "")
 	v.SetDefault("Rocketchat.Footer", "https://github.com/falcosecurity/falcosidekick")
 	v.SetDefault("Rocketchat.Username", "Falcosidekick")
@@ -397,6 +403,7 @@ func getConfig() *types.Configuration {
 	c.GCP.CloudRun.MinimumPriority = checkPriority(c.GCP.CloudRun.MinimumPriority)
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
 	c.Cliq.MinimumPriority = checkPriority(c.Cliq.MinimumPriority)
+	c.Alerta.MinimumPriority = checkPriority(c.Alerta.MinimumPriority)
 	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
 	c.KafkaRest.MinimumPriority = checkPriority(c.KafkaRest.MinimumPriority)
 	c.Pagerduty.MinimumPriority = checkPriority(c.Pagerduty.MinimumPriority)

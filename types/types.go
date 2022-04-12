@@ -61,6 +61,7 @@ type Configuration struct {
 	Grafana            grafanaOutputConfig
 	Yandex             YandexOutputConfig
 	Syslog             SyslogConfig
+	Alerta             AlertaConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -263,6 +264,15 @@ type smtpOutputConfig struct {
 type opsgenieOutputConfig struct {
 	Region          string
 	APIKey          string
+	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
+}
+
+type AlertaConfig struct {
+	Address         string
+	AuthKey         string
+	Environment     string
 	MinimumPriority string
 	CheckCert       bool
 	MutualTLS       bool
@@ -495,6 +505,7 @@ type Statistics struct {
 	YandexS3          *expvar.Map
 	Syslog            *expvar.Map
 	Cliq              *expvar.Map
+	Alerta            *expvar.Map
 	PolicyReport      *expvar.Map
 }
 

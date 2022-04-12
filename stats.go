@@ -24,6 +24,7 @@ func getInitStats() *types.Statistics {
 		Falco:             expvar.NewMap("falco.priority"),
 		Slack:             getOutputNewMap("slack"),
 		Cliq:              getOutputNewMap("cliq"),
+		Alerta:            getOutputNewMap("alerta"),
 		Rocketchat:        getOutputNewMap("rocketchat"),
 		Mattermost:        getOutputNewMap("mattermost"),
 		Teams:             getOutputNewMap("teams"),

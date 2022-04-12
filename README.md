@@ -45,6 +45,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**AlertManager**](https://prometheus.io/docs/alerting/alertmanager/)
 - [**Opsgenie**](https://www.opsgenie.com/)
 - [**PagerDuty**](https://pagerduty.com/)
+- [**Alerta**](https://alerta.io/)
 
 ### Logs
 
@@ -362,6 +363,12 @@ cliq:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   messageformat: 'Alert : rule *{{ .Rule }}* triggered by user *{{ index
     .OutputFields "user.name" }}*' # a Go template to format Cliq Text above Table, displayed in addition to the output from `CLIQ_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Table.
+
+alerta:
+  address: "" # Address of the alerta API (ex: https://alerta.example.com:8080/alert), if not empty, Alerta output is enabled
+  authkey: "" # API key to use in the authorization header
+  # environment: "" # optional environment field
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 kafka:
   hostport: "" # Apache Kafka Host:Port (ex: localhost:9092). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
@@ -749,6 +756,13 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `CLIQ_OUTPUTFORMAT`, see
   [Slack Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before sections.
+- **ALERTA_ADDRESS**: Alerta API URL (ex: https://alerta.example.com:8080/alert), if not `empty`, 
+  Alerta output is _enabled_
+- **ALERTA_AUTHKEY**: Alerta authentication key to use in the authorization header
+- **ALERTA_ENVIRONMENT**: value to use in the Alerta Environment field. Defaults to `""`.
+- **ALERTA_MINIMUMPRIORITY**: minimum priority of event for using this
+  output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **KAFKA_HOSTPORT**: The Host:Port of the Kafka (ex: localhost:9092), if not
   empty, Kafka is _enabled_
 - **KAFKA_TOPIC**: The name of the Kafka topic
