@@ -125,7 +125,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go cliqClient.CliqPost(falcopayload)
 	}
 
-	if config.Alerta.Address != "" && (falcopayload.Priority >= types.Priority(config.Cliq.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.Alerta.Address != "" && (falcopayload.Priority >= types.Priority(config.Alerta.MinimumPriority) || falcopayload.Rule == testRule) {
 		go alertaClient.AlertaPost(falcopayload)
 	}
 
