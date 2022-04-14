@@ -171,7 +171,9 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 	}
 
 	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format(time.RFC3339Nano))
-	_, err := c.GCSStorageClient.Bucket(c.Config.GCP.Storage.Bucket).Object(key).NewWriter(context.Background()).Write(payload)
+	bucketWriter := c.GCSStorageClient.Bucket(c.Config.GCP.Storage.Bucket).Object(key).NewWriter(context.Background())
+	defer bucketWriter.Close()
+	_, err := bucketWriter.Write(payload)
 	if err != nil {
 		log.Printf("[ERROR] : GCPStorage - %v - %v\n", "Error while Uploading message", err.Error())
 		c.Stats.GCPStorage.Add(Error, 1)
