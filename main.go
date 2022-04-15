@@ -62,7 +62,7 @@ var (
 func init() {
 	config = getConfig()
 	stats = getInitStats()
-	promStats = getInitPromStats()
+	promStats = getInitPromStats(config)
 
 	nullClient = &outputs.Client{
 		OutputType:      "null",
