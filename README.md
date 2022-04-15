@@ -173,11 +173,6 @@ customfields: # custom fields are added to falco events
   Ckey: "CValue"
 mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls (default: "/etc/certs")
 
-customprometheus: # custom labels to add to prometheus
-  Akey: "AValue"
-  Bkey: "BValue"
-  Ckey: "CValue"
-
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
   #footer: "" # Slack footer

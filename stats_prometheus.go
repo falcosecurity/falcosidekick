@@ -41,7 +41,7 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 		"k8s_ns_name",
 		"k8s_pod_name",
 	}
-	for key := range config.CustomPrometheus {
+	for key := range config.Customfields {
 		labelnames = append(labelnames, key)
 	}
 	return promauto.NewCounterVec(
