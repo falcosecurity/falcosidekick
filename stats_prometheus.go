@@ -7,9 +7,9 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-func getInitPromStats() *types.PromStatistics {
+func getInitPromStats(config *types.Configuration) *types.PromStatistics {
 	promStats = &types.PromStatistics{
-		Falco:   getFalcoNewCounterVec(),
+		Falco:   getFalcoNewCounterVec(config),
 		Inputs:  getInputNewCounterVec(),
 		Outputs: getOutputNewCounterVec(),
 	}
@@ -34,16 +34,20 @@ func getOutputNewCounterVec() *prometheus.CounterVec {
 	)
 }
 
-func getFalcoNewCounterVec() *prometheus.CounterVec {
+func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
+	labelnames := []string{
+		"rule",
+		"priority",
+		"k8s_ns_name",
+		"k8s_pod_name",
+	}
+	for key := range config.CustomPrometheus {
+		labelnames = append(labelnames, key)
+	}
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "falco_events",
 		},
-		[]string{
-			"rule",
-			"priority",
-			"k8s_ns_name",
-			"k8s_pod_name",
-		},
+		labelnames,
 	)
 }

@@ -106,7 +106,11 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + falcopayload.Priority.String()})
 	stats.Falco.Add(strings.ToLower(falcopayload.Priority.String()), 1)
-	promStats.Falco.With(map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "k8s_ns_name": kn, "k8s_pod_name": kp}).Inc()
+	promLabels := map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "k8s_ns_name": kn, "k8s_pod_name": kp}
+	for key, value := range config.CustomPrometheus {
+		promLabels[key] = value
+	}
+	promStats.Falco.With(promLabels).Inc()
 
 	if config.Debug == true {
 		body, _ := json.Marshal(falcopayload)
