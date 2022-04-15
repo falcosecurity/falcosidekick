@@ -19,10 +19,9 @@ import (
 
 func getConfig() *types.Configuration {
 	c := &types.Configuration{
-		Customfields:     make(map[string]string),
-		CustomPrometheus: make(map[string]string),
-		Webhook:          types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
-		CloudEvents:      types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
+		Customfields: make(map[string]string),
+		Webhook:      types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
+		CloudEvents:  types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
@@ -328,7 +327,6 @@ func getConfig() *types.Configuration {
 	}
 
 	v.GetStringMapString("customfields")
-	v.GetStringMapString("customprometheus")
 	v.GetStringMapString("Webhook.CustomHeaders")
 	v.GetStringMapString("CloudEvents.Extensions")
 	if err := v.Unmarshal(c); err != nil {
@@ -341,16 +339,6 @@ func getConfig() *types.Configuration {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
 				c.Customfields[tagkeys[0]] = tagkeys[1]
-			}
-		}
-	}
-
-	if value, present := os.LookupEnv("CUSTOMPROMETHEUS"); present {
-		customprometheus := strings.Split(value, ",")
-		for _, label := range customprometheus {
-			tagkeys := strings.Split(label, ":")
-			if len(tagkeys) == 2 {
-				c.CustomPrometheus[tagkeys[0]] = tagkeys[1]
 			}
 		}
 	}
