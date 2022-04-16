@@ -1,6 +1,9 @@
 package main
 
 import (
+	"log"
+	"regexp"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -42,7 +45,14 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 		"k8s_pod_name",
 	}
 	for key := range config.Customfields {
-		labelnames = append(labelnames, key)
+		matched, err := regexp.MatchString("^[a-zA-Z_:][a-zA-Z0-9_:]*$", key)
+		if err != nil {
+			log.Printf("Error matching prometheus label from custom fields. Err: %s", err)
+			continue
+		}
+		if matched {
+			labelnames = append(labelnames, key)
+		}
 	}
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
