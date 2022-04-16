@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -60,6 +61,13 @@ var (
 )
 
 func init() {
+	// detect unit testing and skip init.
+	// see: https://github.com/alecthomas/kingpin/issues/187
+	testing := (strings.HasSuffix(os.Args[0], ".test") ||
+		strings.HasSuffix(os.Args[0], "__debug_bin"))
+	if testing {
+		return
+	}
 	config = getConfig()
 	stats = getInitStats()
 	promStats = getInitPromStats(config)
