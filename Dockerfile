@@ -8,7 +8,7 @@ ENV CGO_ENABLED=0
 WORKDIR /src/
 COPY . .
 
-RUN go mod download
+RUN go get
 RUN make falcosidekick
 
 # Final Docker image
