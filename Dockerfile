@@ -1,4 +1,4 @@
-ARG BUILDER_IMAGE=golang:1.17-buster
+ARG BUILDER_IMAGE=golang:1.18-buster
 ARG BASE_IMAGE=alpine:3.15
 
 FROM ${BUILDER_IMAGE} AS build-stage
