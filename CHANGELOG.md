@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.25.0 - 2022-05-12
+#### New
+- New output: **Policy Report** ([PR#256](https://github.com/falcosecurity/falcosidekick/pull/256) thanks to [@anushkamittal20](https://github.com/anushkamittal20))
+- New output: **Syslog** ([PR#272](https://github.com/falcosecurity/falcosidekick/pull/272) thanks to [@bdluca](https://github.com/bdluca))
+- New output: **AWS Kinesis** ([PR#277](https://github.com/falcosecurity/falcosidekick/pull/277) thanks to [@gauravgahlot](https://github.com/gauravgahlot))
+- New output: **Zoho Cliq** ([PR#301](https://github.com/falcosecurity/falcosidekick/pull/301) thanks to [@averni](https://github.com/averni))
+- Images and Binaries for *arm* and *arm64* ([PR#288](https://github.com/falcosecurity/falcosidekick/pull/288))
+- Sign artifacts with *cosign* ([PR#302](https://github.com/falcosecurity/falcosidekick/pull/302))
+#### Enhancement
+- Add CI steps to push images into AWS ECR ([PR#270](https://github.com/falcosecurity/falcosidekick/pull/270) thanks to [@maxgio92](https://github.com/maxgio92))
+- Allow to choose API endpoint for *AlertManager* ([PR#282](https://github.com/falcosecurity/falcosidekick/pull/282) thanks to [@mathildeHermet](https://github.com/maxgiomathildeHermet92))
+- Add label `priority` in *AlertManager* events ([PR#276](https://github.com/falcosecurity/falcosidekick/pull/276))
+- Update Golang + GolangCI-Lint ([PR#289](https://github.com/falcosecurity/falcosidekick/pull/289) [PR#292](https://github.com/falcosecurity/falcosidekick/pull/292))
+- Add version info ([PR#290](https://github.com/falcosecurity/falcosidekick/pull/290))
+- Update image base to alpine 3.15 ([PR#291](https://github.com/falcosecurity/falcosidekick/pull/291))
+- Increase CircleCI timeout ([PR#293](https://github.com/falcosecurity/falcosidekick/pull/293))
+- Support *IRSA* for AWS authentication ([PR#295](https://github.com/falcosecurity/falcosidekick/pull/295) thanks to [@VariableExp0rt](https://github.com/VariableExp0rt))
+- Add *tenant* for *Loki* output ([PR#308](https://github.com/falcosecurity/falcosidekick/pull/308) thanks to [@JGodin-C2C](https://github.com/JGodin-C2C))
+- Upgrade endpoint for *Loki* ([PR#309](https://github.com/falcosecurity/falcosidekick/pull/309) thanks to [@JGodin-C2C](https://github.com/JGodin-C2C))
+- Add `tags` and `source` in events for all outputs ([PR#310](https://github.com/falcosecurity/falcosidekick/pull/310))
+- Add `custom_fields` to *Prometheus* series ([PR#314](https://github.com/falcosecurity/falcosidekick/pull/314) thanks to [@LyvingInSync](https://github.com/LyvingInSync))
+- Update CircleCI jobs ([PR#316](https://github.com/falcosecurity/falcosidekick/pull/316))
+#### Fix
+- Fix *OpsGenie* output when keys have "." ([PR#287](https://github.com/falcosecurity/falcosidekick/pull/287))
+- Fix typo in README ([PR#299](https://github.com/falcosecurity/falcosidekick/pull/299) thanks to [@oleg-nenashev](https://github.com/oleg-nenashev))
+- Fix *GCS* writer not closed ([PR#312](https://github.com/falcosecurity/falcosidekick/pull/312) thanks to [@Milkshak3s](https://github.com/Milkshak3s))
+
 ## 2.24.0 - 2021-08-13
 #### New
 - New output: **Grafana** ([PR#254](https://github.com/falcosecurity/falcosidekick/pull/254))
