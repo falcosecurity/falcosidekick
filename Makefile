@@ -41,7 +41,7 @@ TOOLS_BIN_DIR := $(abspath $(TOOLS_DIR)/bin)
 GO_INSTALL = ./hack/go_install.sh
 
 # Binaries.
-GOLANGCI_LINT_VER := v1.44.2
+GOLANGCI_LINT_VER := v1.46.0
 GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER)
 
@@ -51,15 +51,17 @@ GOLANGCI_LINT := $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER)
 
 .PHONY: falcosidekick
 falcosidekick:
+	$(GO) mod download
 	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o $@ .
 
 .PHONY: falcosidekick-linux-amd64
 falcosidekick-linux-amd64:
+	$(GO) mod download
 	GOOS=linux GOARCH=amd64 $(GO) build -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o falcosidekick .
 
 .PHONY: build-image
 build-image: falcosidekick-linux-amd64
-	$(DOCKER) build . -t falcosecurity/falcosidekick:latest
+	$(DOCKER) build -t falcosecurity/falcosidekick:latest .
 
 ## --------------------------------------
 ## Test

@@ -23,3 +23,4 @@ linters:
   - EXC0002 # include "missing comments" issues from golint
   max-issues-per-linter: 0
   max-same-issues: 0
+  
