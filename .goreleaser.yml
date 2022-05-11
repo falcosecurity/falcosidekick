@@ -149,6 +149,8 @@ docker_signs:
 
 release:
   github:
+    owner: falcosecurity
+    name: falcosidekick
   prerelease: auto
   extra_files:
     - glob: ./release/cosign.pub
