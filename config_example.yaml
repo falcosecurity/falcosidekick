@@ -271,6 +271,13 @@ grafana:
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
 
+syslog:
+  host: ""    # host: "" # Syslog host, if not empty, Syslog output is enabled
+  port: ""    # port: "" # Syslog endpoint port number
+  protocol: ""    # protocol: "" # Syslog transport protocol. It can be either "tcp" or "udp"
+  minimumpriority: "" # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  clustername: "" # clustername: "" # The cluster name
+
 fission:
   function: "" # Name of Fission function, if not empty, Fission is enabled
   routernamespace: "fission" # Namespace of Fission Router, "fission" (default)

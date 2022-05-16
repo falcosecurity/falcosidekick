@@ -454,6 +454,7 @@ type SyslogConfig struct {
 	Port            string
 	Protocol        string
 	MinimumPriority string
+	ClusterName     string
 }
 
 // Statistics is a struct to store stastics
