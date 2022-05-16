@@ -449,11 +449,13 @@ type YandexS3Config struct {
 // Host: the remote syslog host. It can be either an IP address or a domain.
 // Port: the remote port address. Ex: 514.
 // Protocol: the type of transfer protocol to use. It should be either "tcp" or "udp".
+// ClusterName : the name is cluster
 type SyslogConfig struct {
 	Host            string
 	Port            string
 	Protocol        string
 	MinimumPriority string
+	ClusterName     string
 }
 
 // Statistics is a struct to store stastics
