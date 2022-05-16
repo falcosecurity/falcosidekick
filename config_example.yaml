@@ -277,7 +277,7 @@ syslog:
   port: ""    # port: "" # Syslog endpoint port number
   protocol: ""    # protocol: "" # Syslog transport protocol. It can be either "tcp" or "udp"
   minimumpriority: "" # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-  clustername: "" # clustername: "" # the cluster name
+  clustername: "" # clustername: "" # The cluster name
 
 
 fission:
