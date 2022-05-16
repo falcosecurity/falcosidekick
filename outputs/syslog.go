@@ -3,11 +3,12 @@ package outputs
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
 	"log"
 	"log/syslog"
 	"strings"
+
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func NewSyslogClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
@@ -33,6 +34,8 @@ func isValidProtocolString(protocol string) bool {
 func (c *Client) SyslogPost(falcopayload types.FalcoPayload) {
 	c.Stats.Syslog.Add(Total, 1)
 	endpoint := fmt.Sprintf("%s:%s", c.Config.Syslog.Host, c.Config.Syslog.Port)
+
+	falcopayload.OutputFields["clustername"] = c.Config.Syslog.ClusterName
 
 	var priority syslog.Priority
 	switch falcopayload.Priority {
