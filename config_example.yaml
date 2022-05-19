@@ -54,6 +54,7 @@ alertmanager:
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # endpoint: "" # alertmanager endpoint for posting alerts: "/api/v1/alerts" or "/api/v2/alerts" (default: "/api/v1/alerts")
+  # expiresafter: "" if set to a non-zero value, alert expires after that time in seconds (default: 0)
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
@@ -122,7 +123,6 @@ aws:
   kinesis:
     # streamname: "" # AWS Kinesis Stream Name, if not empty, Kinesis output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
@@ -281,8 +281,8 @@ fission:
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
 
 policyreport:
-  enabled: false  # if true policyreport output is enabled
-  kubeconfig: "~/.kube/config"  # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
+  enabled: false # if true policyreport output is enabled
+  kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
   failthreshold: 4 # events with priority above this threshold are mapped to fail in PolicyReport Summary and lower that those are mapped to warn (default=4)
   maxevents: 1000 # the max number of events per report(default: 1000)
   prunebypriority: false # if true; the events with lowest severity are pruned first, in FIFO order (default: false)
