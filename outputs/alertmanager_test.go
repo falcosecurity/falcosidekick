@@ -18,7 +18,12 @@ func TestNewAlertmanagerPayloadO(t *testing.T) {
 	d.UseNumber()
 	err := d.Decode(&f) //have to decode it the way newFalcoPayload does
 	require.Nil(t, err)
-	s, err := json.Marshal(newAlertmanagerPayload(f))
+
+	config := &types.Configuration{
+		Alertmanager: types.AlertmanagerOutputConfig{},
+	}
+
+	s, err := json.Marshal(newAlertmanagerPayload(f, config))
 	require.Nil(t, err)
 
 	var o1, o2 []alertmanagerPayload

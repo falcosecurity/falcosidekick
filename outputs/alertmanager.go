@@ -16,7 +16,7 @@ type alertmanagerPayload struct {
 	EndsAt      time.Time         `json:"endsAt,omitempty"`
 }
 
-func (c *Client) newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPayload {
+func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Configuration) []alertmanagerPayload {
 	var amPayload alertmanagerPayload
 	amPayload.Labels = make(map[string]string)
 	amPayload.Annotations = make(map[string]string)
@@ -79,8 +79,8 @@ func (c *Client) newAlertmanagerPayload(falcopayload types.FalcoPayload) []alert
 
 	amPayload.Annotations["info"] = falcopayload.Output
 	amPayload.Annotations["summary"] = falcopayload.Rule
-	if c.Config.Alertmanager.ExpiresAfter != 0 {
-		amPayload.EndsAt = falcopayload.Time.Add(time.Duration(c.Config.Alertmanager.ExpiresAfter) * time.Second)
+	if config.Alertmanager.ExpiresAfter != 0 {
+		amPayload.EndsAt = falcopayload.Time.Add(time.Duration(config.Alertmanager.ExpiresAfter) * time.Second)
 	}
 
 	var a []alertmanagerPayload
@@ -94,7 +94,7 @@ func (c *Client) newAlertmanagerPayload(falcopayload types.FalcoPayload) []alert
 func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	c.Stats.Alertmanager.Add(Total, 1)
 
-	err := c.Post(c.newAlertmanagerPayload(falcopayload))
+	err := c.Post(newAlertmanagerPayload(falcopayload, c.Config))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:error"})
 		c.Stats.Alertmanager.Add(Error, 1)
