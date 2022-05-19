@@ -34,7 +34,7 @@ type Configuration struct {
 	Teams              teamsOutputConfig
 	Datadog            datadogOutputConfig
 	Discord            DiscordOutputConfig
-	Alertmanager       alertmanagerOutputConfig
+	Alertmanager       AlertmanagerOutputConfig
 	Elasticsearch      elasticsearchOutputConfig
 	Influxdb           influxdbOutputConfig
 	Loki               lokiOutputConfig
@@ -157,7 +157,7 @@ type DiscordOutputConfig struct {
 	MutualTLS       bool
 }
 
-type alertmanagerOutputConfig struct {
+type AlertmanagerOutputConfig struct {
 	HostPort        string
 	MinimumPriority string
 	CheckCert       bool
