@@ -163,6 +163,7 @@ type alertmanagerOutputConfig struct {
 	CheckCert       bool
 	MutualTLS       bool
 	Endpoint        string
+	ExpiresAfter    int
 }
 
 type elasticsearchOutputConfig struct {

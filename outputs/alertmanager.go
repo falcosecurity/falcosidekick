@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -12,9 +13,10 @@ import (
 type alertmanagerPayload struct {
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
+	EndsAt      time.Time         `json:"endsAt,omitempty"`
 }
 
-func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPayload {
+func (c *Client) newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPayload {
 	var amPayload alertmanagerPayload
 	amPayload.Labels = make(map[string]string)
 	amPayload.Annotations = make(map[string]string)
@@ -77,6 +79,9 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 
 	amPayload.Annotations["info"] = falcopayload.Output
 	amPayload.Annotations["summary"] = falcopayload.Rule
+	if c.Config.Alertmanager.ExpiresAfter != 0 {
+		amPayload.EndsAt = falcopayload.Time.Add(time.Duration(c.Config.Alertmanager.ExpiresAfter) * time.Second)
+	}
 
 	var a []alertmanagerPayload
 
@@ -89,7 +94,7 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload) []alertmanagerPaylo
 func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	c.Stats.Alertmanager.Add(Total, 1)
 
-	err := c.Post(newAlertmanagerPayload(falcopayload))
+	err := c.Post(c.newAlertmanagerPayload(falcopayload))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:error"})
 		c.Stats.Alertmanager.Add(Error, 1)
