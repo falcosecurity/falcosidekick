@@ -268,7 +268,7 @@ nats:
 aws:
   # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
   # secretaccesskey: "" # aws secret access key (optional if you use EC2 Instance Profile)
-  # region : "" # aws region (optional if you use EC2 Instance Profile)
+  # region : "" # aws region (by default, the metadata are used to get it)
   lambda:
     # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
@@ -633,7 +633,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   Profile)
 - **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optional if you use EC2
   Instance Profile)
-- **AWS_REGION** : AWS Region (optional if you use EC2 Instance Profile)
+- **AWS_REGION** : AWS Region (by default, the metadata are used to get it)
 - **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name, if not empty, AWS
   Lambda output is _enabled_
 - **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this

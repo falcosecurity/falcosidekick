@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -30,28 +31,46 @@ import (
 
 // NewAWSClient returns a new output.Client for accessing the AWS API.
 func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	var region string
+	if config.AWS.Region != "" {
+		region = config.AWS.Region
+	} else if os.Getenv("AWS_REGION") != "" {
+		region = os.Getenv("AWS_REGION")
+	} else if os.Getenv("AWS_DEFAULT_REGION") != "" {
+		region = os.Getenv("AWS_DEFAULT_REGION")
+	} else {
+		metaSession := session.Must(session.NewSession())
+		metaClient := ec2metadata.New(metaSession)
 
-	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && config.AWS.Region != "" {
+		var err error
+		region, err = metaClient.Region()
+		if err != nil {
+			log.Printf("[ERROR] : AWS - Error while getting region from Metadata AWS Session: %v\n", err.Error())
+			return nil, errors.New("error getting region from metadata")
+		}
+	}
+
+	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && region != "" {
 		err1 := os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
 		err2 := os.Setenv("AWS_SECRET_ACCESS_KEY", config.AWS.SecretAccessKey)
-		err3 := os.Setenv("AWS_DEFAULT_REGION", config.AWS.Region)
+		err3 := os.Setenv("AWS_DEFAULT_REGION", region)
 		if err1 != nil || err2 != nil || err3 != nil {
-			log.Printf("[ERROR] : AWS - Error setting AWS env vars")
+			log.Println("[ERROR] : AWS - Error setting AWS env vars")
 			return nil, errors.New("error setting AWS env vars")
 		}
 	}
 
 	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(config.AWS.Region)},
+		Region: aws.String(region)},
 	)
 	if err != nil {
-		log.Printf("[ERROR] : AWS - %v\n", "Error while creating AWS Session")
+		log.Printf("[ERROR] : AWS - Error while creating AWS Session: %v\n", err.Error())
 		return nil, errors.New("error while creating AWS Session")
 	}
 
 	_, err = sts.New(sess).GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
-		log.Printf("[ERROR] : AWS - %v\n", "Error while getting AWS Token")
+		log.Printf("[ERROR] : AWS - Error while getting AWS Token: %v\n", err.Error())
 		return nil, errors.New("error while getting AWS Token")
 	}
 
