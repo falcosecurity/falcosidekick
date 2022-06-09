@@ -27,6 +27,7 @@ type Configuration struct {
 	ListenAddress      string
 	ListenPort         int
 	Customfields       map[string]string
+	Prometheus         prometheusOutputConfig
 	Slack              SlackOutputConfig
 	Cliq               CliqOutputConfig
 	Mattermost         MattermostOutputConfig
@@ -195,6 +196,13 @@ type lokiOutputConfig struct {
 	MutualTLS       bool
 	Tenant          string
 	Endpoint        string
+	ExtraLabels     string
+	ExtraLabelsList []string
+}
+
+type prometheusOutputConfig struct {
+	ExtraLabels     string
+	ExtraLabelsList []string
 }
 
 type natsOutputConfig struct {

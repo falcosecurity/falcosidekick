@@ -44,6 +44,7 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 		"k8s_ns_name",
 		"k8s_pod_name",
 	}
+	labelnames = append(labelnames, config.Prometheus.ExtraLabelsList...)
 	for key := range config.Customfields {
 		matched, err := regexp.MatchString("^[a-zA-Z_:][a-zA-Z0-9_:]*$", key)
 		if err != nil {

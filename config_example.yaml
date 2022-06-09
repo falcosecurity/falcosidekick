@@ -1,7 +1,7 @@
 #listenaddress: "" # ip address to bind falcosidekick to (default: "" meaning all addresses)
 #listenport: 2801 # port to listen for daemon (default: 2801)
 debug: false # if true all outputs will print in stdout the payload they send (default: false)
-customfields: # custom fields are added to falco events
+customfields: # custom fields are added to falco events and metrics
   Akey: "AValue"
   Bkey: "BValue"
   Ckey: "CValue"
@@ -83,6 +83,7 @@ loki:
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # tenant: "" # Add the tenant header if needed. Tenant header is enabled only if not empty
   # endpoint: "/api/prom/push" # The endpoint URL path, default is "/api/prom/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
+  # extralabels: "" # comma separated list of fields to use as labels additionnally to rule, source, priority, tags and custom_fields
 
 nats:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
@@ -132,6 +133,9 @@ smtp:
   # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
   # outputformat: "" # html (default), text
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+prometheus:
+  # extralabels: "" # comma separated list of fields to use as labels additionnally to rule, source, priority, tags and custom_fields
 
 statsd:
   forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
