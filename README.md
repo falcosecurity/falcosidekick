@@ -250,6 +250,7 @@ loki:
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # tenant: "" # Add the tenant header if needed. Enabled if not empty
   # endpoint: "/api/prom/push" # The endpoint URL path, default is "/api/prom/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
+  # extralabels: "" # comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
 
 stan:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, STAN output is enabled
@@ -299,6 +300,9 @@ smtp:
   # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
   # outputformat: "" # html (default), text
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+prometheus:
+  # extralabels: "" # comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
 
 statsd:
   forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled
@@ -612,6 +616,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **LOKI_TENANT** : Loki tenant, if not `empty`, Loki tenant is _enabled_
 - **LOKI_ENDPOINT** : Loki endpoint URL path, default is "/api/prom/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
 - **NATS_HOSTPORT** : NATS "nats://host:port", if not `empty`, NATS is _enabled_
+- **LOKI_EXTRALABELS** : comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
 - **NATS_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
@@ -682,6 +687,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **PROMETHEUS_EXTRALABELS**: comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
 - **STATSD_FORWARDER**: The address for the StatsD forwarder, in the form
   http://host:port, if not empty StatsD is _enabled_
 - **STATSD_NAMESPACE**: A prefix for all metrics (default: "falcosidekick.")

@@ -120,6 +120,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Loki.CheckCert", true)
 	v.SetDefault("Loki.Tenant", "")
 	v.SetDefault("Loki.Endpoint", "/api/prom/push")
+	v.SetDefault("Loki.ExtraLabels", "")
 
 	v.SetDefault("AWS.AccessKeyID", "")
 	v.SetDefault("AWS.SecretAccessKey", "")
@@ -176,6 +177,8 @@ func getConfig() *types.Configuration {
 
 	v.SetDefault("Statsd.Forwarder", "")
 	v.SetDefault("Statsd.Namespace", "falcosidekick.")
+
+	v.SetDefault("Prometheus.ExtraLabels", "")
 
 	v.SetDefault("Dogstatsd.Forwarder", "")
 	v.SetDefault("Dogstatsd.Namespace", "falcosidekick.")
@@ -374,6 +377,14 @@ func getConfig() *types.Configuration {
 
 	if ip := net.ParseIP(c.ListenAddress); c.ListenAddress != "" && ip == nil {
 		log.Fatalf("[ERROR] : Failed to parse ListenAddress")
+	}
+
+	if c.Loki.ExtraLabels != "" {
+		c.Loki.ExtraLabelsList = strings.Split(strings.ReplaceAll(c.Loki.ExtraLabels, " ", ""), ",")
+	}
+
+	if c.Prometheus.ExtraLabels != "" {
+		c.Prometheus.ExtraLabelsList = strings.Split(strings.ReplaceAll(c.Loki.ExtraLabels, " ", ""), ",")
 	}
 
 	c.Slack.MinimumPriority = checkPriority(c.Slack.MinimumPriority)
