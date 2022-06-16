@@ -33,8 +33,15 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	for i, j := range falcopayload.OutputFields {
 		switch v := j.(type) {
 		case string:
-			if contains(config.Loki.ExtraLabelsList, i) {
-				s += strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "") + "=\"" + strings.ReplaceAll(v, "\"", "") + "\","
+			for k := range config.Customfields {
+				if i == k {
+					s += strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "") + "=\"" + strings.ReplaceAll(v, "\"", "") + "\","
+				}
+			}
+			for _, k := range config.Loki.ExtraLabelsList {
+				if i == k {
+					s += strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "") + "=\"" + strings.ReplaceAll(v, "\"", "") + "\","
+				}
 			}
 		default:
 			continue
@@ -47,9 +54,9 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 
 	s += "rule=\"" + falcopayload.Rule + "\","
 	s += "source=\"" + falcopayload.Source + "\","
-	s += "priority=\"" + falcopayload.Priority.String() + "\","
+	s += "priority=\"" + falcopayload.Priority.String() + "\""
 
-	ls.Labels = "{" + s[:len(s)-1] + "}"
+	ls.Labels = "{" + s + "}"
 
 	return lokiPayload{Streams: []lokiStream{ls}}
 }

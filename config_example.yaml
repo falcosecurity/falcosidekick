@@ -83,7 +83,7 @@ loki:
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # tenant: "" # Add the tenant header if needed. Tenant header is enabled only if not empty
   # endpoint: "/api/prom/push" # The endpoint URL path, default is "/api/prom/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
-  # extralabels: "" # comma separated list of fields to use as labels additionnally to rule, source, priority, tags and custom_fields
+  # extralabels: "" # comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
 
 nats:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
@@ -135,7 +135,7 @@ smtp:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 prometheus:
-  # extralabels: "" # comma separated list of fields to use as labels additionnally to rule, source, priority, tags and custom_fields
+  # extralabels: "" # comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
 
 statsd:
   forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled

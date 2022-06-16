@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -58,6 +59,8 @@ var (
 	config                        *types.Configuration
 	stats                         *types.Statistics
 	promStats                     *types.PromStatistics
+
+	regPromLabels *regexp.Regexp
 )
 
 func init() {
@@ -68,6 +71,9 @@ func init() {
 	if testing {
 		return
 	}
+
+	regPromLabels, _ = regexp.Compile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
+
 	config = getConfig()
 	stats = getInitStats()
 	promStats = getInitPromStats(config)
@@ -434,7 +440,7 @@ func init() {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
 		}
 	}
-	if config.PolicyReport.Enabled == true {
+	if config.PolicyReport.Enabled {
 		var err error
 		policyReportClient, err = outputs.NewPolicyReportClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {

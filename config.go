@@ -28,7 +28,7 @@ func getConfig() *types.Configuration {
 	version := kingpin.Flag("version", "falcosidekick version").Short('v').Bool()
 	kingpin.Parse()
 
-	if *version != false {
+	if *version {
 		v := GetVersionInfo()
 		fmt.Println(v.String())
 		os.Exit(0)
@@ -334,7 +334,7 @@ func getConfig() *types.Configuration {
 		}
 	}
 
-	v.GetStringMapString("customfields")
+	v.GetStringMapString("Customfields")
 	v.GetStringMapString("Webhook.CustomHeaders")
 	v.GetStringMapString("CloudEvents.Extensions")
 	if err := v.Unmarshal(c); err != nil {
@@ -352,8 +352,8 @@ func getConfig() *types.Configuration {
 	}
 
 	if value, present := os.LookupEnv("WEBHOOK_CUSTOMHEADERS"); present {
-		customfields := strings.Split(value, ",")
-		for _, label := range customfields {
+		customheaders := strings.Split(value, ",")
+		for _, label := range customheaders {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
 				c.Webhook.CustomHeaders[tagkeys[0]] = tagkeys[1]
@@ -362,8 +362,8 @@ func getConfig() *types.Configuration {
 	}
 
 	if value, present := os.LookupEnv("CLOUDEVENTS_EXTENSIONS"); present {
-		customfields := strings.Split(value, ",")
-		for _, label := range customfields {
+		extensions := strings.Split(value, ",")
+		for _, label := range extensions {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
 				c.CloudEvents.Extensions[tagkeys[0]] = tagkeys[1]
@@ -384,7 +384,7 @@ func getConfig() *types.Configuration {
 	}
 
 	if c.Prometheus.ExtraLabels != "" {
-		c.Prometheus.ExtraLabelsList = strings.Split(strings.ReplaceAll(c.Loki.ExtraLabels, " ", ""), ",")
+		c.Prometheus.ExtraLabelsList = strings.Split(strings.ReplaceAll(c.Prometheus.ExtraLabels, " ", ""), ",")
 	}
 
 	c.Slack.MinimumPriority = checkPriority(c.Slack.MinimumPriority)
