@@ -15,12 +15,3 @@ func getSortedStringKeys(m map[string]interface{}) []string {
 	sort.Strings(keys)
 	return keys
 }
-
-func contains(slice []string, str string) bool {
-	for _, i := range slice {
-		if i == str {
-			return true
-		}
-	}
-	return false
-}

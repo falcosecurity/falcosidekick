@@ -111,7 +111,22 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	stats.Falco.Add(strings.ToLower(falcopayload.Priority.String()), 1)
 	promLabels := map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "k8s_ns_name": kn, "k8s_pod_name": kp}
 	for key, value := range config.Customfields {
-		promLabels[key] = value
+		if regPromLabels.MatchString(key) {
+			promLabels[key] = value
+		}
+	}
+	for _, i := range config.Prometheus.ExtraLabelsList {
+		promLabels[strings.ReplaceAll(i, ".", "_")] = ""
+		for key, value := range falcopayload.OutputFields {
+			if key == i && regPromLabels.MatchString(strings.ReplaceAll(key, ".", "_")) {
+				switch v := value.(type) {
+				case string:
+					promLabels[strings.ReplaceAll(key, ".", "_")] = v
+				default:
+					continue
+				}
+			}
+		}
 	}
 	promStats.Falco.With(promLabels).Inc()
 
@@ -279,8 +294,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Fission.Function != "" && (falcopayload.Priority >= types.Priority(config.Fission.MinimumPriority) || falcopayload.Rule == testRule) {
 		go fissionClient.FissionCall(falcopayload)
 	}
-	if config.PolicyReport.Enabled == true {
-
+	if config.PolicyReport.Enabled {
 		go policyReportClient.UpdateOrCreatePolicyReport(falcopayload)
 	}
 

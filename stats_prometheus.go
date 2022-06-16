@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"regexp"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -38,22 +39,26 @@ func getOutputNewCounterVec() *prometheus.CounterVec {
 }
 
 func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
+	regPromLabels, _ := regexp.Compile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
 	labelnames := []string{
 		"rule",
 		"priority",
 		"k8s_ns_name",
 		"k8s_pod_name",
 	}
-	labelnames = append(labelnames, config.Prometheus.ExtraLabelsList...)
-	for key := range config.Customfields {
-		matched, err := regexp.MatchString("^[a-zA-Z_:][a-zA-Z0-9_:]*$", key)
-		if err != nil {
-			log.Printf("Error matching prometheus label from custom fields. Err: %s", err)
+	for i := range config.Customfields {
+		if !regPromLabels.MatchString(i) {
+			log.Printf("[ERROR] : Custom field '%v' is not a valid prometheus label", i)
 			continue
 		}
-		if matched {
-			labelnames = append(labelnames, key)
+		labelnames = append(labelnames, i)
+	}
+	for _, i := range config.Prometheus.ExtraLabelsList {
+		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
+			log.Printf("[ERROR] : Extra field '%v' is not a valid prometheus label", i)
+			continue
 		}
+		labelnames = append(labelnames, strings.ReplaceAll(i, ".", "_"))
 	}
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
