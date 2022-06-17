@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.26.0 - 2022-06-18
+#### Enhancement
+- Add `expiresafter` for *AlertManager* output ([PR#323](https://github.com/falcosecurity/falcosidekick/pull/323) thanks to [@anushkamittal20](https://github.com/anushkamittal20))
+- Add `extralabels` for *Loki* and *Prometheus* outputs which allow to set fields to use as labels additionally to `rule`, `source`, `priority`, `tags` and `customfields` ([PR#327](https://github.com/falcosecurity/falcosidekick/pull/327))
+#### Fix
+- Fix *Panic* for Prometheus metrics when `customfields` are set ([PR#333](https://github.com/falcosecurity/falcosidekick/pull/333))
+
 ## 2.25.0 - 2022-05-12
 #### New
 - New output: **Policy Report** ([PR#256](https://github.com/falcosecurity/falcosidekick/pull/256) thanks to [@anushkamittal20](https://github.com/anushkamittal20))
