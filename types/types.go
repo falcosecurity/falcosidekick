@@ -446,11 +446,17 @@ type YandexOutputConfig struct {
 	SecretAccessKey string
 	Region          string
 	S3              YandexS3Config
+	DataStreams     YandexDataStreamsConfig
 }
 type YandexS3Config struct {
 	Endpoint        string
 	Prefix          string
 	Bucket          string
+	MinimumPriority string
+}
+type YandexDataStreamsConfig struct {
+	Endpoint        string
+	StreamName      string
 	MinimumPriority string
 }
 
@@ -512,6 +518,7 @@ type Statistics struct {
 	Fission           *expvar.Map
 	Grafana           *expvar.Map
 	YandexS3          *expvar.Map
+	YandexDataStreams *expvar.Map
 	Syslog            *expvar.Map
 	Cliq              *expvar.Map
 	PolicyReport      *expvar.Map

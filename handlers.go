@@ -302,6 +302,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go yandexClient.UploadYandexS3(falcopayload)
 	}
 
+	if config.Yandex.DataStreams.StreamName != "" && (falcopayload.Priority >= types.Priority(config.Yandex.DataStreams.MinimumPriority) || falcopayload.Rule == testRule) {
+		go yandexClient.UploadYandexDataStreams(falcopayload)
+	}
+
 	if config.Syslog.Host != "" && (falcopayload.Priority >= types.Priority(config.Syslog.MinimumPriority) || falcopayload.Rule == testRule) {
 		go syslogClient.SyslogPost(falcopayload)
 	}

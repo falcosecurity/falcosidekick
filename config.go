@@ -309,10 +309,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Yandex.AccessKeyID", "")
 	v.SetDefault("Yandex.SecretAccessKey", "")
 	v.SetDefault("Yandex.Region", "ru-central1")
+
 	v.SetDefault("Yandex.S3.Endpoint", "https://storage.yandexcloud.net")
 	v.SetDefault("Yandex.S3.Bucket", "")
 	v.SetDefault("Yandex.S3.Prefix", "falco")
 	v.SetDefault("Yamdex.S3.MinimumPriority", "")
+
+	v.SetDefault("Yandex.DataStreams.Endpoint", "https://yds.serverless.yandexcloud.net")
+	v.SetDefault("Yandex.DataStreams.StreamName", "")
+	v.SetDefault("Yandex.DataStreams.MinimumPriority", "")
 
 	v.SetDefault("Syslog.Host", "")
 	v.SetDefault("Syslog.Port", "")

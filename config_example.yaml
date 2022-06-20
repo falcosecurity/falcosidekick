@@ -290,3 +290,17 @@ policyreport:
   failthreshold: 4 # events with priority above this threshold are mapped to fail in PolicyReport Summary and lower that those are mapped to warn (default=4)
   maxevents: 1000 # the max number of events per report(default: 1000)
   prunebypriority: false # if true; the events with lowest severity are pruned first, in FIFO order (default: false)
+
+yandex:
+  # accesskeyid: "" # yandex access key
+  # secretaccesskey: "" # yandex secret access key
+  # region: "" # yandex storage region (default: ru-central-1)
+  s3:
+    # endpoint: "" # yandex storage endpoint (default: https://storage.yandexcloud.net)
+    # bucket: "falcosidekick" # Yandex storage, bucket name
+    # prefix: "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug
+  datastreams:
+    # endpoint: "" # Yandex Data Streams endpoint (default: https://yds.serverless.yandexcloud.net)
+    # streamname: "" # stream name in format /${region}/${folder_id}/${ydb_id}/${stream_name}
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug
