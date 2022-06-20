@@ -515,6 +515,19 @@ func init() {
 		}
 	}
 
+	if config.Yandex.DataStreams.StreamName != "" {
+		var err error
+		yandexClient, err = outputs.NewYandexClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Yandex.DataStreams.StreamName = ""
+			log.Printf("[ERROR] : Yandex - %v\n", err)
+		} else {
+			if config.Yandex.DataStreams.StreamName != "" {
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "YandexDataStreams")
+			}
+		}
+	}
+
 	if config.Syslog.Host != "" {
 		var err error
 		syslogClient, err = outputs.NewSyslogClient(config, stats, promStats, statsdClient, dogstatsdClient)

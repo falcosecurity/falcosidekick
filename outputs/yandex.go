@@ -10,8 +10,11 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/google/uuid"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/falcosecurity/falcosidekick/types"
@@ -19,11 +22,27 @@ import (
 
 // NewYandexClient returns a new output.Client for accessing the Yandex API.
 func NewYandexClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	resolverFn := func(service, region string, optFns ...func(*endpoints.Options)) (endpoints.ResolvedEndpoint, error) {
+		switch service {
+		case endpoints.S3ServiceID:
+			return endpoints.ResolvedEndpoint{
+				URL:           config.Yandex.S3.Endpoint,
+				SigningRegion: "ru-central1",
+			}, nil
+		case endpoints.KinesisServiceID:
+			return endpoints.ResolvedEndpoint{
+				URL:           config.Yandex.DataStreams.Endpoint,
+				SigningRegion: "ru-central1",
+			}, nil
+		}
+
+		return endpoints.DefaultResolver().EndpointFor(service, region, optFns...)
+	}
 
 	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(config.Yandex.Region),
-		Endpoint:    aws.String(config.Yandex.S3.Endpoint),
-		Credentials: credentials.NewStaticCredentials(config.Yandex.AccessKeyID, config.Yandex.SecretAccessKey, ""),
+		Region:           aws.String(config.Yandex.Region),
+		Credentials:      credentials.NewStaticCredentials(config.Yandex.AccessKeyID, config.Yandex.SecretAccessKey, ""),
+		EndpointResolver: endpoints.ResolverFunc(resolverFn),
 	})
 	if err != nil {
 		log.Printf("[ERROR] : Yandex - %v\n", "Error while creating Yandex Session")
@@ -67,4 +86,29 @@ func (c *Client) UploadYandexS3(falcopayload types.FalcoPayload) {
 
 	go c.CountMetric("outputs", 1, []string{"output:yandexs3", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": "ok"}).Inc()
+}
+
+// UploadYandexDataStreams uploads payload to Yandex Data Streams
+func (c *Client) UploadYandexDataStreams(falcoPayLoad types.FalcoPayload) {
+	svc := kinesis.New(c.AWSSession)
+
+	f, _ := json.Marshal(falcoPayLoad)
+	input := &kinesis.PutRecordInput{
+		Data:         f,
+		PartitionKey: aws.String(uuid.NewString()),
+		StreamName:   aws.String(c.Config.Yandex.DataStreams.StreamName),
+	}
+
+	resp, err := svc.PutRecord(input)
+	if err != nil {
+		go c.CountMetric("outputs", 1, []string{"output:yandexdatastreams", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "yandexdatastreams", "status": Error}).Inc()
+		log.Printf("[ERROR] : %v Data Streams - %v\n", c.OutputType, err.Error())
+		return
+	}
+
+	log.Printf("[INFO] : %v Data Streams - Put Record OK (%v)\n", c.OutputType, resp.SequenceNumber)
+	go c.CountMetric("outputs", 1, []string{"output:yandexdatastreams", "status:ok"})
+	c.Stats.YandexDataStreams.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "yandexdatastreams", "status": "ok"}).Inc()
 }
