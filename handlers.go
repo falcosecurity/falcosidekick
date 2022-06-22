@@ -227,6 +227,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go webhookClient.WebhookPost(falcopayload)
 	}
 
+	if config.NodeRed.Address != "" && (falcopayload.Priority >= types.Priority(config.NodeRed.MinimumPriority) || falcopayload.Rule == testRule) {
+		go noderedClient.NodeRedPost(falcopayload)
+	}
+
 	if config.CloudEvents.Address != "" && (falcopayload.Priority >= types.Priority(config.CloudEvents.MinimumPriority) || falcopayload.Rule == testRule) {
 		go cloudeventsClient.CloudEventsSend(falcopayload)
 	}

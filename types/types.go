@@ -64,6 +64,7 @@ type Configuration struct {
 	Grafana            grafanaOutputConfig
 	Yandex             YandexOutputConfig
 	Syslog             SyslogConfig
+	NodeRed            NodeRedOutputConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -295,6 +296,16 @@ type WebhookOutputConfig struct {
 	MutualTLS       bool
 }
 
+// NodeRedOutputConfig represents parameters for Node-RED
+type NodeRedOutputConfig struct {
+	Address         string
+	User            string
+	Password        string
+	CustomHeaders   map[string]string
+	MinimumPriority string
+	CheckCert       bool
+}
+
 // CloudEventsOutputConfig represents parameters for CloudEvents
 type CloudEventsOutputConfig struct {
 	Address         string
@@ -522,6 +533,7 @@ type Statistics struct {
 	Syslog            *expvar.Map
 	Cliq              *expvar.Map
 	PolicyReport      *expvar.Map
+	NodeRed           *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

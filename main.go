@@ -36,6 +36,7 @@ var (
 	smtpClient          *outputs.Client
 	opsgenieClient      *outputs.Client
 	webhookClient       *outputs.Client
+	noderedClient       *outputs.Client
 	cloudeventsClient   *outputs.Client
 	azureClient         *outputs.Client
 	gcpClient           *outputs.Client
@@ -315,6 +316,16 @@ func init() {
 			config.Webhook.Address = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Webhook")
+		}
+	}
+
+	if config.NodeRed.Address != "" {
+		var err error
+		noderedClient, err = outputs.NewClient("NodeRed", config.NodeRed.Address, false, config.NodeRed.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.NodeRed.Address = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "NodeRed")
 		}
 	}
 

@@ -67,6 +67,7 @@ func getInitStats() *types.Statistics {
 		YandexDataStreams: getOutputNewMap("yandexdatastreams"),
 		Syslog:            getOutputNewMap("syslog"),
 		PolicyReport:      getOutputNewMap("policyreport"),
+		NodeRed:           getOutputNewMap("nodered"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)
