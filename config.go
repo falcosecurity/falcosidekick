@@ -189,6 +189,12 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Webhook.MutualTls", false)
 	v.SetDefault("Webhook.CheckCert", true)
 
+	v.SetDefault("NodeRed.Address", "")
+	v.SetDefault("NodeRed.User", "")
+	v.SetDefault("NodeRed.Password", "")
+	v.SetDefault("NodeRed.MinimumPriority", "")
+	v.SetDefault("NodeRed.CheckCert", true)
+
 	v.SetDefault("CloudEvents.Address", "")
 	v.SetDefault("CloudEvents.MinimumPriority", "")
 	v.SetDefault("CloudEvents.MutualTls", false)

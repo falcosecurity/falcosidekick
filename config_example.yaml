@@ -160,6 +160,15 @@ webhook:
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
+nodered:
+  # address: "" # Node-RED address, if not empty, Node-RED output is enabled
+  # user: "" # User if Basic Auth is enabled for 'http in' node in Node-RED
+  # password: "" # Password if Basic Auth is enabled for 'http in' node in Node-RED
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+
 cloudevents:
   # address: "" # CloudEvents consumer http address, if not empty, CloudEvents output is enabled
   # extensions: # Extensions to add in the outbound Event, useful for routing

@@ -90,6 +90,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 ### Web
 
 - **Webhook**
+- [**Node-RED**](https://nodered.org/)
 - [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
 
 ### Other
@@ -326,6 +327,15 @@ webhook:
   #   key: value
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+
+nodered:
+  # address: "" # Webhook address, if not empty, Webhook output is enabled
+  # user: "" # User if Basic Auth is enabled for 'http in' node in Node-RED
+  # password: "" # Password if Basic Auth is enabled for 'http in' node in Node-RED
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 azure:
@@ -710,6 +720,19 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **WEBHOOK_MUTUALTLS** : enable mutual tls authentication for this output (default:
   `false`)
 - **WEBHOOK_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
+- **NODERED_ADDRESS** : Node-RED address, if not empty, Node-RED output is
+  _enabled_
+- **NODERED_USER** : User if Basic Auth is enabled for 'http in' node
+  in Node-RED
+- **NODERED_PASSWORD** : Password if Basic Auth is enabled for 'http in' node
+  in Node-RED
+- **NODERED_CUSTOMHEADERS** : a list of comma separated custom headers to add,
+  syntax is "key:value,key:value"
+- **NODERED_MINIMUMPRIORITY** : minimum priority of event for using this output,
+  order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **NODERED_CHECKCERT** : check if ssl certificate of the output is valid (default:
   `true`)
 - **CLOUDEVENTS_ADDRESS** : CloudEvents consumer address, if not empty,
   CloudEvents output is _enabled_
