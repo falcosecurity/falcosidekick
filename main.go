@@ -55,6 +55,7 @@ var (
 	grafanaClient       *outputs.Client
 	yandexClient        *outputs.Client
 	syslogClient        *outputs.Client
+	mqttClient          *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -547,6 +548,17 @@ func init() {
 			log.Printf("[ERROR] : Syslog - %v\n", err)
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Syslog")
+		}
+	}
+
+	if config.MQTT.Broker != "" {
+		var err error
+		mqttClient, err = outputs.NewMQTTClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.MQTT.Broker = ""
+			log.Printf("[ERROR] : MQTT - %v\n", err)
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "MQTT")
 		}
 	}
 

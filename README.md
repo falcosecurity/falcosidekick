@@ -82,6 +82,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**RabbitMQ**](https://www.rabbitmq.com/)
 - [**Azure Event Hubs**](https://azure.microsoft.com/en-in/services/event-hubs/)
 - [**Yandex Data Streams**](https://cloud.yandex.com/en/docs/data-streams/)
+- [**MQTT**](https://mqtt.org/)
 
 ### Email
 
@@ -482,6 +483,16 @@ syslog:
   # host: "" # Syslog host, if not empty, Syslog output is enabled
   # port: "" # Syslog endpoint port number
   # protocol: "" # Syslog transport protocol. It can be either "tcp" or "udp"
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+mqtt:
+  broker: "" # Broker address, can start with tcp:// or ssl://, if not empty, MQTT output is enabled
+  # topic: "falco/events" # Topic for messages (default: falco/events)
+  # qos: 0 # QOS for messages (default: 0)
+  # retained: false # If true, messages are retained (default: false)
+  # user: "" # User if the authentication is enabled in the broker
+  # password: "" # Password if the authentication is enabled in the broker
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
@@ -894,12 +905,19 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **SYSLOG_PORT**: Syslog endpoint port number
 - **SYSLOG_PROTOCOL**: Syslog transport protocol. It can be either "tcp" or "udp"
 - **SYSLOG_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "debug")
-
 - **POLICYREPORT_ENABLED**: if true policyreport output is enabled (default: `false`)
 - **POLICYREPORT_KUBECONFIG**: Kubeconfig file to use (only if falcosidekick is running outside the cluster)
 - **POLICYREPORT_MINIMUMPRIORITY**: events with priority above this are mapped to fail in PolicyReport summary and lower that those are mapped to warn 
 - **POLICYREPORT_MAXEVENTS**: the max number of events that can be per report (default: 1000)
 - **POLICYREPORT_PRUNEBYPRIORITY**: if true; the events with lowest severity are pruned first, in FIFO order (default: `false`)
+- **MQTT_BROKER**: broker address, can start with `tcp://` or `ssl://`, if not empty, MQTT output is enabled
+- **MQTT_TOPIC**: topic for messages (default: `falco/events`)
+- **MQTT_QOS**: QOS for messages (default: `0`)
+- **MQTT_RETAINED**: if `true`, messages are retained (default: `false`)
+- **MQTT_USER**: user if the authentication is enabled in the broker
+- **MQTT_PASSWORD**: password if the authentication is enabled in the broker
+- **MQTT_CHECKCERT**: check if ssl certificate of the output is valid (default: `true`)
+- **MQTT_PRUNEBYPRIORITY**: if true; the events with lowest severity are pruned first, in FIFO order (default: `false`)
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"expvar"
 	"text/template"
 	"time"
@@ -18,6 +19,11 @@ type FalcoPayload struct {
 	OutputFields map[string]interface{} `json:"output_fields"`
 	Source       string                 `json:"source"`
 	Tags         []string               `json:"tags,omitempty"`
+}
+
+func (f FalcoPayload) String() string {
+	j, _ := json.Marshal(f)
+	return string(j)
 }
 
 // Configuration is a struct to store configuration
@@ -65,6 +71,7 @@ type Configuration struct {
 	Yandex             YandexOutputConfig
 	Syslog             SyslogConfig
 	NodeRed            NodeRedOutputConfig
+	MQTT               MQTTConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -486,6 +493,30 @@ type SyslogConfig struct {
 	MinimumPriority string
 }
 
+// MQTTConfig represents config parameters for the MQTT client
+type MQTTConfig struct {
+	Broker          string
+	Topic           string
+	QOS             int
+	Retained        bool
+	User            string
+	Password        string
+	CheckCert       bool
+	MinimumPriority string
+}
+
+// fissionConfig represents config parameters for Fission
+type fissionConfig struct {
+	RouterNamespace string
+	RouterService   string
+	RouterPort      int
+	Function        string
+	KubeConfig      string
+	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -538,6 +569,7 @@ type Statistics struct {
 	Cliq              *expvar.Map
 	PolicyReport      *expvar.Map
 	NodeRed           *expvar.Map
+	MQTT              *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
@@ -545,15 +577,4 @@ type PromStatistics struct {
 	Falco   *prometheus.CounterVec
 	Inputs  *prometheus.CounterVec
 	Outputs *prometheus.CounterVec
-}
-
-type fissionConfig struct {
-	RouterNamespace string
-	RouterService   string
-	RouterPort      int
-	Function        string
-	KubeConfig      string
-	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }

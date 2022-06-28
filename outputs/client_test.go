@@ -9,7 +9,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
-	"errors"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -76,7 +75,7 @@ func TestPost(t *testing.T) {
 		"/404": ErrNotFound,
 		"/422": ErrUnprocessableEntityError,
 		"/429": ErrTooManyRequest,
-		"/502": errors.New("502 Bad Gateway"),
+		"/502": ErrBadGateway,
 	} {
 		nc, err := NewClient("", ts.URL+i, false, true, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
 		require.Nil(t, err)

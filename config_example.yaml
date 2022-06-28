@@ -317,3 +317,13 @@ yandex:
     # endpoint: "" # Yandex Data Streams endpoint (default: https://yds.serverless.yandexcloud.net)
     # streamname: "" # stream name in format /${region}/${folder_id}/${ydb_id}/${stream_name}
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug
+
+mqtt:
+  broker: "" # Broker address, can start with tcp:// or ssl://, if not empty, MQTT output is enabled
+  # topic: "falco/events" # Topic for messages (default: falco/events)
+  # qos: 0 # QOS for messages (default: 0)
+  # retained: false # If true, messages are retained (default: false)
+  # user: "" # User if the authentication is enabled in the broker
+  # password: "" # Password if the authentication is enabled in the broker
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

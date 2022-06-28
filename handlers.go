@@ -313,4 +313,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Syslog.Host != "" && (falcopayload.Priority >= types.Priority(config.Syslog.MinimumPriority) || falcopayload.Rule == testRule) {
 		go syslogClient.SyslogPost(falcopayload)
 	}
+
+	if config.MQTT.Broker != "" && (falcopayload.Priority >= types.Priority(config.MQTT.MinimumPriority) || falcopayload.Rule == testRule) {
+		go mqttClient.MQTTPublish(falcopayload)
+	}
 }
