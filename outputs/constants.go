@@ -42,6 +42,7 @@ const (
 	Openfaas string = "OpenFaas"
 	Fission  string = "Fission"
 	Falco    string = "Falco"
+	MQTT     string = "MQTT"
 
 	UDP string = "udp"
 	TCP string = "tcp"

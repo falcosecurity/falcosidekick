@@ -29,6 +29,8 @@ import (
 	"github.com/segmentio/kafka-go"
 	"k8s.io/client-go/kubernetes"
 
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -36,22 +38,28 @@ import (
 var ErrHeaderMissing = errors.New("header missing")
 
 // ErrClientAuthenticationError = 401
-var ErrClientAuthenticationError = errors.New("authentication Error")
+var ErrClientAuthenticationError = errors.New("authentication error")
 
 // ErrForbidden = 403
-var ErrForbidden = errors.New("access Denied")
+var ErrForbidden = errors.New("access denied")
 
 // ErrNotFound = 404
 var ErrNotFound = errors.New("resource not found")
 
 // ErrUnprocessableEntityError = 422
-var ErrUnprocessableEntityError = errors.New("bad Request")
+var ErrUnprocessableEntityError = errors.New("bad request")
 
 // ErrTooManyRequest = 429
 var ErrTooManyRequest = errors.New("exceeding post rate limit")
 
+// ErrInternalServer = 500
+var ErrInternalServer = errors.New("internal server error")
+
+// ErrBadGateway = 502
+var ErrBadGateway = errors.New("bad gateway")
+
 // ErrClientCreation is returned if client can't be created
-var ErrClientCreation = errors.New("client creation Error")
+var ErrClientCreation = errors.New("client creation error")
 
 // EnabledOutputs list all enabled outputs
 var EnabledOutputs []string
@@ -100,6 +108,7 @@ type Client struct {
 	RabbitmqClient    *amqp.Channel
 	WavefrontSender   *wavefront.Sender
 	Crdclient         *crdClient.Clientset
+	MQTTClient        mqtt.Client
 }
 
 // NewClient returns a new output.Client for accessing the different API.
@@ -235,8 +244,14 @@ func (c *Client) Post(payload interface{}) error {
 	case http.StatusTooManyRequests: //429
 		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
 		return ErrTooManyRequest
+	case http.StatusInternalServerError: //500
+		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
+		return ErrInternalServer
+	case http.StatusBadGateway: //502
+		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
+		return ErrBadGateway
 	default:
-		log.Printf("[ERROR] : %v - Unexpected Response  (%v)\n", c.OutputType, resp.StatusCode)
+		log.Printf("[ERROR] : %v - unexpected Response  (%v)\n", c.OutputType, resp.StatusCode)
 		return errors.New(resp.Status)
 	}
 }

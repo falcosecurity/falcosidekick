@@ -330,6 +330,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Syslog.Protocol", "")
 	v.SetDefault("Syslog.MinimumPriority", "")
 
+	v.SetDefault("MQTT.Broker", "")
+	v.SetDefault("MQTT.Topic", "falco/events")
+	v.SetDefault("MQTT.QOS", 0)
+	v.SetDefault("MQTT.Retained", false)
+	v.SetDefault("MQTT.User", "")
+	v.SetDefault("MQTT.Password", "")
+	v.SetDefault("MQTT.CheckCert", true)
+	v.SetDefault("MQTT.MinimumPriority", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -434,7 +443,10 @@ func getConfig() *types.Configuration {
 	c.Rabbitmq.MinimumPriority = checkPriority(c.Rabbitmq.MinimumPriority)
 	c.Wavefront.MinimumPriority = checkPriority(c.Wavefront.MinimumPriority)
 	c.Yandex.S3.MinimumPriority = checkPriority(c.Yandex.S3.MinimumPriority)
+	c.Yandex.DataStreams.MinimumPriority = checkPriority(c.Yandex.DataStreams.MinimumPriority)
 	c.Syslog.MinimumPriority = checkPriority(c.Syslog.MinimumPriority)
+	c.MQTT.MinimumPriority = checkPriority(c.MQTT.MinimumPriority)
+	c.PolicyReport.MinimumPriority = checkPriority(c.PolicyReport.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
