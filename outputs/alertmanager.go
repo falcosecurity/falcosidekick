@@ -77,6 +77,7 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 		amPayload.Labels["tags"] = strings.Join(falcopayload.Tags, ",")
 	}
 
+	amPayload.Labels["priority"] = falcopayload.Priority.String()
 	amPayload.Annotations["info"] = falcopayload.Output
 	amPayload.Annotations["summary"] = falcopayload.Rule
 	if config.Alertmanager.ExpiresAfter != 0 {
