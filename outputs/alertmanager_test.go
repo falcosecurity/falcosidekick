@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewAlertmanagerPayloadO(t *testing.T) {
-	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","proc_tty":"1234","eventsource":"syscalls","rule":"Test rule","source":"falco","tags":"test,example"},"annotations":{"info":"This is a test from falcosidekick","summary":"Test rule"}}]`
+	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","priority":"Debug","proc_tty":"1234","rule":"Test rule","source":"falco"},"annotations":{"info":"This is a test from falcosidekick","summary":"Test rule"}}]`
 
 	var f types.FalcoPayload
 	d := json.NewDecoder(strings.NewReader(falcoTestInput))
