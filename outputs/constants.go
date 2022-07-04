@@ -45,4 +45,10 @@ const (
 
 	UDP string = "udp"
 	TCP string = "tcp"
+
+	// SASL Auth mechanisms for SMTP
+	Plain       string = "plain"
+	OAuthBearer string = "oauthbearer"
+	External    string = "external"
+	Anonymous   string = "anonymous"
 )

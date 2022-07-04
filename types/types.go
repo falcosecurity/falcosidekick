@@ -271,8 +271,12 @@ type awsKinesisConfig struct {
 
 type smtpOutputConfig struct {
 	HostPort        string
+	AuthMechanism   string
 	User            string
 	Password        string
+	Token           string
+	Identity        string
+	Trace           string
 	From            string
 	To              string
 	OutputFormat    string

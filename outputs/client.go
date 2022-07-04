@@ -53,6 +53,8 @@ var ErrTooManyRequest = errors.New("exceeding post rate limit")
 // ErrClientCreation is returned if client can't be created
 var ErrClientCreation = errors.New("client creation Error")
 
+var ErrSASLAuthCreation = errors.New("sasl auth: wrong mechanism")
+
 // EnabledOutputs list all enabled outputs
 var EnabledOutputs []string
 

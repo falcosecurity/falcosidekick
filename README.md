@@ -296,8 +296,12 @@ aws:
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
-  # user: "" # user to access SMTP server
-  # password: "" # password to access SMTP server
+  # authmechanism: "plain" # SASL Mechanisms : plain, oauthbearer, external, anonymous or "" (disable SASL). Default: plain
+  # user: "" # user for Plain Mechanism
+  # password: "" # password for Plain Mechanism
+  # token: "" # OAuthBearer token for OAuthBearer Mechanism
+  # identity: "" # identity string for Plain and External Mechanisms
+  # trace: "" trace string for Anonymous Mechanism
   # from: "" # Sender address (mandatory if SMTP output is enabled)
   # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
   # outputformat: "" # html (default), text
@@ -687,8 +691,6 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **SMTP_HOSTPORT** : "host:port" address of SMTP server, if not empty, SMTP
   output is _enabled_
-- **SMTP_USER** : user to access SMTP server
-- **SMTP_PASSWORD** : password to access SMTP server
 - **SMTP_FROM** : Sender address (mandatory if SMTP output is enabled)
 - **SMTP_TO** : comma-separated list of Recipident addresses, can't be empty
   (mandatory if SMTP output is enabled)
@@ -696,8 +698,13 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **SMTP_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-- **OPSGENIE_APIKEY** : Opsgenie API Key, if not empty, Opsgenie output is
-  _enabled_
+- **SMTP_AUTHMECHANISM** : SASL Mechanisms `plain|oauthbearer|external|anonymous or "" (disable SASL)` Default to `plain`
+- **SMTP_USER** :  user for Plain Mechanism
+- **SMTP_PASSWORD** : password for Plain Mechanism
+- **SMTP_TOKEN** : # OAuthBearer token for OAuthBearer Mechanism
+- **SMTP_IDENTITY** : identity string for Plain and External Mechanisms
+- **SMTP_TRACE** : trace string for Anonymous Mechanism
+- **OPSGENIE_APIKEY** : Opsgenie API Key, if not empty, Opsgenie output is _enabled_
 - **OPSGENIE_REGION** : (us|eu) region of your domain (default is 'us')
 - **OPSGENIE_MINIMUMPRIORITY** : minimum priority of event for using this
   output, order is
