@@ -127,8 +127,12 @@ aws:
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
-  # user: "" # user to access SMTP server
-  # password: "" # password to access SMTP server
+  # authmechanism: "plain" # SASL Mechanisms : plain, oauthbearer, external, anonymous or "" (disable SASL). Default: plain
+  # user: "" # user for Plain Mechanism
+  # password: "" # password for Plain Mechanism
+  # token: "" # OAuthBearer token for OAuthBearer Mechanism
+  # identity: "" # identity string for Plain and External Mechanisms
+  # trace: "" trace string for Anonymous Mechanism
   # from: "" # Sender address (mandatory if SMTP output is enabled)
   # to: "" # comma-separated list of Recipident addresses, can't be empty (mandatory if SMTP output is enabled)
   # outputformat: "" # html (default), text

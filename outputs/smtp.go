@@ -4,7 +4,9 @@ import (
 	"bytes"
 	htmlTemplate "html/template"
 	"log"
+	"net"
 	"regexp"
+	"strconv"
 	"strings"
 	textTemplate "text/template"
 
@@ -17,6 +19,7 @@ import (
 
 // SMTPPayload is payload for SMTP Output
 type SMTPPayload struct {
+	From    string
 	To      string
 	Subject string
 	Body    string
@@ -42,6 +45,7 @@ func NewSMTPClient(config *types.Configuration, stats *types.Statistics, promSta
 
 func newSMTPPayload(falcopayload types.FalcoPayload, config *types.Configuration) SMTPPayload {
 	s := SMTPPayload{
+		From:    "From: " + config.SMTP.From,
 		To:      "To: " + config.SMTP.To,
 		Subject: "Subject: [" + falcopayload.Priority.String() + "] " + falcopayload.Output,
 	}
@@ -83,24 +87,62 @@ func newSMTPPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	return s
 }
 
+func (c *Client) ReportErr(message string, err error) {
+	go c.CountMetric("outputs", 1, []string{"output:smtp", "status:error"})
+	c.Stats.SMTP.Add(Error, 1)
+	log.Printf("[ERROR] : SMTP - %s : %v\n", message, err)
+}
+
+func (c *Client) GetAuth() (sasl.Client, error) {
+	if c.Config.SMTP.AuthMechanism == "" {
+		return nil, nil
+	}
+	var authClient sasl.Client
+	switch strings.ToLower(c.Config.SMTP.AuthMechanism) {
+	case Plain:
+		authClient = sasl.NewPlainClient(c.Config.SMTP.Identity, c.Config.SMTP.User, c.Config.SMTP.Password)
+	case OAuthBearer:
+		host, portString, _ := net.SplitHostPort(c.Config.SMTP.HostPort)
+		port, err := strconv.Atoi(portString)
+		if err != nil {
+			return nil, err
+		}
+		authClient = sasl.NewOAuthBearerClient(&sasl.OAuthBearerOptions{Username: c.Config.SMTP.User, Token: c.Config.SMTP.Token, Host: host, Port: port})
+	case External:
+		authClient = sasl.NewExternalClient(c.Config.SMTP.Identity)
+	case Anonymous:
+		authClient = sasl.NewAnonymousClient(c.Config.SMTP.Trace)
+	default:
+		return nil, ErrSASLAuthCreation
+	}
+	return authClient, nil
+}
+
 // SendMail sends email to SMTP server
 func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 	sp := newSMTPPayload(falcopayload, c.Config)
 
 	to := strings.Split(strings.Replace(c.Config.SMTP.To, " ", "", -1), ",")
-	auth := sasl.NewPlainClient("", c.Config.SMTP.User, c.Config.SMTP.Password)
-	body := sp.To + "\n" + sp.Subject + "\n" + sp.Body
+	auth, err := c.GetAuth()
+	if err != nil {
+		c.ReportErr("SASL Authentication mechanisms", err)
+		return
+	}
+	body := sp.To + "\n" + sp.Subject + "\n" + sp.From + "\n" + sp.Body
 
 	if c.Config.Debug {
-		log.Printf("[DEBUG] : SMTP payload : \nServer: %v\nFrom: %v\nTo: %v\nSubject: %v\n", c.Config.SMTP.HostPort, c.Config.SMTP.From, sp.To, sp.Subject)
+		log.Printf("[DEBUG] : SMTP payload : \nServer: %v\n%v\n%v\nSubject: %v\n", c.Config.SMTP.HostPort, sp.From, sp.To, sp.Subject)
+		if c.Config.SMTP.AuthMechanism != "" {
+			log.Printf("[DEBUG] : SMTP - SASL Auth : \nMechanisms: %v\nUser: %v\nToken: %v\nIdentity: %v\nTrace: %v\n", c.Config.SMTP.AuthMechanism, c.Config.SMTP.User, c.Config.SMTP.Token, c.Config.SMTP.Identity, c.Config.SMTP.Trace)
+		} else {
+			log.Printf("[DEBUG] : SMTP - SASL Auth : Disabled\n")
+		}
 	}
 
 	c.Stats.SMTP.Add("total", 1)
-	err := smtp.SendMail(c.Config.SMTP.HostPort, auth, c.Config.SMTP.From, to, strings.NewReader(body))
+	err = smtp.SendMail(c.Config.SMTP.HostPort, auth, c.Config.SMTP.From, to, strings.NewReader(body))
 	if err != nil {
-		go c.CountMetric("outputs", 1, []string{"output:smtp", "status:error"})
-		c.Stats.SMTP.Add(Error, 1)
-		log.Printf("[ERROR] : SMTP - %v\n", err)
+		c.ReportErr("Send Mail failure", err)
 		return
 	}
 

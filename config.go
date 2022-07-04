@@ -150,12 +150,17 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.Kinesis.MinimumPriority", "")
 
 	v.SetDefault("SMTP.HostPort", "")
-	v.SetDefault("SMTP.User", "")
-	v.SetDefault("SMTP.Password", "")
 	v.SetDefault("SMTP.From", "")
 	v.SetDefault("SMTP.To", "")
 	v.SetDefault("SMTP.OutputFormat", "html")
 	v.SetDefault("SMTP.MinimumPriority", "")
+
+	v.SetDefault("SMTP.AuthMechanism", "plain")
+	v.SetDefault("SMTP.User", "")
+	v.SetDefault("SMTP.Password", "")
+	v.SetDefault("SMTP.Token", "")
+	v.SetDefault("SMTP.Identity", "")
+	v.SetDefault("SMTP.Trace", "")
 
 	v.SetDefault("STAN.HostPort", "")
 	v.SetDefault("STAN.ClusterID", "")
