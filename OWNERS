@@ -3,15 +3,6 @@ approvers:
   - leogr
   - cpanato
   - fjogeleit
-reviewers:
-  - Issif
-  - leodido
-  - nibalizer
-  - leogr
-  - cpanato
-  - KeisukeYamashita
-  - fjogeleit
-  - developer-guy
 emeritus_approvers:
   - leodido
   - nibalizer
