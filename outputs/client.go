@@ -129,7 +129,7 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, HeaderList: []Header{}, ContentType: DefaultContentType, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, CheckCert: checkCert, HeaderList: []Header{}, ContentType: DefaultContentType, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
 }
 
 // Post sends event (payload) to Output.
@@ -178,7 +178,7 @@ func (c *Client) Post(payload interface{}) error {
 		}
 	} else {
 		// With MutualTLS enabled, the check cert flag is ignored
-		if c.CheckCert {
+		if !c.CheckCert {
 			// #nosec G402 This is only set as a result of explicit configuration
 			customTransport.TLSClientConfig = &tls.Config{
 				InsecureSkipVerify: true,
