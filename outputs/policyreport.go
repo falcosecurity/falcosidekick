@@ -8,11 +8,12 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/google/uuid"
-	"github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
 	wgpolicy "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
 	crdClient "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/generated/v1alpha2/clientset/versioned"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8stypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
@@ -40,11 +41,12 @@ var (
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterPolicyReportBaseName,
 		},
-		Summary: v1alpha2.PolicyReportSummary{
+		Summary: wgpolicy.PolicyReportSummary{
 			Fail: 0,
 			Warn: 0,
 		},
 	}
+	namespaces map[string]k8stypes.UID
 )
 
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
@@ -62,15 +64,22 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 	if err != nil {
 		return nil, err
 	}
+	clientset, err := kubernetes.NewForConfig(clientConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	namespaces = make(map[string]k8stypes.UID)
 
 	return &Client{
-		OutputType:      "PolicyReport",
-		Config:          config,
-		Stats:           stats,
-		PromStats:       promStats,
-		StatsdClient:    statsdClient,
-		DogstatsdClient: dogstatsdClient,
-		Crdclient:       crdclient,
+		OutputType:       "PolicyReport",
+		Config:           config,
+		Stats:            stats,
+		PromStats:        promStats,
+		StatsdClient:     statsdClient,
+		DogstatsdClient:  dogstatsdClient,
+		Crdclient:        crdclient,
+		KubernetesClient: clientset,
 	}, nil
 }
 
@@ -124,8 +133,8 @@ func newResult(FalcoPayload types.FalcoPayload) (_ *wgpolicy.PolicyReportResult,
 		Source:      policyReportSource,
 		Scored:      false,
 		Timestamp:   metav1.Timestamp{Seconds: int64(FalcoPayload.Time.Second()), Nanos: int32(FalcoPayload.Time.Nanosecond())},
-		Severity:    v1alpha2.PolicyResultSeverity(severity),
-		Result:      v1alpha2.PolicyResult(result),
+		Severity:    wgpolicy.PolicyResultSeverity(severity),
+		Result:      wgpolicy.PolicyResult(result),
 		Description: FalcoPayload.Output,
 		Properties:  properties,
 	}, namespace
@@ -159,6 +168,20 @@ func updatePolicyReportSummary(rep *wgpolicy.PolicyReport, event *wgpolicy.Polic
 	}
 }
 
+func getNamespaceUID(c *Client, ns string) k8stypes.UID {
+	if n := namespaces[ns]; n != "" {
+		return n
+	}
+	n, err := c.KubernetesClient.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("[ERROR] : PolicyReport - Can't get UID of namespace %v: %v\n", ns, err)
+		return ""
+	}
+	u := n.ObjectMeta.UID
+	namespaces[ns] = u
+	return u
+}
+
 func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyReportResult) error {
 	//policyReport to be created
 	if policyReports[namespace] == nil {
@@ -166,17 +189,28 @@ func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyRepo
 			ObjectMeta: metav1.ObjectMeta{
 				Name: policyReportBaseName + uuid.NewString()[:8],
 			},
-			Summary: v1alpha2.PolicyReportSummary{
+			Summary: wgpolicy.PolicyReportSummary{
 				Fail: 0,
 				Warn: 0,
 			},
+		}
+		if uid := getNamespaceUID(c, namespace); uid != "" {
+			policyReports[namespace].ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Namespace",
+					Name:       namespace,
+					UID:        uid,
+					Controller: new(bool),
+				},
+			}
 		}
 	}
 
 	policyr := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace)
 	updatePolicyReportSummary(policyReports[namespace], event)
 	if len(policyReports[namespace].Results) == c.Config.PolicyReport.MaxEvents {
-		if c.Config.PolicyReport.PruneByPriority == true {
+		if c.Config.PolicyReport.PruneByPriority {
 			pruningLogicForPolicyReports(namespace)
 		} else {
 			if policyReports[namespace].Results[0].Severity == highpriority {
@@ -192,7 +226,7 @@ func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyRepo
 	if errors.IsNotFound(getErr) {
 		result, err := policyr.Create(context.TODO(), policyReports[namespace], metav1.CreateOptions{})
 		if err != nil {
-			log.Printf("[ERROR] : Can't create Policy Report %v in namespace %v\n", err, namespace)
+			log.Printf("[ERROR] : PolicyReport - Can't create Policy Report %v in namespace %v\n", err, namespace)
 			return err
 		}
 		log.Printf("[INFO]  : PolicyReport - Create policy report %v in namespace %v\n", result.GetObjectMeta().GetName(), namespace)
