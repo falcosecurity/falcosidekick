@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/types"
@@ -46,7 +47,8 @@ var (
 			Warn: 0,
 		},
 	}
-	namespaces map[string]k8stypes.UID
+	falcosidekickNamespace    string
+	falcosidekickNamespaceUID k8stypes.UID
 )
 
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
@@ -69,17 +71,26 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 		return nil, err
 	}
 
-	namespaces = make(map[string]k8stypes.UID)
+	falcosidekickNamespace = os.Getenv("NAMESPACE")
+	if falcosidekickNamespace == "" {
+		log.Println("[INFO]  : PolicyReport - No env var NAMESPACE detected")
+	} else {
+		n, err := clientset.CoreV1().Namespaces().Get(context.TODO(), falcosidekickNamespace, metav1.GetOptions{})
+		if err != nil {
+			log.Printf("[ERROR] : PolicyReport - Can't get UID of namespace %v: %v\n", falcosidekickNamespace, err)
+		} else {
+			falcosidekickNamespaceUID = n.ObjectMeta.UID
+		}
+	}
 
 	return &Client{
-		OutputType:       "PolicyReport",
-		Config:           config,
-		Stats:            stats,
-		PromStats:        promStats,
-		StatsdClient:     statsdClient,
-		DogstatsdClient:  dogstatsdClient,
-		Crdclient:        crdclient,
-		KubernetesClient: clientset,
+		OutputType:      "PolicyReport",
+		Config:          config,
+		Stats:           stats,
+		PromStats:       promStats,
+		StatsdClient:    statsdClient,
+		DogstatsdClient: dogstatsdClient,
+		Crdclient:       crdclient,
 	}, nil
 }
 
@@ -168,20 +179,6 @@ func updatePolicyReportSummary(rep *wgpolicy.PolicyReport, event *wgpolicy.Polic
 	}
 }
 
-func getNamespaceUID(c *Client, ns string) k8stypes.UID {
-	if n := namespaces[ns]; n != "" {
-		return n
-	}
-	n, err := c.KubernetesClient.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
-	if err != nil {
-		log.Printf("[ERROR] : PolicyReport - Can't get UID of namespace %v: %v\n", ns, err)
-		return ""
-	}
-	u := n.ObjectMeta.UID
-	namespaces[ns] = u
-	return u
-}
-
 func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyReportResult) error {
 	//policyReport to be created
 	if policyReports[namespace] == nil {
@@ -194,13 +191,13 @@ func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyRepo
 				Warn: 0,
 			},
 		}
-		if uid := getNamespaceUID(c, namespace); uid != "" {
+		if falcosidekickNamespace != "" && falcosidekickNamespaceUID != "" {
 			policyReports[namespace].ObjectMeta.OwnerReferences = []metav1.OwnerReference{
 				{
 					APIVersion: "v1",
 					Kind:       "Namespace",
-					Name:       namespace,
-					UID:        uid,
+					Name:       falcosidekickNamespace,
+					UID:        falcosidekickNamespaceUID,
 					Controller: new(bool),
 				},
 			}
