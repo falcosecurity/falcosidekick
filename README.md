@@ -226,6 +226,8 @@ alertmanager:
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # endpoint: "" # alertmanager endpoint for posting alerts: "/api/v1/alerts" or "/api/v2/alerts" (default: "/api/v1/alerts")
   # expiresafter: "" if set to a non-zero value, alert expires after that time in seconds (default: 0)
+  # extralabels: "" # comma separated list of labels composed of a ':' separated name and value that is added to the Alerts. Example: my_label_1:my_value_1, my_label_1:my_value_2
+  # extraannotations: "" # comma separated list of annotations composed of a ':' separated name and value that is added to the Alerts. Example: my_annotation_1:my_value_1, my_annotation_1:my_value_2
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
@@ -608,6 +610,10 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **ALERTMANAGER_ENDPOINT** : alertmanager endpoint on which falcosidekick posts alerts, choice is:
   `"/api/v1/alerts" or "/api/v2/alerts" , default is "/api/v1/alerts"`
 - **ALERTMANAGER_EXPIRESAFTER** : if set to a non-zero value, alert expires after that time in seconds (default: 0)
+- **ALERTMANAGER_EXTRALABELS** : comma separated list of labels composed of a ':' separated name and value that is 
+  added to the Alerts. Example: `my_label_1:my_value_1, my_label_1:my_value_2` (default: `""`)
+- **ALERTMANAGER_EXTRAANNOTATIONS** : comma separated list of annotations composed of a ':' separated name and
+  value that is added to the Alerts. Example: `my_annotation_1:my_value_1, my_annotation_1:my_value_2` (default: `""`)
 - **ELASTICSEARCH_HOSTPORT** : Elasticsearch http://host:port, if not `empty`,
   Elasticsearch is _enabled_
 - **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)

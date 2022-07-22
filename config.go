@@ -21,6 +21,7 @@ func getConfig() *types.Configuration {
 	c := &types.Configuration{
 		Customfields: make(map[string]string),
 		Webhook:      types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
+		Alertmanager: types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string)},
 		CloudEvents:  types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 	}
 
@@ -362,6 +363,8 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("Customfields")
 	v.GetStringMapString("Webhook.CustomHeaders")
 	v.GetStringMapString("CloudEvents.Extensions")
+	v.GetStringMapString("AlertManager.ExtraLabels")
+	v.GetStringMapString("AlertManager.ExtraAnnotations")
 	if err := v.Unmarshal(c); err != nil {
 		log.Printf("[ERROR] : Error unmarshalling config : %s", err)
 	}
@@ -392,6 +395,44 @@ func getConfig() *types.Configuration {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
 				c.CloudEvents.Extensions[tagkeys[0]] = tagkeys[1]
+			}
+		}
+	}
+	regex, _ := regexp.Compile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
+	if value, present := os.LookupEnv("ALERTMANAGER_EXTRALABELS"); present {
+		extralabels := strings.Split(value, ",")
+		for _, labelData := range extralabels {
+			if !regex.MatchString(labelData) {
+				log.Printf("[ERROR] : AlertManager - Extra field '%v' is not a valid prometheus labelData", labelData)
+				continue
+			}
+			values := strings.SplitN(labelData, ":", 2)
+			label := strings.TrimSpace(values[0])
+			if !regex.MatchString(label) {
+				log.Printf("[ERROR] : AlertManager - Extra field '%v' is not a valid prometheus label", label)
+				continue
+			}
+			if len(values) == 2 {
+				c.Alertmanager.ExtraLabels[label] = strings.TrimSpace(values[1])
+			} else {
+				c.Alertmanager.ExtraLabels[label] = ""
+			}
+		}
+	}
+
+	if value, present := os.LookupEnv("ALERTMANAGER_EXTRAANNOTATIONS"); present {
+		extraannotations := strings.Split(value, ",")
+		for _, annotationData := range extraannotations {
+			values := strings.SplitN(annotationData, ":", 2)
+			annotation := strings.TrimSpace(values[0])
+			if !regex.MatchString(annotation) {
+				log.Printf("[ERROR] : AlertManager - Extra field '%v' is not a valid prometheus annotation", annotation)
+				continue
+			}
+			if len(values) == 2 {
+				c.Alertmanager.ExtraAnnotations[annotation] = strings.TrimSpace(values[1])
+			} else {
+				c.Alertmanager.ExtraAnnotations[annotation] = ""
 			}
 		}
 	}
