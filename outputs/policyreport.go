@@ -186,7 +186,7 @@ func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyRepo
 			ObjectMeta: metav1.ObjectMeta{
 				Name: policyReportBaseName + uuid.NewString()[:8],
 				Labels: map[string]string{
-					"app.kubernetes.io/managed-by": "falcosidekick",
+					"app.kubernetes.io/created-by": "falcosidekick",
 				},
 			},
 			Summary: wgpolicy.PolicyReportSummary{
