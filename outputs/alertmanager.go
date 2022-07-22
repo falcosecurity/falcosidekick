@@ -83,6 +83,12 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 	if config.Alertmanager.ExpiresAfter != 0 {
 		amPayload.EndsAt = falcopayload.Time.Add(time.Duration(config.Alertmanager.ExpiresAfter) * time.Second)
 	}
+	for label, value := range config.Alertmanager.ExtraLabels {
+		amPayload.Labels[label] = value
+	}
+	for annotation, value := range config.Alertmanager.ExtraAnnotations {
+		amPayload.Annotations[annotation] = value
+	}
 
 	var a []alertmanagerPayload
 
