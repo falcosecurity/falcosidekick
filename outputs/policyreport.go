@@ -41,6 +41,9 @@ var (
 	clusterPolicyReport *wgpolicy.ClusterPolicyReport = &wgpolicy.ClusterPolicyReport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterPolicyReportBaseName,
+			Labels: map[string]string{
+				"app.kubernetes.io/created-by": "falcosidekick",
+			},
 		},
 		Summary: wgpolicy.PolicyReportSummary{
 			Fail: 0,
@@ -263,7 +266,7 @@ func updateClusterPolicyReport(c *Client, event *wgpolicy.PolicyReportResult) er
 	clusterpr := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports()
 
 	if len(clusterPolicyReport.Results) == c.Config.PolicyReport.MaxEvents {
-		if c.Config.PolicyReport.PruneByPriority == true {
+		if c.Config.PolicyReport.PruneByPriority {
 			pruningLogicForClusterPolicyReport()
 		} else {
 			if clusterPolicyReport.Results[0].Severity == highpriority {
@@ -343,7 +346,7 @@ func pruningLogicForClusterPolicyReport() {
 }
 
 func summaryDeletionCluster(rep *wgpolicy.ClusterPolicyReport, deleteFailevent bool) {
-	if deleteFailevent == true {
+	if deleteFailevent {
 		rep.Summary.Fail--
 	} else {
 		rep.Summary.Warn--
@@ -351,7 +354,7 @@ func summaryDeletionCluster(rep *wgpolicy.ClusterPolicyReport, deleteFailevent b
 }
 
 func summaryDeletion(rep *wgpolicy.PolicyReport, deleteFailevent bool) {
-	if deleteFailevent == true {
+	if deleteFailevent {
 		rep.Summary.Fail--
 	} else {
 		rep.Summary.Warn--
