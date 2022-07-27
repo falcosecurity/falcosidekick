@@ -232,7 +232,7 @@ alertmanager:
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
-  # type: "event"
+  # type: "_doc"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
@@ -617,7 +617,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **ELASTICSEARCH_HOSTPORT** : Elasticsearch http://host:port, if not `empty`,
   Elasticsearch is _enabled_
 - **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)
-- **ELASTICSEARCH_TYPE** : Elasticsearch document type (default: event)
+- **ELASTICSEARCH_TYPE** : Elasticsearch document type (default: _doc)
 - **ELASTICSEARCH_MINIMUMPRIORITY** : minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`

@@ -99,7 +99,7 @@ func getConfig() *types.Configuration {
 
 	v.SetDefault("Elasticsearch.HostPort", "")
 	v.SetDefault("Elasticsearch.Index", "falco")
-	v.SetDefault("Elasticsearch.Type", "event")
+	v.SetDefault("Elasticsearch.Type", "_doc")
 	v.SetDefault("Elasticsearch.MinimumPriority", "")
 	v.SetDefault("Elasticsearch.Suffix", "daily")
 	v.SetDefault("Elasticsearch.MutualTls", false)
