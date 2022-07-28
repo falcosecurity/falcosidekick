@@ -379,6 +379,20 @@ func getConfig() *types.Configuration {
 		}
 	}
 
+	if value, present := os.LookupEnv("TEMPLATEDFIELDS"); present {
+		templatedfields := strings.Split(value, ",")
+		for _, label := range templatedfields {
+			tagkeys := strings.Split(label, ":")
+			if len(tagkeys) == 2 {
+				if _, err := template.New("").Parse(tagkeys[1]); err != nil {
+					log.Printf("[ERROR] : Error parsing templated fields %v : %s", tagkeys[0], err)
+				} else {
+					c.Templatedfields[tagkeys[0]] = tagkeys[1]
+				}
+			}
+		}
+	}
+
 	if value, present := os.LookupEnv("WEBHOOK_CUSTOMHEADERS"); present {
 		customheaders := strings.Split(value, ",")
 		for _, label := range customheaders {

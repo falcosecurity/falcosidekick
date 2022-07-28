@@ -33,6 +33,7 @@ type Configuration struct {
 	ListenAddress      string
 	ListenPort         int
 	Customfields       map[string]string
+	Templatedfields    map[string]string
 	Prometheus         prometheusOutputConfig
 	Slack              SlackOutputConfig
 	Cliq               CliqOutputConfig
