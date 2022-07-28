@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -107,6 +108,24 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
+	if len(config.Templatedfields) > 0 {
+		if falcopayload.OutputFields == nil {
+			falcopayload.OutputFields = make(map[string]interface{})
+		}
+		for key, value := range config.Templatedfields {
+			tmpl, err := template.New("").Parse(value)
+			if err != nil {
+				log.Printf("[ERROR] : Parsing error for templated field '%v': %v\n", key, err)
+				continue
+			}
+			v := new(bytes.Buffer)
+			if err := tmpl.Execute(v, falcopayload.OutputFields); err != nil {
+				log.Printf("[ERROR] : Parsing error for templated field '%v': %v\n", key, err)
+			}
+			falcopayload.OutputFields[key] = v.String()
+		}
+	}
+
 	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + falcopayload.Priority.String()})
 	stats.Falco.Add(strings.ToLower(falcopayload.Priority.String()), 1)
 	promLabels := map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "k8s_ns_name": kn, "k8s_pod_name": kp}
@@ -132,7 +151,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	if config.Debug {
 		body, _ := json.Marshal(falcopayload)
-		log.Printf("[DEBUG] : Falco's payload : %v", string(body))
+		log.Printf("[DEBUG] : Falco's payload : %v\n", string(body))
 	}
 
 	return falcopayload, nil
