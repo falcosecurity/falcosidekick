@@ -374,7 +374,15 @@ func getConfig() *types.Configuration {
 		for _, label := range customfields {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
-				c.Customfields[tagkeys[0]] = tagkeys[1]
+				if strings.HasPrefix(tagkeys[1], "%") {
+					if s := os.Getenv(tagkeys[1][1:]); s != "" {
+						c.Customfields[tagkeys[0]] = s
+					} else {
+						log.Printf("[ERROR] : Can't find env var %v for custom fields", tagkeys[1][1:])
+					}
+				} else {
+					c.Customfields[tagkeys[0]] = tagkeys[1]
+				}
 			}
 		}
 	}
