@@ -317,7 +317,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Fission.Function != "" && (falcopayload.Priority >= types.Priority(config.Fission.MinimumPriority) || falcopayload.Rule == testRule) {
 		go fissionClient.FissionCall(falcopayload)
 	}
-	if config.PolicyReport.Enabled {
+	if config.PolicyReport.Enabled && (falcopayload.Priority >= types.Priority(config.PolicyReport.MinimumPriority)) {
 		go policyReportClient.UpdateOrCreatePolicyReport(falcopayload)
 	}
 

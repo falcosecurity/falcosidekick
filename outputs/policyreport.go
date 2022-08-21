@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	wgpolicy "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
 	crdClient "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/generated/v1alpha2/clientset/versioned"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8stypes "k8s.io/apimachinery/pkg/types"
@@ -20,21 +21,33 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+type resource struct {
+	apiVersion string
+	kind       string
+}
+
 const (
 	clusterPolicyReportBaseName = "falco-cluster-policy-report-"
 	policyReportBaseName        = "falco-policy-report-"
 	policyReportSource          = "Falco"
-	highpriority                = "high"
-	lowpriority                 = "low"
-	mediumpriority              = "medium"
-	fail                        = "fail"
-	warn                        = "warn"
+
+	high     wgpolicy.PolicyResultSeverity = "high"
+	low      wgpolicy.PolicyResultSeverity = "low"
+	medium   wgpolicy.PolicyResultSeverity = "medium"
+	info     wgpolicy.PolicyResultSeverity = "info"
+	critical wgpolicy.PolicyResultSeverity = "critical"
+
+	fail wgpolicy.PolicyResult = "fail"
+	warn wgpolicy.PolicyResult = "warn"
+	skip wgpolicy.PolicyResult = "skip"
+
+	targetNS       = "ka.target.namespace"
+	targetName     = "ka.target.name"
+	targetResource = "ka.target.resource"
 )
 
 var (
 	minimumPriority string
-	severity        string
-	result          string
 	//slice of policy reports
 	policyReports = make(map[string]*wgpolicy.PolicyReport)
 	//cluster policy report
@@ -52,6 +65,24 @@ var (
 	}
 	falcosidekickNamespace    string
 	falcosidekickNamespaceUID k8stypes.UID
+
+	// used resources in the k8saudit ruleset
+	resourceMapping = map[string]resource{
+		"pods":                {"v1", "Pod"},
+		"services":            {"v1", "Service"},
+		"secrets":             {"v1", "Secrets"},
+		"configmaps":          {"v1", "ConfigMap"},
+		"namespaces":          {"v1", "Namespace"},
+		"serviceaccounts":     {"v1", "ServiceAccount"},
+		"daemonsets":          {"apps/v1", "DaemonSet"},
+		"deployments":         {"apps/v1", "Deployments"},
+		"cronjobs":            {"batch/v1", "CronJob"},
+		"jobs":                {"batch/v1", "Job"},
+		"clusterroles":        {"rbac.authorization.k8s.io/v1", "ClusterRole"},
+		"clusterrolebindings": {"rbac.authorization.k8s.io/v1", "ClusterRoleBinding"},
+		"roles":               {"rbac.authorization.k8s.io/v1", "Role"},
+		"rolebindings":        {"rbac.authorization.k8s.io/v1", "RoleBinding"},
+	}
 )
 
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
@@ -122,42 +153,33 @@ func (c *Client) UpdateOrCreatePolicyReport(falcopayload types.FalcoPayload) {
 }
 
 //newResult creates a new entry for Reports
-func newResult(FalcoPayload types.FalcoPayload) (_ *wgpolicy.PolicyReportResult, namespace string) {
+func newResult(falcopayload types.FalcoPayload) (_ *wgpolicy.PolicyReportResult, namespace string) {
 	var properties = make(map[string]string)
-	for property, value := range FalcoPayload.OutputFields {
-		if property == "ka.target.namespace" || property == "k8s.ns.name" {
-			namespace = fmt.Sprintf("%v", value) // not empty for policy reports
+	for property, value := range falcopayload.OutputFields {
+		if property == targetNS || property == "k8s.ns.name" {
+			namespace = toString(value) // not empty for policy reports
 		}
-		properties[property] = fmt.Sprintf("%v", value)
-	}
-	if FalcoPayload.Priority > types.Priority(minimumPriority) {
-		severity = highpriority
-		result = fail
-	} else if FalcoPayload.Priority < types.Priority(minimumPriority) {
-		severity = lowpriority
-		result = warn
-	} else {
-		severity = mediumpriority
-		result = warn
+		properties[property] = toString(value)
 	}
 
 	return &wgpolicy.PolicyReportResult{
-		Policy:      FalcoPayload.Rule,
+		Policy:      falcopayload.Rule,
 		Category:    "SI - System and Information Integrity",
 		Source:      policyReportSource,
 		Scored:      false,
-		Timestamp:   metav1.Timestamp{Seconds: int64(FalcoPayload.Time.Second()), Nanos: int32(FalcoPayload.Time.Nanosecond())},
-		Severity:    wgpolicy.PolicyResultSeverity(severity),
-		Result:      wgpolicy.PolicyResult(result),
-		Description: FalcoPayload.Output,
+		Timestamp:   metav1.Timestamp{Seconds: int64(falcopayload.Time.Second()), Nanos: int32(falcopayload.Time.Nanosecond())},
+		Severity:    mapSeverity(falcopayload),
+		Result:      mapResult(falcopayload),
+		Description: falcopayload.Output,
 		Properties:  properties,
+		Subjects:    mapResource(falcopayload, namespace),
 	}, namespace
 }
 
 //check for low priority events to delete first
 func checklow(result []*wgpolicy.PolicyReportResult) (swapint int) {
 	for i, j := range result {
-		if j.Severity == mediumpriority || j.Severity == lowpriority {
+		if j.Severity == medium || j.Severity == low || j.Severity == info {
 			return i
 		}
 	}
@@ -216,11 +238,7 @@ func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyRepo
 		if c.Config.PolicyReport.PruneByPriority {
 			pruningLogicForPolicyReports(namespace)
 		} else {
-			if policyReports[namespace].Results[0].Severity == highpriority {
-				summaryDeletion(policyReports[namespace], true)
-			} else {
-				summaryDeletion(policyReports[namespace], false)
-			}
+			summaryDeletion(&policyReports[namespace].Summary, policyReports[namespace].Results[0].Result)
 			policyReports[namespace].Results = policyReports[namespace].Results[1:]
 		}
 	}
@@ -269,11 +287,8 @@ func updateClusterPolicyReport(c *Client, event *wgpolicy.PolicyReportResult) er
 		if c.Config.PolicyReport.PruneByPriority {
 			pruningLogicForClusterPolicyReport()
 		} else {
-			if clusterPolicyReport.Results[0].Severity == highpriority {
-				summaryDeletionCluster(clusterPolicyReport, true)
-			} else {
-				summaryDeletionCluster(clusterPolicyReport, false)
-			}
+			summaryDeletion(&clusterPolicyReport.Summary, clusterPolicyReport.Results[0].Result)
+
 			clusterPolicyReport.Results[0] = nil
 			clusterPolicyReport.Results = clusterPolicyReport.Results[1:]
 		}
@@ -316,47 +331,108 @@ func updateClusterPolicyReport(c *Client, event *wgpolicy.PolicyReportResult) er
 }
 
 func pruningLogicForPolicyReports(namespace string) {
+	policyReport, ok := policyReports[namespace]
+	if !ok {
+		return
+	}
+
+	result := policyReport.Results[0]
+
 	//To do for pruning for pruning one of policyreports
 	checklowvalue := checklow(policyReports[namespace].Results)
 	if checklowvalue > 0 {
-		policyReports[namespace].Results[checklowvalue] = policyReports[namespace].Results[0]
+		result = policyReport.Results[checklowvalue]
+		policyReport.Results[checklowvalue] = policyReports[namespace].Results[0]
 	}
 	if checklowvalue == -1 {
-		summaryDeletion(policyReports[namespace], true)
+		summaryDeletion(&policyReports[namespace].Summary, result.Result)
 	} else {
-		summaryDeletion(policyReports[namespace], false)
+		summaryDeletion(&policyReports[namespace].Summary, result.Result)
 	}
 	policyReports[namespace].Results[0] = nil
 	policyReports[namespace].Results = policyReports[namespace].Results[1:]
 }
 
 func pruningLogicForClusterPolicyReport() {
+	result := clusterPolicyReport.Results[0]
+
 	//To do for pruning cluster report
 	checklowvalue := checklow(clusterPolicyReport.Results)
+
 	if checklowvalue > 0 {
+		result = clusterPolicyReport.Results[checklowvalue]
 		clusterPolicyReport.Results[checklowvalue] = clusterPolicyReport.Results[0]
 	}
 	if checklowvalue == -1 {
-		summaryDeletionCluster(clusterPolicyReport, true)
+		summaryDeletion(&clusterPolicyReport.Summary, result.Result)
 	} else {
-		summaryDeletionCluster(clusterPolicyReport, false)
+		summaryDeletion(&clusterPolicyReport.Summary, result.Result)
 	}
 	clusterPolicyReport.Results[0] = nil
 	clusterPolicyReport.Results = clusterPolicyReport.Results[1:]
 }
 
-func summaryDeletionCluster(rep *wgpolicy.ClusterPolicyReport, deleteFailevent bool) {
-	if deleteFailevent {
-		rep.Summary.Fail--
-	} else {
-		rep.Summary.Warn--
+func summaryDeletion(summary *wgpolicy.PolicyReportSummary, result wgpolicy.PolicyResult) {
+	switch result {
+	case fail:
+		summary.Fail--
+	case warn:
+		summary.Warn--
+	case skip:
+		summary.Skip--
 	}
 }
 
-func summaryDeletion(rep *wgpolicy.PolicyReport, deleteFailevent bool) {
-	if deleteFailevent {
-		rep.Summary.Fail--
+func mapResult(event types.FalcoPayload) wgpolicy.PolicyResult {
+	if event.Priority <= types.Notice {
+		return skip
+	} else if event.Priority == types.Warning {
+		return warn
 	} else {
-		rep.Summary.Warn--
+		return fail
 	}
+}
+
+func mapSeverity(event types.FalcoPayload) wgpolicy.PolicyResultSeverity {
+	if event.Priority <= types.Informational {
+		return info
+	} else if event.Priority <= types.Notice {
+		return low
+	} else if event.Priority <= types.Warning {
+		return medium
+	} else if event.Priority <= types.Error {
+		return high
+	} else {
+		return critical
+	}
+}
+
+func mapResource(event types.FalcoPayload, ns string) []*corev1.ObjectReference {
+	name, ok := event.OutputFields[targetName]
+	if !ok {
+		return nil
+	}
+
+	targetResource, ok := event.OutputFields[targetResource]
+	if !ok {
+		return nil
+	}
+
+	resource, ok := resourceMapping[toString(targetResource)]
+	if !ok {
+		resource.kind = toString(targetResource)
+	}
+
+	return []*corev1.ObjectReference{
+		{
+			Namespace:  ns,
+			Name:       toString(name),
+			Kind:       resource.kind,
+			APIVersion: resource.apiVersion,
+		},
+	}
+}
+
+func toString(value interface{}) string {
+	return fmt.Sprintf("%v", value)
 }
