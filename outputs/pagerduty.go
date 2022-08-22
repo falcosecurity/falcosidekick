@@ -38,6 +38,9 @@ func createPagerdutyEvent(falcopayload types.FalcoPayload, config types.Pagerdut
 	if len(falcopayload.Tags) != 0 {
 		details["tags"] = strings.Join(falcopayload.Tags, ", ")
 	}
+	if len(falcopayload.Hostname) != 0 {
+		details["hostname"] = falcopayload.Hostname
+	}
 	event := pagerduty.V2Event{
 		RoutingKey: config.RoutingKey,
 		Action:     "trigger",

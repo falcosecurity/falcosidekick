@@ -60,6 +60,12 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 			field.Short = true
 			fields = append(fields, field)
 		}
+		if len(falcopayload.Hostname) != 0 {
+			field.Title = Hostname
+			field.Value = falcopayload.Hostname
+			field.Short = true
+			fields = append(fields, field)
+		}
 
 		for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
 			field.Title = i
