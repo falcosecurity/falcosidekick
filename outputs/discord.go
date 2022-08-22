@@ -74,6 +74,9 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	embedFields = append(embedFields, discordEmbedFieldPayload{Rule, falcopayload.Rule, true})
 	embedFields = append(embedFields, discordEmbedFieldPayload{Priority, falcopayload.Priority.String(), true})
 	embedFields = append(embedFields, discordEmbedFieldPayload{Source, falcopayload.Source, true})
+	if len(falcopayload.Hostname) != 0 {
+		embedFields = append(embedFields, discordEmbedFieldPayload{Hostname, falcopayload.Hostname, true})
+	}
 	if len(falcopayload.Tags) != 0 {
 		embedFields = append(embedFields, discordEmbedFieldPayload{Tags, strings.Join(falcopayload.Tags, ", "), true})
 	}

@@ -41,6 +41,11 @@ func TestNewDiscordPayload(t *testing.T) {
 						Inline: true,
 					},
 					{
+						Name:   "hostname",
+						Value:  "test-host",
+						Inline: true,
+					},
+					{
 						Name:   "tags",
 						Value:  "test, example",
 						Inline: true,

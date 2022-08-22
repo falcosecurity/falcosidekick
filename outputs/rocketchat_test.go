@@ -38,6 +38,11 @@ func TestNewRocketchatPayload(t *testing.T) {
 						Short: true,
 					},
 					{
+						Title: "hostname",
+						Value: "test-host",
+						Short: true,
+					},
+					{
 						Title: "tags",
 						Value: "test, example",
 						Short: true,

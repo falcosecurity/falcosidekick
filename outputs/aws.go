@@ -233,6 +233,13 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 			}
 		}
 
+		if len(falcopayload.Hostname) != 0 {
+			msg.MessageAttributes["tags"] = &sns.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(falcopayload.Hostname),
+			}
+		}
+
 		for i, j := range falcopayload.OutputFields {
 			switch v := j.(type) {
 			case string:

@@ -26,6 +26,11 @@ func newGrafanaPayload(falcopayload types.FalcoPayload, config *types.Configurat
 		falcopayload.Rule,
 		falcopayload.Source,
 	}
+
+	if len(falcopayload.Hostname) != 0 {
+		tags = append(tags, falcopayload.Hostname)
+	}
+
 	if config.Grafana.AllFieldsAsTags {
 		for _, i := range falcopayload.OutputFields {
 			tags = append(tags, fmt.Sprintf("%v", i))

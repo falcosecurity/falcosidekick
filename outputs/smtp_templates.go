@@ -4,6 +4,7 @@ var plaintextTmpl = `Priority: {{ .Priority }}
 Output: {{ .Output }}
 Rule: {{ .Rule }}
 Source: {{ .Source }}
+Hostname: {{ .Hostname }}
 Tags: {{ range .Tags }}{{ . }} {{ end }}
 Time: {{ .Time }}
 
@@ -59,6 +60,10 @@ var htmlTmpl = `
         <tr>
             <td style="background-color:#858585"><span style="font-size:14px;color:#fff;"><strong>Source</strong></span></td>
             <td style="background-color:#d1d6da">{{ .Source }}</td>
+        </tr>
+        <tr>
+            <td style="background-color:#858585"><span style="font-size:14px;color:#fff;"><strong>Hostname</strong></span></td>
+            <td style="background-color:#d1d6da">{{ .Hostname }}</td>
         </tr>
         <tr>
             <td style="background-color:#858585"><span style="font-size:14px;color:#fff;"><strong>Tags</strong></span></td>

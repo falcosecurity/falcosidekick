@@ -68,6 +68,10 @@ func newGooglechatPayload(falcopayload types.FalcoPayload, config *types.Configu
 	widgets = append(widgets, widget{KeyValue: keyValue{"priority", falcopayload.Priority.String()}})
 	widgets = append(widgets, widget{KeyValue: keyValue{"source", falcopayload.Source}})
 
+	if len(falcopayload.Hostname) != 0 {
+		widgets = append(widgets, widget{KeyValue: keyValue{"hostname", falcopayload.Hostname}})
+	}
+
 	if len(falcopayload.Tags) != 0 {
 		widgets = append(widgets, widget{
 			KeyValue: keyValue{

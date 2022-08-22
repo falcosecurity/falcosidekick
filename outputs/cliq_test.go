@@ -40,6 +40,10 @@ func TestNewCliqPayload(t *testing.T) {
 							Value: "Debug",
 						},
 						{
+							Field: "hostname",
+							Value: "test-host",
+						},
+						{
 							Field: "proc.name",
 							Value: "falcosidekick",
 						},
