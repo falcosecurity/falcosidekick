@@ -42,8 +42,9 @@ const (
 	skip wgpolicy.PolicyResult = "skip"
 
 	targetNS       = "ka.target.namespace"
-	targetName     = "ka.target.name"
 	targetResource = "ka.target.resource"
+	targetName     = "ka.target.name"
+	responseName   = "ka.resp.name"
 )
 
 var (
@@ -408,14 +409,19 @@ func mapSeverity(event types.FalcoPayload) wgpolicy.PolicyResultSeverity {
 }
 
 func mapResource(event types.FalcoPayload, ns string) []*corev1.ObjectReference {
-	name, ok := event.OutputFields[targetName]
-	if !ok {
+	name := determineResourceName(event.OutputFields)
+	if name != "" {
 		return nil
 	}
 
 	targetResource, ok := event.OutputFields[targetResource]
 	if !ok {
-		return nil
+		return []*corev1.ObjectReference{
+			{
+				Namespace: ns,
+				Name:      toString(name),
+			},
+		}
 	}
 
 	resource, ok := resourceMapping[toString(targetResource)]
@@ -431,6 +437,15 @@ func mapResource(event types.FalcoPayload, ns string) []*corev1.ObjectReference 
 			APIVersion: resource.apiVersion,
 		},
 	}
+}
+
+func determineResourceName(outputFields map[string]interface{}) string {
+	name, ok := outputFields[targetName]
+	if ok {
+		return toString(name)
+	}
+
+	return toString(outputFields[responseName])
 }
 
 func toString(value interface{}) string {
