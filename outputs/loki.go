@@ -1,9 +1,9 @@
 package outputs
 
 import (
+	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -13,34 +13,32 @@ type lokiPayload struct {
 }
 
 type lokiStream struct {
-	Labels  string      `json:"labels"`
-	Entries []lokiEntry `json:"entries"`
+	Stream map[string]string `json:"stream"`
+	Values []lokiValue       `json:"values"`
 }
 
-type lokiEntry struct {
-	Ts   string `json:"ts"`
-	Line string `json:"line"`
-}
+type lokiValue = []string
 
 // The Content-Type to send along with the request
 const LokiContentType = "application/json"
 
 func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration) lokiPayload {
-	le := lokiEntry{Ts: falcopayload.Time.Format(time.RFC3339), Line: falcopayload.Output}
-	ls := lokiStream{Entries: []lokiEntry{le}}
+	s := make(map[string]string, 3+len(falcopayload.OutputFields)+len(config.Loki.ExtraLabelsList)+len(falcopayload.Tags))
+	s["rule"] = falcopayload.Rule
+	s["source"] = falcopayload.Source
+	s["priority"] = falcopayload.Priority.String()
 
-	var s string
 	for i, j := range falcopayload.OutputFields {
 		switch v := j.(type) {
 		case string:
 			for k := range config.Customfields {
 				if i == k {
-					s += strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "") + "=\"" + strings.ReplaceAll(v, "\"", "") + "\","
+					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 			for _, k := range config.Loki.ExtraLabelsList {
 				if i == k {
-					s += strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "") + "=\"" + strings.ReplaceAll(v, "\"", "") + "\","
+					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 		default:
@@ -49,16 +47,15 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	}
 
 	if len(falcopayload.Tags) != 0 {
-		s += "tags=\"" + strings.Join(falcopayload.Tags, ",") + "\","
+		s["tags"] = strings.Join(falcopayload.Tags, ",")
 	}
 
-	s += "rule=\"" + falcopayload.Rule + "\","
-	s += "source=\"" + falcopayload.Source + "\","
-	s += "priority=\"" + falcopayload.Priority.String() + "\""
-
-	ls.Labels = "{" + s + "}"
-
-	return lokiPayload{Streams: []lokiStream{ls}}
+	return lokiPayload{Streams: []lokiStream{
+		{
+			Stream: s,
+			Values: []lokiValue{[]string{fmt.Sprintf("%v", falcopayload.Time.UnixNano()), falcopayload.Output}},
+		},
+	}}
 }
 
 // LokiPost posts event to Loki
