@@ -234,13 +234,21 @@ func init() {
 	}
 
 	if config.Influxdb.HostPort != "" {
-		var credentials string
-		if config.Influxdb.User != "" && config.Influxdb.Password != "" {
-			credentials = "&u=" + config.Influxdb.User + "&p=" + config.Influxdb.Password
+		var url string = config.Influxdb.HostPort
+		if config.Influxdb.Organization != "" && config.Influxdb.Bucket != "" {
+			url += "/api/v2/write?org=" + config.Influxdb.Organization + "&bucket=" + config.Influxdb.Bucket
+		} else if config.Influxdb.Database != "" {
+			url += "/write?db=" + config.Influxdb.Database
+		}
+		if config.Influxdb.User != "" && config.Influxdb.Password != "" && config.Influxdb.Token == "" {
+			url += "&u=" + config.Influxdb.User + "&p=" + config.Influxdb.Password
+		}
+		if config.Influxdb.Precision != "" {
+			url += "&precision=" + config.Influxdb.Precision
 		}
 
 		var err error
-		influxdbClient, err = outputs.NewClient("Influxdb", config.Influxdb.HostPort+"/write?db="+config.Influxdb.Database+credentials, config.Influxdb.MutualTLS, config.Influxdb.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		influxdbClient, err = outputs.NewClient("Influxdb", url, config.Influxdb.MutualTLS, config.Influxdb.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Influxdb.HostPort = ""
 		} else {

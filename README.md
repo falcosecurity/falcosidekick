@@ -242,9 +242,13 @@ elasticsearch:
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
-  # database: "falco" # Influxdb database (default: falco)
+  # database: "falco" # Influxdb database (api v1 only) (default: falco)
+  # organization: "" # Influxdb organization
+  # bucket: "falco" # Metrics bucket (default: falco)
+  # precision: "ns" # Write precision
   # user: "" # user to use if auth is enabled in Influxdb
   # password: "" # pasword to use if auth is enabled in Influxdb
+  # token: "" # API token to use if auth in enabled in Influxdb (disables user and password)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
@@ -634,8 +638,12 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **INFLUXDB_HOSTPORT** : Influxdb http://host:port, if not `empty`, Influxdb is
   _enabled_
 - **INFLUXDB_DATABASE** : Influxdb database (default: falco)
-- **INFLUXDB_USER** : user to use if auth is enabled in Influxdb
+- **INFLUXDB_ORGANIZATION** : Influxdb database (api v1 only) (default: falco)
+- **INFLUXDB_BUCKET** : Influxdb organization
+- **INFLUXDB_USER** : bucket (default: falco)
 - **INFLUXDB_PASSWORD** : user to use if auth is enabled in Influxdb
+- **INFLUXDB_TOKEN** : API token to use if auth in enabled in Influxdb (disables user and password)
+- **INFLUXDB_PRECISION** : write precision
 - **INFLUXDB_MINIMUMPRIORITY** : minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
