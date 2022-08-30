@@ -73,9 +73,13 @@ elasticsearch:
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
-  # database: "falco" # Influxdb database (default: falco)
+  # database: "falco" # Influxdb database (api v1 only) (default: falco)
+  # organization: "" # Influxdb organization
+  # bucket: "falco" # bucket (default: falco)
+  # precision: "ns" # write precision
   # user: "" # user to use if auth is enabled in Influxdb
   # password: "" # pasword to use if auth is enabled in Influxdb
+  # token: "" # API token to use if auth in enabled in Influxdb (disables user and password)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)

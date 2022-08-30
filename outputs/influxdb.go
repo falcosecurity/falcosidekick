@@ -34,6 +34,12 @@ func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configura
 func (c *Client) InfluxdbPost(falcopayload types.FalcoPayload) {
 	c.Stats.Influxdb.Add(Total, 1)
 
+	c.AddHeader("Accept", "application/json")
+
+	if c.Config.Influxdb.Token != "" {
+		c.AddHeader("Authorization", "Token "+c.Config.Influxdb.Token)
+	}
+
 	err := c.Post(newInfluxdbPayload(falcopayload, c.Config))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:influxdb", "status:error"})

@@ -193,8 +193,12 @@ type elasticsearchOutputConfig struct {
 type influxdbOutputConfig struct {
 	HostPort        string
 	Database        string
+	Organization    string
+	Bucket          string
+	Precision       string
 	User            string
 	Password        string
+	Token           string
 	MinimumPriority string
 	CheckCert       bool
 	MutualTLS       bool

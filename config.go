@@ -109,8 +109,12 @@ func getConfig() *types.Configuration {
 
 	v.SetDefault("Influxdb.HostPort", "")
 	v.SetDefault("Influxdb.Database", "falco")
+	v.SetDefault("Influxdb.Organization", "")
+	v.SetDefault("Influxdb.Bucket", "falco")
+	v.SetDefault("Influxdb.Precision", "ns")
 	v.SetDefault("Influxdb.User", "")
 	v.SetDefault("Influxdb.Password", "")
+	v.SetDefault("Influxdb.Token", "")
 	v.SetDefault("Influxdb.MinimumPriority", "")
 	v.SetDefault("Influxdb.MutualTls", false)
 	v.SetDefault("Influxdb.CheckCert", true)
