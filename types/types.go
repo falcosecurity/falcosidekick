@@ -73,6 +73,7 @@ type Configuration struct {
 	Syslog             SyslogConfig
 	NodeRed            NodeRedOutputConfig
 	MQTT               MQTTConfig
+	Zincsearch         zincsearchOutputConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -524,6 +525,16 @@ type fissionConfig struct {
 	MutualTLS       bool
 }
 
+// zincsearchOutputConfig represents config parameters for Zincsearch
+type zincsearchOutputConfig struct {
+	HostPort        string
+	Index           string
+	Username        string
+	Password        string
+	CheckCert       bool
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -577,6 +588,7 @@ type Statistics struct {
 	PolicyReport      *expvar.Map
 	NodeRed           *expvar.Map
 	MQTT              *expvar.Map
+	Zincsearch        *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

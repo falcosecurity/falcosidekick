@@ -53,6 +53,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**AWS CloudWatchLogs**](https://aws.amazon.com/cloudwatch/features/)
 - [**Grafana**](https://grafana.com/) (annotations)
 - **Syslog**
+- [**Zincsearch**](https://docs.zincsearch.com/)
 
 ### Object Storage
 
@@ -500,6 +501,14 @@ mqtt:
   # password: "" # Password if the authentication is enabled in the broker
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+zincsearch:
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, ZincSearch output is enabled
+  # index: "falco" # index (default: falco)
+  # username: "" # use this username to authenticate to ZincSearch (default: "")
+  # password: "" # use this password to authenticate to ZincSearch (default: "")
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -932,6 +941,12 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **MQTT_PASSWORD**: password if the authentication is enabled in the broker
 - **MQTT_CHECKCERT**: check if ssl certificate of the output is valid (default: `true`)
 - **MQTT_PRUNEBYPRIORITY**: if true; the events with lowest severity are pruned first, in FIFO order (default: `false`)
+- **ZINC_HOSTPORT**: http://{domain or ip}:{port}, if not empty, ZincSearch output is enabled
+- **ZINC_INDEX**: index (default: falco)
+- **ZINC_USERNAME**: this username to authenticate to ZincSearch (default: "")
+- **ZINC_PASSWORD**: use this password to authenticate to ZincSearch (default: "")
+- **ZINC_CHECKCERT**: if ssl certificate of the output is valid (default: true)
+- **ZINC_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 

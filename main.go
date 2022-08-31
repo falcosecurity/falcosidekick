@@ -56,6 +56,7 @@ var (
 	yandexClient        *outputs.Client
 	syslogClient        *outputs.Client
 	mqttClient          *outputs.Client
+	zincsearchClient    *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -567,6 +568,16 @@ func init() {
 			log.Printf("[ERROR] : MQTT - %v\n", err)
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "MQTT")
+		}
+	}
+
+	if config.Zincsearch.HostPort != "" {
+		var err error
+		zincsearchClient, err = outputs.NewClient("Zincsearch", config.Zincsearch.HostPort+"/api/"+config.Zincsearch.Index+"/_doc", false, config.Zincsearch.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Zincsearch.HostPort = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Zincsearch")
 		}
 	}
 
