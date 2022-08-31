@@ -331,3 +331,11 @@ mqtt:
   # password: "" # Password if the authentication is enabled in the broker
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+zincsearch:
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, ZincSearch output is enabled
+  # index: "falco" # index (default: falco)
+  # username: "" # use this username to authenticate to ZincSearch (default: "")
+  # password: "" # use this password to authenticate to ZincSearch (default: "")
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

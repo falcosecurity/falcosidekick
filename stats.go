@@ -69,6 +69,7 @@ func getInitStats() *types.Statistics {
 		MQTT:              getOutputNewMap("mqtt"),
 		PolicyReport:      getOutputNewMap("policyreport"),
 		NodeRed:           getOutputNewMap("nodered"),
+		Zincsearch:        getOutputNewMap("zincsearch"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

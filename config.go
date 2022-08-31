@@ -345,6 +345,13 @@ func getConfig() *types.Configuration {
 	v.SetDefault("MQTT.CheckCert", true)
 	v.SetDefault("MQTT.MinimumPriority", "")
 
+	v.SetDefault("Zincsearch.HostPort", "")
+	v.SetDefault("Zincsearch.Index", "falco")
+	v.SetDefault("Zincsearch.Username", "")
+	v.SetDefault("Zincsearch.Password", "")
+	v.SetDefault("Zincsearch.CheckCert", true)
+	v.SetDefault("Zincsearch.MinimumPriority", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {

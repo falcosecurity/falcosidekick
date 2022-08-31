@@ -336,4 +336,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.MQTT.Broker != "" && (falcopayload.Priority >= types.Priority(config.MQTT.MinimumPriority) || falcopayload.Rule == testRule) {
 		go mqttClient.MQTTPublish(falcopayload)
 	}
+
+	if config.Zincsearch.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Zincsearch.MinimumPriority) || falcopayload.Rule == testRule) {
+		go zincsearchClient.ZincsearchPost(falcopayload)
+	}
 }
