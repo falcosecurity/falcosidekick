@@ -356,6 +356,12 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Zincsearch.CheckCert", true)
 	v.SetDefault("Zincsearch.MinimumPriority", "")
 
+	v.SetDefault("Gotify.HostPort", "")
+	v.SetDefault("Gotify.Token", "")
+	v.SetDefault("Gotify.Format", "markdown")
+	v.SetDefault("Gotify.CheckCert", true)
+	v.SetDefault("Gotify.MinimumPriority", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {

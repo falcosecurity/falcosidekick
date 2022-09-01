@@ -57,6 +57,7 @@ var (
 	syslogClient        *outputs.Client
 	mqttClient          *outputs.Client
 	zincsearchClient    *outputs.Client
+	gotifyClient        *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -578,6 +579,16 @@ func init() {
 			config.Zincsearch.HostPort = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Zincsearch")
+		}
+	}
+
+	if config.Gotify.HostPort != "" {
+		var err error
+		gotifyClient, err = outputs.NewClient("Gotify", config.Gotify.HostPort+"/message", false, config.Gotify.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Gotify.HostPort = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Gotify")
 		}
 	}
 

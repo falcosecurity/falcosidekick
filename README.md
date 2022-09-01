@@ -84,6 +84,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**Azure Event Hubs**](https://azure.microsoft.com/en-in/services/event-hubs/)
 - [**Yandex Data Streams**](https://cloud.yandex.com/en/docs/data-streams/)
 - [**MQTT**](https://mqtt.org/)
+- [**Gotify**](https://gotify.net/)
 
 ### Email
 
@@ -507,6 +508,13 @@ zincsearch:
   # index: "falco" # index (default: falco)
   # username: "" # use this username to authenticate to ZincSearch (default: "")
   # password: "" # use this password to authenticate to ZincSearch (default: "")
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+gotify:
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Gotify output is enabled
+  # token: "" # API Token
+  # format: "markdown" # Format of the messages (plaintext, markdown, json) (default: markdown)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
@@ -947,6 +955,11 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **ZINC_PASSWORD**: use this password to authenticate to ZincSearch (default: "")
 - **ZINC_CHECKCERT**: if ssl certificate of the output is valid (default: true)
 - **ZINC_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug
+- **GOTIFY_HOSTPORT**: http://{domain or ip}:{port}, if not empty, Gotify output is enabled
+- **GOTIFY_TOKEN**: API Token
+- **GOTIFY_FORMAT**: Format of the messages (plaintext, markdown, json) (default: markdown)
+- **GOTIFY_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
+- **GOTIFY_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 

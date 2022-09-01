@@ -74,6 +74,7 @@ type Configuration struct {
 	NodeRed            NodeRedOutputConfig
 	MQTT               MQTTConfig
 	Zincsearch         zincsearchOutputConfig
+	Gotify             gotifyOutputConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -535,6 +536,15 @@ type zincsearchOutputConfig struct {
 	MinimumPriority string
 }
 
+// gotifyOutputConfig represents config parameters for Gotify
+type gotifyOutputConfig struct {
+	HostPort        string
+	Token           string
+	Format          string
+	CheckCert       bool
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -589,6 +599,7 @@ type Statistics struct {
 	NodeRed           *expvar.Map
 	MQTT              *expvar.Map
 	Zincsearch        *expvar.Map
+	Gotify            *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
