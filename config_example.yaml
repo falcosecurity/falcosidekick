@@ -343,3 +343,10 @@ zincsearch:
   # password: "" # use this password to authenticate to ZincSearch (default: "")
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+gotify:
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, Gotify output is enabled
+  # token: "" # API Token
+  # format: "markdown" # Format of the messages (plaintext, markdown, json) (default: markdown)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

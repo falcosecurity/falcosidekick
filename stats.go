@@ -70,6 +70,7 @@ func getInitStats() *types.Statistics {
 		PolicyReport:      getOutputNewMap("policyreport"),
 		NodeRed:           getOutputNewMap("nodered"),
 		Zincsearch:        getOutputNewMap("zincsearch"),
+		Gotify:            getOutputNewMap("gotify"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

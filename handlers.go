@@ -340,4 +340,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Zincsearch.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Zincsearch.MinimumPriority) || falcopayload.Rule == testRule) {
 		go zincsearchClient.ZincsearchPost(falcopayload)
 	}
+
+	if config.Gotify.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Gotify.MinimumPriority) || falcopayload.Rule == testRule) {
+		go gotifyClient.GotifyPost(falcopayload)
+	}
 }
