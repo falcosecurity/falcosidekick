@@ -17,6 +17,8 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
+const rfc2822 = "Mon Jan 02 15:04:05 -0700 2006"
+
 // SMTPPayload is payload for SMTP Output
 type SMTPPayload struct {
 	From    string
@@ -50,13 +52,16 @@ func newSMTPPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		Subject: "Subject: [" + falcopayload.Priority.String() + "] " + falcopayload.Output,
 	}
 
-	s.Body = "MIME-version: 1.0;\n"
+	s.Body = "From: " + config.SMTP.From + "\n"
+	s.Body += "To: " + config.SMTP.To + "\n"
+	s.Body += "Date: " + falcopayload.Time.Format(rfc2822) + "\n"
+	s.Body += "MIME-version: 1.0\n"
 
 	if config.SMTP.OutputFormat != Text {
 		s.Body += "Content-Type: multipart/alternative; boundary=4t74weu9byeSdJTM\n\n\n--4t74weu9byeSdJTM\n"
 	}
 
-	s.Body += "Content-Type: text/plain; charset=\"UTF-8\";\n\n"
+	s.Body += "Content-Type: text/plain; charset=\"UTF-8\"\n\n"
 
 	ttmpl := textTemplate.New(Text)
 	ttmpl, _ = ttmpl.Parse(plaintextTmpl)
