@@ -44,6 +44,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Slack.WebhookURL", "")
 	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")
 	v.SetDefault("Slack.Username", "Falcosidekick")
+	v.SetDefault("Slack.Channel", "")
 	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
 	v.SetDefault("Slack.OutputFormat", "all")
 	v.SetDefault("Slack.MessageFormat", "")

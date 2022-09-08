@@ -80,6 +80,7 @@ type Configuration struct {
 // SlackOutputConfig represents parameters for Slack
 type SlackOutputConfig struct {
 	WebhookURL            string
+	Channel               string
 	Footer                string
 	Icon                  string
 	Username              string

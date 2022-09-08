@@ -181,6 +181,7 @@ mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, c
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  #channel: "" # Slack channel (optionnal)
   #footer: "" # Slack footer
   #icon: "" # Slack icon (avatar)
   #username: "" # Slack username (default: Falcosidekick)
@@ -545,8 +546,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   events, syntax is "key:value,key:value"
   **MUTUALTLSFILESPATH**: path which will be used to stored certs and key for mutual tls authentication (default: "/etc/certs")
 - **SLACK_WEBHOOKURL** : Slack Webhook URL (ex:
-  https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not `empty`, Slack output
-  is _enabled_
+- **SLACK_CHANNEL** : Slack Channel (optionnal)
 - **SLACK_FOOTER** : Slack footer
 - **SLACK_ICON** : Slack icon (avatar)
 - **SLACK_USERNAME** : Slack username (default: `Falcosidekick`)
