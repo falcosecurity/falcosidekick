@@ -30,6 +30,7 @@ type slackPayload struct {
 	Text        string            `json:"text,omitempty"`
 	Username    string            `json:"username,omitempty"`
 	IconURL     string            `json:"icon_url,omitempty"`
+	Channel     string            `json:"channel,omitempty"`
 	Attachments []slackAttachment `json:"attachments,omitempty"`
 }
 
@@ -126,6 +127,10 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		Username:    config.Slack.Username,
 		IconURL:     config.Slack.Icon,
 		Attachments: attachments}
+
+	if config.Slack.Channel != "" {
+		s.Channel = config.Slack.Channel
+	}
 
 	return s
 }

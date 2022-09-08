@@ -11,6 +11,7 @@ mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, c
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
+  #channel: "" # Slack channel (optionnal)
   #footer: "" # Slack footer
   #icon: "" # Slack icon (avatar)
   #username: "" # Slack username (default: Falcosidekick)
