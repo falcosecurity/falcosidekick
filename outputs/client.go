@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -145,14 +146,28 @@ func (c *Client) Post(payload interface{}) error {
 	switch payload.(type) {
 	case influxdbPayload:
 		fmt.Fprintf(body, "%v", payload)
+		if c.Config.Debug {
+			log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
+		}
+	case spyderbatPayload:
+		zipper := gzip.NewWriter(body)
+		if err := json.NewEncoder(zipper).Encode(payload); err != nil {
+			log.Printf("[ERROR] : %v - %s", c.OutputType, err)
+		}
+		zipper.Close()
+		if c.Config.Debug {
+			debugBody := new(bytes.Buffer)
+			if err := json.NewEncoder(debugBody).Encode(payload); err == nil {
+				log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, debugBody)
+			}
+		}
 	default:
 		if err := json.NewEncoder(body).Encode(payload); err != nil {
 			log.Printf("[ERROR] : %v - %s", c.OutputType, err)
 		}
-	}
-
-	if c.Config.Debug {
-		log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
+		if c.Config.Debug {
+			log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
+		}
 	}
 
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()

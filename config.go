@@ -367,6 +367,13 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Tekton.MinimumPriority", "")
 	v.SetDefault("Tekton.CheckCert", true)
 
+	v.SetDefault("Spyderbat.OrgUID", "")
+	v.SetDefault("Spyderbat.APIKey", "")
+	v.SetDefault("Spyderbat.APIUrl", "https://api.spyderbat.com")
+	v.SetDefault("Spyderbat.Source", "falcosidekick")
+	v.SetDefault("Spyderbat.SourceDescription", "")
+	v.SetDefault("Spyderbat.MinimumPriority", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -537,6 +544,7 @@ func getConfig() *types.Configuration {
 	c.Syslog.MinimumPriority = checkPriority(c.Syslog.MinimumPriority)
 	c.MQTT.MinimumPriority = checkPriority(c.MQTT.MinimumPriority)
 	c.PolicyReport.MinimumPriority = checkPriority(c.PolicyReport.MinimumPriority)
+	c.Spyderbat.MinimumPriority = checkPriority(c.Spyderbat.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

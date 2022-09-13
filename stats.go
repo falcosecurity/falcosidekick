@@ -68,6 +68,7 @@ func getInitStats() *types.Statistics {
 		YandexDataStreams: getOutputNewMap("yandexdatastreams"),
 		Syslog:            getOutputNewMap("syslog"),
 		MQTT:              getOutputNewMap("mqtt"),
+		Spyderbat:         getOutputNewMap("spyderbat"),
 		PolicyReport:      getOutputNewMap("policyreport"),
 		NodeRed:           getOutputNewMap("nodered"),
 		Zincsearch:        getOutputNewMap("zincsearch"),

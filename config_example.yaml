@@ -356,3 +356,11 @@ tekton:
   # eventListener: "" # EventListener address, if not empty, Tekton output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  
+spyderbat:
+  # orguid: "" # Organization to send output to, if not empty, Spyderbat output is enabled
+  # apikey: "" # Spyderbat API key with access to the organization
+  # apiurl: "https://api.spyderbat.com" # Spyderbat API url (default: "https://api.spyderbat.com")
+  # source: "falcosidekick" # Spyderbat source ID, max 32 characters (default: "falcosidekick")
+  # sourcedescription: "" # Spyderbat source description and display name if not empty, max 256 characters
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

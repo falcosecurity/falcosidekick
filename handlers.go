@@ -348,4 +348,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Gotify.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Gotify.MinimumPriority) || falcopayload.Rule == testRule) {
 		go gotifyClient.GotifyPost(falcopayload)
 	}
+
+	if config.Spyderbat.OrgUID != "" && (falcopayload.Priority >= types.Priority(config.Spyderbat.MinimumPriority) || falcopayload.Rule == testRule) {
+		go spyderbatClient.SpyderbatPost(falcopayload)
+	}
 }
