@@ -92,6 +92,7 @@ type Configuration struct {
 	MQTT               MQTTConfig
 	Zincsearch         zincsearchOutputConfig
 	Gotify             gotifyOutputConfig
+	Spyderbat          SpyderbatConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -570,6 +571,15 @@ type gotifyOutputConfig struct {
 	MinimumPriority string
 }
 
+type SpyderbatConfig struct {
+	OrgUID            string
+	APIKey            string
+	APIUrl            string
+	Source            string
+	SourceDescription string
+	MinimumPriority   string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -626,6 +636,7 @@ type Statistics struct {
 	MQTT              *expvar.Map
 	Zincsearch        *expvar.Map
 	Gotify            *expvar.Map
+	Spyderbat         *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

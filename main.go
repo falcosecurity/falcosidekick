@@ -59,6 +59,7 @@ var (
 	mqttClient          *outputs.Client
 	zincsearchClient    *outputs.Client
 	gotifyClient        *outputs.Client
+	spyderbatClient     *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -602,6 +603,17 @@ func init() {
 			config.Gotify.HostPort = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Gotify")
+		}
+	}
+
+	if config.Spyderbat.OrgUID != "" {
+		var err error
+		spyderbatClient, err = outputs.NewSpyderbatClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Spyderbat.OrgUID = ""
+			log.Printf("[ERROR] : Spyderbat - %v\n", err)
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Spyderbat")
 		}
 	}
 

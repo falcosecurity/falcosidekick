@@ -526,6 +526,14 @@ tekton:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
+
+spyderbat:
+  # orguid: "" # Organization to send output to, if not empty, Spyderbat output is enabled
+  # apikey: "" # Spyderbat API key with access to the organization
+  # apiurl: "https://api.spyderbat.com" # Spyderbat API url (default: "https://api.spyderbat.com")
+  # source: "falcosidekick" # Spyderbat source ID, max 32 characters (default: "falcosidekick")
+  # sourcedescription: "" # Spyderbat source description and display name if not empty, max 256 characters
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -974,6 +982,12 @@ order is
 `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **TEKTON_CHECKCERT** : check if ssl certificate of the output is valid (default:
 `true`)
+- **SPYDERBAT_ORGUID**: Organization to send output to, if not empty, Spyderbat output is enabled
+- **SPYDERBAT_APIKEY**: Spyderbat API key with access to the organization
+- **SPYDERBAT_APIURL**: Spyderbat API url (default: "https://api.spyderbat.com")
+- **SPYDERBAT_SOURCE**: Spyderbat source ID, max 32 characters (default: "falcosidekick")
+- **SPYDERBAT_SOURCEDESCRIPTION**: Spyderbat source description and display name if not empty, max 256 characters
+- **SPYDERBAT_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
