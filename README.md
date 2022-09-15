@@ -64,11 +64,13 @@ It works as a single endpoint for as many as you want `Falco` instances :
 ### FaaS / Serverless
 
 - [**AWS Lambda**](https://aws.amazon.com/lambda/features/)
-- [**Kubeless**](https://kubeless.io/)
-- [**OpenFaaS**](https://www.openfaas.com)
 - [**GCP Cloud Run**](https://cloud.google.com/run)
 - [**GCP Cloud Functions**](https://cloud.google.com/functions)
 - [**Fission**](https://fission.io)
+- [**KNative**](https://knative.dev)
+- [**Kubeless**](https://kubeless.io/)
+- [**OpenFaaS**](https://www.openfaas.com)
+- [**Tekton**](https://tekton.dev)
 
 ### Message queue / Streaming
 
