@@ -39,6 +39,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**DogStatsD**](https://docs.datadoghq.com/developers/dogstatsd/?tab=go) (for monitoring of `falcosidekick`)
 - [**Prometheus**](https://prometheus.io/) (for both events and monitoring of `falcosidekick`)
 - [**Wavefront**](https://www.wavefront.com)
+- [**Spyderbat**](https://www.spyderbat.com)
 
 ### Alerting
 
