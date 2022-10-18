@@ -363,6 +363,10 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Gotify.CheckCert", true)
 	v.SetDefault("Gotify.MinimumPriority", "")
 
+	v.SetDefault("Tekton.EventListener", "")
+	v.SetDefault("Tekton.MinimumPriority", "")
+	v.SetDefault("Tekton.CheckCert", true)
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {

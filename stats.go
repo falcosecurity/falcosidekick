@@ -58,6 +58,7 @@ func getInitStats() *types.Statistics {
 		Pagerduty:         getOutputNewMap("pagerduty"),
 		Kubeless:          getOutputNewMap("kubeless"),
 		Openfaas:          getOutputNewMap("openfaas"),
+		Tekton:            getOutputNewMap("tekton"),
 		WebUI:             getOutputNewMap("webui"),
 		Rabbitmq:          getOutputNewMap("rabbitmq"),
 		Wavefront:         getOutputNewMap("wavefront"),

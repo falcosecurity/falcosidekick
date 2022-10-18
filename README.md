@@ -67,7 +67,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**GCP Cloud Run**](https://cloud.google.com/run)
 - [**GCP Cloud Functions**](https://cloud.google.com/functions)
 - [**Fission**](https://fission.io)
-- [**KNative**](https://knative.dev)
+- [**KNative (CloudEvents)**](https://knative.dev)
 - [**Kubeless**](https://kubeless.io/)
 - [**OpenFaaS**](https://www.openfaas.com)
 - [**Tekton**](https://tekton.dev)
@@ -520,6 +520,12 @@ gotify:
   # format: "markdown" # Format of the messages (plaintext, markdown, json) (default: markdown)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+tekton:
+  # eventListener: "" # EventListener address, if not empty, Tekton output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 ```
 
 Usage :
@@ -962,6 +968,12 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **GOTIFY_FORMAT**: Format of the messages (plaintext, markdown, json) (default: markdown)
 - **GOTIFY_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
 - **GOTIFY_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+- **TEKTON_EVENTLISTENER** : EventListener address, if not empty, Tekton output is enabled
+- **TEKTON_MINIMUMPRIORITY** : minimum priority of event for using this output,
+order is
+`emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **TEKTON_CHECKCERT** : check if ssl certificate of the output is valid (default:
+`true`)
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 

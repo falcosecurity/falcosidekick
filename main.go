@@ -47,6 +47,7 @@ var (
 	gcpCloudRunClient   *outputs.Client
 	kubelessClient      *outputs.Client
 	openfaasClient      *outputs.Client
+	tektonClient        *outputs.Client
 	webUIClient         *outputs.Client
 	policyReportClient  *outputs.Client
 	rabbitmqClient      *outputs.Client
@@ -462,6 +463,7 @@ func init() {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
 		}
 	}
+
 	if config.PolicyReport.Enabled {
 		var err error
 		policyReportClient, err = outputs.NewPolicyReportClient(config, stats, promStats, statsdClient, dogstatsdClient)
@@ -471,6 +473,7 @@ func init() {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "PolicyReport")
 		}
 	}
+
 	if config.Openfaas.FunctionName != "" {
 		var err error
 		openfaasClient, err = outputs.NewOpenfaasClient(config, stats, promStats, statsdClient, dogstatsdClient)
@@ -478,6 +481,16 @@ func init() {
 			log.Printf("[ERROR] : OpenFaaS - %v\n", err)
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OpenFaaS")
+		}
+	}
+
+	if config.Tekton.EventListener != "" {
+		var err error
+		tektonClient, err = outputs.NewClient("Tekton", config.Tekton.EventListener, false, config.Tekton.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			log.Printf("[ERROR] : Tekton - %v\n", err)
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Tekton")
 		}
 	}
 
