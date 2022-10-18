@@ -26,6 +26,22 @@ func (f FalcoPayload) String() string {
 	return string(j)
 }
 
+func (f FalcoPayload) Check() bool {
+	if f.Priority.String() == "" {
+		return false
+	}
+	if f.Rule == "" {
+		return false
+	}
+	if f.Time.IsZero() {
+		return false
+	}
+	if len(f.OutputFields) == 0 {
+		return false
+	}
+	return true
+}
+
 // Configuration is a struct to store configuration
 type Configuration struct {
 	MutualTLSFilesPath string

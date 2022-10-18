@@ -40,7 +40,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	falcopayload, err := newFalcoPayload(r.Body)
-	if err != nil || len(falcopayload.Output) == 0 {
+	if err != nil || !falcopayload.Check() {
 		http.Error(w, "Please send a valid request body", http.StatusBadRequest)
 		stats.Requests.Add("rejected", 1)
 		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
