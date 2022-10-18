@@ -63,6 +63,7 @@ type Configuration struct {
 	Pagerduty          PagerdutyConfig
 	Kubeless           kubelessConfig
 	Openfaas           openfaasConfig
+	Tekton             tektonConfig
 	WebUI              WebUIOutputConfig
 	PolicyReport       PolicyReportConfig
 	Rabbitmq           RabbitmqConfig
@@ -438,6 +439,13 @@ type openfaasConfig struct {
 	MutualTLS         bool
 }
 
+type tektonConfig struct {
+	EventListener   string
+	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
+}
+
 // WebUIOutputConfig represents parameters for WebUI
 type WebUIOutputConfig struct {
 	URL       string
@@ -587,6 +595,7 @@ type Statistics struct {
 	CloudEvents       *expvar.Map
 	Kubeless          *expvar.Map
 	Openfaas          *expvar.Map
+	Tekton            *expvar.Map
 	WebUI             *expvar.Map
 	Rabbitmq          *expvar.Map
 	Wavefront         *expvar.Map

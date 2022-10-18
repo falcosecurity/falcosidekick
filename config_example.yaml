@@ -351,3 +351,8 @@ gotify:
   # format: "markdown" # Format of the messages (plaintext, markdown, json) (default: markdown)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+tekton:
+  # eventListener: "" # EventListener address, if not empty, Tekton output is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
