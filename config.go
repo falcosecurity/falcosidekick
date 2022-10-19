@@ -536,6 +536,7 @@ func getConfig() *types.Configuration {
 	c.Pagerduty.MinimumPriority = checkPriority(c.Pagerduty.MinimumPriority)
 	c.Kubeless.MinimumPriority = checkPriority(c.Kubeless.MinimumPriority)
 	c.Openfaas.MinimumPriority = checkPriority(c.Openfaas.MinimumPriority)
+	c.Tekton.MinimumPriority = checkPriority(c.Tekton.MinimumPriority)
 	c.Fission.MinimumPriority = checkPriority(c.Fission.MinimumPriority)
 	c.Rabbitmq.MinimumPriority = checkPriority(c.Rabbitmq.MinimumPriority)
 	c.Wavefront.MinimumPriority = checkPriority(c.Wavefront.MinimumPriority)
@@ -545,6 +546,9 @@ func getConfig() *types.Configuration {
 	c.MQTT.MinimumPriority = checkPriority(c.MQTT.MinimumPriority)
 	c.PolicyReport.MinimumPriority = checkPriority(c.PolicyReport.MinimumPriority)
 	c.Spyderbat.MinimumPriority = checkPriority(c.Spyderbat.MinimumPriority)
+	c.Zincsearch.MinimumPriority = checkPriority(c.Zincsearch.MinimumPriority)
+	c.NodeRed.MinimumPriority = checkPriority(c.NodeRed.MinimumPriority)
+	c.Gotify.MinimumPriority = checkPriority(c.Gotify.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
