@@ -100,6 +100,10 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**Node-RED**](https://nodered.org/)
 - [**WebUI**](https://github.com/falcosecurity/falcosidekick-ui) (a Web UI for displaying latest events in real time)
 
+### SIEM
+
+- [**AWS Security Lake**](https://aws.amazon.com/security-lake/)
+
 ### Other
 - [**Policy Report**](https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report/falco-adapter)
 
@@ -288,6 +292,7 @@ aws:
   # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
   # secretaccesskey: "" # aws secret access key (optional if you use EC2 Instance Profile)
   # region : "" # aws region (by default, the metadata are used to get it)
+  # checkidentity: true # check the identity credentials, set to false for locale developments (default: true)
   lambda:
     # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
@@ -305,6 +310,14 @@ aws:
   s3:
     # bucket: "falcosidekick" # AWS S3, bucket name
     # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  securitylake.:
+    # bucket: "" # Bucket for AWS SecurityLake data, if not empty, AWS SecurityLake output is enabled
+    # region: "" # Bucket Region
+    # prefix: "" # Prefix for keys
+    # accountid: "" # Account ID
+    interval: 5 # Time in minutes between two puts to S3 (must be between 5 and 60min) (default: 5min)
+    batchsize: 1000 # Max number of events by parquet file (default: 1000)
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   kinesis:
     # streamname: "" # AWS Kinesis Stream Name, if not empty, Kinesis output is enabled
@@ -758,6 +771,14 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
     _enabled_
 - **AWS_S3_PREFIX** : Prefix name of the object, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
 - **AWS_S3_MINIMUMPRIORITY** : minimum priority of event for using this output,
+- **AWS_SECURITYLAKE_BUCKET** : Bucket for AWS SecurityLake data, if not empty, AWS SecurityLake. output is _enabled_
+- **AWS_SECURITYLAKE_REGION** : Bucket Region (mandatory)
+- **AWS_SECURITYLAKE_PREFIX** : Prefix for keys (mandatory)
+- **AWS_SECURITYLAKE_ACCOUNTID** : Account ID (mandatory)
+- **AWS_SECURITYLAKE_INTERVAL** : Time in minutes between two puts to S3 (must be between 5 and 60min) (default: 5min)
+- **AWS_SECURITYLAKE_BATCHSIZE** : Max number of events by parquet file (default: 1000)
+- **AWS_SECURITYLAKE_PREFIX** : Prefix name of the object, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+- **AWS_SECURITYLAKE_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
 - **AWS_KINESIS_STREAMNAME** : AWS Kinesis Stream Name, if not empty, Kinesis output is enabled
 - **AWS_KINESIS_MINIMUMPRIORITY** : minimum priority of event for using

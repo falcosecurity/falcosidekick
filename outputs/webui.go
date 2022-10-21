@@ -4,7 +4,6 @@ import (
 	"log"
 
 	"github.com/falcosecurity/falcosidekick/types"
-	"github.com/google/uuid"
 )
 
 type WebUIPayload struct {
@@ -13,8 +12,6 @@ type WebUIPayload struct {
 }
 
 func newWebUIPayload(falcopayload types.FalcoPayload, config *types.Configuration) WebUIPayload {
-	falcopayload.UUID = uuid.New().String()
-
 	return WebUIPayload{
 		Event:   falcopayload,
 		Outputs: EnabledOutputs,

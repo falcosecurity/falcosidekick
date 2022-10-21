@@ -114,12 +114,13 @@ aws:
   # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
   # secretaccesskey: "" # aws secret access key (optional if you use EC2 Instance Profile)
   # region : "" # aws region (by default, the metadata are used to get it)
+  # checkidentity: true # check the identity credentials, set to false for locale developments (default: true)
   lambda:
-  # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sqs:
-  # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # url : "" # SQS Queue URL, if not empty, AWS SQS output is enabled
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sns:
     # topicarn : "" # SNS TopicArn, if not empty, AWS SNS output is enabled
     rawjson: false # Send Raw JSON or parse it (default: false)
@@ -129,9 +130,17 @@ aws:
     # logstream : "" # AWS CloudWatch Logs Stream name, if empty, Falcosidekick will try to create a log stream
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   s3:
-  # bucket: "falcosidekick" # AWS S3, bucket name
-  # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
-  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # bucket: "falcosidekick" # AWS S3, bucket name
+    # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  securitylake.:
+    # bucket: "" # Bucket for AWS SecurityLake data, if not empty, AWS SecurityLake output is enabled
+    # region: "" # Bucket Region  (mandatory)
+    # prefix: "" # Prefix for keys  (mandatory)
+    # accountid: "" # Account ID  (mandatory)
+    interval: 5 # Time in minutes between two puts to S3 (must be between 5 and 60min) (default: 5min)
+    batchsize: 1000 # Max number of events by parquet file (default: 1000)
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   kinesis:
     # streamname: "" # AWS Kinesis Stream Name, if not empty, Kinesis output is enabled
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

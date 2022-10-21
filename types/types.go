@@ -1,11 +1,13 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"expvar"
 	"text/template"
 	"time"
 
+	"github.com/embano1/memlog"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -265,10 +267,12 @@ type awsOutputConfig struct {
 	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
+	CheckIdentity   bool
 	Lambda          awsLambdaConfig
 	SQS             awsSQSConfig
 	SNS             awsSNSConfig
 	S3              awsS3Config
+	SecurityLake    awsSecurityLakeConfig
 	CloudWatchLogs  awsCloudWatchLogs
 	Kinesis         awsKinesisConfig
 }
@@ -306,6 +310,20 @@ type awsS3Config struct {
 type awsKinesisConfig struct {
 	StreamName      string
 	MinimumPriority string
+}
+
+type awsSecurityLakeConfig struct {
+	Bucket          string
+	Region          string
+	Prefix          string
+	AccountID       string
+	Interval        uint
+	BatchSize       uint
+	MinimumPriority string
+	Ctx             context.Context
+	Memlog          *memlog.Log
+	ReadOffset      *memlog.Offset
+	WriteOffset     *memlog.Offset
 }
 
 type smtpOutputConfig struct {
@@ -626,6 +644,7 @@ type Statistics struct {
 	AWSSNS            *expvar.Map
 	AWSCloudWatchLogs *expvar.Map
 	AWSS3             *expvar.Map
+	AWSSecurityLake   *expvar.Map
 	AWSKinesis        *expvar.Map
 	SMTP              *expvar.Map
 	Opsgenie          *expvar.Map

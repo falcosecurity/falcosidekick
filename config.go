@@ -133,6 +133,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.AccessKeyID", "")
 	v.SetDefault("AWS.SecretAccessKey", "")
 	v.SetDefault("AWS.Region", "")
+	v.SetDefault("AWS.CheckIdentity", true)
 
 	v.SetDefault("AWS.Lambda.FunctionName", "")
 	v.SetDefault("AWS.Lambda.InvocationType", "RequestResponse")
@@ -153,6 +154,14 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.S3.Bucket", "")
 	v.SetDefault("AWS.S3.Prefix", "falco")
 	v.SetDefault("AWS.S3.MinimumPriority", "")
+
+	v.SetDefault("AWS.SecurityLake.Bucket", "")
+	v.SetDefault("AWS.SecurityLake.Region", "")
+	v.SetDefault("AWS.SecurityLake.Prefix", "")
+	v.SetDefault("AWS.SecurityLake.Interval", 5)
+	v.SetDefault("AWS.SecurityLake.BatchSize", 1000)
+	v.SetDefault("AWS.SecurityLake.AccountID", "")
+	v.SetDefault("AWS.SecurityLake.MinimumPriority", "")
 
 	v.SetDefault("AWS.Kinesis.StreamName", "")
 	v.SetDefault("AWS.Kinesis.MinimumPriority", "")
@@ -507,6 +516,13 @@ func getConfig() *types.Configuration {
 		}
 	}
 
+	if c.AWS.SecurityLake.Interval < 5 {
+		c.AWS.SecurityLake.Interval = 5
+	}
+	if c.AWS.SecurityLake.Interval > 60 {
+		c.AWS.SecurityLake.Interval = 60
+	}
+
 	if c.ListenPort == 0 || c.ListenPort > 65536 {
 		log.Fatalf("[ERROR] : Bad port number\n")
 	}
@@ -538,6 +554,7 @@ func getConfig() *types.Configuration {
 	c.AWS.SQS.MinimumPriority = checkPriority(c.AWS.SQS.MinimumPriority)
 	c.AWS.SNS.MinimumPriority = checkPriority(c.AWS.SNS.MinimumPriority)
 	c.AWS.S3.MinimumPriority = checkPriority(c.AWS.S3.MinimumPriority)
+	c.AWS.SecurityLake.MinimumPriority = checkPriority(c.AWS.SecurityLake.MinimumPriority)
 	c.AWS.CloudWatchLogs.MinimumPriority = checkPriority(c.AWS.CloudWatchLogs.MinimumPriority)
 	c.AWS.Kinesis.MinimumPriority = checkPriority(c.AWS.Kinesis.MinimumPriority)
 	c.Opsgenie.MinimumPriority = checkPriority(c.Opsgenie.MinimumPriority)

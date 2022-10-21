@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/embano1/memlog"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -263,7 +265,7 @@ func init() {
 
 	if config.AWS.Lambda.FunctionName != "" || config.AWS.SQS.URL != "" ||
 		config.AWS.SNS.TopicArn != "" || config.AWS.CloudWatchLogs.LogGroup != "" || config.AWS.S3.Bucket != "" ||
-		config.AWS.Kinesis.StreamName != "" {
+		config.AWS.Kinesis.StreamName != "" || (config.AWS.SecurityLake.Bucket != "" && config.AWS.SecurityLake.Region != "" && config.AWS.SecurityLake.AccountID != "") {
 		var err error
 		awsClient, err = outputs.NewAWSClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
@@ -277,6 +279,9 @@ func init() {
 			config.AWS.CloudWatchLogs.LogGroup = ""
 			config.AWS.CloudWatchLogs.LogStream = ""
 			config.AWS.Kinesis.StreamName = ""
+			config.AWS.SecurityLake.Region = ""
+			config.AWS.SecurityLake.Bucket = ""
+			config.AWS.SecurityLake.AccountID = ""
 		} else {
 			if config.AWS.Lambda.FunctionName != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSLambda")
@@ -295,6 +300,23 @@ func init() {
 			}
 			if config.AWS.Kinesis.StreamName != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSKinesis")
+			}
+			if config.AWS.SecurityLake.Bucket != "" && config.AWS.SecurityLake.Region != "" && config.AWS.SecurityLake.AccountID != "" && config.AWS.SecurityLake.Prefix != "" {
+				config.AWS.SecurityLake.Ctx = context.Background()
+				config.AWS.SecurityLake.ReadOffset, config.AWS.SecurityLake.WriteOffset = new(memlog.Offset), new(memlog.Offset)
+				config.AWS.SecurityLake.Memlog, err = memlog.New(config.AWS.SecurityLake.Ctx, memlog.WithMaxSegmentSize(10000))
+				if config.AWS.SecurityLake.Interval < 5 {
+					config.AWS.SecurityLake.Interval = 5
+				}
+				go awsClient.StartSecurityLakeWorker()
+				if err != nil {
+					config.AWS.SecurityLake.Region = ""
+					config.AWS.SecurityLake.Bucket = ""
+					config.AWS.SecurityLake.AccountID = ""
+					config.AWS.SecurityLake.Prefix = ""
+				} else {
+					outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AWSSecurityLake")
+				}
 			}
 		}
 	}
