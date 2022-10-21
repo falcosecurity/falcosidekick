@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
+	"github.com/google/uuid"
 )
 
 const testRule string = "Test rule"
@@ -70,7 +70,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 // testHandler sends a test event to all enabled outputs.
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	r.Body = ioutil.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}, "tags":["test","example"]}`)))
+	r.Body = io.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}, "tags":["test","example"]}`)))
 	mainHandler(w, r)
 }
 
@@ -97,6 +97,8 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	if falcopayload.Source == "" {
 		falcopayload.Source = "syscalls"
 	}
+
+	falcopayload.UUID = uuid.New().String()
 
 	var kn, kp string
 	for i, j := range falcopayload.OutputFields {
@@ -228,6 +230,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 
 	if config.AWS.S3.Bucket != "" && (falcopayload.Priority >= types.Priority(config.AWS.S3.MinimumPriority) || falcopayload.Rule == testRule) {
 		go awsClient.UploadS3(falcopayload)
+	}
+
+	if (config.AWS.SecurityLake.Bucket != "" && config.AWS.SecurityLake.Region != "" && config.AWS.SecurityLake.AccountID != "" && config.AWS.SecurityLake.Prefix != "") && (falcopayload.Priority >= types.Priority(config.AWS.SecurityLake.MinimumPriority) || falcopayload.Rule == testRule) {
+		go awsClient.EnqueueSecurityLake(falcopayload)
 	}
 
 	if config.AWS.Kinesis.StreamName != "" && (falcopayload.Priority >= types.Priority(config.AWS.Kinesis.MinimumPriority) || falcopayload.Rule == testRule) {
