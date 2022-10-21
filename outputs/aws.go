@@ -238,7 +238,7 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 			case string:
 				msg.MessageAttributes[i] = &sns.MessageAttributeValue{
 					DataType:    aws.String("String"),
-					StringValue: aws.String(v),
+					StringValue: aws.String(strings.ReplaceAll(strings.ReplaceAll(v, "]", ""), "[", ".")),
 				}
 			default:
 				continue
@@ -257,7 +257,7 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 		go c.CountMetric("outputs", 1, []string{"output:awssns", "status:error"})
 		c.Stats.AWSSNS.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awssns", "status": Error}).Inc()
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		log.Printf("[ERROR] : %v SNS - %v\n", c.OutputType, err.Error())
 		return
 	}
 
