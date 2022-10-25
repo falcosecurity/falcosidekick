@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 
 	crdClient "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/generated/v1alpha2/clientset/versioned"
 
@@ -103,6 +104,7 @@ type Client struct {
 	DogstatsdClient         *statsd.Client
 	GCPTopicClient          *pubsub.Topic
 	GCPCloudFunctionsClient *gcpfunctions.CloudFunctionsClient
+	m                       sync.Mutex
 
 	GCSStorageClient  *storage.Client
 	KafkaProducer     *kafka.Writer
@@ -200,7 +202,6 @@ func (c *Client) Post(payload interface{}) error {
 			}
 		}
 	}
-
 	client := &http.Client{
 		Transport: customTransport,
 	}
@@ -227,7 +228,6 @@ func (c *Client) Post(payload interface{}) error {
 
 	// Clear out headers - they will be set for the next request.
 	c.HeaderList = []Header{}
-
 	go c.CountMetric("outputs", 1, []string{"output:" + strings.ToLower(c.OutputType), "status:" + strings.ToLower(http.StatusText(resp.StatusCode))})
 
 	switch resp.StatusCode {

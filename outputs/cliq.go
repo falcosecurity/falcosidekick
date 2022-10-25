@@ -155,7 +155,8 @@ func newCliqPayload(falcopayload types.FalcoPayload, config *types.Configuration
 // CliqPost posts event to cliq
 func (c *Client) CliqPost(falcopayload types.FalcoPayload) {
 	c.Stats.Cliq.Add(Total, 1)
-
+	c.m.Lock()
+	defer c.m.Unlock()
 	c.AddHeader(ContentTypeHeaderKey, "application/json")
 	err := c.Post(newCliqPayload(falcopayload, c.Config))
 	if err != nil {
