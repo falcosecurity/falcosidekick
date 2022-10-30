@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	timescaledb "github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -112,6 +113,7 @@ type Client struct {
 	WavefrontSender   *wavefront.Sender
 	Crdclient         *crdClient.Clientset
 	MQTTClient        mqtt.Client
+	TimescaleDBClient *timescaledb.Pool
 }
 
 // NewClient returns a new output.Client for accessing the different API.

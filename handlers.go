@@ -352,4 +352,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Spyderbat.OrgUID != "" && (falcopayload.Priority >= types.Priority(config.Spyderbat.MinimumPriority) || falcopayload.Rule == testRule) {
 		go spyderbatClient.SpyderbatPost(falcopayload)
 	}
+
+	if config.TimescaleDB.Host != "" && (falcopayload.Priority >= types.Priority(config.TimescaleDB.MinimumPriority) || falcopayload.Rule == testRule) {
+		go timescaleDBClient.TimescaleDBPost(falcopayload)
+	}
 }
