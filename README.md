@@ -40,6 +40,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**Prometheus**](https://prometheus.io/) (for both events and monitoring of `falcosidekick`)
 - [**Wavefront**](https://www.wavefront.com)
 - [**Spyderbat**](https://www.spyderbat.com)
+- [**TimescaleDB**](https://www.timescale.com/)
 
 ### Alerting
 
@@ -535,6 +536,15 @@ spyderbat:
   # source: "falcosidekick" # Spyderbat source ID, max 32 characters (default: "falcosidekick")
   # sourcedescription: "" # Spyderbat source description and display name if not empty, max 256 characters
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+timescaledb:
+  # host: "" # TimescaleDB host, if not empty, TImescaleDB output is enabled
+  # port: "5432" # TimescaleDB port (default: 5432)
+  # user: "postgres" # Username to authenticate with TimescaleDB (default: postgres)
+  # password: "postgres" # Password to authenticate with TimescaleDB (default: postgres)
+  # database: "" # TimescaleDB database used
+  # hypertablename: "falco_events" # Hypertable to store data events (default: falco_events) See TimescaleDB setup for more info
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -989,6 +999,13 @@ order is
 - **SPYDERBAT_SOURCE**: Spyderbat source ID, max 32 characters (default: "falcosidekick")
 - **SPYDERBAT_SOURCEDESCRIPTION**: Spyderbat source description and display name if not empty, max 256 characters
 - **SPYDERBAT_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+- **TIMESCALEDB_HOST**: TimescaleDB host, if not empty, TImescaleDB output is enabled
+- **TIMESCALEDB_PORT**: TimescaleDB port (default: 5432)
+- **TIMESCALEDB_USER**: Username to authenticate with TimescaleDB (default: postgres)
+- **TIMESCALEDB_PASSWORD**: Password to authenticate with TimescaleDB (default: postgres)
+- **TIMESCALEDB_DATABASE**: TimescaleDB database used
+- **TIMESCALEDB_HYPERTABLENAME**: Hypertable to store data events (default: falco_events) See TimescaleDB setup for more info
+- **TIMESCALEDB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
@@ -1143,6 +1160,23 @@ permissions to access the resources you selected to use, like `SQS`, `Lambda`,
   ]
 }
 ```
+
+### TimescaleDB setup
+
+To use TimescaleDB you should create the Hypertable first, following this example
+
+```sql
+CREATE TABLE falco_events (
+	time TIMESTAMPTZ NOT NULL,
+	rule TEXT,
+	priority VARCHAR(20),
+	source VARCHAR(20),
+	output TEXT
+);
+SELECT create_hypertable('falco_events', 'time');
+```
+
+The name from the table should match with the `HypertableName` output configuration.
 
 ## Examples
 
