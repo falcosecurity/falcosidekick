@@ -364,3 +364,12 @@ spyderbat:
   # source: "falcosidekick" # Spyderbat source ID, max 32 characters (default: "falcosidekick")
   # sourcedescription: "" # Spyderbat source description and display name if not empty, max 256 characters
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+timescaledb:
+  # host: "" # TimescaleDB host, if not empty, TImescaleDB output is enabled
+  # port: "5432" # TimescaleDB port (default: 5432)
+  # user: "postgres" # Username to authenticate with TimescaleDB (default: postgres)
+  # password: "postgres" # Password to authenticate with TimescaleDB (default: postgres)
+  # database: "" # TimescaleDB database used
+  # hypertablename: "falco_events" # Hypertable to store data events (default: falco_events) See TimescaleDB setup for more info
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

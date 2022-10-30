@@ -93,6 +93,7 @@ type Configuration struct {
 	Zincsearch         zincsearchOutputConfig
 	Gotify             gotifyOutputConfig
 	Spyderbat          SpyderbatConfig
+	TimescaleDB        TimescaleDBConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -580,6 +581,16 @@ type SpyderbatConfig struct {
 	MinimumPriority   string
 }
 
+type TimescaleDBConfig struct {
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	Database        string
+	HypertableName  string
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -637,6 +648,7 @@ type Statistics struct {
 	Zincsearch        *expvar.Map
 	Gotify            *expvar.Map
 	Spyderbat         *expvar.Map
+	TimescaleDB       *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

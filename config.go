@@ -374,6 +374,14 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Spyderbat.SourceDescription", "")
 	v.SetDefault("Spyderbat.MinimumPriority", "")
 
+	v.SetDefault("TimescaleDB.Host", "")
+	v.SetDefault("TimescaleDB.Port", "5432")
+	v.SetDefault("TimescaleDB.User", "postgres")
+	v.SetDefault("TimescaleDB.Password", "postgres")
+	v.SetDefault("TimescaleDB.Database", "falcosidekick")
+	v.SetDefault("TimescaleDB.Hypertable", "falcosidekick_events")
+	v.SetDefault("TimescaleDB.MinimumPriority", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -549,6 +557,7 @@ func getConfig() *types.Configuration {
 	c.Zincsearch.MinimumPriority = checkPriority(c.Zincsearch.MinimumPriority)
 	c.NodeRed.MinimumPriority = checkPriority(c.NodeRed.MinimumPriority)
 	c.Gotify.MinimumPriority = checkPriority(c.Gotify.MinimumPriority)
+	c.TimescaleDB.MinimumPriority = checkPriority(c.TimescaleDB.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

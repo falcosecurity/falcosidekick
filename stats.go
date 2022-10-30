@@ -73,6 +73,7 @@ func getInitStats() *types.Statistics {
 		NodeRed:           getOutputNewMap("nodered"),
 		Zincsearch:        getOutputNewMap("zincsearch"),
 		Gotify:            getOutputNewMap("gotify"),
+		TimescaleDB:       getOutputNewMap("timescaledb"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

@@ -60,6 +60,7 @@ var (
 	zincsearchClient    *outputs.Client
 	gotifyClient        *outputs.Client
 	spyderbatClient     *outputs.Client
+	timescaleDBClient   *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -614,6 +615,17 @@ func init() {
 			log.Printf("[ERROR] : Spyderbat - %v\n", err)
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Spyderbat")
+		}
+	}
+
+	if config.TimescaleDB.Host != "" {
+		var err error
+		timescaleDBClient, err = outputs.NewTimescaleDBClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.TimescaleDB.Host = ""
+			log.Printf("[ERROR] : TimescaleDB - %v\n", err)
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "TimescaleDB")
 		}
 	}
 
