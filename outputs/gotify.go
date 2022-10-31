@@ -92,8 +92,6 @@ func (c *Client) GotifyPost(falcopayload types.FalcoPayload) {
 	c.Stats.Gotify.Add(Total, 1)
 
 	if c.Config.Gotify.Token != "" {
-		c.m.Lock()
-		defer c.m.Unlock()
 		c.AddHeader("X-Gotify-Key", c.Config.Gotify.Token)
 	}
 

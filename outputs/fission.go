@@ -81,8 +81,6 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 		}
 		log.Printf("[INFO]  : %s - Function Response : %v\n", Fission, string(rawbody))
 	} else {
-		c.m.Lock()
-		defer c.m.Unlock()
 		c.AddHeader(FissionEventIDKey, uuid.New().String())
 		c.ContentType = FissionContentType
 

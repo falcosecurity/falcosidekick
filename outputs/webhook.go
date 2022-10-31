@@ -10,8 +10,6 @@ import (
 func (c *Client) WebhookPost(falcopayload types.FalcoPayload) {
 	c.Stats.Webhook.Add(Total, 1)
 
-	c.m.Lock()
-	defer c.m.Unlock()
 	if len(c.Config.Webhook.CustomHeaders) != 0 {
 		for i, j := range c.Config.Webhook.CustomHeaders {
 			c.AddHeader(i, j)

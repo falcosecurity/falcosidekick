@@ -59,8 +59,6 @@ func newOpsgeniePayload(falcopayload types.FalcoPayload, config *types.Configura
 // OpsgeniePost posts event to OpsGenie
 func (c *Client) OpsgeniePost(falcopayload types.FalcoPayload) {
 	c.Stats.Opsgenie.Add(Total, 1)
-	c.m.Lock()
-	defer c.m.Unlock()
 	c.AddHeader(AuthorizationHeaderKey, "GenieKey "+c.Config.Opsgenie.APIKey)
 
 	err := c.Post(newOpsgeniePayload(falcopayload, c.Config))
