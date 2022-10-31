@@ -33,8 +33,7 @@ func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configura
 // InfluxdbPost posts event to InfluxDB
 func (c *Client) InfluxdbPost(falcopayload types.FalcoPayload) {
 	c.Stats.Influxdb.Add(Total, 1)
-	c.m.Lock()
-	defer c.m.Unlock()
+
 	c.AddHeader("Accept", "application/json")
 
 	if c.Config.Influxdb.Token != "" {

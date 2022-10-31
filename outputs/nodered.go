@@ -11,8 +11,6 @@ import (
 func (c *Client) NodeRedPost(falcopayload types.FalcoPayload) {
 	c.Stats.NodeRed.Add(Total, 1)
 
-	c.m.Lock()
-	defer c.m.Unlock()
 	if c.Config.NodeRed.User != "" && c.Config.NodeRed.Password != "" {
 		c.AddHeader("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(c.Config.NodeRed.User+":"+c.Config.NodeRed.Password)))
 	}

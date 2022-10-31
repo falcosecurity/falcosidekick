@@ -56,8 +56,7 @@ func newGrafanaPayload(falcopayload types.FalcoPayload, config *types.Configurat
 func (c *Client) GrafanaPost(falcopayload types.FalcoPayload) {
 	c.Stats.Grafana.Add(Total, 1)
 	c.ContentType = GrafanaContentType
-	c.m.Lock()
-	defer c.m.Unlock()
+
 	c.AddHeader("Authorization", "Bearer "+c.Config.Grafana.APIKey)
 
 	err := c.Post(newGrafanaPayload(falcopayload, c.Config))
