@@ -105,7 +105,7 @@ type Client struct {
 	DogstatsdClient         *statsd.Client
 	GCPTopicClient          *pubsub.Topic
 	GCPCloudFunctionsClient *gcpfunctions.CloudFunctionsClient
-	m                       sync.Mutex
+	httpClientLock          sync.Mutex
 
 	GCSStorageClient  *storage.Client
 	KafkaProducer     *kafka.Writer
@@ -139,8 +139,8 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 
 // Post sends event (payload) to Output.
 func (c *Client) Post(payload interface{}) error {
-	c.m.Lock()
-	defer c.m.Unlock()
+	c.httpClientLock.Lock()
+	defer c.httpClientLock.Unlock()
 	// defer + recover to catch panic if output doesn't respond
 	defer func() {
 		if err := recover(); err != nil {
@@ -285,7 +285,7 @@ func (c *Client) BasicAuth(username, password string) {
 
 // AddHeader adds an HTTP Header to the Client.
 func (c *Client) AddHeader(key, value string) {
-	c.m.Lock()
-	defer c.m.Unlock()
+	c.httpClientLock.Lock()
+	defer c.httpClientLock.Unlock()
 	c.HeaderList = append(c.HeaderList, Header{Key: key, Value: value})
 }
