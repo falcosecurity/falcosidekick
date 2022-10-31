@@ -1176,7 +1176,7 @@ CREATE TABLE falco_events (
 SELECT create_hypertable('falco_events', 'time');
 ```
 
-The name from the table should match with the `HypertableName` output configuration.
+The name from the table should match with the `hypertable` output configuration.
 
 ## Examples
 
