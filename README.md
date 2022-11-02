@@ -262,6 +262,8 @@ influxdb:
 
 loki:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Loki output is enabled
+  # user: "" # user for Grafana Logs
+  # apikey: "" # API Key for Grafana Logs
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # tenant: "" # Add the tenant header if needed. Enabled if not empty
@@ -696,6 +698,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **INFLUXDB_CHECKCERT** : check if ssl certificate of the output is valid (default:
   `true`)
 - **LOKI_HOSTPORT** : Loki http://host:port, if not `empty`, Loki is _enabled_
+- **LOKI_USER** : User for Grafana Logs
+- **LOKI_APIKEY** : API Key for Grafana Logs
 - **LOKI_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`

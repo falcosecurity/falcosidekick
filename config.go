@@ -121,6 +121,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Influxdb.CheckCert", true)
 
 	v.SetDefault("Loki.HostPort", "")
+	v.SetDefault("Loki.User", "")
+	v.SetDefault("Loki.APIKey", "")
 	v.SetDefault("Loki.MinimumPriority", "")
 	v.SetDefault("Loki.MutualTLS", false)
 	v.SetDefault("Loki.CheckCert", true)
