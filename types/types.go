@@ -228,6 +228,8 @@ type influxdbOutputConfig struct {
 
 type lokiOutputConfig struct {
 	HostPort        string
+	User            string
+	APIKey          string
 	MinimumPriority string
 	CheckCert       bool
 	MutualTLS       bool

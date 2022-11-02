@@ -247,19 +247,24 @@ func (c *Client) Post(payload interface{}) error {
 		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrHeaderMissing, resp.StatusCode, string(body))
 		return ErrHeaderMissing
 	case http.StatusUnauthorized: //401
-		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode)
+		body, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode, string(body))
 		return ErrClientAuthenticationError
 	case http.StatusForbidden: //403
-		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrForbidden, resp.StatusCode)
+		body, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrForbidden, resp.StatusCode, string(body))
 		return ErrForbidden
 	case http.StatusNotFound: //404
-		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrNotFound, resp.StatusCode)
+		body, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrNotFound, resp.StatusCode, string(body))
 		return ErrNotFound
 	case http.StatusUnprocessableEntity: //422
-		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrUnprocessableEntityError, resp.StatusCode)
+		body, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrUnprocessableEntityError, resp.StatusCode, string(body))
 		return ErrUnprocessableEntityError
 	case http.StatusTooManyRequests: //429
-		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
+		body, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrTooManyRequest, resp.StatusCode, string(body))
 		return ErrTooManyRequest
 	case http.StatusInternalServerError: //500
 		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
