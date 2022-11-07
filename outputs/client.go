@@ -105,7 +105,8 @@ type Client struct {
 	DogstatsdClient         *statsd.Client
 	GCPTopicClient          *pubsub.Topic
 	GCPCloudFunctionsClient *gcpfunctions.CloudFunctionsClient
-	httpClientLock          sync.Mutex
+	// FIXME: this lock requires a per-output usage lock currently if headers are used -- needs to be refactored
+	httpClientLock sync.Mutex
 
 	GCSStorageClient  *storage.Client
 	KafkaProducer     *kafka.Writer
