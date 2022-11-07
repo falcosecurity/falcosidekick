@@ -80,6 +80,8 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 		}
 		log.Printf("[INFO]  : Kubeless - Function Response : %v\n", string(rawbody))
 	} else {
+		c.httpClientLock.Lock()
+		defer c.httpClientLock.Unlock()
 		c.AddHeader(KubelessEventIDKey, uuid.New().String())
 		c.AddHeader(KubelessEventTypeKey, KubelessEventTypeValue)
 		c.AddHeader(KubelessEventNamespaceKey, c.Config.Kubeless.Namespace)

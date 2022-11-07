@@ -11,6 +11,8 @@ func (c *Client) CloudRunFunctionPost(falcopayload types.FalcoPayload) {
 	c.Stats.GCPCloudRun.Add(Total, 1)
 
 	if c.Config.GCP.CloudRun.JWT != "" {
+		c.httpClientLock.Lock()
+		defer c.httpClientLock.Unlock()
 		c.AddHeader(AuthorizationHeaderKey, "Bearer "+c.Config.GCP.CloudRun.JWT)
 	}
 
