@@ -11,6 +11,8 @@ func (c *Client) WebhookPost(falcopayload types.FalcoPayload) {
 	c.Stats.Webhook.Add(Total, 1)
 
 	if len(c.Config.Webhook.CustomHeaders) != 0 {
+		c.httpClientLock.Lock()
+		defer c.httpClientLock.Unlock()
 		for i, j := range c.Config.Webhook.CustomHeaders {
 			c.AddHeader(i, j)
 		}

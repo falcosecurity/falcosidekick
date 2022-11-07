@@ -199,6 +199,8 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 func (c *Client) SpyderbatPost(falcopayload types.FalcoPayload) {
 	c.Stats.Spyderbat.Add(Total, 1)
 
+	c.httpClientLock.Lock()
+	defer c.httpClientLock.Unlock()
 	c.AddHeader("Authorization", "Bearer "+c.Config.Spyderbat.APIKey)
 	c.AddHeader("Content-Encoding", "gzip")
 

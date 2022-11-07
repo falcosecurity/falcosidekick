@@ -63,6 +63,8 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	c.Stats.Loki.Add(Total, 1)
 	c.ContentType = LokiContentType
 	if c.Config.Loki.Tenant != "" {
+		c.httpClientLock.Lock()
+		defer c.httpClientLock.Unlock()
 		c.AddHeader("X-Scope-OrgID", c.Config.Loki.Tenant)
 	}
 

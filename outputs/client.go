@@ -139,8 +139,6 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 
 // Post sends event (payload) to Output.
 func (c *Client) Post(payload interface{}) error {
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
 	// defer + recover to catch panic if output doesn't respond
 	defer func() {
 		if err := recover(); err != nil {
@@ -290,7 +288,5 @@ func (c *Client) BasicAuth(username, password string) {
 
 // AddHeader adds an HTTP Header to the Client.
 func (c *Client) AddHeader(key, value string) {
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
 	c.HeaderList = append(c.HeaderList, Header{Key: key, Value: value})
 }
