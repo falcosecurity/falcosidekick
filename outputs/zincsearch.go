@@ -12,6 +12,8 @@ func (c *Client) ZincsearchPost(falcopayload types.FalcoPayload) {
 	c.Stats.Zincsearch.Add(Total, 1)
 
 	if c.Config.Zincsearch.Username != "" && c.Config.Zincsearch.Password != "" {
+		c.httpClientLock.Lock()
+		defer c.httpClientLock.Unlock()
 		c.BasicAuth(c.Config.Zincsearch.Username, c.Config.Zincsearch.Password)
 	}
 

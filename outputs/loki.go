@@ -69,6 +69,8 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	}
 
 	if c.Config.Loki.User != "" && c.Config.Loki.APIKey != "" {
+		c.httpClientLock.Lock()
+		defer c.httpClientLock.Unlock()
 		c.BasicAuth(c.Config.Loki.User, c.Config.Loki.APIKey)
 	}
 
