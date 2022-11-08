@@ -34,6 +34,8 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 
 	c.EndpointURL = endpointURL
 	if c.Config.Elasticsearch.Username != "" && c.Config.Elasticsearch.Password != "" {
+		c.httpClientLock.Lock()
+		defer c.httpClientLock.Unlock()
 		c.BasicAuth(c.Config.Elasticsearch.Username, c.Config.Elasticsearch.Password)
 	}
 
