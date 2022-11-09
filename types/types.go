@@ -420,6 +420,14 @@ type kafkaConfig struct {
 	HostPort        string
 	Topic           string
 	MinimumPriority string
+	SASL            string
+	Username        string
+	Password        string
+	Balancer        string
+	ClientID        string
+	Compression     string
+	Async           bool
+	RequiredACKs    string
 }
 
 type KafkaRestConfig struct {
