@@ -19,6 +19,7 @@ type FalcoPayload struct {
 	OutputFields map[string]interface{} `json:"output_fields"`
 	Source       string                 `json:"source"`
 	Tags         []string               `json:"tags,omitempty"`
+	Hostname     string                 `json:"hostname,omitempty"`
 }
 
 func (f FalcoPayload) String() string {

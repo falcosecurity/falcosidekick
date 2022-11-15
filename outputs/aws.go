@@ -232,7 +232,12 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 				StringValue: aws.String(strings.Join(falcopayload.Tags, ",")),
 			}
 		}
-
+		if falcopayload.Hostname != "" {
+			msg.MessageAttributes[Hostname] = &sns.MessageAttributeValue{
+				DataType:    aws.String("String"),
+				StringValue: aws.String(falcopayload.Hostname),
+			}
+		}
 		for i, j := range falcopayload.OutputFields {
 			switch v := j.(type) {
 			case string:

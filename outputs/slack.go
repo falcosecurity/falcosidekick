@@ -55,6 +55,12 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		field.Value = falcopayload.Source
 		field.Short = true
 		fields = append(fields, field)
+		if falcopayload.Hostname != "" {
+			field.Title = Hostname
+			field.Value = falcopayload.Hostname
+			field.Short = true
+			fields = append(fields, field)
+		}
 		if len(falcopayload.Tags) != 0 {
 			field.Title = Tags
 			field.Value = strings.Join(falcopayload.Tags, ", ")

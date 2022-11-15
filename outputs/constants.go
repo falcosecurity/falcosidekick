@@ -29,6 +29,7 @@ const (
 	Plaintext string = "plaintext"
 	JSON      string = "json"
 	Markdown  string = "markdown"
+	Hostname  string = "hostname"
 
 	DefaultFooter  string = "https://github.com/falcosecurity/falcosidekick"
 	DefaultIconURL string = "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick.png"

@@ -11,8 +11,7 @@ import (
 )
 
 func TestPagerdutyPayload(t *testing.T) {
-	var falcoTestInput = `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule","time":"2001-01-01T01:10:00Z","output_fields": {"proc.name":"falcosidekick", "proc.tty": 1234}}`
-
+	var falcoTestInput = `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule","hostname":"test-host","time":"2001-01-01T01:10:00Z","output_fields": {"hostname": "test-host", "proc.name":"falcosidekick", "proc.tty": 1234}}`
 	var excpectedOutput = pagerduty.V2Event{
 		RoutingKey: "",
 		Action:     "trigger",
@@ -25,6 +24,7 @@ func TestPagerdutyPayload(t *testing.T) {
 			Group:     "",
 			Class:     "",
 			Details: map[string]interface{}{
+				"hostname":  "test-host",
 				"proc.name": "falcosidekick",
 				"proc.tty":  float64(1234),
 			},

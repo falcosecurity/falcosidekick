@@ -22,6 +22,12 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 		field.Value = falcopayload.Rule
 		field.Short = true
 		fields = append(fields, field)
+		if falcopayload.Hostname != "" {
+			field.Title = Hostname
+			field.Value = falcopayload.Hostname
+			field.Short = true
+			fields = append(fields, field)
+		}
 		field.Title = Priority
 		field.Value = falcopayload.Priority.String()
 		field.Short = true

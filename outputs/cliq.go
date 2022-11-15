@@ -100,6 +100,12 @@ func newCliqPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		field.Value = falcopayload.Priority.String()
 		table.Rows = append(table.Rows, field)
 
+		if falcopayload.Hostname != "" {
+			field.Field = Hostname
+			field.Value = falcopayload.Hostname
+			table.Rows = append(table.Rows, field)
+		}
+
 		for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
 			field.Field = i
 			field.Value = falcopayload.OutputFields[i].(string)

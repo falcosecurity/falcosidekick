@@ -38,6 +38,10 @@ func TestNewTeamsPayload(t *testing.T) {
 						Value: "syscalls",
 					},
 					{
+						Name:  "hostname",
+						Value: "test-host",
+					},
+					{
 						Name:  "tags",
 						Value: "test, example",
 					},

@@ -15,6 +15,7 @@ func TestNewOpsgeniePayload(t *testing.T) {
 		Entity:      "Falcosidekick",
 		Description: "Test rule",
 		Details: map[string]string{
+			"hostname":  "test-host",
 			"priority":  "Debug",
 			"tags":      "test, example",
 			"proc_name": "falcosidekick",

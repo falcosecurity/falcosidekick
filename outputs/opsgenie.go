@@ -29,6 +29,9 @@ func newOpsgeniePayload(falcopayload types.FalcoPayload, config *types.Configura
 	details["source"] = falcopayload.Source
 	details["rule"] = falcopayload.Rule
 	details["priority"] = falcopayload.Priority.String()
+	if falcopayload.Hostname != "" {
+		details[Hostname] = falcopayload.Hostname
+	}
 	if len(falcopayload.Tags) != 0 {
 		details["tags"] = strings.Join(falcopayload.Tags, ", ")
 	}

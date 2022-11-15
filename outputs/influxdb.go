@@ -21,6 +21,10 @@ func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configura
 		}
 	}
 
+	if falcopayload.Hostname != "" {
+		s += "," + Hostname + "=" + falcopayload.Hostname
+	}
+
 	if len(falcopayload.Tags) != 0 {
 		s += ",tags=" + strings.Join(falcopayload.Tags, "_")
 	}
