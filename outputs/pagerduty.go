@@ -35,6 +35,9 @@ func createPagerdutyEvent(falcopayload types.FalcoPayload, config types.Pagerdut
 	details["rule"] = falcopayload.Rule
 	details["priority"] = falcopayload.Priority.String()
 	details["source"] = falcopayload.Source
+	if len(falcopayload.Hostname) != 0 {
+		falcopayload.OutputFields[Hostname] = falcopayload.Hostname
+	}
 	if len(falcopayload.Tags) != 0 {
 		details["tags"] = strings.Join(falcopayload.Tags, ", ")
 	}

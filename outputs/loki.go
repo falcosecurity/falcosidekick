@@ -46,6 +46,10 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		}
 	}
 
+	if falcopayload.Hostname != "" {
+		s[Hostname] = falcopayload.Hostname
+	}
+
 	if len(falcopayload.Tags) != 0 {
 		s["tags"] = strings.Join(falcopayload.Tags, ",")
 	}

@@ -52,6 +52,11 @@ func TestNewRocketchatPayload(t *testing.T) {
 						Value: "2001-01-01 01:10:00 +0000 UTC",
 						Short: false,
 					},
+					{
+						Title: "hostname",
+						Value: "test-host",
+						Short: true,
+					},
 				},
 			},
 		},

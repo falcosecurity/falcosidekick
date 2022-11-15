@@ -69,6 +69,11 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		fact.Name = Source
 		fact.Value = falcopayload.Source
 		facts = append(facts, fact)
+		if falcopayload.Hostname != "" {
+			fact.Name = Hostname
+			fact.Value = falcopayload.Hostname
+			facts = append(facts, fact)
+		}
 		if len(falcopayload.Tags) != 0 {
 			fact.Name = Tags
 			fact.Value = strings.Join(falcopayload.Tags, ", ")

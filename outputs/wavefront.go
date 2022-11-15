@@ -71,6 +71,10 @@ func (c *Client) WavefrontPost(falcopayload types.FalcoPayload) {
 	tags["rule"] = falcopayload.Rule
 	tags["source"] = falcopayload.Source
 
+	if falcopayload.Hostname != "" {
+		tags[Hostname] = falcopayload.Hostname
+	}
+
 	for tag, value := range falcopayload.OutputFields {
 		switch v := value.(type) {
 		case string:

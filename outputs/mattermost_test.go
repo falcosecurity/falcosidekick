@@ -28,6 +28,11 @@ func TestMattermostPayload(t *testing.T) {
 						Short: true,
 					},
 					{
+						Title: "hostname",
+						Value: "test-host",
+						Short: true,
+					},
+					{
 						Title: "priority",
 						Value: "Debug",
 						Short: true,

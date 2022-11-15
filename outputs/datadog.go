@@ -32,6 +32,9 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 		}
 	}
 	tags = append(tags, "source:"+falcopayload.Source)
+	if falcopayload.Hostname != "" {
+		tags = append(tags, Hostname+":"+falcopayload.Hostname)
+	}
 	if len(falcopayload.Tags) != 0 {
 		tags = append(tags, falcopayload.Tags...)
 	}

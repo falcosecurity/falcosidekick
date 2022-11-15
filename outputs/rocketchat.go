@@ -52,6 +52,12 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 		field.Short = false
 		field.Value = falcopayload.Time.String()
 		fields = append(fields, field)
+		if falcopayload.Hostname != "" {
+			field.Title = Hostname
+			field.Value = falcopayload.Hostname
+			field.Short = true
+			fields = append(fields, field)
+		}
 	}
 
 	attachment.Fallback = falcopayload.Output

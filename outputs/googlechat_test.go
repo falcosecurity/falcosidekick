@@ -44,6 +44,12 @@ func TestNewGoogleChatPayload(t *testing.T) {
 							},
 							{
 								keyValue{
+									TopLabel: "hostname",
+									Content:  "test-host",
+								},
+							},
+							{
+								keyValue{
 									TopLabel: "tags",
 									Content:  "test, example",
 								},

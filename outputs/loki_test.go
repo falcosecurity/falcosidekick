@@ -14,6 +14,7 @@ func TestNewLokiPayload(t *testing.T) {
 		Streams: []lokiStream{
 			{
 				Stream: map[string]string{
+					"hostname": "test-host",
 					"tags":     "test,example",
 					"rule":     "Test rule",
 					"source":   "syscalls",
