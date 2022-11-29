@@ -329,6 +329,13 @@ yandex:
     # streamname: "" # stream name in format /${region}/${folder_id}/${ydb_id}/${stream_name}
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug
 
+syslog:
+  # host: "" # Syslog host, if not empty, Syslog output is enabled
+  # port: "" # Syslog endpoint port number
+  # protocol: "" # Syslog transport protocol. It can be either "tcp" or "udp" (default: tcp)
+  # format: "" # Syslog payload format. It can be either "json" or "cef" (default: json)
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 mqtt:
   broker: "" # Broker address, can start with tcp:// or ssl://, if not empty, MQTT output is enabled
   # topic: "falco/events" # Topic for messages (default: falco/events)

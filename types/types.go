@@ -529,6 +529,7 @@ type SyslogConfig struct {
 	Host            string
 	Port            string
 	Protocol        string
+	Format          string
 	MinimumPriority string
 }
 
