@@ -497,7 +497,8 @@ yandex:
 syslog:
   # host: "" # Syslog host, if not empty, Syslog output is enabled
   # port: "" # Syslog endpoint port number
-  # protocol: "" # Syslog transport protocol. It can be either "tcp" or "udp"
+  # protocol: "" # Syslog transport protocol. It can be either "tcp" or "udp" (default: tcp)
+  # format: "" # Syslog payload format. It can be either "json" or "cef" (default: json)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 mqtt:
@@ -965,7 +966,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **YANDEX_DATASTREAMS_MINIMUMPRIORITY**: # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug
 - **SYSLOG_HOST**: Syslog Host, if not empty, Syslog output is enabled
 - **SYSLOG_PORT**: Syslog endpoint port number
-- **SYSLOG_PROTOCOL**: Syslog transport protocol. It can be either "tcp" or "udp"
+- **SYSLOG_PROTOCOL**: Syslog transport protocol. It can be either "tcp" or "udp" (default: tcp)
+- **SYSLOG_FORMAT**: Syslog payload format. It can be either "json" or "cef" (default: json)
 - **SYSLOG_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "debug")
 - **POLICYREPORT_ENABLED**: if true policyreport output is enabled (default: `false`)
 - **POLICYREPORT_KUBECONFIG**: Kubeconfig file to use (only if falcosidekick is running outside the cluster)

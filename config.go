@@ -349,6 +349,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Syslog.Host", "")
 	v.SetDefault("Syslog.Port", "")
 	v.SetDefault("Syslog.Protocol", "")
+	v.SetDefault("Syslog.Format", "json")
 	v.SetDefault("Syslog.MinimumPriority", "")
 
 	v.SetDefault("MQTT.Broker", "")
