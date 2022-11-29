@@ -239,6 +239,14 @@ kafka:
   hostport: "" # Apache Kafka Host:Port (ex: localhost:9092). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  sasl: "" # SASL authentication mechanism, if empty, no authentication (PLAIN|SCRAM_SHA256|SCRAM_SHA512)
+  username: "" # use this username to authenticate to Kafka via SASL (default: "")
+  password: "" # use this password to authenticate to Kafka via SASL (default: "")
+  # async: false # produce messages without blocking (default: false)
+  # requiredacks: NONE # number of acknowledges from partition replicas required before receiving (default: "NONE")
+  # compression: "" # enable message compression using this algorithm, no compression (GZIP|SNAPPY|LZ4|ZSTD|NONE) (default: "NONE")
+  # balancer: "" # partition balancing strategy when producing, (default: "round_robin")
+  # clientid: "" # specify a client.id when communicating with the broker for tracing
 
 kafkarest:
   address: "" # The full URL to the topic (example "http://kafkarest:8082/topics/test")
