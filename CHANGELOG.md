@@ -1,5 +1,41 @@
 # Changelog
 
+## 2.27.0 - 2022-12-13
+#### New
+- New output: **Yandex Data Streams** ([PR#336](https://github.com/falcosecurity/falcosidekick/pull/336) thanks to [@preved911](https://github.com/preved911))
+- New output: **Node-Red** ([PR#337](https://github.com/falcosecurity/falcosidekick/pull/337)
+- New output: **MQTT** ([PR#338](https://github.com/falcosecurity/falcosidekick/pull/338)
+- Templated fields: custom fields generated with Go templates ([PR#350](https://github.com/falcosecurity/falcosidekick/pull/350)
+- New output: **Zincsearch** ([PR#360](https://github.com/falcosecurity/falcosidekick/pull/360)
+- New output: **Gotify** ([PR#362](https://github.com/falcosecurity/falcosidekick/pull/362)
+- New output: **Spyderbat** ([PR#368](https://github.com/falcosecurity/falcosidekick/pull/368) thanks to [@spyder-kyle](https://github.com/spyder-kyle))
+- New output: **Tekton** ([PR#371](https://github.com/falcosecurity/falcosidekick/pull/371)
+- New output: **TimescaleDB** ([PR#378](https://github.com/falcosecurity/falcosidekick/pull/378) thanks to [@jagretti](https://github.com/jagretti))
+- New output: **AWS Security Lake** ([PR#387](https://github.com/falcosecurity/falcosidekick/pull/387)
+
+#### Enhancement
+- `SMTP` output now uses any SASL auth mechanism ([PR#341](https://github.com/falcosecurity/falcosidekick/pull/341) thanks to [@Lowaiz](https://github.com/Lowaiz))
+- Bind `Policy Reports` to Namespace by `ownerReference` ([PR#346](https://github.com/falcosecurity/falcosidekick/pull/346)
+- Add extra labels and annotations for `AlertManager` payloads ([PR#347](https://github.com/falcosecurity/falcosidekick/pull/347) thanks to [@Lowaiz](https://github.com/Lowaiz))
+- Update default type for `Elasticsearch` documents ([PR#349](https://github.com/falcosecurity/falcosidekick/pull/349)
+- Support env vars in custom fields ([PR#353](https://github.com/falcosecurity/falcosidekick/pull/353)
+- Update format + default endpoint for `Loki` output ([PR#356](https://github.com/falcosecurity/falcosidekick/pull/356)
+- Determine resource names + owner ref for `Policy Reports` ([PR#358](https://github.com/falcosecurity/falcosidekick/pull/358)
+- Update `Influxdb` output to use API Token and /api/v2 endpoint ([PR#359](https://github.com/falcosecurity/falcosidekick/pull/359)
+- Allow to override the `Slack` channel ([PR#366](https://github.com/falcosecurity/falcosidekick/pull/366)
+- Add From, To and Date headers in `SMTP` payload ([PR#364](https://github.com/falcosecurity/falcosidekick/pull/364)
+- Improve the check of the payload from `Falco`, it allows now to have an empty output ([PR#372](https://github.com/falcosecurity/falcosidekick/pull/372)
+- Allow to set user and api key for `Loki` output for `Grafana Logs` ([PR#379](https://github.com/falcosecurity/falcosidekick/pull/379)
+- Add `hostname` in json payload for all outputs ([PR#383](https://github.com/falcosecurity/falcosidekick/pull/383) thanks to [@Lowaiz](https://github.com/Lowaiz))
+- Add SASL authentication for `Kafka` output ([PR#385](https://github.com/falcosecurity/falcosidekick/pull/385) thanks to [@Lowaiz](https://github.com/Lowaiz)) and [@lyoung-confluent](https://github.com/lyoung-confluent))
+- Support CEF format for `Syslog` output ([PR#386](https://github.com/falcosecurity/falcosidekick/pull/386)
+- Allow to disable STS check for `AWS` output ([PR#387](https://github.com/falcosecurity/falcosidekick/pull/387)
+
+#### Fix
+- Fix `priority` label was replaced by `source` in `AlertManager` payload ([PR#340](https://github.com/falcosecurity/falcosidekick/pull/340) thanks to [@tks98](https://github.com/tks98))
+- Fix missing cert checks + fix inverted logic to use them in codebase ([PR#345](https://github.com/falcosecurity/falcosidekick/pull/345) 
+- Fix race condition when headers are added to POST requests ([PR#380](https://github.com/falcosecurity/falcosidekick/pull/380) thanks to [@bc-sb](https://github.com/bc-sb))
+
 ## 2.26.0 - 2022-06-18
 #### Enhancement
 - Add `expiresafter` for *AlertManager* output ([PR#323](https://github.com/falcosecurity/falcosidekick/pull/323) thanks to [@anushkamittal20](https://github.com/anushkamittal20))
