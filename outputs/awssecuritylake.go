@@ -224,9 +224,6 @@ func (c *Client) processNextBatch() error {
 	ctx := awslake.Ctx
 	ml := awslake.Memlog
 
-	sleep := time.Duration(awslake.Interval) * time.Minute
-	time.Sleep(sleep)
-
 	batch := make([]memlog.Record, awslake.BatchSize)
 	count, err := ml.ReadBatch(ctx, *awslake.ReadOffset+1, batch)
 	if err != nil {
@@ -247,13 +244,13 @@ func (c *Client) processNextBatch() error {
 			c.Stats.AWSSecurityLake.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
 
+			earliest = earliest - 1 // to ensure next batch includes earliest as we read from ReadOffset+1
 			msg := fmt.Errorf("slow batch reader: resetting read offset from %d to %d: %v",
 				*awslake.ReadOffset,
 				earliest,
 				err,
 			)
 			log.Printf("[ERROR] : %v SecurityLake. - %v\n", c.OutputType, msg)
-			earliest = earliest - 1 // to ensure next batch includes earliest as we read from ReadOffset+1
 			awslake.ReadOffset = &earliest
 			return err
 		}
