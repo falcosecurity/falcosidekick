@@ -588,7 +588,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **CUSTOMFIELDS** : a list of comma separated custom fields to add to falco, if the value starts with % the relative env var is used
   events, syntax is "key:value,key:value"
   **MUTUALTLSFILESPATH**: path which will be used to stored certs and key for mutual tls authentication (default: "/etc/certs")
-- **SLACK_WEBHOOKURL** : Slack Webhook URL (ex:
+- **SLACK_WEBHOOKURL** : Slack Webhook URL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ)
 - **SLACK_CHANNEL** : Slack Channel (optionnal)
 - **SLACK_FOOTER** : Slack footer
 - **SLACK_ICON** : Slack icon (avatar)
