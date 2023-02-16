@@ -63,6 +63,7 @@ var (
 	gotifyClient        *outputs.Client
 	spyderbatClient     *outputs.Client
 	timescaleDBClient   *outputs.Client
+	redisClient         *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -648,6 +649,16 @@ func init() {
 			log.Printf("[ERROR] : TimescaleDB - %v\n", err)
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "TimescaleDB")
+		}
+	}
+
+	if config.Redis.Address != "" {
+		var err error
+		redisClient, err = outputs.NewRedisClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Redis.Address = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Redis")
 		}
 	}
 

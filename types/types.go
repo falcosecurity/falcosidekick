@@ -97,6 +97,7 @@ type Configuration struct {
 	Gotify             gotifyOutputConfig
 	Spyderbat          SpyderbatConfig
 	TimescaleDB        TimescaleDBConfig
+	Redis              RedisConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -621,6 +622,19 @@ type TimescaleDBConfig struct {
 	MinimumPriority string
 }
 
+// RedisConfig represents config parameters for Redis
+type RedisConfig struct {
+	Address         string
+	Password        string
+	Database        int
+	StorageType     string
+	Key             string
+	Version         int
+	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -680,6 +694,7 @@ type Statistics struct {
 	Gotify            *expvar.Map
 	Spyderbat         *expvar.Map
 	TimescaleDB       *expvar.Map
+	Redis             *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

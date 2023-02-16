@@ -402,6 +402,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("TimescaleDB.Hypertable", "falcosidekick_events")
 	v.SetDefault("TimescaleDB.MinimumPriority", "")
 
+	v.SetDefault("Redis.Address", "")
+	v.SetDefault("Redis.Password", "")
+	v.SetDefault("Redis.Database", 0)
+	v.SetDefault("Redis.StorageType", "list")
+	v.SetDefault("Redis.Key", "falco")
+	v.SetDefault("Redis.MinimumPriority", "")
+	v.SetDefault("Redis.MutualTls", false)
+	v.SetDefault("Redis.CheckCert", true)
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -586,6 +595,7 @@ func getConfig() *types.Configuration {
 	c.NodeRed.MinimumPriority = checkPriority(c.NodeRed.MinimumPriority)
 	c.Gotify.MinimumPriority = checkPriority(c.Gotify.MinimumPriority)
 	c.TimescaleDB.MinimumPriority = checkPriority(c.TimescaleDB.MinimumPriority)
+	c.Redis.MinimumPriority = checkPriority(c.Redis.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

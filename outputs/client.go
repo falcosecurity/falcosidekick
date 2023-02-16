@@ -33,6 +33,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	timescaledb "github.com/jackc/pgx/v5/pgxpool"
+	redis "github.com/redis/go-redis/v9"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -117,6 +118,7 @@ type Client struct {
 	Crdclient         *crdClient.Clientset
 	MQTTClient        mqtt.Client
 	TimescaleDBClient *timescaledb.Pool
+	RedisClient       *redis.Client
 }
 
 // NewClient returns a new output.Client for accessing the different API.
