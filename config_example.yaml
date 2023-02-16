@@ -399,3 +399,11 @@ timescaledb:
   # database: "" # TimescaleDB database used
   # hypertablename: "falco_events" # Hypertable to store data events (default: falco_events) See TimescaleDB setup for more info
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+redis:
+  # address: "" # Redis address, if not empty, Redis output is enabled
+  # password: "" # Password to authenticate with Redis (default: "")
+  # database: "" # Redis database number (default: 0)
+  # storagetype: "" # Redis storage type: hashmap or list (default: "list")
+  # key: "" # Redis storage key name for hashmap, list(default: "falco")
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

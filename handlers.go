@@ -362,4 +362,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.TimescaleDB.Host != "" && (falcopayload.Priority >= types.Priority(config.TimescaleDB.MinimumPriority) || falcopayload.Rule == testRule) {
 		go timescaleDBClient.TimescaleDBPost(falcopayload)
 	}
+
+	if config.Redis.Address != "" && (falcopayload.Priority >= types.Priority(config.Redis.MinimumPriority) || falcopayload.Rule == testRule) {
+		go redisClient.RedisPost(falcopayload)
+	}
 }

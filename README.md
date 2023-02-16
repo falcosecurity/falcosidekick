@@ -561,6 +561,13 @@ timescaledb:
   # database: "" # TimescaleDB database used
   # hypertablename: "falco_events" # Hypertable to store data events (default: falco_events) See TimescaleDB setup for more info
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+redis:
+  # address: "" # Redis address, if not empty, Redis output is enabled
+  # password: "" # Password to authenticate with Redis (default: "")
+  # database: "" # Redis database number (default: 0)
+  # storagetype: "" # Redis storage type: hashmap or list (default: list)
+  # key: "" # Redis storage key name for hashmap, list(default: "falco")
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -1033,6 +1040,12 @@ order is
 - **TIMESCALEDB_DATABASE**: TimescaleDB database used
 - **TIMESCALEDB_HYPERTABLENAME**: Hypertable to store data events (default: falco_events) See TimescaleDB setup for more info
 - **TIMESCALEDB_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+- **REDIS_ADDRESS**: Redis host, if not empty, Redis output is enabled (example: localhost:6379)
+- **REDIS_PASSWORD**: Password to authenticate with Redis (default: "")
+- **REDIS_DATABASE**: Redis database number (default: 0)
+- **REDIS_STORAGE**: Redis storage type: hashmap or list (default: "list")
+- **REDIS_Key**: Redis storage key name for hashmap, list(default: "falco")
+- **REDIS_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
