@@ -351,6 +351,7 @@ type opsgenieOutputConfig struct {
 // WebhookOutputConfig represents parameters for Webhook
 type WebhookOutputConfig struct {
 	Address         string
+	Method          string
 	CustomHeaders   map[string]string
 	MinimumPriority string
 	CheckCert       bool

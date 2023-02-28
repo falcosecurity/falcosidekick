@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"log"
+	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -17,8 +18,13 @@ func (c *Client) WebhookPost(falcopayload types.FalcoPayload) {
 			c.AddHeader(i, j)
 		}
 	}
+	var err error
+	if strings.ToUpper(c.Config.Webhook.Method) == HttpPut {
+		err = c.Put(falcopayload)
+	} else {
+		err = c.Post(falcopayload)
+	}
 
-	err := c.Post(falcopayload)
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:webhook", "status:error"})
 		c.Stats.Webhook.Add(Error, 1)

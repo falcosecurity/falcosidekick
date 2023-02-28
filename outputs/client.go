@@ -83,6 +83,10 @@ const MutualTLSClientCertFilename = "/client.crt"
 const MutualTLSClientKeyFilename = "/client.key"
 const MutualTLSCacertFilename = "/ca.crt"
 
+// HTTP Methods
+const HttpPost = "POST"
+const HttpPut = "PUT"
+
 // Headers to add to the client before sending the request
 type Header struct {
 	Key   string
@@ -138,8 +142,18 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, CheckCert: checkCert, HeaderList: []Header{}, ContentType: DefaultContentType, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
 }
 
-// Post sends event (payload) to Output.
+// Post sends event (payload) to Output with POST http method.
 func (c *Client) Post(payload interface{}) error {
+	return c.sendRequest("POST", payload)
+}
+
+// Put sends event (payload) to Output with PUT http method.
+func (c *Client) Put(payload interface{}) error {
+	return c.sendRequest("PUT", payload)
+}
+
+// Post sends event (payload) to Output.
+func (c *Client) sendRequest(method string, payload interface{}) error {
 	// defer + recover to catch panic if output doesn't respond
 	defer func() {
 		if err := recover(); err != nil {
@@ -209,7 +223,7 @@ func (c *Client) Post(payload interface{}) error {
 		Transport: customTransport,
 	}
 
-	req, err := http.NewRequest("POST", c.EndpointURL.String(), body)
+	req, err := http.NewRequest(method, c.EndpointURL.String(), body)
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 	}
