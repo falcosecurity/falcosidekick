@@ -363,7 +363,8 @@ opsgenie:
 
 webhook:
   # address: "" # Webhook address, if not empty, Webhook output is enabled
-  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  # method: "POST" # Webhook http method: POST or PUT (default: POST)
+  # customHeaders: # Custom headers to add in the request, useful for Authentication
   #   key: value
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
@@ -836,6 +837,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **DOGSTATSD_TAGS**: A comma-separated list of tags to add to all metrics
 - **WEBHOOK_ADDRESS** : Webhook address, if not empty, Webhook output is
   _enabled_
+- **WEBHOOK_METHOD** : HTTP method: POST or PUT (default: POST)
 - **WEBHOOK_CUSTOMHEADERS** : a list of comma separated custom headers to add,
   syntax is "key:value,key:value"
 - **WEBHOOK_MINIMUMPRIORITY** : minimum priority of event for using this output,

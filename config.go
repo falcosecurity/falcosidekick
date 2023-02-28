@@ -211,6 +211,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Dogstatsd.Tags", []string{})
 
 	v.SetDefault("Webhook.Address", "")
+	v.SetDefault("Webhook.Method", "POST")
 	v.SetDefault("Webhook.MinimumPriority", "")
 	v.SetDefault("Webhook.MutualTls", false)
 	v.SetDefault("Webhook.CheckCert", true)
