@@ -3,7 +3,7 @@ project_name: falcosidekick
 env:
   - GO111MODULE=on
   - DOCKER_CLI_EXPERIMENTAL=enabled
-  - COSIGN_EXPERIMENTAL=true
+  - COSIGN_YES=true
 
 snapshot:
   name_template: 'latest'
@@ -14,13 +14,14 @@ checksum:
 # Prevents parallel builds from stepping on each others toes downloading modules
 before:
   hooks:
-  - go mod tidy
+    - go mod tidy
+    - /bin/bash -c 'if [ -n "$(git --no-pager diff --exit-code go.mod go.sum)" ]; then exit 1; fi'
 
 # gomod:
 #   proxy: true
 
 sboms:
-- artifacts: archive
+  - artifacts: archive
 
 builds:
   - id: "falcosidekick"
@@ -104,52 +105,51 @@ dockers:
       - LICENSE
 
 docker_manifests:
-- name_template: 'falcosecurity/falcosidekick:stable'
-  image_templates:
-  - 'falcosecurity/falcosidekick:stable-amd64'
-  - 'falcosecurity/falcosidekick:stable-arm64'
-  - 'falcosecurity/falcosidekick:stable-armv7'
-- name_template: 'falcosecurity/falcosidekick:{{ .Version }}'
-  image_templates:
-  - 'falcosecurity/falcosidekick:{{ .Version }}-amd64'
-  - 'falcosecurity/falcosidekick:{{ .Version }}-arm64'
-  - 'falcosecurity/falcosidekick:{{ .Version }}-armv7'
-- name_template: 'public.ecr.aws/falcosecurity/falcosidekick:stable'
-  image_templates:
-  - 'public.ecr.aws/falcosecurity/falcosidekick:stable-amd64'
-  - 'public.ecr.aws/falcosecurity/falcosidekick:stable-arm64'
-  - 'public.ecr.aws/falcosecurity/falcosidekick:stable-armv7'
-- name_template: 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}'
-  image_templates:
-  - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-amd64'
-  - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-arm64'
-  - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-armv7'
+  - name_template: 'falcosecurity/falcosidekick:stable'
+    image_templates:
+      - 'falcosecurity/falcosidekick:stable-amd64'
+      - 'falcosecurity/falcosidekick:stable-arm64'
+      - 'falcosecurity/falcosidekick:stable-armv7'
+  - name_template: 'falcosecurity/falcosidekick:{{ .Version }}'
+    image_templates:
+      - 'falcosecurity/falcosidekick:{{ .Version }}-amd64'
+      - 'falcosecurity/falcosidekick:{{ .Version }}-arm64'
+      - 'falcosecurity/falcosidekick:{{ .Version }}-armv7'
+  - name_template: 'public.ecr.aws/falcosecurity/falcosidekick:stable'
+    image_templates:
+      - 'public.ecr.aws/falcosecurity/falcosidekick:stable-amd64'
+      - 'public.ecr.aws/falcosecurity/falcosidekick:stable-arm64'
+      - 'public.ecr.aws/falcosecurity/falcosidekick:stable-armv7'
+  - name_template: 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}'
+    image_templates:
+      - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-amd64'
+      - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-arm64'
+      - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-armv7'
 
 signs:
   - id: falcosidekick
     signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
     cmd: cosign
-    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--key=./release/cosign.key", "${artifact}"]
-    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--output-certificate", "${artifact}.pem", "${artifact}"]
     artifacts: archive
   - id: checksum
     signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
     cmd: cosign
-    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--key=./release/cosign.key", "${artifact}"]
-    stdin: '{{ .Env.COSIGN_PASSWORD }}'
+    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--output-certificate", "${artifact}.pem", "${artifact}"]
     artifacts: checksum
 
 docker_signs:
-- id: falcosidekick
-  cmd: cosign
-  args: ["sign", "--key=./release/cosign.key", "--recursive", "${artifact}" ]
-  artifacts: manifests
-  stdin: '{{ .Env.COSIGN_PASSWORD }}'
-  output: true
+  - id: falcosidekick
+    cmd: cosign
+    args: ["sign", "--recursive", "${artifact}"]
+    artifacts: manifests
+    output: true
 
 release:
   github:
-    owner: falcosecurity
+    owner: cpanato
     name: falcosidekick
   prerelease: auto
   extra_files:
