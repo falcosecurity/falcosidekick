@@ -3,6 +3,8 @@ project_name: falcosidekick
 env:
   - GO111MODULE=on
   - DOCKER_CLI_EXPERIMENTAL=enabled
+  - DOCKER_BUILDKIT=1
+  - BUILDX_PLATFORMS=linux/amd64,linux/arm64,linux/arm/v7
   - COSIGN_YES=true
 
 snapshot:
@@ -53,8 +55,8 @@ dockers:
     image_templates:
       - "falcosecurity/falcosidekick:stable-amd64"
       - "falcosecurity/falcosidekick:{{ .Version }}-amd64"
-      - "public.ecr.aws/falcosecurity/falcosidekick:stable-amd64"
-      - "public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-amd64"
+      # - "public.ecr.aws/falcosecurity/falcosidekick:stable-amd64"
+      # - "public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-amd64"
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -149,8 +151,6 @@ docker_signs:
 
 release:
   github:
-    owner: cpanato
+    owner: falcosecurity
     name: falcosidekick
   prerelease: auto
-  extra_files:
-    - glob: ./release/cosign.pub
