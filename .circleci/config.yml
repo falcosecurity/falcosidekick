@@ -2,7 +2,7 @@ version: 2.1
 executors:
   default:
     docker:
-    - image: cimg/go:1.18.1
+    - image: cimg/go:1.20.2
 
 install_buildx: &install_buildx
   name: Install Docker buildx
@@ -74,20 +74,6 @@ install_syft: &install_syft
     syft version
 
 jobs:
-  lint:
-    executor:
-      name: default
-    steps:
-    - checkout
-    - run: make lint
-
-  test:
-    executor:
-      name: default
-    steps:
-    - checkout
-    - run: make test
-
   build-image:
     executor:
       name: default
@@ -109,72 +95,6 @@ jobs:
           make goreleaser-snapshot
           docker images
           docker run falcosecurity/falcosidekick:latest-amd64 --version
-
-  build-push-main:
-    executor:
-      name: default
-    environment:
-      DOCKER_BUILDKIT: 1
-      BUILDX_PLATFORMS: linux/amd64,linux/arm64,linux/arm/v7
-      DOCKER_CLI_EXPERIMENTAL: "enabled"
-    steps:
-    - checkout
-    - setup_remote_docker
-    - run: *install_buildx
-    - run: *setup_docker_multiarch
-    - run: *install_goreleaser
-    - run: *install_cosign
-    - run: *install_syft
-    - run:
-        no_output_timeout: 30m
-        command: |
-          make goreleaser-snapshot
-          docker run falcosecurity/falcosidekick:latest-amd64 --version
-    - run:
-        name: Push image to Dockerhub
-        no_output_timeout: 30m
-        command: |
-          echo ${DOCKERHUB_SECRET} | docker login -u ${DOCKERHUB_USER} --password-stdin
-          docker push falcosecurity/falcosidekick:latest-amd64
-          docker push falcosecurity/falcosidekick:latest-arm64
-          docker push falcosecurity/falcosidekick:latest-armv7
-          docker manifest create --amend falcosecurity/falcosidekick:latest falcosecurity/falcosidekick:latest-amd64 \
-            falcosecurity/falcosidekick:latest-arm64 falcosecurity/falcosidekick:latest-armv7
-          docker manifest push --purge falcosecurity/falcosidekick:latest
-
-  build-push-ecr:
-    executor:
-      name: default
-    environment:
-      DOCKER_BUILDKIT: 1
-      BUILDX_PLATFORMS: linux/amd64,linux/arm64,linux/arm/v7
-      DOCKER_CLI_EXPERIMENTAL: "enabled"
-    steps:
-    - checkout
-    - setup_remote_docker
-    - run: *install_buildx
-    - run: *setup_docker_multiarch
-    - run: *install_goreleaser
-    - run: *install_awscli
-    - run: *install_cosign
-    - run: *install_syft
-    - run:
-        no_output_timeout: 30m
-        command: |
-          make goreleaser-snapshot
-          docker run public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 --version
-    - run:
-        name: Push image to AWS ECR
-        no_output_timeout: 30m
-        command: |
-          aws ecr-public get-login-password --region us-east-1 | \
-            docker login --username AWS --password-stdin public.ecr.aws/falcosecurity
-          docker push public.ecr.aws/falcosecurity/falcosidekick:latest-amd64
-          docker push public.ecr.aws/falcosecurity/falcosidekick:latest-arm64
-          docker push public.ecr.aws/falcosecurity/falcosidekick:latest-armv7
-          docker manifest create --amend public.ecr.aws/falcosecurity/falcosidekick:latest public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 \
-            public.ecr.aws/falcosecurity/falcosidekick:latest-arm64 public.ecr.aws/falcosecurity/falcosidekick:latest-armv7
-          docker manifest push --purge public.ecr.aws/falcosecurity/falcosidekick:latest
 
   release:
     executor:
@@ -206,47 +126,18 @@ jobs:
 workflows:
   main:
     jobs:
-      - test:
-          filters:
-            tags:
-              only: /(v)?[0-9]+(\.[0-9]+)*(-.*)*/
-      - lint:
-          filters:
-            tags:
-              only: /(v)?[0-9]+(\.[0-9]+)*(-.*)*/
       - build-image:
-          requires:
-            - test
-            - lint
           filters:
             branches:
               ignore: master
             tags:
               only: /(v)?[0-9]+(\.[0-9]+)*(-.*)*/
-      - build-push-main:
-          context: falco
-          requires:
-            - test
-            - lint
-          filters:
-            branches:
-              only: master
-      - build-push-ecr:
-          context: test-infra
-          requires:
-            - test
-            - lint
-          filters:
-            branches:
-              only: master
       - release:
           context:
             - falco
             - test-infra
             - cosign
           requires:
-            - test
-            - lint
             - build-image
           filters:
             branches:
