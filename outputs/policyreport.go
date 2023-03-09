@@ -9,6 +9,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/google/uuid"
+
 	wgpolicy "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/apis/wgpolicyk8s.io/v1alpha2"
 	crdClient "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/generated/v1alpha2/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +49,7 @@ const (
 )
 
 var (
-	minimumPriority string
+	minimumPriority string //nolint: unused
 	//slice of policy reports
 	policyReports = make(map[string]*wgpolicy.PolicyReport)
 	//cluster policy report
@@ -153,7 +154,7 @@ func (c *Client) UpdateOrCreatePolicyReport(falcopayload types.FalcoPayload) {
 	}
 }
 
-//newResult creates a new entry for Reports
+// newResult creates a new entry for Reports
 func newResult(falcopayload types.FalcoPayload) (_ *wgpolicy.PolicyReportResult, namespace string) {
 	var properties = make(map[string]string)
 	for property, value := range falcopayload.OutputFields {
@@ -177,7 +178,7 @@ func newResult(falcopayload types.FalcoPayload) (_ *wgpolicy.PolicyReportResult,
 	}, namespace
 }
 
-//check for low priority events to delete first
+// check for low priority events to delete first
 func checklow(result []*wgpolicy.PolicyReportResult) (swapint int) {
 	for i, j := range result {
 		if j.Severity == medium || j.Severity == low || j.Severity == info {
@@ -187,7 +188,7 @@ func checklow(result []*wgpolicy.PolicyReportResult) (swapint int) {
 	return -1
 }
 
-//update summary for clusterpolicyreport 'report'
+// update summary for clusterpolicyreport 'report'
 func updateClusterPolicyReportSummary(event *wgpolicy.PolicyReportResult) {
 	if event.Result == fail {
 		clusterPolicyReport.Summary.Fail++
@@ -196,7 +197,7 @@ func updateClusterPolicyReportSummary(event *wgpolicy.PolicyReportResult) {
 	}
 }
 
-//update summary for specific policyreport in 'policyReports' at index 'n'
+// update summary for specific policyreport in 'policyReports' at index 'n'
 func updatePolicyReportSummary(rep *wgpolicy.PolicyReport, event *wgpolicy.PolicyReportResult) {
 	if event.Result == fail {
 		rep.Summary.Fail++

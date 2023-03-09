@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/embano1/memlog"
@@ -679,7 +680,16 @@ func main() {
 		log.Printf("[INFO]  : Debug mode : %v", config.Debug)
 	}
 
-	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", config.ListenAddress, config.ListenPort), nil); err != nil {
+	server := &http.Server{
+		Addr: fmt.Sprintf("%s:%d", config.ListenAddress, config.ListenPort),
+		// Timeouts
+		ReadTimeout:       60 * time.Second,
+		ReadHeaderTimeout: 60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("[ERROR] : %v", err.Error())
 	}
 }

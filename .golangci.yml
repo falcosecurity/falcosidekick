@@ -5,7 +5,6 @@ run:
 linters:
   disable-all: true
   enable:
-    - deadcode
     - goconst
     - gofmt
     - gosec
@@ -14,13 +13,11 @@ linters:
     - misspell
     - nakedret
     - prealloc
-    - structcheck
     - unconvert
-    - varcheck
+    - unused
   # Run with --fast=false for more extensive checks
   fast: true
   include:
   - EXC0002 # include "missing comments" issues from golint
   max-issues-per-linter: 0
   max-same-issues: 0
-  
