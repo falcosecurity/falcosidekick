@@ -11,7 +11,7 @@ require (
 	github.com/PagerDuty/go-pagerduty v1.5.1
 	github.com/aws/aws-sdk-go v1.44.217
 	github.com/cloudevents/sdk-go/v2 v2.11.0
-	github.com/eclipse/paho.mqtt.golang v1.4.1
+	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/embano1/memlog v0.4.4
 	github.com/emersion/go-sasl v0.0.0-20211008083017-0b9dcfb154ac
 	github.com/emersion/go-smtp v0.15.0
