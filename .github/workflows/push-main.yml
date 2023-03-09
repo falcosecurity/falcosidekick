@@ -1,6 +1,7 @@
 name: push-ci-images
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
