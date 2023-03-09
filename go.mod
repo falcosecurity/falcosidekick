@@ -1,6 +1,6 @@
 module github.com/falcosecurity/falcosidekick
 
-go 1.18
+go 1.20
 
 require (
 	cloud.google.com/go/functions v1.5.0
@@ -22,6 +22,7 @@ require (
 	github.com/nats-io/nats.go v1.16.0
 	github.com/nats-io/stan.go v0.10.3
 	github.com/prometheus/client_golang v1.13.0
+	github.com/redis/go-redis/v9 v9.0.2
 	github.com/segmentio/kafka-go v0.4.38
 	github.com/spf13/viper v1.12.0
 	github.com/streadway/amqp v1.0.0
@@ -112,7 +113,6 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
-	github.com/redis/go-redis/v9 v9.0.2 // indirect
 	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
