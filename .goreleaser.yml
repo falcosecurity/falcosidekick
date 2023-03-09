@@ -55,8 +55,8 @@ dockers:
     image_templates:
       - "falcosecurity/falcosidekick:stable-amd64"
       - "falcosecurity/falcosidekick:{{ .Version }}-amd64"
-      # - "public.ecr.aws/falcosecurity/falcosidekick:stable-amd64"
-      # - "public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-amd64"
+      - "public.ecr.aws/falcosecurity/falcosidekick:stable-amd64"
+      - "public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-amd64"
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
