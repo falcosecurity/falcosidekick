@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=alpine:3.15
+ARG BASE_IMAGE=alpine:3.17
 # Final Docker image
 FROM ${BASE_IMAGE} AS final-stage
 LABEL MAINTAINER "Thomas Labarussias <issif+falcosidekick@gadz.org>"
