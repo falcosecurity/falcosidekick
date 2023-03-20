@@ -39,6 +39,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("ListenAddress", "")
 	v.SetDefault("ListenPort", 2801)
 	v.SetDefault("Debug", false)
+	v.SetDefault("BracketReplacer", "")
 	v.SetDefault("MutualTlsFilesPath", "/etc/certs")
 
 	v.SetDefault("Slack.WebhookURL", "")

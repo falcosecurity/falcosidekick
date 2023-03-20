@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -103,10 +104,10 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	var kn, kp string
 	for i, j := range falcopayload.OutputFields {
 		if i == "k8s.ns.name" {
-			kn, _ = j.(string)
+			kn = j.(string)
 		}
 		if i == "k8s.pod.name" {
-			kp, _ = j.(string)
+			kp = j.(string)
 		}
 	}
 
@@ -144,9 +145,9 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		promLabels[strings.ReplaceAll(i, ".", "_")] = ""
 		for key, value := range falcopayload.OutputFields {
 			if key == i && regPromLabels.MatchString(strings.ReplaceAll(key, ".", "_")) {
-				switch v := value.(type) {
+				switch value.(type) {
 				case string:
-					promLabels[strings.ReplaceAll(key, ".", "_")] = v
+					promLabels[strings.ReplaceAll(key, ".", "_")] = fmt.Sprintf("%v", value)
 				default:
 					continue
 				}
@@ -154,6 +155,15 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 	promStats.Falco.With(promLabels).Inc()
+
+	if config.BracketReplacer != "" {
+		for i, j := range falcopayload.OutputFields {
+			if strings.Contains(i, "[") {
+				falcopayload.OutputFields[strings.ReplaceAll(strings.ReplaceAll(i, "]", ""), "[", config.BracketReplacer)] = j
+				delete(falcopayload.OutputFields, i)
+			}
+		}
+	}
 
 	if config.Debug {
 		body, _ := json.Marshal(falcopayload)

@@ -182,9 +182,12 @@ See **config_example.yaml** :
 #listenport: 2801 # port to listen for daemon (default: 2801)
 debug: false # if true all outputs will print in stdout the payload they send (default: false)
 customfields: # custom fields are added to falco events, if the value starts with % the relative env var is used
-  Akey: "AValue"
-  Bkey: "BValue"
-  Ckey: "CValue"
+  # Akey: "AValue"
+  # Bkey: "BValue"
+  # Ckey: "CValue"
+templatedfields: # templated fields are added to falco events and metrics, it uses Go template + output_fields values
+  # Dkey: '{{ or (index . "k8s.ns.labels.foo") "bar" }}'
+# bracketreplacer: "_" # if not empty, replace the brackets in keys of Output Fields
 mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls (default: "/etc/certs")
 
 slack:
@@ -594,7 +597,9 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   (default: false)
 - **CUSTOMFIELDS** : a list of comma separated custom fields to add to falco, if the value starts with % the relative env var is used
   events, syntax is "key:value,key:value"
-  **MUTUALTLSFILESPATH**: path which will be used to stored certs and key for mutual tls authentication (default: "/etc/certs")
+- **TEMPLATEDFIELDS** : templated fields are added to falco events and metrics, it uses Go template + output_fields values
+- **BRACKETREPLACER** : if not empty, the brackets in keys of Output Fields are replaced
+- **MUTUALTLSFILESPATH**: path which will be used to stored certs and key for mutual tls authentication (default: "/etc/certs")
 - **SLACK_WEBHOOKURL** : Slack Webhook URL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ)
 - **SLACK_CHANNEL** : Slack Channel (optionnal)
 - **SLACK_FOOTER** : Slack footer
