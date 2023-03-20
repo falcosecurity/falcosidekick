@@ -241,11 +241,17 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 			}
 		}
 		for i, j := range falcopayload.OutputFields {
-			switch v := j.(type) {
+			m := strings.ReplaceAll(strings.ReplaceAll(i, "]", ""), "[", ".")
+			switch j.(type) {
 			case string:
-				msg.MessageAttributes[i] = &sns.MessageAttributeValue{
+				msg.MessageAttributes[m] = &sns.MessageAttributeValue{
 					DataType:    aws.String("String"),
-					StringValue: aws.String(strings.ReplaceAll(strings.ReplaceAll(v, "]", ""), "[", ".")),
+					StringValue: aws.String(fmt.Sprintf("%v", j)),
+				}
+			case json.Number:
+				msg.MessageAttributes[m] = &sns.MessageAttributeValue{
+					DataType:    aws.String("Number"),
+					StringValue: aws.String(fmt.Sprintf("%v", j)),
 				}
 			default:
 				continue
