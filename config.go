@@ -399,7 +399,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("TimescaleDB.User", "postgres")
 	v.SetDefault("TimescaleDB.Password", "postgres")
 	v.SetDefault("TimescaleDB.Database", "falcosidekick")
-	v.SetDefault("TimescaleDB.Hypertable", "falcosidekick_events")
+	v.SetDefault("TimescaleDB.HypertableName", "falcosidekick_events")
 	v.SetDefault("TimescaleDB.MinimumPriority", "")
 
 	v.SetDefault("Redis.Address", "")
