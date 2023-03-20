@@ -6,8 +6,10 @@ customfields: # custom fields are added to falco events and metrics, if the valu
   Bkey: "BValue"
   Ckey: "CValue"
 templatedfields: # templated fields are added to falco events and metrics, it uses Go template + output_fields values
-  Dkey: '{{ or (index . "k8s.ns.labels.foo") "bar" }}'
+  # Dkey: '{{ or (index . "k8s.ns.labels.foo") "bar" }}'
+# bracketreplacer: "_" # if not empty, the brackets in keys of Output Fields are replaced
 mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls (default: "/etc/certs")
+
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled

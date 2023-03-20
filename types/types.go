@@ -51,6 +51,7 @@ type Configuration struct {
 	Debug              bool
 	ListenAddress      string
 	ListenPort         int
+	BracketReplacer    string
 	Customfields       map[string]string
 	Templatedfields    map[string]string
 	Prometheus         prometheusOutputConfig
