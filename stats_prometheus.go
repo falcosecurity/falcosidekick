@@ -41,6 +41,7 @@ func getOutputNewCounterVec() *prometheus.CounterVec {
 func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 	regPromLabels, _ := regexp.Compile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
 	labelnames := []string{
+		"hostname",
 		"rule",
 		"priority",
 		"k8s_ns_name",
