@@ -73,6 +73,8 @@ elasticsearch:
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # username: "" # use this username to authenticate to Elasticsearch if the username is not empty (default: "")
   # password: "" # use this password to authenticate to Elasticsearch if the password is not empty (default: "")
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
@@ -97,6 +99,8 @@ loki:
   # tenant: "" # Add the Tenant header
   # endpoint: "/loki/api/v1/push" # The endpoint URL path, default is "/loki/api/v1/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
   # extralabels: "" # comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
 
 nats:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
@@ -313,6 +317,8 @@ grafana:
   # allfieldsastags: false # if true, all custom fields are added as tags (default: false)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 webui:
