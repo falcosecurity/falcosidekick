@@ -78,6 +78,10 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 		c.BasicAuth(c.Config.Loki.User, c.Config.Loki.APIKey)
 	}
 
+	for i, j := range c.Config.Loki.CustomHeaders {
+		c.AddHeader(i, j)
+	}
+
 	err := c.Post(newLokiPayload(falcopayload, c.Config))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:loki", "status:error"})

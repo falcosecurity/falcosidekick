@@ -63,9 +63,9 @@ type Configuration struct {
 	Datadog            datadogOutputConfig
 	Discord            DiscordOutputConfig
 	Alertmanager       AlertmanagerOutputConfig
-	Elasticsearch      elasticsearchOutputConfig
+	Elasticsearch      ElasticsearchOutputConfig
 	Influxdb           influxdbOutputConfig
-	Loki               lokiOutputConfig
+	Loki               LokiOutputConfig
 	Nats               natsOutputConfig
 	Stan               stanOutputConfig
 	AWS                awsOutputConfig
@@ -89,7 +89,7 @@ type Configuration struct {
 	Rabbitmq           RabbitmqConfig
 	Wavefront          WavefrontOutputConfig
 	Fission            fissionConfig
-	Grafana            grafanaOutputConfig
+	Grafana            GrafanaOutputConfig
 	Yandex             YandexOutputConfig
 	Syslog             SyslogConfig
 	NodeRed            NodeRedOutputConfig
@@ -205,7 +205,7 @@ type AlertmanagerOutputConfig struct {
 	ExtraAnnotations map[string]string
 }
 
-type elasticsearchOutputConfig struct {
+type ElasticsearchOutputConfig struct {
 	HostPort        string
 	Index           string
 	Type            string
@@ -215,6 +215,7 @@ type elasticsearchOutputConfig struct {
 	Password        string
 	CheckCert       bool
 	MutualTLS       bool
+	CustomHeaders   map[string]string
 }
 
 type influxdbOutputConfig struct {
@@ -231,7 +232,7 @@ type influxdbOutputConfig struct {
 	MutualTLS       bool
 }
 
-type lokiOutputConfig struct {
+type LokiOutputConfig struct {
 	HostPort        string
 	User            string
 	APIKey          string
@@ -242,6 +243,7 @@ type lokiOutputConfig struct {
 	Endpoint        string
 	ExtraLabels     string
 	ExtraLabelsList []string
+	CustomHeaders   map[string]string
 }
 
 type prometheusOutputConfig struct {
@@ -518,8 +520,8 @@ type RabbitmqConfig struct {
 	MinimumPriority string
 }
 
-// grafanaOutputConfig represents parameters for Grafana
-type grafanaOutputConfig struct {
+// GrafanaOutputConfig represents parameters for Grafana
+type GrafanaOutputConfig struct {
 	HostPort        string
 	APIKey          string
 	DashboardID     int
@@ -528,6 +530,7 @@ type grafanaOutputConfig struct {
 	CheckCert       bool
 	MutualTLS       bool
 	MinimumPriority string
+	CustomHeaders   map[string]string
 }
 
 type YandexOutputConfig struct {

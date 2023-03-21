@@ -253,6 +253,8 @@ elasticsearch:
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # username: "" # use this username to authenticate to Elasticsearch if the username is not empty (default: "")
   # password: "" # use this password to authenticate to Elasticsearch if the password is not empty (default: "")
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
 
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
@@ -276,6 +278,8 @@ loki:
   # tenant: "" # Add the tenant header if needed. Enabled if not empty
   # endpoint: "/api/prom/push" # The endpoint URL path, default is "/api/prom/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
   # extralabels: "" # comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
 
 stan:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, STAN output is enabled
@@ -485,6 +489,8 @@ grafana:
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
 
 policyreport:
   enabled: false  # if true; policyreport output is enabled
@@ -707,6 +713,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   username is not empty (default: "")
 - **ELASTICSEARCH_PASSWORD** : use this password to authenticate to Elasticsearch if the
   password is not empty (default: "")
+- **ELASTICSEARCH_CUSTOMHEADERS** : a list of comma separated custom headers to add,
+  syntax is "key:value,key:value"
 - **INFLUXDB_HOSTPORT** : Influxdb http://host:port, if not `empty`, Influxdb is
   _enabled_
 - **INFLUXDB_DATABASE** : Influxdb database (default: falco)
@@ -735,6 +743,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **LOKI_ENDPOINT** : Loki endpoint URL path, default is "/api/prom/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
 - **NATS_HOSTPORT** : NATS "nats://host:port", if not `empty`, NATS is _enabled_
 - **LOKI_EXTRALABELS** : comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
+- **LOKI_CUSTOMHEADERS** : a list of comma separated custom headers to add,
+  syntax is "key:value,key:value"
 - **NATS_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
@@ -987,6 +997,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **GRAFANA_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
 - **GRAFANA_MINIMUMPRIORITY**: minimum priority of event for using this output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **GRAFANA_CUSTOMHEADERS** : a list of comma separated custom headers to add,
+  syntax is "key:value,key:value"
 - **YANDEX_ACCESSKEYID** : Yandex Access Key Id
 - **YANDEX_SECRETACCESSKEY** : Yandex Secret Access Key
 - **YANDEX_REGION**: Yandex region (default: ru-central-1)

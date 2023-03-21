@@ -39,6 +39,10 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 		c.BasicAuth(c.Config.Elasticsearch.Username, c.Config.Elasticsearch.Password)
 	}
 
+	for i, j := range c.Config.Elasticsearch.CustomHeaders {
+		c.AddHeader(i, j)
+	}
+
 	err = c.Post(falcopayload)
 	if err != nil {
 		c.setElasticSearchErrorMetrics()
