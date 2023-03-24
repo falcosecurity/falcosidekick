@@ -27,6 +27,7 @@ var (
 
 • *Time*: {{markdownV2EscapeText .Time }}
 • *Source*: {{markdownV2EscapeText .Source }}
+• *Hostname*: {{markdownV2EscapeText .Hostname }}
 • *Tags*: {{ range .Tags }}{{markdownV2EscapeText . }} {{ end }}
 • *Fields*:
 {{ range $key, $value := .OutputFields }}	  • *{{markdownV2EscapeText $key }}*: {{markdownV2EscapeText $value }}

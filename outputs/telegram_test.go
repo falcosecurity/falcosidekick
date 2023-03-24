@@ -11,7 +11,7 @@ import (
 
 func TestNewTelegramPayload(t *testing.T) {
 	expectedOutput := telegramPayload{
-		Text:                  "*\\[Falco\\] \\[Debug\\] Test rule*\n\n• *Time*: 2001\\-01\\-01 01:10:00 \\+0000 UTC\n• *Source*: syscalls\n• *Tags*: test example \n• *Fields*:\n\t  • *proc\\.name*: falcosidekick\n\t  • *proc\\.tty*: 1234\n\n\n**Output**: This is a test from falcosidekick\n",
+		Text:                  "*\\[Falco\\] \\[Debug\\] Test rule*\n\n• *Time*: 2001\\-01\\-01 01:10:00 \\+0000 UTC\n• *Source*: syscalls\n• *Hostname*: test\\-host\n• *Tags*: test example \n• *Fields*:\n\t  • *proc\\.name*: falcosidekick\n\t  • *proc\\.tty*: 1234\n\n\n**Output**: This is a test from falcosidekick\n",
 		ParseMode:             "MarkdownV2",
 		DisableWebPagePreview: true,
 		ChatID:                "-987654321",
