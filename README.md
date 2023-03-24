@@ -30,6 +30,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**Discord**](https://www.discord.com/)
 - [**Google Chat**](https://workspace.google.com/products/chat/)
 - [**Zoho Cliq**](https://www.zoho.com/cliq/)
+- [**Telegram**](https://telegram.org)
 
 ### Metrics / Observability
 
@@ -578,6 +579,12 @@ redis:
   # storagetype: "" # Redis storage type: hashmap or list (default: list)
   # key: "" # Redis storage key name for hashmap, list(default: "falco")
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+telegram:
+  # token: "" # telegram bot authentication token
+  # chatid: "" # telegram Identifier of the shared chat
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
 Usage :
@@ -1065,6 +1072,10 @@ order is
 - **REDIS_STORAGE**: Redis storage type: hashmap or list (default: "list")
 - **REDIS_Key**: Redis storage key name for hashmap, list(default: "falco")
 - **REDIS_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+- **TELEGRAM_TOKEN**: telegram bot authentication token
+- **TELEGRAM_CHATID**: telegram Identifier of the shared chat
+- **TELEGRAM_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
+- **TELEGRAM_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
