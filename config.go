@@ -416,6 +416,11 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Redis.MutualTls", false)
 	v.SetDefault("Redis.CheckCert", true)
 
+	v.SetDefault("Slack.Token", "")
+	v.SetDefault("Slack.ChatID", "")
+	v.SetDefault("Slack.MinimumPriority", "")
+	v.SetDefault("Slack.CheckCert", true)
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -601,6 +606,7 @@ func getConfig() *types.Configuration {
 	c.Gotify.MinimumPriority = checkPriority(c.Gotify.MinimumPriority)
 	c.TimescaleDB.MinimumPriority = checkPriority(c.TimescaleDB.MinimumPriority)
 	c.Redis.MinimumPriority = checkPriority(c.Redis.MinimumPriority)
+	c.Telegram.MinimumPriority = checkPriority(c.Telegram.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

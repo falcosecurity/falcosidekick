@@ -99,6 +99,7 @@ type Configuration struct {
 	Spyderbat          SpyderbatConfig
 	TimescaleDB        TimescaleDBConfig
 	Redis              RedisConfig
+	Telegram           TelegramConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -640,6 +641,14 @@ type RedisConfig struct {
 	MutualTLS       bool
 }
 
+// TelegramConfig represents parameters for Telegram
+type TelegramConfig struct {
+	Token           string
+	ChatID          string
+	MinimumPriority string
+	CheckCert       bool
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -700,6 +709,7 @@ type Statistics struct {
 	Spyderbat         *expvar.Map
 	TimescaleDB       *expvar.Map
 	Redis             *expvar.Map
+	Telegram          *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

@@ -416,3 +416,9 @@ redis:
   # storagetype: "" # Redis storage type: hashmap or list (default: "list")
   # key: "" # Redis storage key name for hashmap, list(default: "falco")
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+telegram:
+  # token: "" # telegram bot authentication token
+  # chatid: "" # telegram Identifier of the shared chat
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

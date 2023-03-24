@@ -65,6 +65,7 @@ var (
 	spyderbatClient     *outputs.Client
 	timescaleDBClient   *outputs.Client
 	redisClient         *outputs.Client
+	telegramClient      *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -660,6 +661,22 @@ func init() {
 			config.Redis.Address = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Redis")
+		}
+	}
+
+	if config.Telegram.ChatID != "" && config.Telegram.Token != "" {
+		var err error
+		var urlFormat = "https://api.telegram.org/bot%s/sendMessage"
+
+		telegramClient, err = outputs.NewClient("Telegram", fmt.Sprintf(urlFormat, config.Telegram.Token), false, config.Telegram.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+
+		if err != nil {
+			config.Telegram.ChatID = ""
+			config.Telegram.Token = ""
+
+			log.Printf("[ERROR] : Telegram - %v\n", err)
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Telegram")
 		}
 	}
 

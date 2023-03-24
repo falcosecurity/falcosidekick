@@ -382,4 +382,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Redis.Address != "" && (falcopayload.Priority >= types.Priority(config.Redis.MinimumPriority) || falcopayload.Rule == testRule) {
 		go redisClient.RedisPost(falcopayload)
 	}
+
+	if config.Telegram.ChatID != "" && config.Telegram.Token != "" && (falcopayload.Priority >= types.Priority(config.Telegram.MinimumPriority) || falcopayload.Rule == testRule) {
+		go telegramClient.TelegramPost(falcopayload)
+	}
 }
