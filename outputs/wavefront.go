@@ -29,21 +29,17 @@ func NewWavefrontClient(config *types.Configuration, stats *types.Statistics, pr
 
 	switch config.Wavefront.EndpointType {
 	case "direct":
-		server := fmt.Sprintf("https://%s", config.Wavefront.EndpointHost)
-		directCfg := &wavefront.DirectConfiguration{
-			Server:               server,
-			Token:                config.Wavefront.EndpointToken,
-			FlushIntervalSeconds: flushInterval,
-			BatchSize:            batchSize,
-		}
-		sender, err = wavefront.NewDirectSender(directCfg)
+		server := fmt.Sprintf("https://%s@%s", config.Wavefront.EndpointToken, config.Wavefront.EndpointHost)
+		sender, err = wavefront.NewSender(
+			server,
+			wavefront.BatchSize(batchSize),
+			wavefront.FlushIntervalSeconds(flushInterval),
+		)
 	case "proxy":
-		proxyCfg := &wavefront.ProxyConfiguration{
-			Host:                 config.Wavefront.EndpointHost,
-			MetricsPort:          config.Wavefront.EndpointMetricPort,
-			FlushIntervalSeconds: flushInterval,
-		}
-		sender, err = wavefront.NewProxySender(proxyCfg)
+		sender, err = wavefront.NewSender(
+			config.Wavefront.EndpointHost,
+			wavefront.MetricsPort(config.Wavefront.EndpointMetricPort),
+		)
 	default:
 		return nil, fmt.Errorf("failed to configure wavefront sender: invalid type %s", config.Wavefront.EndpointType)
 	}
