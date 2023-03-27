@@ -3,7 +3,7 @@ module github.com/falcosecurity/falcosidekick
 go 1.20
 
 require (
-	cloud.google.com/go/functions v1.11.0
+	cloud.google.com/go/functions v1.12.0
 	cloud.google.com/go/pubsub v1.29.0
 	cloud.google.com/go/storage v1.30.0
 	github.com/Azure/azure-event-hubs-go/v3 v3.4.0
@@ -32,7 +32,7 @@ require (
 	github.com/xitongsys/parquet-go-source v0.0.0-20230312005205-fbbcdea5f512
 	golang.org/x/oauth2 v0.6.0
 	google.golang.org/api v0.114.0
-	google.golang.org/genproto v0.0.0-20230306155012-7f2fa6fef1f4
+	google.golang.org/genproto v0.0.0-20230320184635-7606e756e683
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.26.3
