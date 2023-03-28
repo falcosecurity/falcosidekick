@@ -1236,17 +1236,43 @@ permissions to access the resources you selected to use, like `SQS`, `Lambda`,
 To use TimescaleDB you should create the Hypertable first, following this example
 
 ```sql
-CREATE TABLE falco_events (
+CREATE TABLE falcosidekick_events (
 	time TIMESTAMPTZ NOT NULL,
 	rule TEXT,
 	priority VARCHAR(20),
 	source VARCHAR(20),
-	output TEXT
+	output TEXT,
+	tags TEXT,
+	hostname TEXT,
 );
-SELECT create_hypertable('falco_events', 'time');
+SELECT create_hypertable('falcosidekick_events', 'time');
 ```
 
-The name from the table should match with the `hypertable` output configuration.
+To support [`customfields` or `templatedfields`](#yaml-file) you need to ensure you add the corresponding fields to the Hypertable, for example:
+
+```yaml
+customfields:
+  custom_field_1: "custom-value-1"
+templatedfields:
+  k8s_namespace: '{{ or (index . "k8s.ns.name") "null" }}'
+```
+
+```sql
+CREATE TABLE falcosidekick_events (
+	time TIMESTAMPTZ NOT NULL,
+	rule TEXT,
+	priority VARCHAR(20),
+	source VARCHAR(20),
+	output TEXT,
+	tags TEXT,
+	hostname TEXT,
+	custom_field_1 TEXT,
+	k8s_namespace TEXT
+);
+SELECT create_hypertable('falcosidekick_events', 'time');
+```
+
+The name from the table should match with the `hypertable` output configuration. The TimescaleDB output processor will insert SQL nulls when it encounters a string field value of `"null"`.
 
 ## Examples
 
