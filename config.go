@@ -19,13 +19,14 @@ import (
 
 func getConfig() *types.Configuration {
 	c := &types.Configuration{
-		Customfields:  make(map[string]string),
-		Grafana:       types.GrafanaOutputConfig{CustomHeaders: make(map[string]string)},
-		Loki:          types.LokiOutputConfig{CustomHeaders: make(map[string]string)},
-		Elasticsearch: types.ElasticsearchOutputConfig{CustomHeaders: make(map[string]string)},
-		Webhook:       types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
-		Alertmanager:  types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string)},
-		CloudEvents:   types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
+		Customfields:    make(map[string]string),
+		Templatedfields: make(map[string]string),
+		Grafana:         types.GrafanaOutputConfig{CustomHeaders: make(map[string]string)},
+		Loki:            types.LokiOutputConfig{CustomHeaders: make(map[string]string)},
+		Elasticsearch:   types.ElasticsearchOutputConfig{CustomHeaders: make(map[string]string)},
+		Webhook:         types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
+		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string)},
+		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
@@ -445,6 +446,7 @@ func getConfig() *types.Configuration {
 	}
 
 	v.GetStringMapString("Customfields")
+	v.GetStringMapString("Templatedfields")
 	v.GetStringMapString("Webhook.CustomHeaders")
 	v.GetStringMapString("CloudEvents.Extensions")
 	v.GetStringMapString("AlertManager.ExtraLabels")
