@@ -43,30 +43,28 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 			d, err := strconv.ParseInt(j.(string), 10, 64)
 			if err == nil {
 				var jj string
-				switch {
-				case d == 0:
+				if d == 0 {
+					if falcopayload.Priority < types.Warning {
+						falcopayload.Priority = types.Warning
+					}
 					jj = "0"
-					falcopayload.Priority = types.Warning
-				case d < 10:
-					jj = "<10"
-					falcopayload.Priority = types.Warning
-				case d > 10000:
-					jj = ">10000"
-					falcopayload.Priority = types.Critical
-				case d > 1000:
-					jj = ">1000"
-					falcopayload.Priority = types.Critical
-				case d > 100:
-					jj = ">100"
-					falcopayload.Priority = types.Critical
-				case d > 10:
-					jj = ">10"
-					falcopayload.Priority = types.Warning
-				default:
-					jj = j.(string)
-					falcopayload.Priority = types.Critical
+				} else {
+					for _, threshold := range config.Alertmanager.DropEventThresholdsList {
+						if d > threshold.Value {
+							jj = ">" + strconv.FormatInt(threshold.Value, 10)
+							if falcopayload.Priority < threshold.Priority {
+								falcopayload.Priority = threshold.Priority
+							}
+							break
+						}
+					}
 				}
-
+				if jj == "" {
+					jj = j.(string)
+					if prio := types.Priority(config.Alertmanager.DropEventDefaultPriority); falcopayload.Priority < prio {
+						falcopayload.Priority = prio
+					}
+				}
 				amPayload.Labels[i] = jj
 			}
 			continue
