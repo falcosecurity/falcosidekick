@@ -8,6 +8,8 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -113,6 +115,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Alertmanager.CheckCert", true)
 	v.SetDefault("Alertmanager.Endpoint", "/api/v1/alerts")
 	v.SetDefault("Alertmanager.ExpiresAfter", 0)
+	v.SetDefault("Alertmanager.DropEventDefaultPriority", "critical")
+	v.SetDefault("Alertmanager.DropEventThresholds", "10000:critical, 1000:critical, 100:critical, 10:warning, 1:warning")
 
 	v.SetDefault("Elasticsearch.HostPort", "")
 	v.SetDefault("Elasticsearch.Index", "falco")
@@ -587,6 +591,10 @@ func getConfig() *types.Configuration {
 		}
 	}
 
+	if value, present := os.LookupEnv("ALERTMANAGER_DROPEVENTTHRESHOLDS"); present {
+		c.Alertmanager.DropEventThresholds = value
+	}
+
 	if value, present := os.LookupEnv("GCP_PUBSUB_CUSTOMATTRIBUTES"); present {
 		customattributes := strings.Split(value, ",")
 		for _, label := range customattributes {
@@ -620,12 +628,44 @@ func getConfig() *types.Configuration {
 		c.Prometheus.ExtraLabelsList = strings.Split(strings.ReplaceAll(c.Prometheus.ExtraLabels, " ", ""), ",")
 	}
 
+	if c.Alertmanager.DropEventThresholds != "" {
+		c.Alertmanager.DropEventThresholdsList = make([]types.ThresholdConfig, 0)
+		thresholds := strings.Split(strings.ReplaceAll(c.Alertmanager.DropEventThresholds, " ", ""), ",")
+		for _, threshold := range thresholds {
+			values := strings.SplitN(threshold, ":", 2)
+			if len(values) != 2 {
+				log.Printf("[ERROR] : AlertManager - Fail to parse threshold - No priority given for threshold %v", threshold)
+				continue
+			}
+			valueString := strings.TrimSpace(values[0])
+			valueInt, err := strconv.ParseInt(valueString, 10, 64)
+			if len(values) != 2 || err != nil {
+				log.Printf("[ERROR] : AlertManager - Fail to parse threshold - Atoi fail %v", threshold)
+				continue
+			}
+			priority := types.Priority(strings.TrimSpace(values[1]))
+			if priority == types.Default {
+				log.Printf("[ERROR] : AlertManager - Priority '%v' is not a valid falco priority level", priority.String())
+				continue
+			}
+			c.Alertmanager.DropEventThresholdsList = append(c.Alertmanager.DropEventThresholdsList, types.ThresholdConfig{Priority: priority, Value: valueInt})
+		}
+	}
+
+	if len(c.Alertmanager.DropEventThresholdsList) > 0 {
+		sort.Slice(c.Alertmanager.DropEventThresholdsList, func(i, j int) bool {
+			// The `>` is used to sort in descending order. If you want to sort in ascending order, use `<`.
+			return c.Alertmanager.DropEventThresholdsList[i].Value > c.Alertmanager.DropEventThresholdsList[j].Value
+		})
+	}
+
 	c.Slack.MinimumPriority = checkPriority(c.Slack.MinimumPriority)
 	c.Rocketchat.MinimumPriority = checkPriority(c.Rocketchat.MinimumPriority)
 	c.Mattermost.MinimumPriority = checkPriority(c.Mattermost.MinimumPriority)
 	c.Teams.MinimumPriority = checkPriority(c.Teams.MinimumPriority)
 	c.Datadog.MinimumPriority = checkPriority(c.Datadog.MinimumPriority)
 	c.Alertmanager.MinimumPriority = checkPriority(c.Alertmanager.MinimumPriority)
+	c.Alertmanager.DropEventDefaultPriority = checkPriority(c.Alertmanager.DropEventDefaultPriority)
 	c.Elasticsearch.MinimumPriority = checkPriority(c.Elasticsearch.MinimumPriority)
 	c.Influxdb.MinimumPriority = checkPriority(c.Influxdb.MinimumPriority)
 	c.Loki.MinimumPriority = checkPriority(c.Loki.MinimumPriority)
