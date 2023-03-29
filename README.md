@@ -261,6 +261,7 @@ alertmanager:
   # expiresafter: "" if set to a non-zero value, alert expires after that time in seconds (default: 0)
   # extralabels: "" # comma separated list of labels composed of a ':' separated name and value that is added to the Alerts. Example: my_label_1:my_value_1, my_label_1:my_value_2
   # extraannotations: "" # comma separated list of annotations composed of a ':' separated name and value that is added to the Alerts. Example: my_annotation_1:my_value_1, my_annotation_1:my_value_2
+  # customseveritymap: "" # comma separated list of tuple composed of a ':' separated Falco priority and Alertmanager severity that is used to override the severity label associated to the priority level of falco event. Example: debug:value_1,critical:value2.  Default mapping (priority:severity): emergency:critical|alert:critical|critical:critical|error:warning|warning:warning|notice:information|informational:information|debug:information
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
@@ -766,6 +767,11 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   added to the Alerts. Example: `my_label_1:my_value_1, my_label_1:my_value_2` (default: `""`)
 - **ALERTMANAGER_EXTRAANNOTATIONS** : comma separated list of annotations composed of a ':' separated name and
   value that is added to the Alerts. Example: `my_annotation_1:my_value_1, my_annotation_1:my_value_2` (default: `""`)
+- **ALERTMANAGER_CUSTOMSEVERITYMAP** : comma separated list of tuple composed of a ':' separated Falco priority and
+  Alertmanager severity that is used to override the severity label associated to the priority level of falco event.
+  Example: `debug:value_1,critical:value2`. 
+  Default mapping (priority:severity): `emergency:critical|alert:critical|critical:critical|error:warning|warning:warning|notice:information|informational:information|debug:information`.
+  (default: `""`)
 - **ELASTICSEARCH_HOSTPORT** : Elasticsearch http://host:port, if not `empty`,
   Elasticsearch is _enabled_
 - **ELASTICSEARCH_INDEX** : Elasticsearch index (default: falco)

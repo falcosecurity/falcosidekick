@@ -26,7 +26,7 @@ func getConfig() *types.Configuration {
 		Elasticsearch:   types.ElasticsearchOutputConfig{CustomHeaders: make(map[string]string)},
 		OpenObserve:     types.OpenObserveConfig{CustomHeaders: make(map[string]string)},
 		Webhook:         types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
-		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string)},
+		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[string]string)},
 		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
 	}
@@ -483,6 +483,7 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("CloudEvents.Extensions")
 	v.GetStringMapString("AlertManager.ExtraLabels")
 	v.GetStringMapString("AlertManager.ExtraAnnotations")
+	v.GetStringMapString("AlertManager.CustomSeverityMap")
 	v.GetStringMapString("GCP.PubSub.CustomAttributes")
 	if err := v.Unmarshal(c); err != nil {
 		log.Printf("[ERROR] : Error unmarshalling config : %s", err)
@@ -566,6 +567,21 @@ func getConfig() *types.Configuration {
 				c.Alertmanager.ExtraAnnotations[annotationName] = strings.TrimSpace(annotationValue)
 			} else {
 				c.Alertmanager.ExtraAnnotations[annotationName] = ""
+			}
+		}
+	}
+
+	if value, present := os.LookupEnv("ALERTMANAGER_CUSTOMSEVERITYMAP"); present {
+		severitymap := strings.Split(value, ",")
+		for _, severitymatch := range severitymap {
+			priorityString, severityValue, found := strings.Cut(severitymatch, ":")
+			if types.Priority(priorityString) == types.Default {
+				log.Printf("[ERROR] : AlertManager - Priority '%v' is not a valid falco priority level", priorityString)
+				continue
+			} else if found {
+				c.Alertmanager.CustomSeverityMap[priorityString] = strings.TrimSpace(severityValue)
+			} else {
+				log.Printf("[ERROR] : AlertManager - No severity given to '%v' (tuple extracted: '%v')", priorityString, severitymatch)
 			}
 		}
 	}
