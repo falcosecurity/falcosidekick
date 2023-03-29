@@ -16,6 +16,17 @@ type alertmanagerPayload struct {
 	EndsAt      time.Time         `json:"endsAt,omitempty"`
 }
 
+var defaultSeverityMap = map[types.PriorityType]string{
+	types.Debug:         "information",
+	types.Informational: "information",
+	types.Notice:        "information",
+	types.Warning:       "warning",
+	types.Error:         "warning",
+	types.Critical:      "critical",
+	types.Alert:         "critical",
+	types.Emergency:     "critical",
+}
+
 func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Configuration) []alertmanagerPayload {
 	var amPayload alertmanagerPayload
 	amPayload.Labels = make(map[string]string)
@@ -81,6 +92,13 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 	}
 
 	amPayload.Labels["priority"] = falcopayload.Priority.String()
+
+	if val, ok := config.Alertmanager.CustomSeverityMap[falcopayload.Priority.String()]; ok {
+		amPayload.Labels["severity"] = val
+	} else {
+		amPayload.Labels["severity"] = defaultSeverityMap[falcopayload.Priority]
+	}
+
 	amPayload.Annotations["info"] = falcopayload.Output
 	amPayload.Annotations["description"] = falcopayload.Output
 	amPayload.Annotations["summary"] = falcopayload.Rule

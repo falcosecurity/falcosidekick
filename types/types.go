@@ -224,7 +224,8 @@ type AlertmanagerOutputConfig struct {
 	Endpoint         string
 	ExpiresAfter     int
 	ExtraLabels      map[string]string
-	ExtraAnnotations map[string]string
+	ExtraAnnotations  map[string]string
+	CustomSeverityMap map[string]string
 }
 
 type ElasticsearchOutputConfig struct {
