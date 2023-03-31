@@ -496,41 +496,33 @@ func getConfig() *types.Configuration {
 			}
 		}
 	}
-	regex, _ := regexp.Compile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
+
+	promKVNameRegex, _ := regexp.Compile("^[a-zA-Z_][a-zA-Z0-9_]*$")
+
 	if value, present := os.LookupEnv("ALERTMANAGER_EXTRALABELS"); present {
-		extralabels := strings.Split(value, ",")
-		for _, labelData := range extralabels {
-			if !regex.MatchString(labelData) {
-				log.Printf("[ERROR] : AlertManager - Extra field '%v' is not a valid prometheus labelData", labelData)
-				continue
-			}
-			values := strings.SplitN(labelData, ":", 2)
-			label := strings.TrimSpace(values[0])
-			if !regex.MatchString(label) {
-				log.Printf("[ERROR] : AlertManager - Extra field '%v' is not a valid prometheus label", label)
-				continue
-			}
-			if len(values) == 2 {
-				c.Alertmanager.ExtraLabels[label] = strings.TrimSpace(values[1])
+		extraLabels := strings.Split(value, ",")
+		for _, labelData := range extraLabels {
+			labelName, labelValue, found := strings.Cut(labelData, ":")
+			if !promKVNameRegex.MatchString(labelName) {
+				log.Printf("[ERROR] : AlertManager - Extra label name '%v' is not valid", labelName)
+			} else if found {
+				c.Alertmanager.ExtraLabels[labelName] = strings.TrimSpace(labelValue)
 			} else {
-				c.Alertmanager.ExtraLabels[label] = ""
+				c.Alertmanager.ExtraLabels[labelName] = ""
 			}
 		}
 	}
 
 	if value, present := os.LookupEnv("ALERTMANAGER_EXTRAANNOTATIONS"); present {
-		extraannotations := strings.Split(value, ",")
-		for _, annotationData := range extraannotations {
-			values := strings.SplitN(annotationData, ":", 2)
-			annotation := strings.TrimSpace(values[0])
-			if !regex.MatchString(annotation) {
-				log.Printf("[ERROR] : AlertManager - Extra field '%v' is not a valid prometheus annotation", annotation)
-				continue
-			}
-			if len(values) == 2 {
-				c.Alertmanager.ExtraAnnotations[annotation] = strings.TrimSpace(values[1])
+		extraAnnotations := strings.Split(value, ",")
+		for _, annotationData := range extraAnnotations {
+			annotationName, annotationValue, found := strings.Cut(annotationData, ":")
+			if !promKVNameRegex.MatchString(annotationName) {
+				log.Printf("[ERROR] : AlertManager - Extra annotation name '%v' is not valid", annotationName)
+			} else if found {
+				c.Alertmanager.ExtraAnnotations[annotationName] = strings.TrimSpace(annotationValue)
 			} else {
-				c.Alertmanager.ExtraAnnotations[annotation] = ""
+				c.Alertmanager.ExtraAnnotations[annotationName] = ""
 			}
 		}
 	}
