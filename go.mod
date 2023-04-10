@@ -3,7 +3,7 @@ module github.com/falcosecurity/falcosidekick
 go 1.20
 
 require (
-	cloud.google.com/go/functions v1.12.0
+	cloud.google.com/go/functions v1.13.0
 	cloud.google.com/go/pubsub v1.30.0
 	cloud.google.com/go/storage v1.30.1
 	github.com/Azure/azure-event-hubs-go/v3 v3.5.0
