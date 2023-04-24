@@ -100,6 +100,7 @@ type Configuration struct {
 	TimescaleDB        TimescaleDBConfig
 	Redis              RedisConfig
 	Telegram           TelegramConfig
+	N8N                N8NConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -649,6 +650,17 @@ type TelegramConfig struct {
 	CheckCert       bool
 }
 
+// N8NConfig represents config parameters for N8N
+type N8NConfig struct {
+	Address         string
+	User            string
+	Password        string
+	HeaderAuthName  string
+	HeaderAuthValue string
+	MinimumPriority string
+	CheckCert       bool
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -710,6 +722,7 @@ type Statistics struct {
 	TimescaleDB       *expvar.Map
 	Redis             *expvar.Map
 	Telegram          *expvar.Map
+	N8N               *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

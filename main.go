@@ -66,6 +66,7 @@ var (
 	timescaleDBClient   *outputs.Client
 	redisClient         *outputs.Client
 	telegramClient      *outputs.Client
+	n8nClient           *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -677,6 +678,16 @@ func init() {
 			log.Printf("[ERROR] : Telegram - %v\n", err)
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Telegram")
+		}
+	}
+
+	if config.N8N.Address != "" {
+		var err error
+		n8nClient, err = outputs.NewClient("n8n", config.N8N.Address, false, config.N8N.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.N8N.Address = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "n8n")
 		}
 	}
 
