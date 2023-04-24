@@ -386,4 +386,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Telegram.ChatID != "" && config.Telegram.Token != "" && (falcopayload.Priority >= types.Priority(config.Telegram.MinimumPriority) || falcopayload.Rule == testRule) {
 		go telegramClient.TelegramPost(falcopayload)
 	}
+
+	if config.N8N.Address != "" && (falcopayload.Priority >= types.Priority(config.N8N.MinimumPriority) || falcopayload.Rule == testRule) {
+		go n8nClient.N8NPost(falcopayload)
+	}
 }

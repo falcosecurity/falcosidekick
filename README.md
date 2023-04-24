@@ -105,6 +105,10 @@ It works as a single endpoint for as many as you want `Falco` instances :
 
 - [**AWS Security Lake**](https://aws.amazon.com/security-lake/)
 
+### Workflow
+
+- [**n8n**](https://n8n.io/)
+
 ### Other
 - [**Policy Report**](https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report/falco-adapter)
 
@@ -583,6 +587,15 @@ redis:
 telegram:
   # token: "" # telegram bot authentication token
   # chatid: "" # telegram Identifier of the shared chat
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+n8n:
+  # address: "" # N8N address, if not empty, N8N output is enabled
+  # user: "" # Username to authenticate with N8N in basic auth
+  # password: "" # Password to authenticate with N8N in basic auth
+  # headerauthname: "" # Header Auth Key to authenticate with N8N
+  # headerauthvalue: "" # Header Auth Value to authenticate with N8N
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
@@ -1076,6 +1089,11 @@ order is
 - **TELEGRAM_CHATID**: telegram Identifier of the shared chat
 - **TELEGRAM_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
 - **TELEGRAM_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+- **N8N_ADDRESS**: N8N address, if not empty, N8N output is enabled
+- **N8N_USER**: Password to authenticate with N8N in basic auth
+- **N8N_PASSWORD**: Header Auth Value to authenticate with N8N
+- **N8N_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
+- **N8N_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 

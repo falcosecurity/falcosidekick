@@ -77,6 +77,7 @@ func getInitStats() *types.Statistics {
 		TimescaleDB:       getOutputNewMap("timescaledb"),
 		Redis:             getOutputNewMap("redis"),
 		Telegram:          getOutputNewMap("telegram"),
+		N8N:               getOutputNewMap("n8n"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

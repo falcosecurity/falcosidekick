@@ -422,3 +422,12 @@ telegram:
   # chatid: "" # telegram Identifier of the shared chat
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+n8n:
+  # address: "" # N8N address, if not empty, N8N output is enabled
+  # user: "" # Username to authenticate with N8N in basic auth
+  # password: "" # Password to authenticate with N8N in basic auth
+  # headerauthname: "" # Header Auth Key to authenticate with N8N
+  # headerauthvalue: "" # Header Auth Value to authenticate with N8N
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

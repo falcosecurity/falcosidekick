@@ -416,6 +416,14 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Redis.MutualTls", false)
 	v.SetDefault("Redis.CheckCert", true)
 
+	v.SetDefault("N8n.Address", "")
+	v.SetDefault("N8n.User", "")
+	v.SetDefault("N8n.Password", "")
+	v.SetDefault("N8n.HeaderAuthName", "")
+	v.SetDefault("N8n.HeaderAuthValue", "")
+	v.SetDefault("N8n.MinimumPriority", "")
+	v.SetDefault("N8n.CheckCert", true)
+
 	v.SetDefault("Slack.Token", "")
 	v.SetDefault("Slack.ChatID", "")
 	v.SetDefault("Slack.MinimumPriority", "")
