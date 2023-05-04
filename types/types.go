@@ -90,6 +90,7 @@ type Configuration struct {
 	Wavefront          WavefrontOutputConfig
 	Fission            fissionConfig
 	Grafana            GrafanaOutputConfig
+	GrafanaOnCall      GrafanaOnCallOutputConfig
 	Yandex             YandexOutputConfig
 	Syslog             SyslogConfig
 	NodeRed            NodeRedOutputConfig
@@ -536,6 +537,15 @@ type GrafanaOutputConfig struct {
 	CustomHeaders   map[string]string
 }
 
+// GrafanaOnCallOutputConfig represents parameters for Grafana OnCall
+type GrafanaOnCallOutputConfig struct {
+	WebhookURL      string
+	CheckCert       bool
+	MutualTLS       bool
+	MinimumPriority string
+	CustomHeaders   map[string]string
+}
+
 type YandexOutputConfig struct {
 	AccessKeyID     string
 	SecretAccessKey string
@@ -709,6 +719,7 @@ type Statistics struct {
 	Wavefront         *expvar.Map
 	Fission           *expvar.Map
 	Grafana           *expvar.Map
+	GrafanaOnCall     *expvar.Map
 	YandexS3          *expvar.Map
 	YandexDataStreams *expvar.Map
 	Syslog            *expvar.Map

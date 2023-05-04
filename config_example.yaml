@@ -322,6 +322,14 @@ grafana:
   #   key: value
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
+grafanaoncall:
+  webhookurl: "" # if not empty, Grafana OnCall output is enabled
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
 

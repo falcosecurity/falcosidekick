@@ -57,6 +57,7 @@ var (
 	wavefrontClient     *outputs.Client
 	fissionClient       *outputs.Client
 	grafanaClient       *outputs.Client
+	grafanaOnCallClient *outputs.Client
 	yandexClient        *outputs.Client
 	syslogClient        *outputs.Client
 	mqttClient          *outputs.Client
@@ -432,7 +433,7 @@ func init() {
 		if err != nil {
 			config.Googlechat.WebhookURL = ""
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Google Chat")
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "GoogleChat")
 		}
 	}
 
@@ -560,6 +561,17 @@ func init() {
 		if err != nil {
 			config.Grafana.HostPort = ""
 			config.Grafana.APIKey = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, outputName)
+		}
+	}
+
+	if config.GrafanaOnCall.WebhookURL != "" {
+		var err error
+		var outputName = "GrafanaOnCall"
+		grafanaOnCallClient, err = outputs.NewClient(outputName, config.GrafanaOnCall.WebhookURL, config.GrafanaOnCall.MutualTLS, config.GrafanaOnCall.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.GrafanaOnCall.WebhookURL = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, outputName)
 		}

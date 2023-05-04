@@ -16,6 +16,13 @@ type grafanaPayload struct {
 	Text        string   `json:"text"`
 }
 
+type grafanaOnCallPayload struct {
+	AlertUID string `json:"alert_uid"`
+	State    string `json:"state"`
+	Title    string `json:"title"`
+	Message  string `json:"message"`
+}
+
 // The Content-Type to send along with the request
 const GrafanaContentType = "application/json"
 
@@ -56,6 +63,15 @@ func newGrafanaPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	return g
 }
 
+func newGrafanaOnCallPayload(falcopayload types.FalcoPayload, config *types.Configuration) grafanaOnCallPayload {
+	return grafanaOnCallPayload{
+		AlertUID: falcopayload.UUID,
+		Title:    fmt.Sprintf("[%v] %v", falcopayload.Priority, falcopayload.Rule),
+		State:    "alerting",
+		Message:  falcopayload.Output,
+	}
+}
+
 // GrafanaPost posts event to grafana
 func (c *Client) GrafanaPost(falcopayload types.FalcoPayload) {
 	c.Stats.Grafana.Add(Total, 1)
@@ -79,4 +95,30 @@ func (c *Client) GrafanaPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:grafana", "status:ok"})
 	c.Stats.Grafana.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "grafana", "status": OK}).Inc()
+}
+
+// GrafanaOnCallPost posts event to grafana onCall
+func (c *Client) GrafanaOnCallPost(falcopayload types.FalcoPayload) {
+	c.Stats.GrafanaOnCall.Add(Total, 1)
+	c.ContentType = GrafanaContentType
+	c.httpClientLock.Lock()
+	defer c.httpClientLock.Unlock()
+	for i, j := range c.Config.GrafanaOnCall.CustomHeaders {
+		c.AddHeader(i, j)
+	}
+
+	fmt.Printf("%#v\n", newGrafanaOnCallPayload(falcopayload, c.Config))
+
+	err := c.Post(newGrafanaOnCallPayload(falcopayload, c.Config))
+	if err != nil {
+		go c.CountMetric(Outputs, 1, []string{"output:grafanaoncall", "status:error"})
+		c.Stats.Grafana.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "grafanaoncall", "status": Error}).Inc()
+		log.Printf("[ERROR] : Grafana OnCall - %v\n", err)
+		return
+	}
+
+	go c.CountMetric(Outputs, 1, []string{"output:grafanaoncall", "status:ok"})
+	c.Stats.Grafana.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "grafanaoncall", "status": OK}).Inc()
 }
