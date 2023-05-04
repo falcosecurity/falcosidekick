@@ -348,6 +348,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Grafana.MutualTls", false)
 	v.SetDefault("Grafana.CheckCert", true)
 
+	v.SetDefault("GrafanaOnCall.WebhookURL", "")
+	v.SetDefault("GrafanaOnCall.MinimumPriority", "")
+	v.SetDefault("GrafanaOnCall.MutualTls", false)
+	v.SetDefault("GrafanaOnCall.CheckCert", true)
+
+	v.SetDefault("Grafana.MinimumPriority", "")
+	v.SetDefault("Grafana.MutualTls", false)
+	v.SetDefault("Grafana.CheckCert", true)
+
 	v.SetDefault("Yandex.AccessKeyID", "")
 	v.SetDefault("Yandex.SecretAccessKey", "")
 	v.SetDefault("Yandex.Region", "ru-central1")

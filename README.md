@@ -48,6 +48,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**AlertManager**](https://prometheus.io/docs/alerting/alertmanager/)
 - [**Opsgenie**](https://www.opsgenie.com/)
 - [**PagerDuty**](https://pagerduty.com/)
+- [**Grafana OnCall**](https://grafana.com/products/oncall/)
 
 ### Logs
 
@@ -486,6 +487,7 @@ fission:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+
 grafana:
   hostport: "" # http://{domain or ip}:{port}, if not empty, Grafana output is enabled
   apikey: "" # API Key to authenticate to Grafana, if not empty, Grafana output is enabled
@@ -497,6 +499,14 @@ grafana:
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # customHeaders: # Custom headers to add in POST, useful for Authentication
   #   key: value
+
+grafanaoncall:
+  webhookurl: "" # if not empty, Grafana OnCall output is enabled
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
+  # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 policyreport:
   enabled: false  # if true; policyreport output is enabled
@@ -1020,6 +1030,13 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **GRAFANA_MINIMUMPRIORITY**: minimum priority of event for using this output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **GRAFANA_CUSTOMHEADERS** : a list of comma separated custom headers to add,
+  syntax is "key:value,key:value"
+- **GRAFANAONCALL_WEBHOOKURL**: if not empty, Grafana OnCall output is enabled
+- **GRAFANAONCALL_MUTUALTLS**: if true, checkcert flag will be ignored (server cert will always be checked)
+- **GRAFANAONCALL_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
+- **GRAFANAONCALL_MINIMUMPRIORITY**: minimum priority of event for using this output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **GRAFANAONCALL_CUSTOMHEADERS** : a list of comma separated custom headers to add,
   syntax is "key:value,key:value"
 - **YANDEX_ACCESSKEYID** : Yandex Access Key Id
 - **YANDEX_SECRETACCESSKEY** : Yandex Secret Access Key

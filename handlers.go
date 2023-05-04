@@ -336,6 +336,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go grafanaClient.GrafanaPost(falcopayload)
 	}
 
+	if config.GrafanaOnCall.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.GrafanaOnCall.MinimumPriority) || falcopayload.Rule == testRule) {
+		go grafanaOnCallClient.GrafanaOnCallPost(falcopayload)
+	}
+
 	if config.WebUI.URL != "" {
 		go webUIClient.WebUIPost(falcopayload)
 	}

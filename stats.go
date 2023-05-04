@@ -65,6 +65,7 @@ func getInitStats() *types.Statistics {
 		Wavefront:         getOutputNewMap("wavefront"),
 		Fission:           getOutputNewMap("fission"),
 		Grafana:           getOutputNewMap("grafana"),
+		GrafanaOnCall:     getOutputNewMap("grafanaoncall"),
 		YandexS3:          getOutputNewMap("yandexs3"),
 		YandexDataStreams: getOutputNewMap("yandexdatastreams"),
 		Syslog:            getOutputNewMap("syslog"),
