@@ -23,7 +23,7 @@ require (
 	github.com/nats-io/stan.go v0.10.4
 	github.com/prometheus/client_golang v1.14.0
 	github.com/redis/go-redis/v9 v9.0.3
-	github.com/segmentio/kafka-go v0.4.39
+	github.com/segmentio/kafka-go v0.4.40
 	github.com/spf13/viper v1.15.0
 	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.8.2
@@ -120,8 +120,9 @@ require (
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
-	github.com/xdg/scram v1.0.5 // indirect
-	github.com/xdg/stringprep v1.0.3 // indirect
+	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
+	github.com/xdg-go/scram v1.1.2 // indirect
+	github.com/xdg-go/stringprep v1.0.4 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
