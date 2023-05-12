@@ -217,13 +217,13 @@ type DiscordOutputConfig struct {
 }
 
 type AlertmanagerOutputConfig struct {
-	HostPort         string
-	MinimumPriority  string
-	CheckCert        bool
-	MutualTLS        bool
-	Endpoint         string
-	ExpiresAfter     int
-	ExtraLabels      map[string]string
+	HostPort          string
+	MinimumPriority   string
+	CheckCert         bool
+	MutualTLS         bool
+	Endpoint          string
+	ExpiresAfter      int
+	ExtraLabels       map[string]string
 	ExtraAnnotations  map[string]string
 	CustomSeverityMap map[string]string
 }
