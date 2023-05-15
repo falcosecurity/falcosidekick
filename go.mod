@@ -10,7 +10,7 @@ require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
 	github.com/PagerDuty/go-pagerduty v1.6.0
 	github.com/aws/aws-sdk-go v1.44.253
-	github.com/cloudevents/sdk-go/v2 v2.13.0
+	github.com/cloudevents/sdk-go/v2 v2.14.0
 	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/embano1/memlog v0.4.4
 	github.com/emersion/go-sasl v0.0.0-20220912192320-0145f2c60ead
