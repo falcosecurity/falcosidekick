@@ -26,7 +26,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.40
 	github.com/spf13/viper v1.15.0
 	github.com/streadway/amqp v1.0.0
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.3
 	github.com/wavefronthq/wavefront-sdk-go v0.12.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20230312005205-fbbcdea5f512
