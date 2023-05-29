@@ -225,7 +225,7 @@ type AlertmanagerOutputConfig struct {
 	ExpiresAfter      int
 	ExtraLabels       map[string]string
 	ExtraAnnotations  map[string]string
-	CustomSeverityMap map[string]string
+	CustomSeverityMap map[PriorityType]string
 }
 
 type ElasticsearchOutputConfig struct {

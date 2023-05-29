@@ -26,7 +26,7 @@ func getConfig() *types.Configuration {
 		Elasticsearch:   types.ElasticsearchOutputConfig{CustomHeaders: make(map[string]string)},
 		OpenObserve:     types.OpenObserveConfig{CustomHeaders: make(map[string]string)},
 		Webhook:         types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
-		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[string]string)},
+		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[types.PriorityType]string)},
 		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
 	}
@@ -575,11 +575,12 @@ func getConfig() *types.Configuration {
 		severitymap := strings.Split(value, ",")
 		for _, severitymatch := range severitymap {
 			priorityString, severityValue, found := strings.Cut(severitymatch, ":")
-			if types.Priority(priorityString) == types.Default {
+			priority := types.Priority(priorityString)
+			if priority == types.Default {
 				log.Printf("[ERROR] : AlertManager - Priority '%v' is not a valid falco priority level", priorityString)
 				continue
 			} else if found {
-				c.Alertmanager.CustomSeverityMap[priorityString] = strings.TrimSpace(severityValue)
+				c.Alertmanager.CustomSeverityMap[priority] = strings.TrimSpace(severityValue)
 			} else {
 				log.Printf("[ERROR] : AlertManager - No severity given to '%v' (tuple extracted: '%v')", priorityString, severitymatch)
 			}
