@@ -93,7 +93,7 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 
 	amPayload.Labels["priority"] = falcopayload.Priority.String()
 
-	if val, ok := config.Alertmanager.CustomSeverityMap[falcopayload.Priority.String()]; ok {
+	if val, ok := config.Alertmanager.CustomSeverityMap[falcopayload.Priority]; ok {
 		amPayload.Labels["severity"] = val
 	} else {
 		amPayload.Labels["severity"] = defaultSeverityMap[falcopayload.Priority]
