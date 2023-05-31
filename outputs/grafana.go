@@ -107,8 +107,6 @@ func (c *Client) GrafanaOnCallPost(falcopayload types.FalcoPayload) {
 		c.AddHeader(i, j)
 	}
 
-	fmt.Printf("%#v\n", newGrafanaOnCallPayload(falcopayload, c.Config))
-
 	err := c.Post(newGrafanaOnCallPayload(falcopayload, c.Config))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:grafanaoncall", "status:error"})

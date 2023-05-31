@@ -138,6 +138,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.AccessKeyID", "")
 	v.SetDefault("AWS.SecretAccessKey", "")
 	v.SetDefault("AWS.Region", "")
+	v.SetDefault("AWS.RoleARN", "")
+	v.SetDefault("AWS.ExternalID", "")
 	v.SetDefault("AWS.CheckIdentity", true)
 
 	v.SetDefault("AWS.Lambda.FunctionName", "")

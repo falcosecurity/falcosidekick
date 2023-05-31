@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
@@ -60,9 +61,30 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 		}
 	}
 
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(region)},
-	)
+	awscfg := &aws.Config{Region: aws.String(region)}
+
+	if config.AWS.RoleARN != "" {
+		baseSess := session.Must(session.NewSession(awscfg))
+		stsSvc := sts.New(baseSess)
+		stsArIn := new(sts.AssumeRoleInput)
+		stsArIn.RoleArn = aws.String(config.AWS.RoleARN)
+		stsArIn.RoleSessionName = aws.String(fmt.Sprintf("session-%v", uuid.New().String()))
+		if config.AWS.ExternalID != "" {
+			stsArIn.ExternalId = aws.String(config.AWS.ExternalID)
+		}
+		assumedRole, err := stsSvc.AssumeRole(stsArIn)
+		if err != nil {
+			log.Println("[ERROR] : AWS - Error while Assuming Role")
+			return nil, errors.New("error while assuming role")
+		}
+		awscfg.Credentials = credentials.NewStaticCredentials(
+			*assumedRole.Credentials.AccessKeyId,
+			*assumedRole.Credentials.SecretAccessKey,
+			*assumedRole.Credentials.SessionToken,
+		)
+	}
+
+	sess, err := session.NewSession(awscfg)
 	if err != nil {
 		log.Printf("[ERROR] : AWS - Error while creating AWS Session: %v\n", err.Error())
 		return nil, errors.New("error while creating AWS Session")

@@ -305,6 +305,8 @@ aws:
   # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
   # secretaccesskey: "" # aws secret access key (optional if you use EC2 Instance Profile)
   # region : "" # aws region (by default, the metadata are used to get it)
+  # rolearn: "" # aws role to assume (optional if you use EC2 Instance Profile)
+  # externalid: "" # external id for the role to assume (optional if you use EC2 Instance Profile)
   # checkidentity: true # check the identity credentials, set to false for locale developments (default: true)
   lambda:
     # functionname : "" # Lambda function name, if not empty, AWS Lambda output is enabled
@@ -798,6 +800,9 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **AWS_SECRETACCESSKEY** : AWS Secret Access Key (optional if you use EC2
   Instance Profile)
 - **AWS_REGION** : AWS Region (by default, the metadata are used to get it)
+- **AWS_ROLEARN** : AWS role to assume (optional if you use EC2 Instance Profile)
+- **AWS_EXTERNALID** : External id for the role to assume (optional if you use EC2 Instance Profile)
+- **AWS_CHECKIDENTITY** : Check the identity credentials, set to false for locale developments (default: true)
 - **AWS_LAMBDA_FUNCTIONNAME** : AWS Lambda Function Name, if not empty, AWS
   Lambda output is _enabled_
 - **AWS_LAMBDA_MINIMUMPRIORITY** : minimum priority of event for using this
