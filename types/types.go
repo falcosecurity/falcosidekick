@@ -274,6 +274,8 @@ type awsOutputConfig struct {
 	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
+	RoleARN         string
+	ExternalID      string
 	CheckIdentity   bool
 	Lambda          awsLambdaConfig
 	SQS             awsSQSConfig

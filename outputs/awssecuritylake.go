@@ -291,7 +291,6 @@ func (c *Client) writeParquet(uid string, records []memlog.Record) error {
 	fw, err := mem.NewMemFileWriter(uid+".parquet", func(name string, r io.Reader) error {
 		t := time.Now()
 		key := fmt.Sprintf("/%s/region=%s/accountId=%s/eventDay=%s/%s.parquet", c.Config.AWS.SecurityLake.Prefix, c.Config.AWS.SecurityLake.Region, c.Config.AWS.SecurityLake.AccountID, t.Format("20060102"), uid)
-		fmt.Println(key)
 		ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelFn()
 		resp, err := s3.New(c.AWSSession).PutObjectWithContext(ctx, &s3.PutObjectInput{
