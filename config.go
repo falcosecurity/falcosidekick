@@ -436,10 +436,10 @@ func getConfig() *types.Configuration {
 	v.SetDefault("N8n.MinimumPriority", "")
 	v.SetDefault("N8n.CheckCert", true)
 
-	v.SetDefault("Slack.Token", "")
-	v.SetDefault("Slack.ChatID", "")
-	v.SetDefault("Slack.MinimumPriority", "")
-	v.SetDefault("Slack.CheckCert", true)
+	v.SetDefault("Telegram.Token", "")
+	v.SetDefault("Telegram.ChatID", "")
+	v.SetDefault("Telegram.MinimumPriority", "")
+	v.SetDefault("Telegram.CheckCert", true)
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
