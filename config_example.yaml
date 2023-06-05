@@ -275,6 +275,7 @@ kafkarest:
 
 pagerduty:
   routingKey: "" # Pagerduty Routing Key, if not empty, Pagerduty output is enabled
+  region: "us" # Pagerduty Region, can be 'us' or 'eu' (default: us)
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 kubeless:

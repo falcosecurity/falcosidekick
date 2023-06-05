@@ -1,6 +1,7 @@
 package outputs
 
 import (
+	"context"
 	"log"
 	"strings"
 	"time"
@@ -10,13 +11,24 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
+const (
+	USEndpoint string = "https://events.pagerduty.com"
+	EUEndpoint string = "https://events.eu.pagerduty.com"
+)
+
 // PagerdutyPost posts alert event to Pagerduty
 func (c *Client) PagerdutyPost(falcopayload types.FalcoPayload) {
 	c.Stats.Pagerduty.Add(Total, 1)
 
 	event := createPagerdutyEvent(falcopayload, c.Config.Pagerduty)
 
-	if _, err := pagerduty.ManageEvent(event); err != nil {
+	if strings.ToLower(c.Config.Pagerduty.Region) == "eu" {
+		pagerduty.WithV2EventsAPIEndpoint(EUEndpoint)
+	} else {
+		pagerduty.WithV2EventsAPIEndpoint(USEndpoint)
+	}
+
+	if _, err := pagerduty.ManageEventWithContext(context.Background(), event); err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:pagerduty", "status:error"})
 		c.Stats.Pagerduty.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "pagerduty", "status": Error}).Inc()
