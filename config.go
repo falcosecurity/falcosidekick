@@ -286,6 +286,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("KafkaRest.CheckCert", true)
 
 	v.SetDefault("Pagerduty.RoutingKey", "")
+	v.SetDefault("Pagerduty.Region", "us")
 	v.SetDefault("Pagerduty.MinimumPriority", "")
 	v.SetDefault("Pagerduty.MutualTls", false)
 	v.SetDefault("Pagerduty.CheckCert", true)

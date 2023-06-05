@@ -446,6 +446,7 @@ kafkarest:
 
 pagerduty:
   routingKey: "" # Pagerduty Routing Key, if not empty, Pagerduty output is enabled
+  region: "us" # Pagerduty Region, can be 'us' or 'eu' (default: us)
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 kubeless:
@@ -967,15 +968,9 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
 - **KAFKAREST_MUTUALTLS** : enable mutual tls authentication for this output (default: `false`)
 - **KAFKAREST_CHECKCERT** : check if ssl certificate of the output is valid (default: `true`)
-- **PAGERDUTY_APIKEY**: Pagerduty API Key, if not empty, Pagerduty output is
+- **PAGERDUTY_ROUTINGKEY**: Pagerduty Region, can be 'us' or 'eu' (default: us)
+- **PAGERDUTY_REGION**: Pagerduty Region, if not empty, Pagerduty output is
   _enabled_
-- **PAGERDUTY_SERVICE**: Service to create an incident (mandatory)
-- **PAGERDUTY_ASSIGNEE**: A list of comma separated users to assign. Cannot be
-  provided if `PAGERDUTY_ESCALATION_POLICY` is already specified. If not empty,
-  Pagerduty is _enabled_
-- **PAGERDUTY_ESCALATION_POLICY**: Escalation policy to assign. Cannot be
-  provided if `PAGERDUTY_ASSIGNEE` is already specified.If not empty, Pagerduty
-  is _enabled_
 - **PAGERDUTY_MINIMUMPRIORITY**: minimum priority of event for using this
   output, order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`

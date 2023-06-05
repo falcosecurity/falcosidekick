@@ -469,6 +469,7 @@ type KafkaRestConfig struct {
 
 type PagerdutyConfig struct {
 	RoutingKey      string
+	Region          string
 	MinimumPriority string
 	CheckCert       bool
 	MutualTLS       bool
