@@ -21,7 +21,7 @@ require (
 	github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter v0.0.0-20210714174227-a3d56502c383
 	github.com/nats-io/nats.go v1.25.0
 	github.com/nats-io/stan.go v0.10.4
-	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_golang v1.15.1
 	github.com/redis/go-redis/v9 v9.0.5
 	github.com/segmentio/kafka-go v0.4.40
 	github.com/spf13/viper v1.15.0
