@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"bytes"
+	"crypto/tls"
 	htmlTemplate "html/template"
 	"log"
 	"net"
@@ -127,12 +128,29 @@ func (c *Client) GetAuth() (sasl.Client, error) {
 func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 	sp := newSMTPPayload(falcopayload, c.Config)
 
-	to := strings.Split(strings.Replace(c.Config.SMTP.To, " ", "", -1), ",")
-	auth, err := c.GetAuth()
+	to := strings.Split(strings.ReplaceAll(c.Config.SMTP.To, " ", ""), ",")
+
+	smtpClient, err := smtp.Dial(c.Config.SMTP.HostPort)
 	if err != nil {
-		c.ReportErr("SASL Authentication mechanisms", err)
+		c.ReportErr("Client error", err)
 		return
 	}
+	if c.Config.SMTP.TLS {
+		tlsCfg := &tls.Config{ServerName: strings.Split(c.Config.SMTP.HostPort, ":")[0]}
+		if err := smtpClient.StartTLS(tlsCfg); err != nil {
+			c.ReportErr("TLS error", err)
+			return
+		}
+	}
+	if c.Config.SMTP.AuthMechanism != "none" {
+		auth, err := c.GetAuth()
+		if err != nil {
+			c.ReportErr("SASL Authentication mechanisms", err)
+			return
+		}
+		smtpClient.Auth(auth)
+	}
+
 	body := sp.To + "\n" + sp.Subject + "\n" + sp.From + "\n" + sp.Body
 
 	if c.Config.Debug {
@@ -145,7 +163,7 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 	}
 
 	c.Stats.SMTP.Add("total", 1)
-	err = smtp.SendMail(c.Config.SMTP.HostPort, auth, c.Config.SMTP.From, to, strings.NewReader(body))
+	err = smtpClient.SendMail(c.Config.SMTP.From, to, strings.NewReader(body))
 	if err != nil {
 		c.ReportErr("Send Mail failure", err)
 		return

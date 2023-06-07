@@ -337,6 +337,7 @@ type awsSecurityLakeConfig struct {
 
 type smtpOutputConfig struct {
 	HostPort        string
+	TLS             bool
 	AuthMechanism   string
 	User            string
 	Password        string
