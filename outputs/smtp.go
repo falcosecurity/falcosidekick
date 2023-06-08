@@ -99,7 +99,7 @@ func (c *Client) ReportErr(message string, err error) {
 }
 
 func (c *Client) GetAuth() (sasl.Client, error) {
-	if c.Config.SMTP.AuthMechanism == "" {
+	if c.Config.SMTP.AuthMechanism == "none" {
 		return nil, nil
 	}
 	var authClient sasl.Client
@@ -137,7 +137,7 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 
 	if c.Config.Debug {
 		log.Printf("[DEBUG] : SMTP payload : \nServer: %v\n%v\n%v\nSubject: %v\n", c.Config.SMTP.HostPort, sp.From, sp.To, sp.Subject)
-		if c.Config.SMTP.AuthMechanism != "" {
+		if c.Config.SMTP.AuthMechanism != "none" {
 			log.Printf("[DEBUG] : SMTP - SASL Auth : \nMechanisms: %v\nUser: %v\nToken: %v\nIdentity: %v\nTrace: %v\n", c.Config.SMTP.AuthMechanism, c.Config.SMTP.User, c.Config.SMTP.Token, c.Config.SMTP.Identity, c.Config.SMTP.Trace)
 		} else {
 			log.Printf("[DEBUG] : SMTP - SASL Auth : Disabled\n")

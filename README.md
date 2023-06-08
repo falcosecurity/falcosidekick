@@ -342,7 +342,7 @@ aws:
 
 smtp:
   # hostport: "" # host:port address of SMTP server, if not empty, SMTP output is enabled
-  # authmechanism: "plain" # SASL Mechanisms : plain, oauthbearer, external, anonymous or "" (disable SASL). Default: plain
+  # authmechanism: "plain" # SASL Mechanisms : plain, oauthbearer, external, anonymous or none (disable SASL). Default: plain
   # user: "" # user for Plain Mechanism
   # password: "" # password for Plain Mechanism
   # token: "" # OAuthBearer token for OAuthBearer Mechanism
@@ -854,7 +854,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **SMTP_MINIMUMPRIORITY** : minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
-- **SMTP_AUTHMECHANISM** : SASL Mechanisms `plain|oauthbearer|external|anonymous or "" (disable SASL)` Default to `plain`
+- **SMTP_AUTHMECHANISM** : SASL Mechanisms `plain|oauthbearer|external|anonymous or none (disable SASL)` Default to `plain`
 - **SMTP_USER** :  user for Plain Mechanism
 - **SMTP_PASSWORD** : password for Plain Mechanism
 - **SMTP_TOKEN** : # OAuthBearer token for OAuthBearer Mechanism
