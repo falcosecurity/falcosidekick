@@ -136,7 +136,10 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 		return
 	}
 	if c.Config.SMTP.TLS {
-		tlsCfg := &tls.Config{ServerName: strings.Split(c.Config.SMTP.HostPort, ":")[0]}
+		tlsCfg := &tls.Config{
+			ServerName: strings.Split(c.Config.SMTP.HostPort, ":")[0],
+			MinVersion: tls.VersionTLS12,
+		}
 		if err := smtpClient.StartTLS(tlsCfg); err != nil {
 			c.ReportErr("TLS error", err)
 			return
