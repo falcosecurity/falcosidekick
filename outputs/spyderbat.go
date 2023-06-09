@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"path"
 	"strings"
 	"time"
 
@@ -21,7 +20,10 @@ func isSourcePresent(config *types.Configuration) (bool, error) {
 
 	client := &http.Client{}
 
-	source_url := path.Join(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	if err != nil {
+		return false, err
+	}
 	req, err := http.NewRequest("GET", source_url, new(bytes.Buffer))
 	if err != nil {
 		return false, err
@@ -74,7 +76,10 @@ func makeSource(config *types.Configuration) error {
 
 	client := &http.Client{}
 
-	source_url := path.Join(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	if err != nil {
+		return err
+	}
 	req, err := http.NewRequest("POST", source_url, body)
 	if err != nil {
 		return err
@@ -176,7 +181,11 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 	}
 
 	source := "falcosidekick_" + config.Spyderbat.OrgUID
-	data_url := path.Join(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/"+source+"/data/sb-agent")
+	data_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/"+source+"/data/sb-agent")
+	if err != nil {
+		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
+		return nil, ErrClientCreation
+	}
 	endpointURL, err := url.Parse(data_url)
 	if err != nil {
 		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
