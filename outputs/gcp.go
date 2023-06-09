@@ -138,7 +138,8 @@ func (c *Client) GCPPublishTopic(falcopayload types.FalcoPayload) {
 
 	payload, _ := json.Marshal(falcopayload)
 	message := &pubsub.Message{
-		Data: payload,
+		Data:       payload,
+		Attributes: c.Config.GCP.PubSub.CustomAttributes,
 	}
 
 	result := c.GCPTopicClient.Publish(context.Background(), message)

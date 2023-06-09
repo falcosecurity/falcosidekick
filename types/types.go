@@ -76,7 +76,7 @@ type Configuration struct {
 	Webhook            WebhookOutputConfig
 	CloudEvents        CloudEventsOutputConfig
 	Azure              azureConfig
-	GCP                gcpOutputConfig
+	GCP                GcpOutputConfig
 	Googlechat         GooglechatConfig
 	Kafka              kafkaConfig
 	KafkaRest          KafkaRestConfig
@@ -409,10 +409,10 @@ type gcpCloudRun struct {
 	MinimumPriority string
 }
 
-type gcpOutputConfig struct {
+type GcpOutputConfig struct {
 	Credentials      string
 	WorkloadIdentity bool
-	PubSub           gcpPubSub
+	PubSub           GcpPubSub
 	Storage          gcpStorage
 	CloudFunctions   gcpCloudFunctions
 	CloudRun         gcpCloudRun
@@ -423,10 +423,11 @@ type gcpCloudFunctions struct {
 	MinimumPriority string
 }
 
-type gcpPubSub struct {
-	ProjectID       string
-	Topic           string
-	MinimumPriority string
+type GcpPubSub struct {
+	ProjectID        string
+	Topic            string
+	MinimumPriority  string
+	CustomAttributes map[string]string
 }
 
 type gcpStorage struct {
