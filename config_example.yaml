@@ -228,6 +228,8 @@ gcp:
     projectid: "" # The GCP Project ID containing the Pub/Sub Topic
     topic: "" # The name of the Pub/Sub topic
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # customAttributes: # Custom attributes to add to the Pub/Sub messages
+  #   key: value
   storage:
     # prefix : "" # name of prefix, keys will have format: gs://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
     bucket: "" # The name of the bucket

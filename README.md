@@ -407,6 +407,8 @@ gcp:
     projectid: "" # The GCP Project ID containing the Pub/Sub Topic
     topic: "" # The name of the Pub/Sub topic
     # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # customAttributes: # Custom attributes to add to the Pub/Sub messages
+    #   key: value
   storage:
     # prefix : "" # name of prefix, keys will have format: gs://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
     bucket: "" # The name of the bucket
@@ -918,6 +920,9 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **GCP_PUBSUB_TOPIC**: The name of the Pub/Sub topic
 - **GCP_PUBSUB_MINIMUMPRIORITY**: minimum priority of event for using this
   output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+- **GCP_PUBSUB_CUSTOMATTRIBUTES**: a list of comma separated custom headers to add,
+  syntax is "key:value,key:value"
 - **GCP_STORAGE_BUCKET**: The name of the bucket
 - **GCP_STORAGE_PREFIX**: name of prefix, keys will have format: gs://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
 - **GCP_STORAGE_MINIMUMPRIORITY**: minimum priority of event for using this

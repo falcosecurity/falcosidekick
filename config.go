@@ -27,6 +27,7 @@ func getConfig() *types.Configuration {
 		Webhook:         types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
 		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string)},
 		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
+		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
 	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
@@ -463,6 +464,7 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("CloudEvents.Extensions")
 	v.GetStringMapString("AlertManager.ExtraLabels")
 	v.GetStringMapString("AlertManager.ExtraAnnotations")
+	v.GetStringMapString("GCP.PubSub.CustomAttributes")
 	if err := v.Unmarshal(c); err != nil {
 		log.Printf("[ERROR] : Error unmarshalling config : %s", err)
 	}
@@ -545,6 +547,16 @@ func getConfig() *types.Configuration {
 				c.Alertmanager.ExtraAnnotations[annotationName] = strings.TrimSpace(annotationValue)
 			} else {
 				c.Alertmanager.ExtraAnnotations[annotationName] = ""
+			}
+		}
+	}
+
+	if value, present := os.LookupEnv("GCP_PUBSUB_CUSTOMATTRIBUTES"); present {
+		customattributes := strings.Split(value, ",")
+		for _, label := range customattributes {
+			tagkeys := strings.Split(label, ":")
+			if len(tagkeys) == 2 {
+				c.GCP.PubSub.CustomAttributes[tagkeys[0]] = tagkeys[1]
 			}
 		}
 	}
