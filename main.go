@@ -68,6 +68,7 @@ var (
 	redisClient         *outputs.Client
 	telegramClient      *outputs.Client
 	n8nClient           *outputs.Client
+	openObserveClient   *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -700,6 +701,16 @@ func init() {
 			config.N8N.Address = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "n8n")
+		}
+	}
+
+	if config.OpenObserve.HostPort != "" {
+		var err error
+		openObserveClient, err = outputs.NewClient("OpenObserve", config.OpenObserve.HostPort+"/api/"+config.OpenObserve.OrganizationName+"/"+config.OpenObserve.StreamName+"/_multi", config.OpenObserve.MutualTLS, config.OpenObserve.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.OpenObserve.HostPort = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OpenObserve")
 		}
 	}
 

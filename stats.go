@@ -79,6 +79,7 @@ func getInitStats() *types.Statistics {
 		Redis:             getOutputNewMap("redis"),
 		Telegram:          getOutputNewMap("telegram"),
 		N8N:               getOutputNewMap("n8n"),
+		OpenObserve:       getOutputNewMap("openobserve"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)
