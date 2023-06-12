@@ -24,6 +24,7 @@ func getConfig() *types.Configuration {
 		Grafana:         types.GrafanaOutputConfig{CustomHeaders: make(map[string]string)},
 		Loki:            types.LokiOutputConfig{CustomHeaders: make(map[string]string)},
 		Elasticsearch:   types.ElasticsearchOutputConfig{CustomHeaders: make(map[string]string)},
+		OpenObserve:     types.OpenObserveConfig{CustomHeaders: make(map[string]string)},
 		Webhook:         types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
 		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string)},
 		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
@@ -442,6 +443,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Telegram.MinimumPriority", "")
 	v.SetDefault("Telegram.CheckCert", true)
 
+	v.SetDefault("OpenObserve.HostPort", "")
+	v.SetDefault("OpenObserve.OrganizationName", "default")
+	v.SetDefault("OpenObserve.StreamName", "falco")
+	v.SetDefault("OpenObserve.MinimumPriority", "")
+	v.SetDefault("OpenObserve.MutualTls", false)
+	v.SetDefault("OpenObserve.CheckCert", true)
+	v.SetDefault("OpenObserve.Username", "")
+	v.SetDefault("OpenObserve.Password", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -621,6 +631,8 @@ func getConfig() *types.Configuration {
 	c.TimescaleDB.MinimumPriority = checkPriority(c.TimescaleDB.MinimumPriority)
 	c.Redis.MinimumPriority = checkPriority(c.Redis.MinimumPriority)
 	c.Telegram.MinimumPriority = checkPriority(c.Telegram.MinimumPriority)
+	c.N8N.MinimumPriority = checkPriority(c.N8N.MinimumPriority)
+	c.OpenObserve.MinimumPriority = checkPriority(c.OpenObserve.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

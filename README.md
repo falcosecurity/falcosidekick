@@ -60,6 +60,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 - [**Grafana**](https://grafana.com/) (annotations)
 - **Syslog**
 - [**Zincsearch**](https://docs.zincsearch.com/)
+- [**OpenObserve**](https://openobserve.ai)
 
 ### Object Storage
 
@@ -614,6 +615,18 @@ n8n:
   # headerauthvalue: "" # Header Auth Value to authenticate with N8N
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+openobserve:
+  # hostport: "" # http://{domain or ip}:{port}, if not empty, OpenObserve output is enabled
+  # organizationName: "default" # Organization name (default: default)
+  # streamName: "falco" # Stream name (default: falco)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # username: "a" # use this username to authenticate to OpenObserve if the username is not empty (default: "")
+  # password: "" # use this password to authenticate to OpenObserve if the password is not empty (default: "")
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
 ```
 
 Usage :
@@ -1115,6 +1128,24 @@ order is
 - **N8N_PASSWORD**: Header Auth Value to authenticate with N8N
 - **N8N_CHECKCERT**: check if ssl certificate of the output is valid (default: true)
 - **N8N_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+- **OPENOBSERVE_HOSTPORT** : Elasticsearch http://host:port, if not `empty`,
+  OpenObserve is _enabled_
+- **OPENOBSERVE_ORGANIZATIONNAME** : Organization name (default: default)
+- **OPENOBSERVE_STREAMNAME** : Stream name (default: falco)
+- **OPENOBSERVE_MINIMUMPRIORITY** : minimum priority of event for using this
+  output, order is
+  `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`
+  `monthly`, `annually`, `none`
+- **OPENOBSERVE_MUTUALTLS** : enable mutual tls authentication for this output (default:
+  `false`)
+- **OPENOBSERVE_CHECKCERT** : check if ssl certificate of the output is valid (default:
+  `true`)
+- **OPENOBSERVE_USERNAME** : use this username to authenticate to OpenObserve if the
+  username is not empty (default: "")
+- **OPENOBSERVE_PASSWORD** : use this password to authenticate to OpenObserve if the
+  password is not empty (default: "")
+- **OPENOBSERVE_CUSTOMHEADERS** : a list of comma separated custom headers to add,
+  syntax is "key:value,key:value"
 
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 

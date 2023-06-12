@@ -102,6 +102,7 @@ type Configuration struct {
 	Redis              RedisConfig
 	Telegram           TelegramConfig
 	N8N                N8NConfig
+	OpenObserve        OpenObserveConfig
 }
 
 // SlackOutputConfig represents parameters for Slack
@@ -675,6 +676,19 @@ type N8NConfig struct {
 	CheckCert       bool
 }
 
+// OpenObserveConfig represents config parameters for OpenObserve
+type OpenObserveConfig struct {
+	HostPort         string
+	OrganizationName string
+	StreamName       string
+	MinimumPriority  string
+	Username         string
+	Password         string
+	CheckCert        bool
+	MutualTLS        bool
+	CustomHeaders    map[string]string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -738,6 +752,7 @@ type Statistics struct {
 	Redis             *expvar.Map
 	Telegram          *expvar.Map
 	N8N               *expvar.Map
+	OpenObserve       *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

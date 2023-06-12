@@ -394,4 +394,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.N8N.Address != "" && (falcopayload.Priority >= types.Priority(config.N8N.MinimumPriority) || falcopayload.Rule == testRule) {
 		go n8nClient.N8NPost(falcopayload)
 	}
+
+	if config.OpenObserve.HostPort != "" && (falcopayload.Priority >= types.Priority(config.OpenObserve.MinimumPriority) || falcopayload.Rule == testRule) {
+		go openObserveClient.OpenObservePost(falcopayload)
+	}
 }
