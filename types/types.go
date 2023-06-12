@@ -48,6 +48,7 @@ func (f FalcoPayload) Check() bool {
 // Configuration is a struct to store configuration
 type Configuration struct {
 	MutualTLSFilesPath string
+	TLSServer          TLSServer
 	Debug              bool
 	ListenAddress      string
 	ListenPort         int
@@ -102,6 +103,15 @@ type Configuration struct {
 	Redis              RedisConfig
 	Telegram           TelegramConfig
 	N8N                N8NConfig
+}
+
+// TLSServer represents parameters for TLS Server
+type TLSServer struct {
+	Deploy     bool
+	CertFile   string
+	KeyFile    string
+	MutualTLS  bool
+	CaCertFile string
 }
 
 // SlackOutputConfig represents parameters for Slack
