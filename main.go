@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -740,7 +743,40 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("[ERROR] : %v", err.Error())
+	if config.TLSServer.Deploy {
+		if config.TLSServer.MutualTLS {
+			if config.Debug {
+				log.Printf("[DEBUG] : running mTLS server")
+			}
+
+			caCert, err := ioutil.ReadFile(config.TLSServer.CaCertFile)
+			if err != nil {
+				log.Printf("[ERROR] : %v\n", err.Error())
+			}
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
+
+			server.TLSConfig = &tls.Config{
+				ClientAuth: tls.RequireAndVerifyClientCert,
+				RootCAs:    caCertPool,
+				MinVersion: tls.VersionTLS12,
+			}
+		}
+
+		if config.Debug && !config.TLSServer.MutualTLS {
+			log.Printf("[DEBUG] : running TLS server")
+		}
+
+		if err := server.ListenAndServeTLS(config.TLSServer.CertFile, config.TLSServer.KeyFile); err != nil {
+			log.Fatalf("[ERROR] : %v", err.Error())
+		}
+	} else {
+		if config.Debug {
+			log.Printf("[DEBUG] : running HTTP server")
+		}
+
+		if err := server.ListenAndServe(); err != nil {
+			log.Fatalf("[ERROR] : %v", err.Error())
+		}
 	}
 }

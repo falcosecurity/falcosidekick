@@ -197,7 +197,13 @@ customfields: # custom fields are added to falco events, if the value starts wit
 templatedfields: # templated fields are added to falco events and metrics, it uses Go template + output_fields values
   # Dkey: '{{ or (index . "k8s.ns.labels.foo") "bar" }}'
 # bracketreplacer: "_" # if not empty, replace the brackets in keys of Output Fields
-mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls (default: "/etc/certs")
+mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls for outputs (default: "/etc/certs")
+tlsserver:
+  deploy: false # if true, TLS server will be deployed instead of HTTP
+  certfile: "/etc/certs/server.crt" # server certification file
+  keyfile: "/etc/certs/server.key" # server key
+  mutualtls: false # if true, mTLS server will be deployed instead of TLS, deploy also has to be true
+  cacertfile: "/etc/certs/ca.crt" # for client certification if mutualtls is true
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
@@ -658,6 +664,11 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **TEMPLATEDFIELDS** : templated fields are added to falco events and metrics, it uses Go template + output_fields values
 - **BRACKETREPLACER** : if not empty, the brackets in keys of Output Fields are replaced
 - **MUTUALTLSFILESPATH**: path which will be used to stored certs and key for mutual tls authentication (default: "/etc/certs")
+- **TLSSERVER_DEPLOY**: if _true_ TLS server will be deployed instead of HTTP
+- **TLSSERVER_CERTFILE**: server certification file for TLS Server (default: "/etc/certs/server.crt")
+- **TLSSERVER_KEYFILE**: server key file for TLS Server (default: "/etc/certs/server.key")
+- **TLSSERVER_MUTUALTLS**: if _true_ mTLS server will be deployed instead of TLS, deploy also has to be true
+- **TLSSERVER_CACERTFILE**: CA certification file for client certification (default: "/etc/certs/ca.crt")
 - **SLACK_WEBHOOKURL** : Slack Webhook URL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ)
 - **SLACK_CHANNEL** : Slack Channel (optionnal)
 - **SLACK_FOOTER** : Slack footer
