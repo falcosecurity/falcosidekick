@@ -195,13 +195,29 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 
 	if c.MutualTLSEnabled {
 		// Load client cert
-		cert, err := tls.LoadX509KeyPair(c.Config.MutualTLSFilesPath+MutualTLSClientCertFilename, c.Config.MutualTLSFilesPath+MutualTLSClientKeyFilename)
+		var MutualTLSClientCertPath, MutualTLSClientKeyPath, MutualTLSClientCaCertPath string
+		if c.Config.MutualTLSClient.CertFile != "" {
+			MutualTLSClientCertPath = c.Config.MutualTLSClient.CertFile
+		} else {
+			MutualTLSClientCertPath = c.Config.MutualTLSFilesPath + MutualTLSClientCertFilename
+		}
+		if c.Config.MutualTLSClient.KeyFile != "" {
+			MutualTLSClientKeyPath = c.Config.MutualTLSClient.KeyFile
+		} else {
+			MutualTLSClientKeyPath = c.Config.MutualTLSFilesPath + MutualTLSClientKeyFilename
+		}
+		if c.Config.MutualTLSClient.CaCertFile != "" {
+			MutualTLSClientCaCertPath = c.Config.MutualTLSClient.CaCertFile
+		} else {
+			MutualTLSClientCaCertPath = c.Config.MutualTLSFilesPath + MutualTLSCacertFilename
+		}
+		cert, err := tls.LoadX509KeyPair(MutualTLSClientCertPath, MutualTLSClientKeyPath)
 		if err != nil {
 			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		}
 
 		// Load CA cert
-		caCert, err := ioutil.ReadFile(c.Config.MutualTLSFilesPath + MutualTLSCacertFilename)
+		caCert, err := ioutil.ReadFile(MutualTLSClientCaCertPath)
 		if err != nil {
 			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		}

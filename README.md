@@ -197,13 +197,17 @@ customfields: # custom fields are added to falco events, if the value starts wit
 templatedfields: # templated fields are added to falco events and metrics, it uses Go template + output_fields values
   # Dkey: '{{ or (index . "k8s.ns.labels.foo") "bar" }}'
 # bracketreplacer: "_" # if not empty, replace the brackets in keys of Output Fields
-mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls for outputs (default: "/etc/certs")
+mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls for outputs, will be deprecated in the future (default: "/etc/certs")
+mutualtlsclient: # takes priority over mutualtlsfilespath if not emtpy
+  certfile: "/etc/certs/client/client.crt" # client certification file
+  keyfile: "/etc/certs/client/client.key" # client key
+  cacertfile: "/etc/certs/client/ca.crt" # for server certification
 tlsserver:
   deploy: false # if true, TLS server will be deployed instead of HTTP
-  certfile: "/etc/certs/server.crt" # server certification file
-  keyfile: "/etc/certs/server.key" # server key
+  certfile: "/etc/certs/server/server.crt" # server certification file
+  keyfile: "/etc/certs/server/server.key" # server key
   mutualtls: false # if true, mTLS server will be deployed instead of TLS, deploy also has to be true
-  cacertfile: "/etc/certs/ca.crt" # for client certification if mutualtls is true
+  cacertfile: "/etc/certs/server/ca.crt" # for client certification if mutualtls is true
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
@@ -663,12 +667,15 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   events, syntax is "key:value,key:value"
 - **TEMPLATEDFIELDS** : templated fields are added to falco events and metrics, it uses Go template + output_fields values
 - **BRACKETREPLACER** : if not empty, the brackets in keys of Output Fields are replaced
-- **MUTUALTLSFILESPATH**: path which will be used to stored certs and key for mutual tls authentication (default: "/etc/certs")
+- **MUTUALTLSFILESPATH**: path which will be used to stored certs and key for mutual TLS authentication, will be deprecated in the future (default: "/etc/certs")
+- **MUTUALTLSCLIENT_CERTFILE**: client certification file for mutual TLS client certification, takes priority over MUTUALTLSFILESPATH if not empty
+- **MUTUALTLSCLIENT_KEYFILE**: client key file for mutual TLS client certification, takes priority over MUTUALTLSFILESPATH if not empty
+- **MUTUALTLSCLIENT_CACERTFILE**: CA certification file for server certification for mutual TLS authentication, takes priority over MUTUALTLSFILESPATH if not empty
 - **TLSSERVER_DEPLOY**: if _true_ TLS server will be deployed instead of HTTP
-- **TLSSERVER_CERTFILE**: server certification file for TLS Server (default: "/etc/certs/server.crt")
-- **TLSSERVER_KEYFILE**: server key file for TLS Server (default: "/etc/certs/server.key")
-- **TLSSERVER_MUTUALTLS**: if _true_ mTLS server will be deployed instead of TLS, deploy also has to be true
-- **TLSSERVER_CACERTFILE**: CA certification file for client certification (default: "/etc/certs/ca.crt")
+- **TLSSERVER_CERTFILE**: server certification file for TLS Server (default: "/etc/certs/server/server.crt")
+- **TLSSERVER_KEYFILE**: server key file for TLS Server (default: "/etc/certs/server/server.key")
+- **TLSSERVER_MUTUALTLS**: if _true_ mutual TLS server will be deployed instead of TLS, deploy also has to be true
+- **TLSSERVER_CACERTFILE**: CA certification file for client certification if TLSSERVER_MUTUALTLS is _true_ (default: "/etc/certs/server/ca.crt")
 - **SLACK_WEBHOOKURL** : Slack Webhook URL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ)
 - **SLACK_CHANNEL** : Slack Channel (optionnal)
 - **SLACK_FOOTER** : Slack footer
@@ -1208,7 +1215,13 @@ All logs are sent to `stdout`.
 
 ## Mutual TLS ##
 
-Outputs with `mutualtls` enabled in their configuration require *client.crt*, *client.key* and *ca.crt* files to be stored in the path configured in **mutualtlsfilespath** global parameter (**important**: file names must be preserved)
+Outputs with `mutualtls` enabled in their configuration require the *client.crt*, *client.key* and *ca.crt* filepaths to be configured in the **mutualtlsclient_certfile**, **mutualtlsclient_keyfile** and  **mutualtlsclient_cacertfile** global parameter.
+
+```bash
+docker run -d -p 2801:2801 -e MUTUALTLSCLIENT_CERTFILE=/etc/certs/client/client.crt -e MUTUALTLSCLIENT_KEYFILE=/etc/certs/client/client.key -e MUTUALTLSCLIENT_CACERTFILE=/etc/certs/client/ca.crt -e ALERTMANAGER_HOSTPORT=https://XXXX -e ALERTMANAGER_MUTUALTLS=true -e INFLUXDB_HOSTPORT=https://XXXX -e INFLUXDB_MUTUALTLS=true -e WEBHOOK_ADDRESS=XXXX -v /localpath/myclientcert.crt:/etc/certs/client/client.crt -v /localpath/myclientkey.key:/etc/certs/client/client.key -v /localpath/ca.crt:/etc/certs/client/ca.crt falcosecurity/falcosidekick
+```
+
+Alternately the path where the *client.crt*, *client.key* and *ca.crt* files are stored can be configured in **mutualtlsfilespath** global parameter. (**Important**: file names must be preserved)
 
 ```bash
 docker run -d -p 2801:2801 -e MUTUALTLSFILESPATH=/etc/certs -e ALERTMANAGER_HOSTPORT=https://XXXX -e ALERTMANAGER_MUTUALTLS=true -e INFLUXDB_HOSTPORT=https://XXXX -e INFLUXDB_MUTUALTLS=true -e WEBHOOK_ADDRESS=XXXX -v /localpath/myclientcert.crt:/etc/certs/client.crt -v /localpath/myclientkey.key:/etc/certs/client.key -v /localpath/ca.crt:/etc/certs/ca.crt falcosecurity/falcosidekick
