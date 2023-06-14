@@ -174,7 +174,10 @@ func TestHeadersResetAfterReq(t *testing.T) {
 
 func TestMutualTlsPost(t *testing.T) {
 	config := &types.Configuration{}
-	config.MutualTLSFilesPath = "/tmp/falcosidekicktests"
+	config.MutualTLSFilesPath = "/tmp/falcosidekicktests/client"
+	config.MutualTLSClient.CertFile = "/tmp/falcosidekicktests/client/client.crt"
+	config.MutualTLSClient.KeyFile = "/tmp/falcosidekicktests/client/client.key"
+	config.MutualTLSClient.CaCertFile = "/tmp/falcosidekicktests/client/ca.crt"
 	// delete folder to avoid makedir failure
 	os.RemoveAll(config.MutualTLSFilesPath)
 
@@ -212,7 +215,7 @@ func TestMutualTlsPost(t *testing.T) {
 }
 
 func certsetup(config *types.Configuration) (serverTLSConf *tls.Config, err error) {
-	err = os.Mkdir(config.MutualTLSFilesPath, 0755)
+	err = os.MkdirAll(config.MutualTLSFilesPath, 0755)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +259,7 @@ func certsetup(config *types.Configuration) (serverTLSConf *tls.Config, err erro
 	})
 
 	// save ca to ca.crt file (it will be used by Client)
-	err = ioutil.WriteFile(config.MutualTLSFilesPath+"/ca.crt", caPEM.Bytes(), 0600)
+	err = ioutil.WriteFile(config.MutualTLSClient.CaCertFile, caPEM.Bytes(), 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +359,7 @@ func certsetup(config *types.Configuration) (serverTLSConf *tls.Config, err erro
 	})
 
 	// save client cert and key to client.crt and client.key
-	err = ioutil.WriteFile(config.MutualTLSFilesPath+"/client.crt", clientCertPEM.Bytes(), 0600)
+	err = ioutil.WriteFile(config.MutualTLSClient.CertFile, clientCertPEM.Bytes(), 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +368,7 @@ func certsetup(config *types.Configuration) (serverTLSConf *tls.Config, err erro
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(clientCertPrivKey),
 	})
-	err = ioutil.WriteFile(config.MutualTLSFilesPath+"/client.key", clientCertPrivKeyPEM.Bytes(), 0600)
+	err = ioutil.WriteFile(config.MutualTLSClient.KeyFile, clientCertPrivKeyPEM.Bytes(), 0600)
 	if err != nil {
 		return nil, err
 	}

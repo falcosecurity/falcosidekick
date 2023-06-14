@@ -45,12 +45,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Debug", false)
 	v.SetDefault("BracketReplacer", "")
 	v.SetDefault("MutualTlsFilesPath", "/etc/certs")
+	v.SetDefault("MutualTLSClient.CertFile", "")
+	v.SetDefault("MutualTLSClient.KeyFile", "")
+	v.SetDefault("MutualTLSClient.CaCertFile", "")
 
 	v.SetDefault("TLSServer.Deploy", false)
-	v.SetDefault("TLSServer.CertFile", "/etc/certs/server.crt")
-	v.SetDefault("TLSServer.KeyFile", "/etc/certs/server.key")
+	v.SetDefault("TLSServer.CertFile", "/etc/certs/server/server.crt")
+	v.SetDefault("TLSServer.KeyFile", "/etc/certs/server/server.key")
 	v.SetDefault("TLSServer.MutualTLS", false)
-	v.SetDefault("TLSServer.CaCertFile", "/etc/certs/ca.crt")
+	v.SetDefault("TLSServer.CaCertFile", "/etc/certs/server/ca.crt")
 
 	v.SetDefault("Slack.WebhookURL", "")
 	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")

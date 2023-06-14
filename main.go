@@ -764,6 +764,10 @@ func main() {
 			log.Printf("[DEBUG] : running HTTP server")
 		}
 
+		if config.TLSServer.MutualTLS {
+			log.Printf("[WARN] : tlsserver.deploy is false but tlsserver.mutualtls is true, change tlsserver.deploy to true to use mTLS")
+		}
+
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatalf("[ERROR] : %v", err.Error())
 		}
