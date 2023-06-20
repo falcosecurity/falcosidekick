@@ -22,5 +22,5 @@ func TestFalcoNewCounterVec(t *testing.T) {
 		t.Errorf("Error getting Metrics from promauto")
 	}
 	metricDescString := mm.Desc().String()
-	require.Equal(t, metricDescString, "Desc{fqName: \"falco_events\", help: \"\", constLabels: {}, variableLabels: [hostname rule priority k8s_ns_name k8s_pod_name test]}")
+	require.Equal(t, metricDescString, "Desc{fqName: \"falco_events\", help: \"\", constLabels: {}, variableLabels: [{hostname <nil>} {rule <nil>} {priority <nil>} {k8s_ns_name <nil>} {k8s_pod_name <nil>} {test <nil>}]}")
 }
