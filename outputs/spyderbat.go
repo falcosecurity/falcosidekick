@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -131,15 +132,28 @@ type spyderbatPayload struct {
 
 func newSpyderbatPayload(falcopayload types.FalcoPayload) (spyderbatPayload, error) {
 	nowTime := float64(time.Now().UnixNano()) / 1000000000
-	jsonTime, err := falcopayload.OutputFields["evt.time"].(json.Number).Int64()
+
+	timeStr := falcopayload.OutputFields["evt.time"]
+	if timeStr == nil {
+		errStr := fmt.Sprintf("evt.time is nil for rule %s", falcopayload.Rule)
+		return spyderbatPayload{}, errors.New(errStr)
+	}
+	jsonTime, err := timeStr.(json.Number).Int64()
 	if err != nil {
 		return spyderbatPayload{}, err
 	}
 	eventTime := float64(jsonTime / 1000000000.0)
-	pid, err := falcopayload.OutputFields["proc.pid"].(json.Number).Int64()
+
+	pidStr := falcopayload.OutputFields["proc.pid"]
+	if pidStr == nil {
+		errStr := fmt.Sprintf("proc.pid is nil for rule %s", falcopayload.Rule)
+		return spyderbatPayload{}, errors.New(errStr)
+	}
+	pid, err := pidStr.(json.Number).Int64()
 	if err != nil {
 		return spyderbatPayload{}, err
 	}
+
 	level := PriorityMap[falcopayload.Priority]
 	args := strings.Split(falcopayload.Output, " ")
 	var message []string
