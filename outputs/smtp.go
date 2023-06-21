@@ -154,7 +154,7 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 		smtpClient.Auth(auth)
 	}
 
-	body := sp.To + "\n" + sp.Subject + "\n" + sp.From + "\n" + sp.Body
+	body := sp.Subject + "\n" + sp.Body
 
 	if c.Config.Debug {
 		log.Printf("[DEBUG] : SMTP payload : \nServer: %v\n%v\n%v\nSubject: %v\n", c.Config.SMTP.HostPort, sp.From, sp.To, sp.Subject)
