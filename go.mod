@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/functions v1.15.1
 	cloud.google.com/go/pubsub v1.31.0
 	cloud.google.com/go/storage v1.30.1
-	github.com/Azure/azure-event-hubs-go/v3 v3.5.0
+	github.com/Azure/azure-event-hubs-go/v3 v3.6.0
 	github.com/DataDog/datadog-go v4.8.3+incompatible
 	github.com/PagerDuty/go-pagerduty v1.7.0
 	github.com/aws/aws-sdk-go v1.44.284
@@ -45,9 +45,9 @@ require (
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.0 // indirect
 	cloud.google.com/go/longrunning v0.5.0 // indirect
-	github.com/Azure/azure-amqp-common-go/v4 v4.1.0 // indirect
+	github.com/Azure/azure-amqp-common-go/v4 v4.2.0 // indirect
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible // indirect
-	github.com/Azure/go-amqp v0.19.1 // indirect
+	github.com/Azure/go-amqp v1.0.0 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.28 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.23 // indirect
