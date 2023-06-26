@@ -25,7 +25,7 @@ require (
 	github.com/redis/go-redis/v9 v9.0.5
 	github.com/segmentio/kafka-go v0.4.40
 	github.com/spf13/viper v1.16.0
-	github.com/streadway/amqp v1.0.0
+	github.com/streadway/amqp v1.1.0
 	github.com/stretchr/testify v1.8.4
 	github.com/wavefronthq/wavefront-sdk-go v0.13.0
 	github.com/xitongsys/parquet-go v1.6.2
