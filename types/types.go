@@ -487,6 +487,7 @@ type kafkaConfig struct {
 	Compression     string
 	Async           bool
 	RequiredACKs    string
+	TopicCreation   bool
 }
 
 type KafkaRestConfig struct {

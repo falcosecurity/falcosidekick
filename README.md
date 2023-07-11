@@ -455,6 +455,15 @@ kafka:
   hostport: "" # Apache Kafka Host:Port (ex: localhost:9092). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  sasl: "" # SASL authentication mechanism, if empty, no authentication (PLAIN|SCRAM_SHA256|SCRAM_SHA512)
+  username: "" # use this username to authenticate to Kafka via SASL (default: "")
+  password: "" # use this password to authenticate to Kafka via SASL (default: "")
+  # async: false # produce messages without blocking (default: false)
+  # requiredacks: NONE # number of acknowledges from partition replicas required before receiving (default: "NONE")
+  # compression: "" # enable message compression using this algorithm, no compression (GZIP|SNAPPY|LZ4|ZSTD|NONE) (default: "NONE")
+  # balancer: "" # partition balancing strategy when producing, (default: "round_robin")
+  # clientid: "" # specify a client.id when communicating with the broker for tracing
+  # topiccreation: false # auto create the topic if it doesn't exist (default: false)
 
 kafkarest:
   address: "" # The full URL to the topic (example "http://kafkarest:8082/topics/test")
@@ -1008,6 +1017,15 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **KAFKA_HOSTPORT**: The Host:Port of the Kafka (ex: localhost:9092), if not
   empty, Kafka is _enabled_
 - **KAFKA_TOPIC**: The name of the Kafka topic
+- **KAFKA_sasl**: "" # SASL authentication mechanism, if empty, no authentication (PLAIN|SCRAM_SHA256|SCRAM_SHA512)
+- **KAFKA_USERNAME**: use this username to authenticate to Kafka via SASL (default: "")
+- **KAFKA_PASSWORD**: use this password to authenticate to Kafka via SASL (default: "")
+- **KAFKA_ASYNC**: produce messages without blocking (default: false)
+- **KAFKA_REQUIREDACKS**: number of acknowledges from partition replicas required before receiving (default: "NONE")
+- **KAFKA_COMPRESSION**: enable message compression using this algorithm, no compression (GZIP|SNAPPY|LZ4|ZSTD|NONE) (default: "NONE")
+- **KAFKA_BALANCER**: partition balancing strategy when producing, (default: "round_robin")
+- **KAFKA_CLIENTID**: specify a client.id when communicating with the broker for tracing
+- **KAFKA_TOPICCREATION**: auto create the topic if it doesn't exist (default: false)
 - **KAFKA_MINIMUMPRIORITY**: minimum priority of event for using this output,
   order is
   `emergency|alert|critical|error|warning|notice|informational|debug or "" (default)`

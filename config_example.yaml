@@ -281,6 +281,7 @@ kafka:
   # compression: "" # enable message compression using this algorithm, no compression (GZIP|SNAPPY|LZ4|ZSTD|NONE) (default: "NONE")
   # balancer: "" # partition balancing strategy when producing, (default: "round_robin")
   # clientid: "" # specify a client.id when communicating with the broker for tracing
+  # topiccreation: false # auto create the topic if it doesn't exist (default: false)
 
 kafkarest:
   address: "" # The full URL to the topic (example "http://kafkarest:8082/topics/test")
