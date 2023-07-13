@@ -470,6 +470,11 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OpenObserve.Username", "")
 	v.SetDefault("OpenObserve.Password", "")
 
+	v.SetDefault("Dynatrace.APIToken", "")
+	v.SetDefault("Dynatrace.APIUrl", "")
+	v.SetDefault("Dynatrace.CheckCert", true)
+	v.SetDefault("Dynatrace.MinimumPriority", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -727,6 +732,7 @@ func getConfig() *types.Configuration {
 	c.Telegram.MinimumPriority = checkPriority(c.Telegram.MinimumPriority)
 	c.N8N.MinimumPriority = checkPriority(c.N8N.MinimumPriority)
 	c.OpenObserve.MinimumPriority = checkPriority(c.OpenObserve.MinimumPriority)
+	c.Dynatrace.MinimumPriority = checkPriority(c.Dynatrace.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

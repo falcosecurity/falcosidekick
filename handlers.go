@@ -398,4 +398,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.OpenObserve.HostPort != "" && (falcopayload.Priority >= types.Priority(config.OpenObserve.MinimumPriority) || falcopayload.Rule == testRule) {
 		go openObserveClient.OpenObservePost(falcopayload)
 	}
+
+	if config.Dynatrace.APIToken != "" && config.Dynatrace.APIUrl != "" && (falcopayload.Priority >= types.Priority(config.Dynatrace.MinimumPriority) || falcopayload.Rule == testRule) {
+		go dynatraceClient.DynatracePost(falcopayload)
+	}
 }
