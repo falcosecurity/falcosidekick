@@ -105,6 +105,7 @@ type Configuration struct {
 	Telegram           TelegramConfig
 	N8N                N8NConfig
 	OpenObserve        OpenObserveConfig
+	Dynatrace          DynatraceOutputConfig
 }
 
 // MutualTLSClient represents parameters for mutual TLS as client
@@ -708,6 +709,13 @@ type N8NConfig struct {
 	CheckCert       bool
 }
 
+type DynatraceOutputConfig struct {
+	APIToken        string
+	APIUrl          string
+	MinimumPriority string
+	CheckCert       bool
+}
+
 // OpenObserveConfig represents config parameters for OpenObserve
 type OpenObserveConfig struct {
 	HostPort         string
@@ -785,6 +793,7 @@ type Statistics struct {
 	Telegram          *expvar.Map
 	N8N               *expvar.Map
 	OpenObserve       *expvar.Map
+	Dynatrace         *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

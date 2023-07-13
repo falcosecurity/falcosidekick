@@ -72,6 +72,7 @@ var (
 	telegramClient      *outputs.Client
 	n8nClient           *outputs.Client
 	openObserveClient   *outputs.Client
+	dynatraceClient     *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -714,6 +715,18 @@ func init() {
 			config.OpenObserve.HostPort = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OpenObserve")
+		}
+	}
+
+	if config.Dynatrace.APIToken != "" && config.Dynatrace.APIUrl != "" {
+		var err error
+		dynatraceApiUrl := strings.TrimRight(config.Dynatrace.APIUrl, "/") + "/v2/logs/ingest"
+		dynatraceClient, err = outputs.NewClient("Dynatrace", dynatraceApiUrl, false, config.Dynatrace.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.Dynatrace.APIToken = ""
+			config.Dynatrace.APIUrl = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Dynatrace")
 		}
 	}
 
