@@ -31,8 +31,8 @@ require (
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20230312005205-fbbcdea5f512
 	golang.org/x/oauth2 v0.10.0
-	google.golang.org/api v0.129.0
-	google.golang.org/genproto v0.0.0-20230530153820-e85fd2cbaebc
+	google.golang.org/api v0.131.0
+	google.golang.org/genproto v0.0.0-20230629202037-9506855d4529
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.27.3
@@ -137,9 +137,9 @@ require (
 	golang.org/x/tools v0.7.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
-	google.golang.org/grpc v1.56.1 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20230629202037-9506855d4529 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230706204954-ccb25ca9f130 // indirect
+	google.golang.org/grpc v1.56.2 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
