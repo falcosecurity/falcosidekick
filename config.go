@@ -552,10 +552,11 @@ func getConfig() *types.Configuration {
 		extraLabels := strings.Split(value, ",")
 		for _, labelData := range extraLabels {
 			labelName, labelValue, found := strings.Cut(labelData, ":")
+			labelName, labelValue = strings.TrimSpace(labelName), strings.TrimSpace(labelValue)
 			if !promKVNameRegex.MatchString(labelName) {
 				log.Printf("[ERROR] : AlertManager - Extra label name '%v' is not valid", labelName)
 			} else if found {
-				c.Alertmanager.ExtraLabels[labelName] = strings.TrimSpace(labelValue)
+				c.Alertmanager.ExtraLabels[labelName] = labelValue
 			} else {
 				c.Alertmanager.ExtraLabels[labelName] = ""
 			}
@@ -566,10 +567,11 @@ func getConfig() *types.Configuration {
 		extraAnnotations := strings.Split(value, ",")
 		for _, annotationData := range extraAnnotations {
 			annotationName, annotationValue, found := strings.Cut(annotationData, ":")
+			annotationName, annotationValue = strings.TrimSpace(annotationName), strings.TrimSpace(annotationValue)
 			if !promKVNameRegex.MatchString(annotationName) {
 				log.Printf("[ERROR] : AlertManager - Extra annotation name '%v' is not valid", annotationName)
 			} else if found {
-				c.Alertmanager.ExtraAnnotations[annotationName] = strings.TrimSpace(annotationValue)
+				c.Alertmanager.ExtraAnnotations[annotationName] = annotationValue
 			} else {
 				c.Alertmanager.ExtraAnnotations[annotationName] = ""
 			}
