@@ -208,6 +208,8 @@ tlsserver:
   keyfile: "/etc/certs/server/server.key" # server key
   mutualtls: false # if true, mTLS server will be deployed instead of TLS, deploy also has to be true
   cacertfile: "/etc/certs/server/ca.crt" # for client certification if mutualtls is true
+  metricshttp: false # if true, a separate http server will be deployed for the Prometheus metrics endpoint
+  metricsport: 2802 # port to serve metrics http server if deployed (default: 2802)
 
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
@@ -688,6 +690,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
 - **TLSSERVER_KEYFILE**: server key file for TLS Server (default: "/etc/certs/server/server.key")
 - **TLSSERVER_MUTUALTLS**: if _true_ mutual TLS server will be deployed instead of TLS, deploy also has to be true
 - **TLSSERVER_CACERTFILE**: CA certification file for client certification if TLSSERVER_MUTUALTLS is _true_ (default: "/etc/certs/server/ca.crt")
+- **TLSSERVER_METRICSHTTP**: if true, a separate http server will be deployed for the Prometheus metrics endpoint
+- **TLSSERVER_METRICSPORT**: port to serve metrics http server if deployed (default: 2802)
 - **SLACK_WEBHOOKURL** : Slack Webhook URL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ)
 - **SLACK_CHANNEL** : Slack Channel (optionnal)
 - **SLACK_FOOTER** : Slack footer

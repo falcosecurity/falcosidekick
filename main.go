@@ -767,8 +767,31 @@ func main() {
 			log.Printf("[DEBUG] : running TLS server")
 		}
 
-		if err := server.ListenAndServeTLS(config.TLSServer.CertFile, config.TLSServer.KeyFile); err != nil {
-			log.Fatalf("[ERROR] : %v", err.Error())
+		if config.TLSServer.MetricsHTTP {
+			if config.Debug {
+				log.Printf("[DEBUG] : running HTTP server for /metrics endpoint")
+			}
+
+			metricsServeMux := http.NewServeMux()
+			metricsServeMux.Handle("/metrics", promhttp.Handler())
+
+			metricsServer := &http.Server{
+				Addr:    fmt.Sprintf("%s:%d", config.ListenAddress, config.TLSServer.MetricsPort),
+				Handler: metricsServeMux,
+				// Timeouts
+				ReadTimeout:       60 * time.Second,
+				ReadHeaderTimeout: 60 * time.Second,
+				WriteTimeout:      60 * time.Second,
+				IdleTimeout:       60 * time.Second,
+			}
+			errs := make(chan error, 1)
+			go serveTLS(server, errs)
+			go serveHTTP(metricsServer, errs)
+			log.Fatal(<-errs)
+		} else {
+			if err := server.ListenAndServeTLS(config.TLSServer.CertFile, config.TLSServer.KeyFile); err != nil {
+				log.Fatalf("[ERROR] : %v", err.Error())
+			}
 		}
 	} else {
 		if config.Debug {
@@ -779,8 +802,20 @@ func main() {
 			log.Printf("[WARN] : tlsserver.deploy is false but tlsserver.mutualtls is true, change tlsserver.deploy to true to use mTLS")
 		}
 
+		if config.TLSServer.MetricsHTTP {
+			log.Printf("[WARN] : tlsserver.deploy is false but tlsserver.metricshttp is true, change tlsserver.deploy to true to use TLS")
+		}
+
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatalf("[ERROR] : %v", err.Error())
 		}
 	}
+}
+
+func serveTLS(server *http.Server, errs chan<- error) {
+	errs <- server.ListenAndServeTLS(config.TLSServer.CertFile, config.TLSServer.KeyFile)
+}
+
+func serveHTTP(server *http.Server, errs chan<- error) {
+	errs <- server.ListenAndServe()
 }

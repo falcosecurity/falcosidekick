@@ -58,6 +58,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("TLSServer.KeyFile", "/etc/certs/server/server.key")
 	v.SetDefault("TLSServer.MutualTLS", false)
 	v.SetDefault("TLSServer.CaCertFile", "/etc/certs/server/ca.crt")
+	v.SetDefault("TLSServer.MetricsHTTP", false)
+	v.SetDefault("TLSServer.MetricsPort", 2802)
 
 	v.SetDefault("Slack.WebhookURL", "")
 	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")
