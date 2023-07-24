@@ -23,6 +23,7 @@ func getConfig() *types.Configuration {
 	c := &types.Configuration{
 		Customfields:    make(map[string]string),
 		Templatedfields: make(map[string]string),
+		TLSServer:       types.TLSServer{NoTLSPaths: make([]string, 0)},
 		Grafana:         types.GrafanaOutputConfig{CustomHeaders: make(map[string]string)},
 		Loki:            types.LokiOutputConfig{CustomHeaders: make(map[string]string)},
 		Elasticsearch:   types.ElasticsearchOutputConfig{CustomHeaders: make(map[string]string)},
@@ -58,8 +59,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("TLSServer.KeyFile", "/etc/certs/server/server.key")
 	v.SetDefault("TLSServer.MutualTLS", false)
 	v.SetDefault("TLSServer.CaCertFile", "/etc/certs/server/ca.crt")
-	v.SetDefault("TLSServer.MetricsHTTP", false)
-	v.SetDefault("TLSServer.MetricsPort", 2802)
+	v.SetDefault("TLSServer.NoTLSPort", 2810)
 
 	v.SetDefault("Slack.WebhookURL", "")
 	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")
@@ -484,6 +484,8 @@ func getConfig() *types.Configuration {
 		}
 	}
 
+	v.GetStringSlice("TLSServer.NoTLSPaths")
+
 	v.GetStringMapString("Customfields")
 	v.GetStringMapString("Templatedfields")
 	v.GetStringMapString("Webhook.CustomHeaders")
@@ -494,6 +496,10 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("GCP.PubSub.CustomAttributes")
 	if err := v.Unmarshal(c); err != nil {
 		log.Printf("[ERROR] : Error unmarshalling config : %s", err)
+	}
+
+	if value, present := os.LookupEnv("TLSSERVER_NOTLSPATHS"); present {
+		c.TLSServer.NoTLSPaths = strings.Split(value, ",")
 	}
 
 	if value, present := os.LookupEnv("CUSTOMFIELDS"); present {
@@ -618,7 +624,11 @@ func getConfig() *types.Configuration {
 	}
 
 	if c.ListenPort == 0 || c.ListenPort > 65536 {
-		log.Fatalf("[ERROR] : Bad port number\n")
+		log.Fatalf("[ERROR] : Bad listening port number\n")
+	}
+
+	if c.TLSServer.NoTLSPort == 0 || c.TLSServer.NoTLSPort > 65536 {
+		log.Fatalf("[ERROR] : Bad noTLS server port number\n")
 	}
 
 	if ip := net.ParseIP(c.ListenAddress); c.ListenAddress != "" && ip == nil {

@@ -116,13 +116,13 @@ type MutualTLSClient struct {
 
 // TLSServer represents parameters for TLS Server
 type TLSServer struct {
-	Deploy      bool
-	CertFile    string
-	KeyFile     string
-	MutualTLS   bool
-	CaCertFile  string
-	MetricsHTTP bool
-	MetricsPort int
+	Deploy     bool
+	CertFile   string
+	KeyFile    string
+	MutualTLS  bool
+	CaCertFile string
+	NoTLSPort  int
+	NoTLSPaths []string
 }
 
 // SlackOutputConfig represents parameters for Slack

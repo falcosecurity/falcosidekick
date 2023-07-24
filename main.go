@@ -723,19 +723,46 @@ func init() {
 }
 
 func main() {
-	http.HandleFunc("/", mainHandler)
-	http.HandleFunc("/ping", pingHandler)
-	http.HandleFunc("/healthz", healthHandler)
-	http.HandleFunc("/test", testHandler)
-	http.Handle("/metrics", promhttp.Handler())
-
-	log.Printf("[INFO]  : Falco Sidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
 	if config.Debug {
 		log.Printf("[INFO]  : Debug mode : %v", config.Debug)
 	}
 
+	routes := map[string]http.Handler{
+		"/":        http.HandlerFunc(mainHandler),
+		"/ping":    http.HandlerFunc(pingHandler),
+		"/healthz": http.HandlerFunc(healthHandler),
+		"/test":    http.HandlerFunc(testHandler),
+		"/metrics": promhttp.Handler(),
+	}
+
+	mainServeMux := http.NewServeMux()
+	var HTTPServeMux *http.ServeMux
+
+	// configure HTTP routes requested by NoTLSPath config
+	if config.TLSServer.Deploy {
+		HTTPServeMux = http.NewServeMux()
+		for _, r := range config.TLSServer.NoTLSPaths {
+			handler, ok := routes[r]
+			if ok {
+				delete(routes, r)
+				if config.Debug {
+					log.Printf("[DEBUG] : %s is served on http", r)
+				}
+				HTTPServeMux.Handle(r, handler)
+			} else {
+				log.Printf("[WARN] : tlsserver.notlspaths has unknown path '%s'", r)
+			}
+		}
+	}
+
+	// configure main server routes
+	for r, handler := range routes {
+		mainServeMux.Handle(r, handler)
+	}
+
 	server := &http.Server{
-		Addr: fmt.Sprintf("%s:%d", config.ListenAddress, config.ListenPort),
+		Addr:    fmt.Sprintf("%s:%d", config.ListenAddress, config.ListenPort),
+		Handler: mainServeMux,
 		// Timeouts
 		ReadTimeout:       60 * time.Second,
 		ReadHeaderTimeout: 60 * time.Second,
@@ -767,28 +794,28 @@ func main() {
 			log.Printf("[DEBUG] : running TLS server")
 		}
 
-		if config.TLSServer.MetricsHTTP {
+		if len(config.TLSServer.NoTLSPaths) != 0 {
 			if config.Debug {
-				log.Printf("[DEBUG] : running HTTP server for /metrics endpoint")
+				log.Printf("[DEBUG] : running HTTP server for endpoints defined in tlsserver.notlspaths")
 			}
 
-			metricsServeMux := http.NewServeMux()
-			metricsServeMux.Handle("/metrics", promhttp.Handler())
-
-			metricsServer := &http.Server{
-				Addr:    fmt.Sprintf("%s:%d", config.ListenAddress, config.TLSServer.MetricsPort),
-				Handler: metricsServeMux,
+			httpServer := &http.Server{
+				Addr:    fmt.Sprintf("%s:%d", config.ListenAddress, config.TLSServer.NoTLSPort),
+				Handler: HTTPServeMux,
 				// Timeouts
 				ReadTimeout:       60 * time.Second,
 				ReadHeaderTimeout: 60 * time.Second,
 				WriteTimeout:      60 * time.Second,
 				IdleTimeout:       60 * time.Second,
 			}
+			log.Printf("[INFO] : Falco Sidekick is up and listening on %s:%d and %s:%d", config.ListenAddress, config.ListenPort, config.ListenAddress, config.TLSServer.NoTLSPort)
+
 			errs := make(chan error, 1)
 			go serveTLS(server, errs)
-			go serveHTTP(metricsServer, errs)
+			go serveHTTP(httpServer, errs)
 			log.Fatal(<-errs)
 		} else {
+			log.Printf("[INFO] : Falco Sidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
 			if err := server.ListenAndServeTLS(config.TLSServer.CertFile, config.TLSServer.KeyFile); err != nil {
 				log.Fatalf("[ERROR] : %v", err.Error())
 			}
@@ -802,10 +829,11 @@ func main() {
 			log.Printf("[WARN] : tlsserver.deploy is false but tlsserver.mutualtls is true, change tlsserver.deploy to true to use mTLS")
 		}
 
-		if config.TLSServer.MetricsHTTP {
-			log.Printf("[WARN] : tlsserver.deploy is false but tlsserver.metricshttp is true, change tlsserver.deploy to true to use TLS")
+		if len(config.TLSServer.NoTLSPaths) != 0 {
+			log.Printf("[WARN] : tlsserver.deploy is false but tlsserver.notlspaths is not empty, change tlsserver.deploy to true to deploy two servers")
 		}
 
+		log.Printf("[INFO] : Falco Sidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatalf("[ERROR] : %v", err.Error())
 		}
