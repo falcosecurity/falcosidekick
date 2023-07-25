@@ -61,7 +61,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 	}
 
 	kafkaWriter := &kafka.Writer{
-		Addr:                   kafka.TCP(config.Kafka.HostPort),
+		Addr:                   kafka.TCP(strings.Split(config.Kafka.HostPort, ",")...),
 		Topic:                  config.Kafka.Topic,
 		Async:                  config.Kafka.Async,
 		Transport:              transport,

@@ -457,7 +457,7 @@ cliq:
     .OutputFields "user.name" }}*' # a Go template to format Cliq Text above Table, displayed in addition to the output from `CLIQ_OUTPUTFORMAT`, see [Slack Message Formatting](#slack-message-formatting) in the README for details. If empty, no Text is displayed before Table.
 
 kafka:
-  hostport: "" # Apache Kafka Host:Port (ex: localhost:9092). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
+  hostport: "" # comma separated list of Apache Kafka bootstrap nodes for establishing the initial connection to the cluster (ex: localhost:9092,localhost:9093). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is enabled
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sasl: "" # SASL authentication mechanism, if empty, no authentication (PLAIN|SCRAM_SHA256|SCRAM_SHA512)
@@ -1021,8 +1021,7 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   `CLIQ_OUTPUTFORMAT`, see
   [Slack Message Formatting](#slack-message-formatting) in the README for
   details. If empty, no Text is displayed before sections.
-- **KAFKA_HOSTPORT**: The Host:Port of the Kafka (ex: localhost:9092), if not
-  empty, Kafka is _enabled_
+- **KAFKA_HOSTPORT**: comma separated list of Apache Kafka bootstrap nodes for establishing the initial connection to the cluster (ex: localhost:9092,localhost:9093). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is _enabled_
 - **KAFKA_TOPIC**: The name of the Kafka topic
 - **KAFKA_sasl**: "" # SASL authentication mechanism, if empty, no authentication (PLAIN|SCRAM_SHA256|SCRAM_SHA512)
 - **KAFKA_USERNAME**: use this username to authenticate to Kafka via SASL (default: "")
