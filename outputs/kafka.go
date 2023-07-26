@@ -82,6 +82,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 	case "round_robin":
 		kafkaWriter.Balancer = &kafka.RoundRobin{}
 	default:
+		log.Printf("[ERROR] : Kafka - unsupported balancer %q\n", config.Kafka.Balancer)
 		return nil, fmt.Errorf("unsupported balancer %q", config.Kafka.Balancer)
 	}
 
@@ -97,6 +98,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 	case "NONE":
 		// leave as default, none
 	default:
+		log.Printf("[ERROR] : Kafka - unsupported compression %q\n", config.Kafka.Compression)
 		return nil, fmt.Errorf("unsupported compression %q", config.Kafka.Compression)
 	}
 
@@ -108,7 +110,8 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 	case "NONE":
 		kafkaWriter.RequiredAcks = kafka.RequireNone
 	default:
-		return nil, fmt.Errorf("unsupported required ACKs %q", config.Kafka.Compression)
+		log.Printf("[ERROR] : Kafka - unsupported required ACKs %q\n", config.Kafka.RequiredACKs)
+		return nil, fmt.Errorf("unsupported required ACKs %q", config.Kafka.RequiredACKs)
 	}
 
 	client := &Client{
