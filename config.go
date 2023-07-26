@@ -288,6 +288,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Kafka.Topic", "")
 	v.SetDefault("Kafka.MinimumPriority", "")
 	v.SetDefault("Kafka.SASL", "")
+	v.SetDefault("Kafka.TLS", false)
 	v.SetDefault("Kafka.Username", "")
 	v.SetDefault("Kafka.Password", "")
 	v.SetDefault("Kafka.Balancer", "round_robin")

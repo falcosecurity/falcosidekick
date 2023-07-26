@@ -461,6 +461,7 @@ kafka:
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sasl: "" # SASL authentication mechanism, if empty, no authentication (PLAIN|SCRAM_SHA256|SCRAM_SHA512)
+  tls: false # Use TLS for the connections (default: false)
   username: "" # use this username to authenticate to Kafka via SASL (default: "")
   password: "" # use this password to authenticate to Kafka via SASL (default: "")
   # async: false # produce messages without blocking (default: false)
@@ -1023,7 +1024,8 @@ care of lower/uppercases**) : `yaml: a.b --> envvar: A_B` :
   details. If empty, no Text is displayed before sections.
 - **KAFKA_HOSTPORT**: comma separated list of Apache Kafka bootstrap nodes for establishing the initial connection to the cluster (ex: localhost:9092,localhost:9093). Defaults to port 9092 if no port is specified after the domain, if not empty, Kafka output is _enabled_
 - **KAFKA_TOPIC**: The name of the Kafka topic
-- **KAFKA_sasl**: "" # SASL authentication mechanism, if empty, no authentication (PLAIN|SCRAM_SHA256|SCRAM_SHA512)
+- **KAFKA_SASL**: "" SASL authentication mechanism, if empty, no authentication (PLAIN|SCRAM_SHA256|SCRAM_SHA512)
+- **KAFKA_TLS**: "" Use TLS for the connections (default: false)
 - **KAFKA_USERNAME**: use this username to authenticate to Kafka via SASL (default: "")
 - **KAFKA_PASSWORD**: use this password to authenticate to Kafka via SASL (default: "")
 - **KAFKA_ASYNC**: produce messages without blocking (default: false)

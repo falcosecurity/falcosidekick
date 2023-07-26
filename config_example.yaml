@@ -278,6 +278,7 @@ kafka:
   topic: "" # Name of the topic, if not empty, Kafka output is enabled
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   sasl: "" # SASL authentication mechanism, if empty, no authentication (PLAIN|SCRAM_SHA256|SCRAM_SHA512)
+  tls: false # Use TLS for the connections (default: false)
   username: "" # use this username to authenticate to Kafka via SASL (default: "")
   password: "" # use this password to authenticate to Kafka via SASL (default: "")
   # async: false # produce messages without blocking (default: false)

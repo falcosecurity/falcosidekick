@@ -482,6 +482,7 @@ type kafkaConfig struct {
 	Topic           string
 	MinimumPriority string
 	SASL            string
+	TLS             bool
 	Username        string
 	Password        string
 	Balancer        string

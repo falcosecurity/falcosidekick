@@ -2,6 +2,7 @@ package outputs
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -26,6 +27,12 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 			DualStack: true,
 		}).DialContext,
 		ClientID: config.Kafka.ClientID,
+	}
+
+	if config.Kafka.TLS {
+		transport.TLS = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
 	}
 
 	var err error
@@ -143,7 +150,15 @@ func (c *Client) KafkaProduce(falcopayload types.FalcoPayload) {
 	}
 
 	// Errors are logged/captured via handleKafkaCompletion function, ignore here
-	_ = c.KafkaProducer.WriteMessages(context.Background(), kafkaMsg)
+	err = c.KafkaProducer.WriteMessages(context.Background(), kafkaMsg)
+	if err != nil {
+		c.incrKafkaErrorMetrics(1)
+		log.Printf("[ERROR] : Kafka - %v\n", err.Error())
+		return
+	} else {
+		c.incrKafkaSuccessMetrics(1)
+		log.Printf("[INFO]  : Kafka - Publish OK\n")
+	}
 }
 
 // handleKafkaCompletion is called when a message is produced
