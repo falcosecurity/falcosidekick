@@ -53,6 +53,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("MutualTLSClient.CertFile", "")
 	v.SetDefault("MutualTLSClient.KeyFile", "")
 	v.SetDefault("MutualTLSClient.CaCertFile", "")
+	v.SetDefault("TLSClient.CaCertFile", "")
 
 	v.SetDefault("TLSServer.Deploy", false)
 	v.SetDefault("TLSServer.CertFile", "/etc/certs/server/server.crt")
