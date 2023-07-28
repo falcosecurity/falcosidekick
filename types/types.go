@@ -49,6 +49,7 @@ func (f FalcoPayload) Check() bool {
 type Configuration struct {
 	MutualTLSFilesPath string
 	MutualTLSClient    MutualTLSClient
+	TLSClient          TLSClient
 	TLSServer          TLSServer
 	Debug              bool
 	ListenAddress      string
@@ -112,6 +113,11 @@ type Configuration struct {
 type MutualTLSClient struct {
 	CertFile   string
 	KeyFile    string
+	CaCertFile string
+}
+
+// MutualTLSClient represents parameters for global TLS client options
+type TLSClient struct {
 	CaCertFile string
 }
 

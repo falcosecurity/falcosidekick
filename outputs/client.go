@@ -193,6 +193,28 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 
+	if customTransport.TLSClientConfig == nil {
+		customTransport.TLSClientConfig = &tls.Config{}
+	}
+
+	customTransport.TLSClientConfig.MinVersion = tls.VersionTLS12
+
+	if customTransport.TLSClientConfig.RootCAs == nil {
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			pool = x509.NewCertPool()
+		}
+		customTransport.TLSClientConfig.RootCAs = pool
+	}
+
+	if c.Config.TLSClient.CaCertFile != "" {
+		caCert, err := ioutil.ReadFile(c.Config.TLSClient.CaCertFile)
+		if err != nil {
+			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		}
+		customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
+	}
+
 	if c.MutualTLSEnabled {
 		// Load client cert
 		var MutualTLSClientCertPath, MutualTLSClientKeyPath, MutualTLSClientCaCertPath string
@@ -221,13 +243,8 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 		if err != nil {
 			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		}
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caCert)
-		customTransport.TLSClientConfig = &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			RootCAs:      caCertPool,
-			MinVersion:   tls.VersionTLS12,
-		}
+		customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
+		customTransport.TLSClientConfig.Certificates = []tls.Certificate{cert}
 	} else {
 		// With MutualTLS enabled, the check cert flag is ignored
 		if !c.CheckCert {
