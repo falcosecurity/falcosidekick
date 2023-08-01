@@ -105,11 +105,9 @@ func (c *Client) DynatracePost(falcopayload types.FalcoPayload) {
 
 	c.ContentType = DynatraceContentType
 
-	if c.Config.Dynatrace.APIToken != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.AddHeader("Authorization", "Api-Token "+c.Config.Dynatrace.APIToken)
-	}
+	c.httpClientLock.Lock()
+	defer c.httpClientLock.Unlock()
+	c.AddHeader("Authorization", "Api-Token "+c.Config.Dynatrace.APIToken)
 
 	err := c.Post(newDynatracePayload(falcopayload).Payload)
 	if err != nil {
