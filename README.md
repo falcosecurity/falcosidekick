@@ -660,9 +660,10 @@ openobserve:
   #   key: value
 
 dynatrace:
-  apitoken: "" # Dynatrace API token with the "logs.ingest" scope, more info : https://dt-url.net/8543sda
+  apitoken: "" # Dynatrace API token with the "logs.ingest" scope, more info : https://dt-url.net/8543sda, if not empty, Dynatrace output is enabled
   apiurl: "" # Dynatrace API url, use https://ENVIRONMENTID.live.dynatrace.com/api for Dynatrace SaaS and https://YOURDOMAIN/e/ENVIRONMENTID/api for Dynatrace Managed, more info : https://dt-url.net/ej43qge
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
 ```
 
 Usage :
@@ -1210,7 +1211,7 @@ order is
   password is not empty (default: "")
 - **OPENOBSERVE_CUSTOMHEADERS** : a list of comma separated custom headers to add,
   syntax is "key:value,key:value"
-- **DYNATRACE_APITOKEN** : Dynatrace API token with the "logs.ingest" scope, more info : https://dt-url.net/8543sda
+- **DYNATRACE_APITOKEN** : Dynatrace API token with the "logs.ingest" scope, more info : https://dt-url.net/8543sda, if not empty, Dynatrace output is enabled
 - **DYNATRACE_APIURL** : Dynatrace API url, use https://ENVIRONMENTID.live.dynatrace.com/api for Dynatrace SaaS and https://YOURDOMAIN/e/ENVIRONMENTID/api for Dynatrace Managed, more info : https://www.dynatrace.com/support/help/get-started/monitoring-environment/environment-id
 - **DYNATRACE_CHECKCERT** : check if ssl certificate of the output is valid (default: `true`)
 - **DYNATRACE_MINIMUMPRIORITY** : minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
