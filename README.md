@@ -1529,7 +1529,7 @@ time                akey    bkey    ckey    priority rule      value
 
 ### Dynatrace
 
-![Dynatrace example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/dyntrace.png)
+![Dynatrace example](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/dynatrace.png)
 
 ## Installing Policy Report Custom Resource Definition (CRD)
 
