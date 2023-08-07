@@ -3,6 +3,7 @@ package outputs
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -30,7 +31,14 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 	}
 
 	if config.Kafka.TLS {
+		caCertPool, err := x509.SystemCertPool()
+
+		if err != nil {
+			err = fmt.Errorf("failed to initialize root CAs: %w", err)
+		}
+
 		transport.TLS = &tls.Config{
+			RootCAs:    caCertPool,
 			MinVersion: tls.VersionTLS12,
 		}
 	}
