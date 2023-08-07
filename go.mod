@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/functions v1.15.1
 	cloud.google.com/go/pubsub v1.33.0
 	cloud.google.com/go/storage v1.31.0
-	github.com/Azure/azure-event-hubs-go/v3 v3.6.0
+	github.com/Azure/azure-event-hubs-go/v3 v3.6.1
 	github.com/DataDog/datadog-go v4.8.3+incompatible
 	github.com/PagerDuty/go-pagerduty v1.7.0
 	github.com/aws/aws-sdk-go v1.44.312
