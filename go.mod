@@ -17,7 +17,7 @@ require (
 	github.com/emersion/go-smtp v0.17.0
 	github.com/google/uuid v1.3.0
 	github.com/googleapis/gax-go/v2 v2.12.0
-	github.com/jackc/pgx/v5 v5.4.2
+	github.com/jackc/pgx/v5 v5.4.3
 	github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter v0.0.0-20210714174227-a3d56502c383
 	github.com/nats-io/nats.go v1.28.0
 	github.com/nats-io/stan.go v0.10.4
@@ -90,7 +90,7 @@ require (
 	github.com/imdario/mergo v0.3.14 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/puddle/v2 v2.2.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
