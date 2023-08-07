@@ -14,7 +14,7 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 	c.Stats.CloudEvents.Add(Total, 1)
 
 	if c.CloudEventsClient == nil {
-		client, err := cloudevents.NewDefaultClient()
+		client, err := cloudevents.NewClientHTTP()
 		if err != nil {
 			go c.CountMetric(Outputs, 1, []string{"output:cloudevents", "status:error"})
 			log.Printf("[ERROR] : CloudEvents - NewDefaultClient : %v\n", err)
@@ -27,11 +27,11 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 
 	event := cloudevents.NewEvent()
 	event.SetTime(falcopayload.Time)
-	event.SetSource("falco.org") // TODO: this should have some info on the falco server that made the event.
+	event.SetSource("https://falco.org")
 	event.SetType("falco.rule.output.v1")
 	event.SetExtension("priority", falcopayload.Priority.String())
 	event.SetExtension("rule", falcopayload.Rule)
-	event.SetExtension("source", falcopayload.Source)
+	event.SetExtension("event_source", falcopayload.Source)
 
 	if falcopayload.Hostname != "" {
 		event.SetExtension(Hostname, falcopayload.Hostname)
