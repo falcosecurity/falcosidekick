@@ -34,7 +34,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 		caCertPool, err := x509.SystemCertPool()
 
 		if err != nil {
-			err = fmt.Errorf("failed to initialize root CAs: %w", err)
+			log.Printf("[ERROR] : Kafka - failed to initialize root CAs: %v", err)
 		}
 
 		transport.TLS = &tls.Config{
