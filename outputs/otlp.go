@@ -1,7 +1,6 @@
 package outputs
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -176,12 +175,8 @@ func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
 		log.Printf("Error generating trace")
 		return
 	}
-	payload, err := marshalJSON(trace)
-	if err != nil {
-		log.Printf("Error marshalling trace to JSON: %v", err)
-		return
-	}
-	err = c.Post(bytes.NewReader(payload))
+	// NB: no need to marshalJSON(trace), as c.Post() takes care of that
+	err := c.Post(trace)
 	if err != nil {
 		log.Printf("Error sending trace to OTLP endpoint: %v", err)
 		return
