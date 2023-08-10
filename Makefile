@@ -45,6 +45,9 @@ GOLANGCI_LINT_VER := v1.52.2
 GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER)
 
+# Docker
+IMAGE_TAG := falcosecurity/falcosidekick:latest
+
 ## --------------------------------------
 ## Build
 ## --------------------------------------
@@ -61,7 +64,11 @@ falcosidekick-linux-amd64:
 
 .PHONY: build-image
 build-image: falcosidekick-linux-amd64
-	$(DOCKER) build -t falcosecurity/falcosidekick:latest .
+	$(DOCKER) build -t $(IMAGE_TAG) .
+
+.PHONY: push-image
+push-image:
+	$(DOCKER) push $(IMAGE_TAG)
 
 ## --------------------------------------
 ## Test
