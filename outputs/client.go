@@ -194,7 +194,9 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 
 	if customTransport.TLSClientConfig == nil {
-		customTransport.TLSClientConfig = &tls.Config{}
+		customTransport.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
 	}
 
 	customTransport.TLSClientConfig.MinVersion = tls.VersionTLS12
