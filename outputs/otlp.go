@@ -158,6 +158,9 @@ func newTrace(falcopayload types.FalcoPayload) *Trace {
 			Attribute{Key: k, Value: StringValue{Value: fmt.Sprintf("%v", v)}})
 	}
 
+	// HACK: since we use 1:1 span:event, copy event's attributes into the span,
+	//       especially since TempoQL supports span-level queries for these
+	span.Attributes = evtAttribs
 	span.Events = []Event{
 		{
 			Name:       "falcosidekick.otlp",
