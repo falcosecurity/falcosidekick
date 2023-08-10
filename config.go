@@ -483,6 +483,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.Address", "")
 	v.SetDefault("OTLP.User", "")
 	v.SetDefault("OTLP.APIKey", "")
+	v.SetDefault("OTLP.Tenant", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

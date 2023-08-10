@@ -809,4 +809,5 @@ type OTLPOutputConfig struct {
 	Address string
 	User    string
 	APIKey  string
+	Tenant  string
 }

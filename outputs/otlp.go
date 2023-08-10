@@ -204,6 +204,11 @@ func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
 		log.Printf("Error generating trace")
 		return
 	}
+	if c.Config.OTLP.Tenant != "" {
+		c.httpClientLock.Lock()
+		defer c.httpClientLock.Unlock()
+		c.AddHeader("X-Scope-OrgID", c.Config.OTLP.Tenant)
+	}
 	if c.Config.OTLP.User != "" && c.Config.OTLP.APIKey != "" {
 		c.httpClientLock.Lock()
 		defer c.httpClientLock.Unlock()
