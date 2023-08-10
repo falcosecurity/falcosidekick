@@ -807,4 +807,6 @@ type PromStatistics struct {
 // OTLPOutputConfig represents config parameters for OTLP
 type OTLPOutputConfig struct {
 	Address string
+	User    string
+	APIKey  string
 }

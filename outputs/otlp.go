@@ -201,6 +201,11 @@ func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
 		log.Printf("Error generating trace")
 		return
 	}
+	if c.Config.OTLP.User != "" && c.Config.OTLP.APIKey != "" {
+		c.httpClientLock.Lock()
+		defer c.httpClientLock.Unlock()
+		c.BasicAuth(c.Config.OTLP.User, c.Config.OTLP.APIKey)
+	}
 	err := c.Post(trace)
 	if err != nil {
 		log.Printf("Error sending trace to OTLP endpoint: %v", err)

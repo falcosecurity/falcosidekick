@@ -34,6 +34,8 @@ func getConfig() *types.Configuration {
 		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
 		OTLP: types.OTLPOutputConfig{
 			Address: "",
+			User:    "",
+			APIKey:  "",
 		},
 	}
 
