@@ -481,6 +481,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Dynatrace.MinimumPriority", "")
 
 	v.SetDefault("OTLP.Address", "")
+	v.SetDefault("OTLP.User", "")
+	v.SetDefault("OTLP.APIKey", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
