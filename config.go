@@ -484,6 +484,9 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.User", "")
 	v.SetDefault("OTLP.APIKey", "")
 	v.SetDefault("OTLP.Tenant", "")
+	// NB: Unfortunately falco events don't provide endtime, artificially set it to 1000ms by default,
+	//     override-able via OTLP_DURATION environment variable.
+	v.SetDefault("OTLP.Duration", 1000)
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

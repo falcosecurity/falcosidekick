@@ -84,7 +84,7 @@ type Trace struct {
 }
 
 // newTrace returns a new Trace object.
-func newTrace(falcopayload types.FalcoPayload) *Trace {
+func newTrace(falcopayload types.FalcoPayload, durationMs int64) *Trace {
 	_, exists := falcopayload.OutputFields["container.id"]
 	if !exists {
 		log.Printf("Error getting container id from output fields")
@@ -116,7 +116,7 @@ func newTrace(falcopayload types.FalcoPayload) *Trace {
 		ParentSpanID: nil,
 		TraceState:   trace.TraceState{},
 		StartTime:    falcopayload.Time.UnixNano(),
-		EndTime:      falcopayload.Time.UnixNano(),
+		EndTime:      falcopayload.Time.UnixNano() + durationMs*1e6,
 		Kind:         trace.SpanKindServer,
 	}
 	span.Attributes = []Attribute{}
@@ -199,7 +199,7 @@ func newTrace(falcopayload types.FalcoPayload) *Trace {
 }
 
 func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
-	trace := newTrace(falcopayload)
+	trace := newTrace(falcopayload, c.Config.OTLP.Duration)
 	if trace == nil {
 		log.Printf("Error generating trace")
 		return
