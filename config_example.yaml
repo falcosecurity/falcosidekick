@@ -14,7 +14,7 @@ mutualtlsclient: # takes priority over mutualtlsfilespath if not emtpy
   keyfile: "/etc/certs/client/client.key" # client key
   cacertfile: "/etc/certs/client/ca.crt" # for server certification
 tlsclient:
-  cacertfile: "/etc/certs/client/ca.crt" # added to the system's tls CA pool
+  cacertfile: "/etc/certs/client/ca.crt" # CA certificate file for server certification on TLS connections, appended to the system CA pool if not empty
 tlsserver:
   deploy: false # if true, TLS server will be deployed instead of HTTP
   certfile: "/etc/certs/server/server.crt" # server certification file
