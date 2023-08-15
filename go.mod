@@ -34,7 +34,7 @@ require (
 	google.golang.org/api v0.137.0
 	google.golang.org/genproto v0.0.0-20230803162519-f966b187b2e5
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	k8s.io/api v0.26.3
+	k8s.io/api v0.27.4
 	k8s.io/apimachinery v0.27.4
 	k8s.io/client-go v11.0.0+incompatible
 )
