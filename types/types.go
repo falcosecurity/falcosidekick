@@ -106,6 +106,7 @@ type Configuration struct {
 	N8N                N8NConfig
 	OpenObserve        OpenObserveConfig
 	Dynatrace          DynatraceOutputConfig
+	OTLP               OTLPOutputConfig
 }
 
 // MutualTLSClient represents parameters for mutual TLS as client
@@ -801,4 +802,9 @@ type PromStatistics struct {
 	Falco   *prometheus.CounterVec
 	Inputs  *prometheus.CounterVec
 	Outputs *prometheus.CounterVec
+}
+
+// OTLPOutputConfig represents config parameters for OTLP
+type OTLPOutputConfig struct {
+	Address string
 }

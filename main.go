@@ -73,6 +73,7 @@ var (
 	n8nClient           *outputs.Client
 	openObserveClient   *outputs.Client
 	dynatraceClient     *outputs.Client
+	otlpClient          *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -727,6 +728,16 @@ func init() {
 			config.Dynatrace.APIUrl = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Dynatrace")
+		}
+	}
+
+	if config.OTLP.Address != "" {
+		var err error
+		otlpClient, err = outputs.NewClient("OTLP", config.OTLP.Address, false, false, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.OTLP.Address = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLP")
 		}
 	}
 

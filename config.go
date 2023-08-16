@@ -32,6 +32,9 @@ func getConfig() *types.Configuration {
 		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[types.PriorityType]string)},
 		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
+		OTLP: types.OTLPOutputConfig{
+			Address: "",
+		},
 	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
@@ -475,6 +478,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Dynatrace.CheckCert", true)
 	v.SetDefault("Dynatrace.MinimumPriority", "")
 
+	v.SetDefault("OTLP.Address", "")
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -739,6 +744,8 @@ func getConfig() *types.Configuration {
 	c.Mattermost.MessageFormatTemplate = getMessageFormatTemplate("Mattermost", c.Mattermost.MessageFormat)
 	c.Googlechat.MessageFormatTemplate = getMessageFormatTemplate("Googlechat", c.Googlechat.MessageFormat)
 	c.Cliq.MessageFormatTemplate = getMessageFormatTemplate("Cliq", c.Cliq.MessageFormat)
+	c.OTLP.Address = strings.TrimSpace(c.OTLP.Address)
+
 	return c
 }
 

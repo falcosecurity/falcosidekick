@@ -402,4 +402,8 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Dynatrace.APIToken != "" && config.Dynatrace.APIUrl != "" && (falcopayload.Priority >= types.Priority(config.Dynatrace.MinimumPriority) || falcopayload.Rule == testRule) {
 		go dynatraceClient.DynatracePost(falcopayload)
 	}
+
+	if config.OTLP.Address != "" {
+		go otlpClient.OTLPPost(falcopayload)
+	}
 }
