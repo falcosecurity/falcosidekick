@@ -67,29 +67,11 @@ func newTrace(falcopayload types.FalcoPayload, durationMs int64) *trace.Span {
 }
 
 func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
-	trace := newTrace(falcopayload, c.Config.OTLP.Duration)
+	trace := newTrace(falcopayload, c.Config.OTLP.Traces.Duration)
 	if trace == nil {
 		log.Printf("Error generating trace")
 		return
 	}
-
-	/*
-		if c.Config.OTLP.Tenant != "" {
-			c.httpClientLock.Lock()
-			defer c.httpClientLock.Unlock()
-			c.AddHeader("X-Scope-OrgID", c.Config.OTLP.Tenant)
-		}
-		if c.Config.OTLP.User != "" && c.Config.OTLP.APIKey != "" {
-			c.httpClientLock.Lock()
-			defer c.httpClientLock.Unlock()
-			c.BasicAuth(c.Config.OTLP.User, c.Config.OTLP.APIKey)
-		}
-		err := c.Post(trace)
-		if err != nil {
-			log.Printf("Error sending trace to OTLP endpoint: %v", err)
-			return
-		}
-	*/
 }
 
 func generateTraceID(containerID string) (trace.TraceID, error) {
