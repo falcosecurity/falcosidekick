@@ -403,7 +403,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go dynatraceClient.DynatracePost(falcopayload)
 	}
 
-	if config.OTLP.Address != "" {
+	if config.OTLP.Traces.Endpoint != "" {
 		go otlpClient.OTLPPost(falcopayload)
 	}
 }

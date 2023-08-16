@@ -39,6 +39,7 @@ func getConfig() *types.Configuration {
 		},
 	}
 
+	otlpEnv()
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
 	version := kingpin.Flag("version", "falcosidekick version").Short('v').Bool()
 	kingpin.Parse()
@@ -480,7 +481,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Dynatrace.CheckCert", true)
 	v.SetDefault("Dynatrace.MinimumPriority", "")
 
-	v.SetDefault("OTLP.Address", "")
+	v.SetDefault("OTLP.Traces.Endpoint", "")
+	//v.SetDefault("OTLP.Address", "")
 	v.SetDefault("OTLP.User", "")
 	v.SetDefault("OTLP.APIKey", "")
 	v.SetDefault("OTLP.Tenant", "")
@@ -753,6 +755,7 @@ func getConfig() *types.Configuration {
 	c.Googlechat.MessageFormatTemplate = getMessageFormatTemplate("Googlechat", c.Googlechat.MessageFormat)
 	c.Cliq.MessageFormatTemplate = getMessageFormatTemplate("Cliq", c.Cliq.MessageFormat)
 	c.OTLP.Address = strings.TrimSpace(c.OTLP.Address)
+	c.OTLP.Traces.Endpoint = strings.TrimSpace(c.OTLP.Traces.Endpoint)
 
 	return c
 }

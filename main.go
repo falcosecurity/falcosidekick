@@ -731,14 +731,15 @@ func init() {
 		}
 	}
 
-	if config.OTLP.Address != "" {
+	if config.OTLP.Traces.Endpoint != "" {
 		var err error
-		otlpClient, err = outputs.NewClient("OTLP", config.OTLP.Address, false, false, config, stats, promStats, statsdClient, dogstatsdClient)
+		otlpClient, err = outputs.NewClient("OTLP", config.OTLP.Traces.Endpoint, false, false, config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
-			config.OTLP.Address = ""
+			config.OTLP.Traces.Endpoint = ""
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLP")
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLP.Traces")
 		}
+		otlpShutdown = otlpInit()
 	}
 
 	log.Printf("[INFO]  : Falco Sidekick version: %s\n", GetVersionInfo().GitVersion)
@@ -746,7 +747,12 @@ func init() {
 
 }
 
+var otlpShutdown func()
+
 func main() {
+	if otlpShutdown != nil {
+		defer otlpShutdown()
+	}
 	if config.Debug {
 		log.Printf("[INFO]  : Debug mode : %v", config.Debug)
 	}
