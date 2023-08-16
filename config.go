@@ -39,7 +39,7 @@ func getConfig() *types.Configuration {
 		},
 	}
 
-	otlpEnv()
+	otlpSetEnvs()
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
 	version := kingpin.Flag("version", "falcosidekick version").Short('v').Bool()
 	kingpin.Parse()
