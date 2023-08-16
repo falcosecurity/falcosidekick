@@ -36,10 +36,13 @@ func installExportPipeline(ctx context.Context) (func(context.Context) error, er
 		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
 	}
 
+	withBatcher := sdktrace.WithBatcher(exporter)
+	if config.OTLP.Traces.Synced {
+		withBatcher = sdktrace.WithSyncer(exporter)
+	}
 	tracerProvider := sdktrace.NewTracerProvider(
-		//sdktrace.WithBatcher(exporter),
-		sdktrace.WithSyncer(exporter),
 		sdktrace.WithResource(newResource()),
+		withBatcher,
 	)
 	otel.SetTracerProvider(tracerProvider)
 
@@ -84,11 +87,8 @@ func otlpSetEnv(target string, envs []otlpEnv) string {
 // - OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT
 // - OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
 func otlpSetEnvs() {
-	otlpTracesEp := otlpSetEnv("OTLP_TRACES_ENDPOINT", []otlpEnv{
+	otlpSetEnv("OTLP_TRACES_ENDPOINT", []otlpEnv{
 		{EnvName: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", Path: ""},
 		{EnvName: "OTEL_EXPORTER_OTLP_ENDPOINT", Path: "/v1/traces"},
 	})
-	if otlpTracesEp != "" {
-		log.Printf("[INFO] : OTLP.Traces endpoint=%s\n", otlpTracesEp)
-	}
 }

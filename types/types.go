@@ -808,6 +808,7 @@ type PromStatistics struct {
 type OTLPTraces struct {
 	Endpoint string
 	Duration int64
+	Synced   bool
 }
 type OTLPOutputConfig struct {
 	Traces OTLPTraces
