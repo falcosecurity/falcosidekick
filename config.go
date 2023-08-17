@@ -479,8 +479,9 @@ func getConfig() *types.Configuration {
 
 	v.SetDefault("OTLP.Traces.Endpoint", "")
 	v.SetDefault("OTLP.Traces.Synced", false)
-	// NB: Unfortunately falco events don't provide endtime, artificially set it to 1000ms by default,
-	//     override-able via OTLP_DURATION environment variable.
+	v.SetDefault("OTLP.Traces.MinimumPriority", "")
+	// NB: Unfortunately falco events don't provide endtime, artificially set
+	// it to 1000ms by default, override-able via OTLP_DURATION environment variable.
 	v.SetDefault("OTLP.Traces.Duration", 1000)
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

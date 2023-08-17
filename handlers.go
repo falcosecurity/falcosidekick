@@ -403,7 +403,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go dynatraceClient.DynatracePost(falcopayload)
 	}
 
-	if config.OTLP.Traces.Endpoint != "" {
+	if config.OTLP.Traces.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.OTLP.Traces.MinimumPriority)) {
 		go otlpClient.OTLPPost(falcopayload)
 	}
 }
