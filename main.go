@@ -739,8 +739,8 @@ func init() {
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLP.Traces")
 			log.Printf("[INFO] : OTLP.Traces=%+v\n", config.OTLP.Traces)
+			otlpShutdown = otlpInit()
 		}
-		otlpShutdown = otlpInit()
 	}
 
 	log.Printf("[INFO]  : Falco Sidekick version: %s\n", GetVersionInfo().GitVersion)

@@ -65,16 +65,17 @@ func otlpInit() func() {
 }
 
 type otlpEnv struct {
+	Target  string
 	EnvName string
 	Path    string
 }
 
-func otlpSetEnv(target string, envs []otlpEnv) string {
+func otlpSetEnv(envs []otlpEnv) string {
 	var value string
 	for _, v := range envs {
 		if os.Getenv(v.EnvName) != "" {
 			value = os.Getenv(v.EnvName) + v.Path
-			os.Setenv(target, value)
+			os.Setenv(v.Target, value)
 			break
 		}
 	}
@@ -87,8 +88,11 @@ func otlpSetEnv(target string, envs []otlpEnv) string {
 // - OTEL_EXPORTER_OTLP_TIMEOUT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT
 // - OTEL_EXPORTER_OTLP_PROTOCOL, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
 func otlpSetEnvs() {
-	otlpSetEnv("OTLP_TRACES_ENDPOINT", []otlpEnv{
-		{EnvName: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", Path: ""},
-		{EnvName: "OTEL_EXPORTER_OTLP_ENDPOINT", Path: "/v1/traces"},
+	otlpSetEnv([]otlpEnv{
+		// Set OTLP_TRACES_ENDPOINT (used by config.OTLP.Traces) from SDK OTLP env vars
+		{Target: "OTLP_TRACES_ENDPOINT", EnvName: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", Path: ""},
+		{Target: "OTLP_TRACES_ENDPOINT", EnvName: "OTEL_EXPORTER_OTLP_ENDPOINT", Path: "/v1/traces"},
+		// Set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (SDK env) from OTLP_TRACES_ENDPOINT if user only set the latter
+		{Target: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", EnvName: "OTLP_TRACES_ENDPOINT", Path: ""},
 	})
 }
