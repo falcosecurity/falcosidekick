@@ -70,12 +70,32 @@ type otlpEnv struct {
 	Path    string
 }
 
+// NB: create OS interface to allow unit-testing
+type OS interface {
+	Getenv(string) string
+	Setenv(string, string) error
+}
+
+type defaultOS struct{}
+
+func newDefaultOS() *defaultOS {
+	return &defaultOS{}
+}
+func (defaultOS) Getenv(key string) string {
+	return os.Getenv(key)
+}
+func (defaultOS) Setenv(key, value string) error {
+	return os.Setenv(key, value)
+}
+
+var otlpOS OS = newDefaultOS()
+
 func otlpSetEnv(envs []otlpEnv) string {
 	var value string
 	for _, v := range envs {
-		if os.Getenv(v.EnvName) != "" {
-			value = os.Getenv(v.EnvName) + v.Path
-			os.Setenv(v.Target, value)
+		if otlpOS.Getenv(v.EnvName) != "" {
+			value = otlpOS.Getenv(v.EnvName) + v.Path
+			otlpOS.Setenv(v.Target, value)
 			break
 		}
 	}
