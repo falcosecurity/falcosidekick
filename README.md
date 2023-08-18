@@ -114,6 +114,10 @@ It works as a single endpoint for as many as you want `Falco` instances :
 
 - [**n8n**](https://n8n.io/)
 
+### Traces
+
+- [**OTEL Traces**](https://opentelemetry.io/docs/concepts/signals/traces/)
+
 ### Other
 - [**Policy Report**](https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report/falco-adapter)
 
@@ -1215,7 +1219,11 @@ order is
 - **DYNATRACE_APIURL** : Dynatrace API url, use https://ENVIRONMENTID.live.dynatrace.com/api for Dynatrace SaaS and https://YOURDOMAIN/e/ENVIRONMENTID/api for Dynatrace Managed, more info : https://www.dynatrace.com/support/help/get-started/monitoring-environment/environment-id
 - **DYNATRACE_CHECKCERT** : check if ssl certificate of the output is valid (default: `true`)
 - **DYNATRACE_MINIMUMPRIORITY** : minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-
+- **OTLP_TRACES_ENDPOINT**: OTLP endpoint, if not empty, OpenTelemetry traces output is enabled
+- **OTLP_TRACES_MINIMUMPRIORITY**: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+- **OTLP_TRACES_SYNCED**: synced OTLP traces, instead of batched (default: `false`)
+- **OTLP_TRACES_INSECURE**: check if ssl certificate of the endpoint is valid (default: `false`)
+- **OTLP_TRACES_DURATION**: artificial duration for trace spans in milliseconds (default: `1000`)
 #### Slack/Rocketchat/Mattermost/Googlechat Message Formatting
 
 The `SLACK_MESSAGEFORMAT` environment variable and `slack.messageformat` YAML

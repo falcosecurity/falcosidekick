@@ -28,9 +28,14 @@ func newResource() *resource.Resource {
 }
 
 func installExportPipeline(ctx context.Context) (func(context.Context) error, error) {
-	client := otlptracehttp.NewClient(
-		otlptracehttp.WithInsecure(),
-	)
+	var client otlptrace.Client
+	switch config.OTLP.Traces.Insecure {
+	case true:
+		client = otlptracehttp.NewClient(otlptracehttp.WithInsecure())
+	case false:
+		client = otlptracehttp.NewClient()
+	}
+
 	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
