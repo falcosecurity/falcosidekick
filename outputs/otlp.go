@@ -15,6 +15,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// Unit-testing helper
+var getTracerProvider = otel.GetTracerProvider
+
 // newTrace returns a new Trace object.
 func newTrace(falcopayload types.FalcoPayload, durationMs int64) *trace.Span {
 	_, exists := falcopayload.OutputFields["container.id"]
@@ -41,7 +44,7 @@ func newTrace(falcopayload types.FalcoPayload, durationMs int64) *trace.Span {
 	sc := trace.SpanContext{}.WithTraceID(traceId)
 	ctx := trace.ContextWithSpanContext(context.Background(), sc)
 
-	tracer := otel.GetTracerProvider().Tracer("falco-event")
+	tracer := getTracerProvider().Tracer("falco-event")
 	_, span := tracer.Start(
 		ctx,
 		falcopayload.Rule,
