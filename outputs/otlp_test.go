@@ -78,7 +78,7 @@ func TestOtlpNewTrace(t *testing.T) {
 	getTracerProvider = MockGetTracerProvider
 	containerID := "42"
 	uuidStr := uuid.New().String()
-	durationMs := 100
+	durationMs := int64(100)
 	startTime := time.Now()
 	endTime := startTime.Add(time.Millisecond * time.Duration(durationMs))
 	optStartTime := trace.WithTimestamp(startTime)
@@ -96,10 +96,12 @@ func TestOtlpNewTrace(t *testing.T) {
 			"output":       "Hook this Mock!",
 		},
 	}
-	span := newTrace(*fp, 100)
-	require.Equal(t, attribute.StringValue(containerID), (*span).(*MockSpan).attributes["container.id"])
+	span := newTrace(*fp, durationMs)
 	require.Equal(t, startOptIn(optStartTime, (*span).(*MockSpan).startOpts), true)
 	require.Equal(t, endOptIn(optEndTime, (*span).(*MockSpan).endOpts), true)
+	for k, v := range fp.OutputFields {
+		require.Equal(t, attribute.StringValue(v.(string)), (*span).(*MockSpan).attributes[attribute.Key(k)])
+	}
 	spanTraceID, _ := generateTraceID(containerID)
 	require.Equal(t, (*span).(*MockSpan).SpanContext().TraceID(), spanTraceID)
 }
