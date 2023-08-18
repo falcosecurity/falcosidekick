@@ -2,11 +2,8 @@ package outputs
 
 import (
 	"context"
-	"fmt"
-	"reflect"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/google/uuid"
@@ -29,32 +26,6 @@ type MockSpan struct {
 	attributes map[attribute.Key]attribute.Value
 }
 
-func printContextInternals(ctx interface{}, inner bool) {
-	contextValues := reflect.ValueOf(ctx).Elem()
-	contextKeys := reflect.TypeOf(ctx).Elem()
-
-	if !inner {
-		fmt.Printf("\nFields for %s.%s\n", contextKeys.PkgPath(), contextKeys.Name())
-	}
-
-	if contextKeys.Kind() == reflect.Struct {
-		for i := 0; i < contextValues.NumField(); i++ {
-			reflectValue := contextValues.Field(i)
-			reflectValue = reflect.NewAt(reflectValue.Type(), unsafe.Pointer(reflectValue.UnsafeAddr())).Elem()
-
-			reflectField := contextKeys.Field(i)
-
-			if reflectField.Name == "Context" {
-				printContextInternals(reflectValue.Interface(), true)
-			} else {
-				fmt.Printf("field name: %+v\n", reflectField.Name)
-				fmt.Printf("value: %+v\n", reflectValue.Interface())
-			}
-		}
-	} else {
-		fmt.Printf("context is empty (int)\n")
-	}
-}
 func (*MockTracerProvider) Tracer(string, ...trace.TracerOption) trace.Tracer {
 	return &MockTracer{}
 }
@@ -70,9 +41,6 @@ func (*MockTracer) Start(ctx context.Context, name string, opts ...trace.SpanSta
 
 func (*MockSpan) AddEvent(string, ...trace.EventOption) {}
 func (m *MockSpan) End(opts ...trace.SpanEndOption) {
-	for k, v := range m.attributes {
-		fmt.Printf("%+v=%+v\n", k, v.Emit())
-	}
 	m.endOpts = opts
 }
 func (*MockSpan) IsRecording() bool                                { return true }
