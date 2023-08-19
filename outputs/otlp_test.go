@@ -139,6 +139,6 @@ func TestOtlpNewTrace(t *testing.T) {
 
 		// Verify traceID
 		spanTraceID, _ := generateTraceID(c.fp.OutputFields["container.id"].(string))
-		require.Equal(t, (*span).(*MockSpan).SpanContext().TraceID(), spanTraceID, c.fp.Rule)
+		require.Equal(t, spanTraceID, (*span).(*MockSpan).SpanContext().TraceID(), c.fp.Rule)
 	}
 }
