@@ -94,6 +94,7 @@ func TestOtlpNewTrace(t *testing.T) {
 			fp: types.FalcoPayload{
 				Time: time.Now(),
 				Rule: "Mock Rule#1",
+				Tags: []string{"foo", "bar"},
 				OutputFields: map[string]interface{}{
 					"priority":     "info",
 					"uuid":         uuid.New().String(),
@@ -131,6 +132,7 @@ func TestOtlpNewTrace(t *testing.T) {
 		require.Equal(t, endOptIn(optEndTime, (*span).(*MockSpan).endOpts), true, c.fp.Rule)
 
 		// Verify span attributes
+		require.Equal(t, attribute.StringSliceValue(c.fp.Tags), (*span).(*MockSpan).attributes[attribute.Key("tags")], c.fp.Rule)
 		for k, v := range c.fp.OutputFields {
 			require.Equal(t, attribute.StringValue(v.(string)), (*span).(*MockSpan).attributes[attribute.Key(k)], c.fp.Rule)
 		}

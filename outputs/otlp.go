@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -57,7 +56,7 @@ func newTrace(falcopayload types.FalcoPayload, durationMs int64) *trace.Span {
 	span.SetAttributes(attribute.String("rule", falcopayload.Rule))
 	span.SetAttributes(attribute.String("output", falcopayload.Output))
 	span.SetAttributes(attribute.String("hostname", falcopayload.Hostname))
-	span.SetAttributes(attribute.String("tags", strings.Join(falcopayload.Tags, ",")))
+	span.SetAttributes(attribute.StringSlice("tags", falcopayload.Tags))
 	for k, v := range falcopayload.OutputFields {
 		span.SetAttributes(attribute.String(k, fmt.Sprintf("%v", v)))
 	}
