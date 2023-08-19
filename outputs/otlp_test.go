@@ -85,13 +85,13 @@ func TestOtlpNewTrace(t *testing.T) {
 	getTracerProvider = MockGetTracerProvider
 
 	cases := []struct {
-		fp         *types.FalcoPayload
+		fp         types.FalcoPayload
 		durationMs int64
 		expectSpan bool
 	}{
 		{
 			durationMs: 100,
-			fp: &types.FalcoPayload{
+			fp: types.FalcoPayload{
 				Time: time.Now(),
 				Rule: "Mock Rule#1",
 				OutputFields: map[string]interface{}{
@@ -106,7 +106,7 @@ func TestOtlpNewTrace(t *testing.T) {
 			expectSpan: true,
 		},
 		{
-			fp: &types.FalcoPayload{
+			fp: types.FalcoPayload{
 				Rule: "Mock Rule#2",
 				OutputFields: map[string]interface{}{
 					"container.id": "not-Hex",
@@ -118,7 +118,7 @@ func TestOtlpNewTrace(t *testing.T) {
 	for _, c := range cases {
 
 		// Test newTrace()
-		span := newTrace(*c.fp, c.durationMs)
+		span := newTrace(c.fp, c.durationMs)
 		if !c.expectSpan {
 			require.Nil(t, span)
 			continue
