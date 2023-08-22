@@ -86,11 +86,14 @@ func TestOtlpNewTrace(t *testing.T) {
 	getTracerProvider = MockGetTracerProvider
 
 	cases := []struct {
+		msg            string
 		fp             types.FalcoPayload
-		expectedTplStr string
 		config         types.Configuration
+		expectedTplStr string
+		expectedRandom bool
 	}{
 		{
+			msg: "Kubernetes payload should use kubeTemplateStr for output fields",
 			fp: types.FalcoPayload{
 				Time: time.Now(),
 				Rule: "Mock Rule#1",
@@ -119,6 +122,7 @@ func TestOtlpNewTrace(t *testing.T) {
 			expectedTplStr: kubeTemplateStr,
 		},
 		{
+			msg: "Container-only payload should use containerTemplateStr for output fields",
 			fp: types.FalcoPayload{
 				Rule: "Mock Rule#2",
 				OutputFields: map[string]interface{}{
@@ -136,6 +140,7 @@ func TestOtlpNewTrace(t *testing.T) {
 			expectedTplStr: containerTemplateStr,
 		},
 		{
+			msg: "TraceIDFormat config must override defaults",
 			fp: types.FalcoPayload{
 				Rule: "Mock Rule#3",
 				OutputFields: map[string]interface{}{
@@ -148,11 +153,31 @@ func TestOtlpNewTrace(t *testing.T) {
 				OTLP: types.OTLPOutputConfig{
 					Traces: types.OTLPTraces{
 						Duration:      1000,
-						TraceIDFormat: "{{.foo.bar}}",
+						TraceIDFormat: "{{.foo_bar}}",
 					},
 				},
 			},
-			expectedTplStr: "{{.foo.bar}}",
+			expectedTplStr: "{{.foo_bar}}",
+		},
+		{
+			msg: "Verify traceID is random if TraceIDFormat is empty",
+			fp: types.FalcoPayload{
+				Rule: "Mock Rule#4",
+				OutputFields: map[string]interface{}{
+					"container.id": "42",
+				},
+			},
+			config: types.Configuration{
+				Debug: true,
+				OTLP: types.OTLPOutputConfig{
+					Traces: types.OTLPTraces{
+						Duration:      1000,
+						TraceIDFormat: "{{.foo_bar}}",
+					},
+				},
+			},
+			expectedTplStr: "{{.foo_bar}}",
+			expectedRandom: true,
 		},
 	}
 	for _, c := range cases {
@@ -169,23 +194,26 @@ func TestOtlpNewTrace(t *testing.T) {
 		require.NotNil(t, span)
 
 		// Verify SpanStartOption and SpanEndOption timestamps
-		msg := c.fp.Rule
 		optStartTime := trace.WithTimestamp(c.fp.Time)
 		optEndTime := trace.WithTimestamp(c.fp.Time.Add(time.Millisecond * time.Duration(c.config.OTLP.Traces.Duration)))
-		require.Equal(t, startOptIn(optStartTime, (*span).(*MockSpan).startOpts), true, msg)
-		require.Equal(t, endOptIn(optEndTime, (*span).(*MockSpan).endOpts), true, msg)
+		require.Equal(t, startOptIn(optStartTime, (*span).(*MockSpan).startOpts), true, c.msg)
+		require.Equal(t, endOptIn(optEndTime, (*span).(*MockSpan).endOpts), true, c.msg)
 
 		// Verify span attributes
-		require.Equal(t, attribute.StringSliceValue(c.fp.Tags), (*span).(*MockSpan).attributes[attribute.Key("tags")], msg)
+		require.Equal(t, attribute.StringSliceValue(c.fp.Tags), (*span).(*MockSpan).attributes[attribute.Key("tags")], c.msg)
 		for k, v := range c.fp.OutputFields {
-			require.Equal(t, attribute.StringValue(v.(string)), (*span).(*MockSpan).attributes[attribute.Key(k)], msg)
+			require.Equal(t, attribute.StringValue(v.(string)), (*span).(*MockSpan).attributes[attribute.Key(k)], c.msg)
 		}
 
 		// Verify traceID
-		spanTraceID, templateStr, err := generateTraceID(c.fp, &c.config)
-		require.Nil(t, err, msg)
-		require.Equal(t, c.expectedTplStr, templateStr, c.fp.Rule, msg)
-		require.NotEqual(t, "", spanTraceID.String(), msg)
-		require.Equal(t, spanTraceID, (*span).(*MockSpan).SpanContext().TraceID(), msg)
+		traceID, templateStr, err := generateTraceID(c.fp, &c.config)
+		require.Nil(t, err, c.msg)
+		require.Equal(t, c.expectedTplStr, templateStr, c.msg)
+		require.NotEqual(t, "", traceID.String(), c.msg)
+		if c.expectedRandom {
+			require.NotEqual(t, traceID, (*span).(*MockSpan).SpanContext().TraceID(), c.msg)
+		} else {
+			require.Equal(t, traceID, (*span).(*MockSpan).SpanContext().TraceID(), c.msg)
+		}
 	}
 }

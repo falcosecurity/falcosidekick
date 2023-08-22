@@ -6,10 +6,8 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"log"
-	"math/big"
 	"strings"
 	"text/template"
 	"time"
@@ -75,7 +73,7 @@ func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
 
 const (
 	kubeTemplateStr      = `{{.cluster}}{{.k8s_pod_name}}{{.k8s_ns_name}}{{.k8s_container_name}}`
-	containerTemplateStr = `{{index .container_id}}`
+	containerTemplateStr = `{{.container_id}}`
 )
 
 var (
@@ -95,7 +93,7 @@ func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Configur
 	tplStr := config.OTLP.Traces.TraceIDFormat
 	tpl := config.OTLP.Traces.TraceIDFormatTemplate
 	outputFields := sanitizeOutputFields(falcopayload)
-	if tpl == nil {
+	if tplStr == "" {
 		switch {
 		case outputFields["cluster"] != "" &&
 			outputFields["k8s_pod_name"] != "" &&
@@ -116,20 +114,25 @@ func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Configur
 func generateTraceID(falcopayload types.FalcoPayload, config *types.Configuration) (trace.TraceID, string, error) {
 	// cluster, k8s.ns.name, k8s.pod.name, container.name, container.id
 	traceIDStr, tplStr := traceIDFromTemplate(falcopayload, config)
-	if traceIDStr == "" {
+	if traceIDStr == "" || traceIDStr == "<no value>" {
 		// Generate a random 32 character string
-		randomInt, err := rand.Int(rand.Reader, big.NewInt(
-			100000000000000001,
-		))
+		var err error
+		traceIDStr, err = randomHex(16)
 		if err != nil {
-			return trace.TraceID{}, "", errors.New("Error generating random number")
+			return trace.TraceID{}, "", err
 		}
-		traceIDStr = fmt.Sprintf("%032d", randomInt)
-		tplStr = ""
 	} else {
 		hash := md5.Sum([]byte(traceIDStr))
 		traceIDStr = hex.EncodeToString(hash[:])
 	}
 	traceID, err := trace.TraceIDFromHex(traceIDStr)
 	return traceID, tplStr, err
+}
+
+func randomHex(n int) (string, error) {
+	bytes := make([]byte, n)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
