@@ -213,12 +213,12 @@ func TestOtlpNewTrace(t *testing.T) {
 		require.NotEqual(t, "", traceID.String(), c.msg)
 		// Verify expectedTplStr
 		require.Equal(t, c.expectedTplStr, templateStr, c.msg)
-		// Verify test case expecting a random traceID (i.e. when the template expanded
-		// to "" or "<no value>"
+		// Verify test case expecting a random traceID (i.e. when the template rendered to "")
+		actualTraceID := (*span).(*MockSpan).SpanContext().TraceID()
 		if c.expectedRandom {
-			require.NotEqual(t, traceID, (*span).(*MockSpan).SpanContext().TraceID(), c.msg)
+			require.NotEqual(t, traceID, actualTraceID, c.msg)
 		} else {
-			require.Equal(t, traceID, (*span).(*MockSpan).SpanContext().TraceID(), c.msg)
+			require.Equal(t, traceID, actualTraceID, c.msg)
 		}
 	}
 }

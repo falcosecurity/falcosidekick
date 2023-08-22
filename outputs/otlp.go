@@ -24,7 +24,7 @@ var getTracerProvider = otel.GetTracerProvider
 // newTrace returns a new Trace object.
 func (c *Client) newTrace(falcopayload types.FalcoPayload) *trace.Span {
 
-	traceId, _, err := generateTraceID(falcopayload, c.Config)
+	traceID, _, err := generateTraceID(falcopayload, c.Config)
 	if err != nil {
 		log.Printf("[ERROR] : Error generating trace id: %v for output fields %v", err, falcopayload.OutputFields)
 		return nil
@@ -33,7 +33,7 @@ func (c *Client) newTrace(falcopayload types.FalcoPayload) *trace.Span {
 	startTime := falcopayload.Time
 	endTime := falcopayload.Time.Add(time.Millisecond * time.Duration(c.Config.OTLP.Traces.Duration))
 
-	sc := trace.SpanContext{}.WithTraceID(traceId)
+	sc := trace.SpanContext{}.WithTraceID(traceID)
 	ctx := trace.ContextWithSpanContext(context.Background(), sc)
 
 	tracer := getTracerProvider().Tracer("falco-event")
@@ -63,6 +63,9 @@ func (c *Client) newTrace(falcopayload types.FalcoPayload) *trace.Span {
 	return &span
 }
 
+// OTLPPost generates an OTLP trace _implicitly_ via newTrace() by
+// calling OTEL SDK's tracer.Start() --> span.End(), i.e. no need to explicitly
+// do a HTTP POST
 func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
 	trace := c.newTrace(falcopayload)
 	if trace == nil {
@@ -90,7 +93,8 @@ func sanitizeOutputFields(falcopayload types.FalcoPayload) map[string]string {
 	}
 	return ret
 }
-func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Configuration) (string, string) {
+
+func renderTraceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Configuration) (string, string) {
 	tplStr := config.OTLP.Traces.TraceIDFormat
 	tpl := config.OTLP.Traces.TraceIDFormatTemplate
 	outputFields := sanitizeOutputFields(falcopayload)
@@ -113,20 +117,22 @@ func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Configur
 }
 
 func generateTraceID(falcopayload types.FalcoPayload, config *types.Configuration) (trace.TraceID, string, error) {
-	// cluster, k8s.ns.name, k8s.pod.name, container.name, container.id
-	traceIDStr, tplStr := traceIDFromTemplate(falcopayload, config)
+	var traceID trace.TraceID
+	var err error
+	traceIDStr, tplStr := renderTraceIDFromTemplate(falcopayload, config)
+
 	if traceIDStr != "" {
+		// Hash returned template- rendered string
 		hash := md5.Sum([]byte(traceIDStr))
 		traceIDStr = hex.EncodeToString(hash[:])
 	} else {
 		// Template produced no string :(, generate a random 32 character string
-		var err error
 		traceIDStr, err = randomHex(16)
 		if err != nil {
-			return trace.TraceID{}, "", err
+			return traceID, "", err
 		}
 	}
-	traceID, err := trace.TraceIDFromHex(traceIDStr)
+	traceID, err = trace.TraceIDFromHex(traceIDStr)
 	return traceID, tplStr, err
 }
 
