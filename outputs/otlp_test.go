@@ -3,6 +3,7 @@ package outputs
 import (
 	"context"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/google/uuid"
@@ -84,17 +85,10 @@ func endOptIn(opt trace.SpanEndOption, opts []trace.SpanEndOption) bool {
 func TestOtlpNewTrace(t *testing.T) {
 	getTracerProvider = MockGetTracerProvider
 
-	config := &types.Configuration{
-		Debug: true,
-		OTLP: types.OTLPOutputConfig{
-			Traces: types.OTLPTraces{
-				Duration: 100,
-			},
-		},
-	}
 	cases := []struct {
 		fp             types.FalcoPayload
 		expectedTplStr string
+		config         types.Configuration
 	}{
 		{
 			fp: types.FalcoPayload{
@@ -114,6 +108,14 @@ func TestOtlpNewTrace(t *testing.T) {
 					"output":             "Hook this Mock!",
 				},
 			},
+			config: types.Configuration{
+				Debug: true,
+				OTLP: types.OTLPOutputConfig{
+					Traces: types.OTLPTraces{
+						Duration: 1000,
+					},
+				},
+			},
 			expectedTplStr: kubeTemplateStr,
 		},
 		{
@@ -123,19 +125,53 @@ func TestOtlpNewTrace(t *testing.T) {
 					"container.id": "42",
 				},
 			},
+			config: types.Configuration{
+				Debug: true,
+				OTLP: types.OTLPOutputConfig{
+					Traces: types.OTLPTraces{
+						Duration: 1000,
+					},
+				},
+			},
 			expectedTplStr: containerTemplateStr,
+		},
+		{
+			fp: types.FalcoPayload{
+				Rule: "Mock Rule#3",
+				OutputFields: map[string]interface{}{
+					"container.id": "42",
+					"foo.bar":      "101",
+				},
+			},
+			config: types.Configuration{
+				Debug: true,
+				OTLP: types.OTLPOutputConfig{
+					Traces: types.OTLPTraces{
+						Duration:      1000,
+						TraceIDFormat: "{{.foo.bar}}",
+					},
+				},
+			},
+			expectedTplStr: "{{.foo.bar}}",
 		},
 	}
 	for _, c := range cases {
 
+		var err error
+		client, _ := NewClient("OTLP", "http://localhost:4317", false, false, &c.config, nil, nil, nil, nil)
+		if c.config.OTLP.Traces.TraceIDFormat != "" {
+			c.config.OTLP.Traces.TraceIDFormatTemplate, err = template.New("").Parse(c.config.OTLP.Traces.TraceIDFormat)
+			require.Nil(t, err)
+
+		}
 		// Test newTrace()
-		span := newTrace(c.fp, config)
+		span := client.newTrace(c.fp)
 		require.NotNil(t, span)
 
 		// Verify SpanStartOption and SpanEndOption timestamps
 		msg := c.fp.Rule
 		optStartTime := trace.WithTimestamp(c.fp.Time)
-		optEndTime := trace.WithTimestamp(c.fp.Time.Add(time.Millisecond * time.Duration(config.OTLP.Traces.Duration)))
+		optEndTime := trace.WithTimestamp(c.fp.Time.Add(time.Millisecond * time.Duration(c.config.OTLP.Traces.Duration)))
 		require.Equal(t, startOptIn(optStartTime, (*span).(*MockSpan).startOpts), true, msg)
 		require.Equal(t, endOptIn(optEndTime, (*span).(*MockSpan).endOpts), true, msg)
 
@@ -146,7 +182,7 @@ func TestOtlpNewTrace(t *testing.T) {
 		}
 
 		// Verify traceID
-		spanTraceID, templateStr, err := generateTraceID(c.fp, config)
+		spanTraceID, templateStr, err := generateTraceID(c.fp, &c.config)
 		require.Nil(t, err, msg)
 		require.Equal(t, c.expectedTplStr, templateStr, c.fp.Rule, msg)
 		require.NotEqual(t, "", spanTraceID.String(), msg)

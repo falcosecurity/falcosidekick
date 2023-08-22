@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strings"
 	"text/template"
 	"time"
 
@@ -23,16 +24,16 @@ import (
 var getTracerProvider = otel.GetTracerProvider
 
 // newTrace returns a new Trace object.
-func newTrace(falcopayload types.FalcoPayload, config *types.Configuration) *trace.Span {
+func (c *Client) newTrace(falcopayload types.FalcoPayload) *trace.Span {
 
-	traceId, _, err := generateTraceID(falcopayload, config)
+	traceId, _, err := generateTraceID(falcopayload, c.Config)
 	if err != nil {
 		log.Printf("[ERROR] : Error generating trace id: %v for output fields %v", err, falcopayload.OutputFields)
 		return nil
 	}
 
 	startTime := falcopayload.Time
-	endTime := falcopayload.Time.Add(time.Millisecond * time.Duration(config.OTLP.Traces.Duration))
+	endTime := falcopayload.Time.Add(time.Millisecond * time.Duration(c.Config.OTLP.Traces.Duration))
 
 	sc := trace.SpanContext{}.WithTraceID(traceId)
 	ctx := trace.ContextWithSpanContext(context.Background(), sc)
@@ -57,7 +58,7 @@ func newTrace(falcopayload types.FalcoPayload, config *types.Configuration) *tra
 	//span.AddEvent("falco-event")
 	span.End(trace.WithTimestamp(endTime))
 
-	if config.Debug {
+	if c.Config.Debug {
 		log.Printf("[DEBUG] : OTLP payload generated successfully for traceid=%s", span.SpanContext().TraceID())
 	}
 
@@ -65,16 +66,16 @@ func newTrace(falcopayload types.FalcoPayload, config *types.Configuration) *tra
 }
 
 func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
-	trace := newTrace(falcopayload, c.Config)
+	trace := c.newTrace(falcopayload)
 	if trace == nil {
-		log.Printf("Error generating trace")
+		log.Printf("[ERROR] : Error generating trace")
 		return
 	}
 }
 
 const (
-	kubeTemplateStr      = `{{.cluster}}{{.k8s.pod.name}}{{.k8s.ns.name}}{{.k8s.container.name}}`
-	containerTemplateStr = `{{.container.id}}`
+	kubeTemplateStr      = `{{.cluster}}{{.k8s_pod_name}}{{.k8s_ns_name}}{{.k8s_container_name}}`
+	containerTemplateStr = `{{index .container_id}}`
 )
 
 var (
@@ -82,21 +83,31 @@ var (
 	containerTemplate = template.Must(template.New("").Parse(containerTemplateStr))
 )
 
+func sanitizeOutputFields(falcopayload types.FalcoPayload) map[string]string {
+	ret := make(map[string]string)
+	for k, v := range falcopayload.OutputFields {
+		k := strings.Replace(k, ".", "_", -1)
+		ret[k] = fmt.Sprintf("%v", v)
+	}
+	return ret
+}
 func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Configuration) (string, string) {
-	var tplStr string
+	tplStr := config.OTLP.Traces.TraceIDFormat
 	tpl := config.OTLP.Traces.TraceIDFormatTemplate
+	outputFields := sanitizeOutputFields(falcopayload)
 	if tpl == nil {
-		if falcopayload.OutputFields["cluster"] != nil &&
-			falcopayload.OutputFields["k8s.pod.name"] != nil &&
-			falcopayload.OutputFields["k8s.ns.name"] != nil &&
-			falcopayload.OutputFields["k8s.container.name"] != nil {
+		switch {
+		case outputFields["cluster"] != "" &&
+			outputFields["k8s_pod_name"] != "" &&
+			outputFields["k8s_ns_name"] != "" &&
+			outputFields["k8s_container_name"] != "":
 			tpl, tplStr = kubeTemplate, kubeTemplateStr
-		} else {
+		default:
 			tpl, tplStr = containerTemplate, containerTemplateStr
 		}
 	}
 	buf := &bytes.Buffer{}
-	if err := tpl.Execute(buf, falcopayload.OutputFields); err != nil {
+	if err := tpl.Execute(buf, outputFields); err != nil {
 		log.Printf("[WARNING] : OTLP - Error expanding template: %v", err)
 	}
 	return buf.String(), tplStr
