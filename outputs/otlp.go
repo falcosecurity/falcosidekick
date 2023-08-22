@@ -23,16 +23,16 @@ import (
 var getTracerProvider = otel.GetTracerProvider
 
 // newTrace returns a new Trace object.
-func newTrace(falcopayload types.FalcoPayload, config *types.OTLPTraces) *trace.Span {
+func newTrace(falcopayload types.FalcoPayload, config *types.Configuration) *trace.Span {
 
 	traceId, _, err := generateTraceID(falcopayload, config)
 	if err != nil {
-		log.Printf("Error generating trace id: %v for output fields %v", err, falcopayload.OutputFields)
+		log.Printf("[ERROR] : Error generating trace id: %v for output fields %v", err, falcopayload.OutputFields)
 		return nil
 	}
 
 	startTime := falcopayload.Time
-	endTime := falcopayload.Time.Add(time.Millisecond * time.Duration(config.Duration))
+	endTime := falcopayload.Time.Add(time.Millisecond * time.Duration(config.OTLP.Traces.Duration))
 
 	sc := trace.SpanContext{}.WithTraceID(traceId)
 	ctx := trace.ContextWithSpanContext(context.Background(), sc)
@@ -57,13 +57,15 @@ func newTrace(falcopayload types.FalcoPayload, config *types.OTLPTraces) *trace.
 	//span.AddEvent("falco-event")
 	span.End(trace.WithTimestamp(endTime))
 
-	log.Printf("OTLP payload generated successfully for traceid=%s", span.SpanContext().TraceID())
+	if config.Debug {
+		log.Printf("[DEBUG] : OTLP payload generated successfully for traceid=%s", span.SpanContext().TraceID())
+	}
 
 	return &span
 }
 
 func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
-	trace := newTrace(falcopayload, &c.Config.OTLP.Traces)
+	trace := newTrace(falcopayload, c.Config)
 	if trace == nil {
 		log.Printf("Error generating trace")
 		return
@@ -80,9 +82,9 @@ var (
 	containerTemplate = template.Must(template.New("").Parse(containerTemplateStr))
 )
 
-func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.OTLPTraces) (string, string) {
+func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Configuration) (string, string) {
 	var tplStr string
-	tpl := config.TraceIDFormatTemplate
+	tpl := config.OTLP.Traces.TraceIDFormatTemplate
 	if tpl == nil {
 		if falcopayload.OutputFields["cluster"] != nil &&
 			falcopayload.OutputFields["k8s.pod.name"] != nil &&
@@ -100,7 +102,7 @@ func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.OTLPTrac
 	return buf.String(), tplStr
 }
 
-func generateTraceID(falcopayload types.FalcoPayload, config *types.OTLPTraces) (trace.TraceID, string, error) {
+func generateTraceID(falcopayload types.FalcoPayload, config *types.Configuration) (trace.TraceID, string, error) {
 	// cluster, k8s.ns.name, k8s.pod.name, container.name, container.id
 	traceIDStr, tplStr := traceIDFromTemplate(falcopayload, config)
 	if traceIDStr == "" {

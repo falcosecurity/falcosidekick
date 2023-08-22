@@ -84,13 +84,19 @@ func endOptIn(opt trace.SpanEndOption, opts []trace.SpanEndOption) bool {
 func TestOtlpNewTrace(t *testing.T) {
 	getTracerProvider = MockGetTracerProvider
 
+	config := &types.Configuration{
+		Debug: true,
+		OTLP: types.OTLPOutputConfig{
+			Traces: types.OTLPTraces{
+				Duration: 100,
+			},
+		},
+	}
 	cases := []struct {
 		fp             types.FalcoPayload
-		durationMs     int64
 		expectedTplStr string
 	}{
 		{
-			durationMs: 100,
 			fp: types.FalcoPayload{
 				Time: time.Now(),
 				Rule: "Mock Rule#1",
@@ -121,9 +127,6 @@ func TestOtlpNewTrace(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		config := &types.OTLPTraces{
-			Duration: c.durationMs,
-		}
 
 		// Test newTrace()
 		span := newTrace(c.fp, config)
@@ -132,7 +135,7 @@ func TestOtlpNewTrace(t *testing.T) {
 		// Verify SpanStartOption and SpanEndOption timestamps
 		msg := c.fp.Rule
 		optStartTime := trace.WithTimestamp(c.fp.Time)
-		optEndTime := trace.WithTimestamp(c.fp.Time.Add(time.Millisecond * time.Duration(c.durationMs)))
+		optEndTime := trace.WithTimestamp(c.fp.Time.Add(time.Millisecond * time.Duration(config.OTLP.Traces.Duration)))
 		require.Equal(t, startOptIn(optStartTime, (*span).(*MockSpan).startOpts), true, msg)
 		require.Equal(t, endOptIn(optEndTime, (*span).(*MockSpan).endOpts), true, msg)
 
