@@ -1,11 +1,16 @@
 package outputs
 
 import (
+	"bytes"
 	"context"
+	"crypto/md5"
 	"crypto/rand"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
+	"text/template"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -18,28 +23,17 @@ import (
 var getTracerProvider = otel.GetTracerProvider
 
 // newTrace returns a new Trace object.
-func newTrace(falcopayload types.FalcoPayload, durationMs int64) *trace.Span {
-	_, exists := falcopayload.OutputFields["container.id"]
-	if !exists {
-		log.Printf("Error getting container id from output fields")
+func newTrace(falcopayload types.FalcoPayload, config *types.OTLPTraces) *trace.Span {
+
+	traceId, _, err := generateTraceID(falcopayload, config)
+	if err != nil {
+		log.Printf("Error generating trace id: %v for output fields %v", err, falcopayload.OutputFields)
 		return nil
 	}
 
 	startTime := falcopayload.Time
-	endTime := falcopayload.Time.Add(time.Millisecond * time.Duration(durationMs))
+	endTime := falcopayload.Time.Add(time.Millisecond * time.Duration(config.Duration))
 
-	// https://www.w3.org/TR/trace-context/#trace-id
-	containerID, ok := falcopayload.OutputFields["container.id"].(string)
-	if !ok {
-		log.Printf("Error converting container id to string")
-		return nil
-	}
-
-	traceId, err := generateTraceID(containerID)
-	if err != nil {
-		log.Printf("Error generating trace id: %v for container id: %s", err, containerID)
-		return nil
-	}
 	sc := trace.SpanContext{}.WithTraceID(traceId)
 	ctx := trace.ContextWithSpanContext(context.Background(), sc)
 
@@ -69,28 +63,60 @@ func newTrace(falcopayload types.FalcoPayload, durationMs int64) *trace.Span {
 }
 
 func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
-	trace := newTrace(falcopayload, c.Config.OTLP.Traces.Duration)
+	trace := newTrace(falcopayload, &c.Config.OTLP.Traces)
 	if trace == nil {
 		log.Printf("Error generating trace")
 		return
 	}
 }
 
-func generateTraceID(containerID string) (trace.TraceID, error) {
-	if containerID == "" {
+const (
+	kubeTemplateStr      = `{{.cluster}}{{.k8s.pod.name}}{{.k8s.ns.name}}{{.k8s.container.name}}`
+	containerTemplateStr = `{{.container.id}}`
+)
+
+var (
+	kubeTemplate      = template.Must(template.New("").Parse(kubeTemplateStr))
+	containerTemplate = template.Must(template.New("").Parse(containerTemplateStr))
+)
+
+func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.OTLPTraces) (string, string) {
+	var tplStr string
+	tpl := config.TraceIDFormatTemplate
+	if tpl == nil {
+		if falcopayload.OutputFields["cluster"] != nil &&
+			falcopayload.OutputFields["k8s.pod.name"] != nil &&
+			falcopayload.OutputFields["k8s.ns.name"] != nil &&
+			falcopayload.OutputFields["k8s.container.name"] != nil {
+			tpl, tplStr = kubeTemplate, kubeTemplateStr
+		} else {
+			tpl, tplStr = containerTemplate, containerTemplateStr
+		}
+	}
+	buf := &bytes.Buffer{}
+	if err := tpl.Execute(buf, falcopayload.OutputFields); err != nil {
+		log.Printf("[WARNING] : OTLP - Error expanding template: %v", err)
+	}
+	return buf.String(), tplStr
+}
+
+func generateTraceID(falcopayload types.FalcoPayload, config *types.OTLPTraces) (trace.TraceID, string, error) {
+	// cluster, k8s.ns.name, k8s.pod.name, container.name, container.id
+	traceIDStr, tplStr := traceIDFromTemplate(falcopayload, config)
+	if traceIDStr == "" {
 		// Generate a random 32 character string
 		randomInt, err := rand.Int(rand.Reader, big.NewInt(
 			100000000000000001,
 		))
 		if err != nil {
-			log.Print("Error generating random number")
-			return trace.TraceIDFromHex("100000000000000001")
+			return trace.TraceID{}, "", errors.New("Error generating random number")
 		}
-		containerID = fmt.Sprintf("%032d", randomInt)
+		traceIDStr = fmt.Sprintf("%032d", randomInt)
+		tplStr = ""
+	} else {
+		hash := md5.Sum([]byte(traceIDStr))
+		traceIDStr = hex.EncodeToString(hash[:])
 	}
-	// Pad the containerID to 32 characters
-	for len(containerID) < 32 {
-		containerID = "0" + containerID
-	}
-	return trace.TraceIDFromHex(containerID)
+	traceID, err := trace.TraceIDFromHex(traceIDStr)
+	return traceID, tplStr, err
 }

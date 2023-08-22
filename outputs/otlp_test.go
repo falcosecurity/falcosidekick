@@ -85,9 +85,9 @@ func TestOtlpNewTrace(t *testing.T) {
 	getTracerProvider = MockGetTracerProvider
 
 	cases := []struct {
-		fp         types.FalcoPayload
-		durationMs int64
-		expectSpan bool
+		fp             types.FalcoPayload
+		durationMs     int64
+		expectedTplStr string
 	}{
 		{
 			durationMs: 100,
@@ -96,49 +96,57 @@ func TestOtlpNewTrace(t *testing.T) {
 				Rule: "Mock Rule#1",
 				Tags: []string{"foo", "bar"},
 				OutputFields: map[string]interface{}{
-					"priority":     "info",
-					"uuid":         uuid.New().String(),
-					"source":       "falco",
-					"container.id": "42",
-					"hostname":     "myhost",
-					"output":       "Hook this Mock!",
+					"priority":           "info",
+					"uuid":               uuid.New().String(),
+					"source":             "falco",
+					"cluster":            "my-cluster",
+					"k8s.ns.name":        "my-ns",
+					"k8s.pod.name":       "my-pod",
+					"k8s.container.name": "my-container",
+					"container.id":       "42",
+					"hostname":           "myhost",
+					"output":             "Hook this Mock!",
 				},
 			},
-			expectSpan: true,
+			expectedTplStr: kubeTemplateStr,
 		},
 		{
 			fp: types.FalcoPayload{
 				Rule: "Mock Rule#2",
 				OutputFields: map[string]interface{}{
-					"container.id": "not-Hex",
+					"container.id": "42",
 				},
 			},
-			expectSpan: false,
+			expectedTplStr: containerTemplateStr,
 		},
 	}
 	for _, c := range cases {
-
-		// Test newTrace()
-		span := newTrace(c.fp, c.durationMs)
-		if !c.expectSpan {
-			require.Nil(t, span)
-			continue
+		config := &types.OTLPTraces{
+			Duration: c.durationMs,
 		}
 
+		// Test newTrace()
+		span := newTrace(c.fp, config)
+		require.NotNil(t, span)
+
 		// Verify SpanStartOption and SpanEndOption timestamps
+		msg := c.fp.Rule
 		optStartTime := trace.WithTimestamp(c.fp.Time)
 		optEndTime := trace.WithTimestamp(c.fp.Time.Add(time.Millisecond * time.Duration(c.durationMs)))
-		require.Equal(t, startOptIn(optStartTime, (*span).(*MockSpan).startOpts), true, c.fp.Rule)
-		require.Equal(t, endOptIn(optEndTime, (*span).(*MockSpan).endOpts), true, c.fp.Rule)
+		require.Equal(t, startOptIn(optStartTime, (*span).(*MockSpan).startOpts), true, msg)
+		require.Equal(t, endOptIn(optEndTime, (*span).(*MockSpan).endOpts), true, msg)
 
 		// Verify span attributes
-		require.Equal(t, attribute.StringSliceValue(c.fp.Tags), (*span).(*MockSpan).attributes[attribute.Key("tags")], c.fp.Rule)
+		require.Equal(t, attribute.StringSliceValue(c.fp.Tags), (*span).(*MockSpan).attributes[attribute.Key("tags")], msg)
 		for k, v := range c.fp.OutputFields {
-			require.Equal(t, attribute.StringValue(v.(string)), (*span).(*MockSpan).attributes[attribute.Key(k)], c.fp.Rule)
+			require.Equal(t, attribute.StringValue(v.(string)), (*span).(*MockSpan).attributes[attribute.Key(k)], msg)
 		}
 
 		// Verify traceID
-		spanTraceID, _ := generateTraceID(c.fp.OutputFields["container.id"].(string))
-		require.Equal(t, spanTraceID, (*span).(*MockSpan).SpanContext().TraceID(), c.fp.Rule)
+		spanTraceID, templateStr, err := generateTraceID(c.fp, config)
+		require.Nil(t, err, msg)
+		require.Equal(t, c.expectedTplStr, templateStr, c.fp.Rule, msg)
+		require.NotEqual(t, "", spanTraceID.String(), msg)
+		require.Equal(t, spanTraceID, (*span).(*MockSpan).SpanContext().TraceID(), msg)
 	}
 }
