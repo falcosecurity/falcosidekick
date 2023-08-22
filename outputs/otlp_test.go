@@ -184,8 +184,9 @@ func TestOtlpNewTrace(t *testing.T) {
 
 		var err error
 		client, _ := NewClient("OTLP", "http://localhost:4317", false, false, &c.config, nil, nil, nil, nil)
+		// Unfortunately config.go:getConfig() is not exported, so replicate its OTLP initialization regarding TraceIDFormat != ""
 		if c.config.OTLP.Traces.TraceIDFormat != "" {
-			c.config.OTLP.Traces.TraceIDFormatTemplate, err = template.New("").Parse(c.config.OTLP.Traces.TraceIDFormat)
+			c.config.OTLP.Traces.TraceIDFormatTemplate, err = template.New("").Option(templateOption).Parse(c.config.OTLP.Traces.TraceIDFormat)
 			require.Nil(t, err)
 
 		}
@@ -208,8 +209,12 @@ func TestOtlpNewTrace(t *testing.T) {
 		// Verify traceID
 		traceID, templateStr, err := generateTraceID(c.fp, &c.config)
 		require.Nil(t, err, c.msg)
-		require.Equal(t, c.expectedTplStr, templateStr, c.msg)
+		// Always generate a traceID (unless errored)
 		require.NotEqual(t, "", traceID.String(), c.msg)
+		// Verify expectedTplStr
+		require.Equal(t, c.expectedTplStr, templateStr, c.msg)
+		// Verify test case expecting a random traceID (i.e. when the template expanded
+		// to "" or "<no value>"
 		if c.expectedRandom {
 			require.NotEqual(t, traceID, (*span).(*MockSpan).SpanContext().TraceID(), c.msg)
 		} else {

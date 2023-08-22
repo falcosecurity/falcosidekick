@@ -752,7 +752,7 @@ func getConfig() *types.Configuration {
 	c.Cliq.MessageFormatTemplate = getMessageFormatTemplate("Cliq", c.Cliq.MessageFormat)
 	c.OTLP.Traces.Endpoint = strings.TrimSpace(c.OTLP.Traces.Endpoint)
 	if c.OTLP.Traces.TraceIDFormat != "" {
-		c.OTLP.Traces.TraceIDFormatTemplate = getMessageFormatTemplate("OTLP", c.OTLP.Traces.TraceIDFormat)
+		c.OTLP.Traces.TraceIDFormatTemplate = getMessageFormatTemplate("OTLP", c.OTLP.Traces.TraceIDFormat).Option("missingkey=zero")
 	}
 
 	return c

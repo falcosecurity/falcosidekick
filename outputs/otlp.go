@@ -72,13 +72,14 @@ func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
 }
 
 const (
+	templateOption       = "missingkey=zero"
 	kubeTemplateStr      = `{{.cluster}}{{.k8s_pod_name}}{{.k8s_ns_name}}{{.k8s_container_name}}`
 	containerTemplateStr = `{{.container_id}}`
 )
 
 var (
-	kubeTemplate      = template.Must(template.New("").Parse(kubeTemplateStr))
-	containerTemplate = template.Must(template.New("").Parse(containerTemplateStr))
+	kubeTemplate      = template.Must(template.New("").Option(templateOption).Parse(kubeTemplateStr))
+	containerTemplate = template.Must(template.New("").Option(templateOption).Parse(containerTemplateStr))
 )
 
 func sanitizeOutputFields(falcopayload types.FalcoPayload) map[string]string {
@@ -114,16 +115,16 @@ func traceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Configur
 func generateTraceID(falcopayload types.FalcoPayload, config *types.Configuration) (trace.TraceID, string, error) {
 	// cluster, k8s.ns.name, k8s.pod.name, container.name, container.id
 	traceIDStr, tplStr := traceIDFromTemplate(falcopayload, config)
-	if traceIDStr == "" || traceIDStr == "<no value>" {
-		// Generate a random 32 character string
+	if traceIDStr != "" {
+		hash := md5.Sum([]byte(traceIDStr))
+		traceIDStr = hex.EncodeToString(hash[:])
+	} else {
+		// Template produced no string :(, generate a random 32 character string
 		var err error
 		traceIDStr, err = randomHex(16)
 		if err != nil {
 			return trace.TraceID{}, "", err
 		}
-	} else {
-		hash := md5.Sum([]byte(traceIDStr))
-		traceIDStr = hex.EncodeToString(hash[:])
 	}
 	traceID, err := trace.TraceIDFromHex(traceIDStr)
 	return traceID, tplStr, err
