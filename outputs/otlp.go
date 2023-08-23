@@ -66,11 +66,20 @@ func (c *Client) newTrace(falcopayload types.FalcoPayload) *trace.Span {
 // calling OTEL SDK's tracer.Start() --> span.End(), i.e. no need to explicitly
 // do a HTTP POST
 func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
+	c.Stats.OTLP.Add(Total, 1)
+
 	trace := c.newTrace(falcopayload)
 	if trace == nil {
-		log.Printf("[ERROR] : Error generating trace")
+		go c.CountMetric(Outputs, 1, []string{"output:otlp", "status:error"})
+		c.Stats.OTLP.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "otlp", "status": Error}).Inc()
+		log.Printf("[ERROR] : OTLPError generating trace")
 		return
 	}
+	// Setting the success status
+	go c.CountMetric(Outputs, 1, []string{"output:otlp", "status:ok"})
+	c.Stats.OTLP.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "otlp", "status": OK}).Inc()
 }
 
 const (

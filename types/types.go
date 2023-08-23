@@ -795,6 +795,7 @@ type Statistics struct {
 	N8N               *expvar.Map
 	OpenObserve       *expvar.Map
 	Dynatrace         *expvar.Map
+	OTLP              *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
