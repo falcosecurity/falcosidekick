@@ -93,11 +93,11 @@ var (
 	containerTemplate = template.Must(template.New("").Option(templateOption).Parse(containerTemplateStr))
 )
 
-func sanitizeOutputFields(falcopayload types.FalcoPayload) map[string]string {
-	ret := make(map[string]string)
+func sanitizeOutputFields(falcopayload types.FalcoPayload) map[string]interface{} {
+	ret := make(map[string]interface{})
 	for k, v := range falcopayload.OutputFields {
 		k := strings.Replace(k, ".", "_", -1)
-		ret[k] = fmt.Sprintf("%v", v)
+		ret[k] = v
 	}
 	return ret
 }
@@ -108,10 +108,10 @@ func renderTraceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Co
 	outputFields := sanitizeOutputFields(falcopayload)
 	if tplStr == "" {
 		switch {
-		case outputFields["cluster"] != "" &&
-			outputFields["k8s_pod_name"] != "" &&
-			outputFields["k8s_ns_name"] != "" &&
-			outputFields["k8s_container_name"] != "":
+		case outputFields["cluster"] != nil &&
+			outputFields["k8s_pod_name"] != nil &&
+			outputFields["k8s_ns_name"] != nil &&
+			outputFields["k8s_container_name"] != nil:
 			tpl, tplStr = kubeTemplate, kubeTemplateStr
 		default:
 			tpl, tplStr = containerTemplate, containerTemplateStr
@@ -129,18 +129,20 @@ func generateTraceID(falcopayload types.FalcoPayload, config *types.Configuratio
 	var err error
 	traceIDStr, tplStr := renderTraceIDFromTemplate(falcopayload, config)
 
-	if traceIDStr != "" {
-		// Hash the returned template- rendered string to generate a 32 character traceID
-		hash := fnv.New128a()
-		hash.Write([]byte(traceIDStr))
-		digest := hash.Sum(nil)
-		traceIDStr = hex.EncodeToString(digest[:])
-	} else {
+	switch traceIDStr {
+	case "":
+	case "<no value>":
 		// Template produced no string :(, generate a random 32 character string
 		traceIDStr, err = randomHex(16)
 		if err != nil {
 			return traceID, "", err
 		}
+	default:
+		// Hash the returned template- rendered string to generate a 32 character traceID
+		hash := fnv.New128a()
+		hash.Write([]byte(traceIDStr))
+		digest := hash.Sum(nil)
+		traceIDStr = hex.EncodeToString(digest[:])
 	}
 	traceID, err = trace.TraceIDFromHex(traceIDStr)
 	return traceID, tplStr, err
