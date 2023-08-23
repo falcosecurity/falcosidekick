@@ -22,7 +22,6 @@ type MockTracerProvider struct{}
 type MockTracer struct{}
 type MockSpan struct {
 	name       string
-	startTime  time.Time
 	startOpts  []trace.SpanStartOption
 	endOpts    []trace.SpanEndOption
 	ctx        context.Context

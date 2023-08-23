@@ -3,10 +3,11 @@ package outputs
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"strings"
 	"text/template"
@@ -122,9 +123,11 @@ func generateTraceID(falcopayload types.FalcoPayload, config *types.Configuratio
 	traceIDStr, tplStr := renderTraceIDFromTemplate(falcopayload, config)
 
 	if traceIDStr != "" {
-		// Hash returned template- rendered string
-		hash := md5.Sum([]byte(traceIDStr))
-		traceIDStr = hex.EncodeToString(hash[:])
+		// Hash the returned template- rendered string to generate a 32 character traceID
+		hash := fnv.New128a()
+		hash.Write([]byte(traceIDStr))
+		digest := hash.Sum(nil)
+		traceIDStr = hex.EncodeToString(digest[:])
 	} else {
 		// Template produced no string :(, generate a random 32 character string
 		traceIDStr, err = randomHex(16)
