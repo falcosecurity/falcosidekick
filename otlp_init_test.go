@@ -15,6 +15,7 @@ func newMockOS() *mockOS {
 		envMap: make(map[string]string),
 	}
 }
+
 func (m *mockOS) Getenv(key string) string {
 	if v, ok := m.envMap[key]; ok {
 		return v

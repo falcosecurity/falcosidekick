@@ -18,15 +18,17 @@ import (
 )
 
 // Need to mock three interfaces: TracerProvider, Tracer, Span
-type MockTracerProvider struct{}
-type MockTracer struct{}
-type MockSpan struct {
-	name       string
-	startOpts  []trace.SpanStartOption
-	endOpts    []trace.SpanEndOption
-	ctx        context.Context
-	attributes map[attribute.Key]attribute.Value
-}
+type (
+	MockTracerProvider struct{}
+	MockTracer         struct{}
+	MockSpan           struct {
+		name       string
+		startOpts  []trace.SpanStartOption
+		endOpts    []trace.SpanEndOption
+		ctx        context.Context
+		attributes map[attribute.Key]attribute.Value
+	}
+)
 
 // TracerProvider interface {
 func (*MockTracerProvider) Tracer(string, ...trace.TracerOption) trace.Tracer {
@@ -55,11 +57,13 @@ func (*MockSpan) TracerProvider() trace.TracerProvider { return &MockTracerProvi
 func (m *MockSpan) End(opts ...trace.SpanEndOption) {
 	m.endOpts = opts
 }
+
 func (m *MockSpan) SetAttributes(kv ...attribute.KeyValue) {
 	for _, k := range kv {
 		m.attributes[k.Key] = k.Value
 	}
 }
+
 func (m *MockSpan) SpanContext() trace.SpanContext {
 	return trace.SpanContextFromContext(m.ctx)
 }
@@ -74,6 +78,7 @@ func startOptIn(opt trace.SpanStartOption, opts []trace.SpanStartOption) bool {
 	})
 	return len(res) == 1
 }
+
 func endOptIn(opt trace.SpanEndOption, opts []trace.SpanEndOption) bool {
 	res := lo.Filter(opts, func(o trace.SpanEndOption, index int) bool {
 		return o == opt

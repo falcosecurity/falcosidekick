@@ -86,9 +86,11 @@ type defaultOS struct{}
 func newDefaultOS() *defaultOS {
 	return &defaultOS{}
 }
+
 func (defaultOS) Getenv(key string) string {
 	return os.Getenv(key)
 }
+
 func (defaultOS) Setenv(key, value string) error {
 	return os.Setenv(key, value)
 }

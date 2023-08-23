@@ -3,7 +3,6 @@ package outputs
 import (
 	"bytes"
 	"context"
-
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -24,7 +23,6 @@ var getTracerProvider = otel.GetTracerProvider
 
 // newTrace returns a new Trace object.
 func (c *Client) newTrace(falcopayload types.FalcoPayload) *trace.Span {
-
 	traceID, _, err := generateTraceID(falcopayload, c.Config)
 	if err != nil {
 		log.Printf("[ERROR] : Error generating trace id: %v for output fields %v", err, falcopayload.OutputFields)
@@ -54,7 +52,7 @@ func (c *Client) newTrace(falcopayload types.FalcoPayload) *trace.Span {
 	for k, v := range falcopayload.OutputFields {
 		span.SetAttributes(attribute.String(k, fmt.Sprintf("%v", v)))
 	}
-	//span.AddEvent("falco-event")
+	// span.AddEvent("falco-event")
 	span.End(trace.WithTimestamp(endTime))
 
 	if c.Config.Debug {
