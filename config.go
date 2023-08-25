@@ -481,7 +481,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.Traces.Synced", false)
 	v.SetDefault("OTLP.Traces.MinimumPriority", "")
 	v.SetDefault("OTLP.Traces.Insecure", false)
-	v.SetDefault("OTLP.Traces.TraceIDFormat", "")
+	v.SetDefault("OTLP.Traces.TraceIDHash", "")
 	// NB: Unfortunately falco events don't provide endtime, artificially set
 	// it to 1000ms by default, override-able via OTLP_DURATION environment variable.
 	v.SetDefault("OTLP.Traces.Duration", 1000)
@@ -751,8 +751,8 @@ func getConfig() *types.Configuration {
 	c.Googlechat.MessageFormatTemplate = getMessageFormatTemplate("Googlechat", c.Googlechat.MessageFormat)
 	c.Cliq.MessageFormatTemplate = getMessageFormatTemplate("Cliq", c.Cliq.MessageFormat)
 	c.OTLP.Traces.Endpoint = strings.TrimSpace(c.OTLP.Traces.Endpoint)
-	if c.OTLP.Traces.TraceIDFormat != "" {
-		c.OTLP.Traces.TraceIDFormatTemplate = getMessageFormatTemplate("OTLP", c.OTLP.Traces.TraceIDFormat).Option("missingkey=zero")
+	if c.OTLP.Traces.TraceIDHash != "" {
+		c.OTLP.Traces.TraceIDHashTemplate = getMessageFormatTemplate("OTLP", c.OTLP.Traces.TraceIDHash).Option("missingkey=zero")
 	}
 
 	return c

@@ -489,4 +489,4 @@ otlp:
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
     # insecure: false # Set if you want to skip TLS certificate validation
     # duration: 1000 # Artificial span duration in milliseconds
-    # traceidformat: "" # Trace ID format as gotemplate, to select fields from falcopayload output fields (default: automatic to support Kubernetes' or just container.ID)
+    # traceidhash: "" # Trace ID Hash "seed" as gotemplate, to select fields from falcopayload output fields (default: automatic to support Kubernetes' or just container.ID)

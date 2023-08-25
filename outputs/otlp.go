@@ -103,8 +103,8 @@ func sanitizeOutputFields(falcopayload types.FalcoPayload) map[string]interface{
 }
 
 func renderTraceIDFromTemplate(falcopayload types.FalcoPayload, config *types.Configuration) (string, string) {
-	tplStr := config.OTLP.Traces.TraceIDFormat
-	tpl := config.OTLP.Traces.TraceIDFormatTemplate
+	tplStr := config.OTLP.Traces.TraceIDHash
+	tpl := config.OTLP.Traces.TraceIDHashTemplate
 	outputFields := sanitizeOutputFields(falcopayload)
 	if tplStr == "" {
 		switch {

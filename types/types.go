@@ -807,13 +807,13 @@ type PromStatistics struct {
 
 // OTLPOutputConfig represents config parameters for OTLP
 type OTLPTraces struct {
-	Endpoint              string
-	Duration              int64
-	Insecure              bool
-	Synced                bool
-	MinimumPriority       string
-	TraceIDFormat         string
-	TraceIDFormatTemplate *template.Template
+	Endpoint            string
+	Duration            int64
+	Insecure            bool
+	Synced              bool
+	MinimumPriority     string
+	TraceIDHash         string
+	TraceIDHashTemplate *template.Template
 }
 type OTLPOutputConfig struct {
 	Traces OTLPTraces

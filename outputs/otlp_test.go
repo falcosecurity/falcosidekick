@@ -144,7 +144,7 @@ func TestOtlpNewTrace(t *testing.T) {
 			expectedTplStr: containerTemplateStr,
 		},
 		{
-			msg: "TraceIDFormat config must override defaults",
+			msg: "TraceIDHash config must override defaults",
 			fp: types.FalcoPayload{
 				Rule: "Mock Rule#3",
 				OutputFields: map[string]interface{}{
@@ -156,15 +156,15 @@ func TestOtlpNewTrace(t *testing.T) {
 				Debug: true,
 				OTLP: types.OTLPOutputConfig{
 					Traces: types.OTLPTraces{
-						Duration:      1000,
-						TraceIDFormat: "{{.foo_bar}}",
+						Duration:    1000,
+						TraceIDHash: "{{.foo_bar}}",
 					},
 				},
 			},
 			expectedTplStr: "{{.foo_bar}}",
 		},
 		{
-			msg: "Verify traceID is random if TraceIDFormat is empty",
+			msg: "Verify traceID is random if TraceIDHash is empty",
 			fp: types.FalcoPayload{
 				Rule: "Mock Rule#4",
 				OutputFields: map[string]interface{}{
@@ -175,8 +175,8 @@ func TestOtlpNewTrace(t *testing.T) {
 				Debug: true,
 				OTLP: types.OTLPOutputConfig{
 					Traces: types.OTLPTraces{
-						Duration:      1000,
-						TraceIDFormat: "{{.foo_bar}}",
+						Duration:    1000,
+						TraceIDHash: "{{.foo_bar}}",
 					},
 				},
 			},
@@ -188,9 +188,9 @@ func TestOtlpNewTrace(t *testing.T) {
 
 		var err error
 		client, _ := NewClient("OTLP", "http://localhost:4317", false, false, &c.config, nil, nil, nil, nil)
-		// Unfortunately config.go:getConfig() is not exported, so replicate its OTLP initialization regarding TraceIDFormat != ""
-		if c.config.OTLP.Traces.TraceIDFormat != "" {
-			c.config.OTLP.Traces.TraceIDFormatTemplate, err = template.New("").Option(templateOption).Parse(c.config.OTLP.Traces.TraceIDFormat)
+		// Unfortunately config.go:getConfig() is not exported, so replicate its OTLP initialization regarding TraceIDHash != ""
+		if c.config.OTLP.Traces.TraceIDHash != "" {
+			c.config.OTLP.Traces.TraceIDHashTemplate, err = template.New("").Option(templateOption).Parse(c.config.OTLP.Traces.TraceIDHash)
 			require.Nil(t, err)
 
 		}
