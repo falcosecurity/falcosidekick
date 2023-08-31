@@ -70,16 +70,16 @@ func (c *Client) OTLPPost(falcopayload types.FalcoPayload) {
 
 	trace := c.newTrace(falcopayload)
 	if trace == nil {
-		go c.CountMetric(Outputs, 1, []string{"output:otlp", "status:error"})
+		go c.CountMetric(Outputs, 1, []string{"output:otlp/traces", "status:error"})
 		c.Stats.OTLP.Add(Error, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "otlp", "status": Error}).Inc()
+		c.PromStats.Outputs.With(map[string]string{"destination": "otlp/traces", "status": Error}).Inc()
 		log.Printf("[ERROR] : OTLPError generating trace")
 		return
 	}
 	// Setting the success status
-	go c.CountMetric(Outputs, 1, []string{"output:otlp", "status:ok"})
+	go c.CountMetric(Outputs, 1, []string{"output:otlp/traces", "status:ok"})
 	c.Stats.OTLP.Add(OK, 1)
-	c.PromStats.Outputs.With(map[string]string{"destination": "otlp", "status": OK}).Inc()
+	c.PromStats.Outputs.With(map[string]string{"destination": "otlp/traces", "status": OK}).Inc()
 }
 
 const (
