@@ -27,7 +27,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	github.com/streadway/amqp v1.1.0
 	github.com/stretchr/testify v1.8.4
-	github.com/wavefronthq/wavefront-sdk-go v0.13.0
+	github.com/wavefronthq/wavefront-sdk-go v0.14.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20230312005205-fbbcdea5f512
 	golang.org/x/oauth2 v0.11.0
@@ -63,7 +63,7 @@ require (
 	github.com/apache/thrift v0.18.1 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/caio/go-tdigest v3.1.0+incompatible // indirect
+	github.com/caio/go-tdigest/v4 v4.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/devigned/tab v0.1.1 // indirect
