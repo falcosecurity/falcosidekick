@@ -13,8 +13,8 @@ import (
 	"strings"
 	"text/template"
 
+	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/spf13/viper"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
