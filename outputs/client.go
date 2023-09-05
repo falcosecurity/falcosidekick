@@ -17,10 +17,10 @@ import (
 	"strings"
 	"sync"
 
-	crdClient "github.com/kubernetes-sigs/wg-policy-prototypes/policy-report/kube-bench-adapter/pkg/generated/v1alpha2/clientset/versioned"
+	crdClient "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/generated/v1alpha2/clientset/versioned"
 
 	gcpfunctions "cloud.google.com/go/functions/apiv1"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
 
 	"cloud.google.com/go/pubsub"

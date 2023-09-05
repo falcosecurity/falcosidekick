@@ -846,7 +846,7 @@ func main() {
 			log.Printf("[WARN] : tlsserver.deploy is false but tlsserver.notlspaths is not empty, change tlsserver.deploy to true to deploy two servers")
 		}
 
-		log.Printf("[INFO] : Falco Sidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
+		log.Printf("[INFO]  : Falco Sidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatalf("[ERROR] : %v", err.Error())
 		}

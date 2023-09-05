@@ -7,7 +7,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/falcosecurity/falcosidekick/types"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // NewRabbitmqClient returns a new output.Client for accessing the RabbitmMQ API.
