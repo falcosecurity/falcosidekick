@@ -3,6 +3,7 @@ package outputs
 import (
 	"log"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -65,26 +66,32 @@ func newDynatracePayload(falcopayload types.FalcoPayload) dtPayload {
 	}
 
 	// possibly map a few fields to semantic attributes
-	for fcKey, val := range falcopayload.OutputFields {
-		switch fcKey {
-		case "container.id":
-			message.ContainerId = val.(string)
-		case "container.name":
-			message.ContainerName = val.(string)
-		case "container.image":
-			message.ContainerImageName = val.(string)
-		case "k8s.ns.name", "ka.target.namespace":
-			message.K8sNamespaceName = val.(string)
-		case "k8s.pod.name":
-			message.K8sPodName = val.(string)
-		case "k8s.pod.id":
-			message.K8sPodUid = val.(string)
-		case "proc.name":
-			message.ProcessExecutableName = val.(string)
-		case "span.id":
-			message.SpanId = val.(string)
-		default:
-			continue
+	if falcopayload.OutputFields != nil {
+		for fcKey, val := range falcopayload.OutputFields {
+			if val == nil {
+				continue
+			}
+
+			switch fcKey {
+			case "container.id":
+				message.ContainerId = val.(string)
+			case "container.name":
+				message.ContainerName = val.(string)
+			case "container.image":
+				message.ContainerImageName = val.(string)
+			case "k8s.ns.name", "ka.target.namespace":
+				message.K8sNamespaceName = val.(string)
+			case "k8s.pod.name":
+				message.K8sPodName = val.(string)
+			case "k8s.pod.id":
+				message.K8sPodUid = val.(string)
+			case "proc.name":
+				message.ProcessExecutableName = val.(string)
+			case "span.id":
+				message.SpanId = strconv.Itoa(val.(int))
+			default:
+				continue
+			}
 		}
 	}
 
