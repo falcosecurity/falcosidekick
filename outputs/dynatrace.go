@@ -28,7 +28,7 @@ type dtLogMessage struct {
 	ContainerImageName    string       `json:"container.image.name,omitempty"`
 	K8sNamespaceName      string       `json:"k8s.namespace.name,omitempty"`
 	K8sPodName            string       `json:"k8s.pod.name,omitempty"`
-	K8sPodId              string       `json:"k8s.pod.id,omitempty"`
+	K8sPodUid             string       `json:"k8s.pod.uid,omitempty"`
 	ProcessExecutableName string       `json:"process.executable.name,omitempty"`
 	SpanId                string       `json:"span.id,omitempty"`
 }
@@ -71,14 +71,14 @@ func newDynatracePayload(falcopayload types.FalcoPayload) dtPayload {
 			message.ContainerId = val.(string)
 		case "container.name":
 			message.ContainerName = val.(string)
-		case "container.image.name":
+		case "container.image":
 			message.ContainerImageName = val.(string)
-		case "k8s.namespace.name", "ka.target.namespace":
+		case "k8s.ns.name", "ka.target.namespace":
 			message.K8sNamespaceName = val.(string)
 		case "k8s.pod.name":
 			message.K8sPodName = val.(string)
 		case "k8s.pod.id":
-			message.K8sPodId = val.(string)
+			message.K8sPodUid = val.(string)
 		case "proc.name":
 			message.ProcessExecutableName = val.(string)
 		case "span.id":
