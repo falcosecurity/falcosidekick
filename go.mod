@@ -31,7 +31,7 @@ require (
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20230830030807-0dd610dbff1d
 	golang.org/x/oauth2 v0.11.0
-	google.golang.org/api v0.138.0
+	google.golang.org/api v0.139.0
 	google.golang.org/genproto v0.0.0-20230822172742-b8732ec3820d
 	k8s.io/api v0.28.1
 	k8s.io/apimachinery v0.28.1
