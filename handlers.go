@@ -136,6 +136,8 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	promLabels := map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "k8s_ns_name": kn, "k8s_pod_name": kp}
 	if falcopayload.Hostname != "" {
 		promLabels["hostname"] = falcopayload.Hostname
+	} else {
+		promLabels["hostname"] = "unknown"
 	}
 
 	for key, value := range config.Customfields {
