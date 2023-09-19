@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -40,7 +40,7 @@ func isSourcePresent(config *types.Configuration) (bool, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return false, err
 	}
@@ -93,7 +93,7 @@ func makeSource(config *types.Configuration) error {
 	}
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusBadRequest {
-			if b, err := ioutil.ReadAll(resp.Body); err == nil {
+			if b, err := io.ReadAll(resp.Body); err == nil {
 				return errors.New("Bad request: " + string(b))
 			}
 		}

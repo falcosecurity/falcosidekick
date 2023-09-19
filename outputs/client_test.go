@@ -9,7 +9,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
@@ -259,7 +258,7 @@ func certsetup(config *types.Configuration) (serverTLSConf *tls.Config, err erro
 	})
 
 	// save ca to ca.crt file (it will be used by Client)
-	err = ioutil.WriteFile(config.MutualTLSClient.CaCertFile, caPEM.Bytes(), 0600)
+	err = os.WriteFile(config.MutualTLSClient.CaCertFile, caPEM.Bytes(), 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +358,7 @@ func certsetup(config *types.Configuration) (serverTLSConf *tls.Config, err erro
 	})
 
 	// save client cert and key to client.crt and client.key
-	err = ioutil.WriteFile(config.MutualTLSClient.CertFile, clientCertPEM.Bytes(), 0600)
+	err = os.WriteFile(config.MutualTLSClient.CertFile, clientCertPEM.Bytes(), 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +367,7 @@ func certsetup(config *types.Configuration) (serverTLSConf *tls.Config, err erro
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(clientCertPrivKey),
 	})
-	err = ioutil.WriteFile(config.MutualTLSClient.KeyFile, clientCertPrivKeyPEM.Bytes(), 0600)
+	err = os.WriteFile(config.MutualTLSClient.KeyFile, clientCertPrivKeyPEM.Bytes(), 0600)
 	if err != nil {
 		return nil, err
 	}

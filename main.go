@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -789,7 +788,7 @@ func main() {
 				log.Printf("[DEBUG] : running mTLS server")
 			}
 
-			caCert, err := ioutil.ReadFile(config.TLSServer.CaCertFile)
+			caCert, err := os.ReadFile(config.TLSServer.CaCertFile)
 			if err != nil {
 				log.Printf("[ERROR] : %v\n", err.Error())
 			}
