@@ -9,10 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -208,7 +209,7 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	}
 
 	if c.Config.TLSClient.CaCertFile != "" {
-		caCert, err := ioutil.ReadFile(c.Config.TLSClient.CaCertFile)
+		caCert, err := os.ReadFile(c.Config.TLSClient.CaCertFile)
 		if err != nil {
 			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		}
@@ -239,7 +240,7 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 		}
 
 		// Load CA cert
-		caCert, err := ioutil.ReadFile(MutualTLSClientCaCertPath)
+		caCert, err := os.ReadFile(MutualTLSClientCaCertPath)
 		if err != nil {
 			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		}
@@ -285,33 +286,33 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
 		log.Printf("[INFO]  : %v - Post OK (%v)\n", c.OutputType, resp.StatusCode)
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		if ot := c.OutputType; ot == Kubeless || ot == Openfaas || ot == Fission {
 			log.Printf("[INFO]  : %v - Function Response : %v\n", ot, string(body))
 		}
 		return nil
 	case http.StatusBadRequest: //400
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrHeaderMissing, resp.StatusCode, string(body))
 		return ErrHeaderMissing
 	case http.StatusUnauthorized: //401
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode, string(body))
 		return ErrClientAuthenticationError
 	case http.StatusForbidden: //403
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrForbidden, resp.StatusCode, string(body))
 		return ErrForbidden
 	case http.StatusNotFound: //404
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrNotFound, resp.StatusCode, string(body))
 		return ErrNotFound
 	case http.StatusUnprocessableEntity: //422
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrUnprocessableEntityError, resp.StatusCode, string(body))
 		return ErrUnprocessableEntityError
 	case http.StatusTooManyRequests: //429
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrTooManyRequest, resp.StatusCode, string(body))
 		return ErrTooManyRequest
 	case http.StatusInternalServerError: //500
