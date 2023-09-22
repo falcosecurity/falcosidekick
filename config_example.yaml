@@ -26,7 +26,6 @@ tlsserver:
     # - "/metrics"
     # - "/healthz"
 
-
 slack:
   webhookurl: "" # Slack WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Slack output is enabled
   #channel: "" # Slack channel (optionnal)
@@ -59,7 +58,7 @@ mattermost:
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
 
 teams:
-  webhookurl: "" # Teams WebhookURL (ex: https://hooks.slack.com/services/XXXX/YYYY/ZZZZ), if not empty, Teams output is enabled
+  webhookurl: "" # Teams WebhookURL, if not empty, Teams output is enabled
   #activityimage: "" # Image for message section
   outputformat: "all" # all (default), text, facts
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
@@ -200,7 +199,7 @@ dogstatsd:
   #   key: "value"
 
 opsgenie:
-  # apikey: "2c771471-e2af-4dc6-bd35-e7f6ff479b64" # Opsgenie API Key, if not empty, Opsgenie output is enabled
+  # apikey: "" # Opsgenie API Key, if not empty, Opsgenie output is enabled
   region: "eu" # (us|eu) region of your domain
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 

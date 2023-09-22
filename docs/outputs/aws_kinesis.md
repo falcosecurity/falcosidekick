@@ -1,0 +1,51 @@
+# AWS Kinesis
+
+- **Category**: Message Queue / Streaming
+- **Website**: https://aws.amazon.com/kinesis/
+
+## Table of content
+
+- [AWS Kinesis](#aws-kinesis)
+  - [Table of content](#table-of-content)
+  - [Configuration](#configuration)
+  - [Example of config.yaml](#example-of-configyaml)
+  - [Additional info](#additional-info)
+  - [Screenshots](#screenshots)
+
+## Configuration
+
+| Setting                       | Env var                       | Default value    | Description                                                                                                                         |
+| ----------------------------- | ----------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `aws.accesskeyid`             | `AWS_ACCESSKEYID`             |                  | AWS access key (optional if you use EC2 Instance Profile)                                                                           |
+| `aws.secretaccesskey`         | `AWS_SECRETACCESSKEY`         |                  | AWS secret access key (optional if you use EC2 Instance Profile)                                                                    |
+| `aws.region`                  | `AWS_REGION`                  |                  | AWS region (by default, the metadata are used to get it)                                                                            |
+| `aws.rolearn`                 | `AWS_ROLEARN`                 |                  | AWS role to assume (optional if you use EC2 Instance Profile)                                                                       |
+| `aws.externalid`              | `AWS_EXTERNALID`              |                  | External id for the role to assume (optional if you use EC2 Instance Profile)                                                       |
+| `aws.checkidentity`           | `AWS_CHECKIDENTITY`           | `true`           | Check the identity credentials, set to false for locale developments                                                                |             
+| `aws.kinesis.streamname`      | `AWS_KINESIS_STREAMNAME`      |                  | AWS Kinesis Stream Name, if not empty, Kinesis output is **enabled**                                                                |
+| `aws.kinesis.minimumpriority` | `AWS_KINESIS_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
+
+> **Note**
+The Env var values override the settings from yaml file.
+
+## Example of config.yaml
+
+```yaml
+aws:
+  # accesskeyid: "" # aws access key (optional if you use EC2 Instance Profile)
+  # secretaccesskey: "" # aws secret access key (optional if you use EC2 Instance Profile)
+  # region : "" # aws region (by default, the metadata are used to get it)
+  # rolearn: "" # aws role to assume (optional if you use EC2 Instance Profile)
+  # externalid: "" # external id for the role to assume (optional if you use EC2 Instance Profile)
+  # checkidentity: true # check the identity credentials, set to false for locale developments (default: true)
+  kinesis:
+    streamname: "" # AWS Kinesis Stream Name, if not empty, Kinesis output is enabled
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+```
+
+## Additional info
+
+> **Note**
+When using this AWS output you will need to set the AWS keys or role with some permissions.
+
+## Screenshots
