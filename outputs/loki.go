@@ -62,25 +62,38 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	}}
 }
 
-// LokiPost posts event to Loki
-func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
-	c.Stats.Loki.Add(Total, 1)
-	c.ContentType = LokiContentType
+func (c *Client) configureTenant() {
 	if c.Config.Loki.Tenant != "" {
 		c.httpClientLock.Lock()
 		defer c.httpClientLock.Unlock()
 		c.AddHeader("X-Scope-OrgID", c.Config.Loki.Tenant)
 	}
+}
 
+func (c *Client) configureAuth() {
 	if c.Config.Loki.User != "" && c.Config.Loki.APIKey != "" {
 		c.httpClientLock.Lock()
 		defer c.httpClientLock.Unlock()
 		c.BasicAuth(c.Config.Loki.User, c.Config.Loki.APIKey)
 	}
+}
 
+func (c *Client) configureCustomHeaders() {
+	c.httpClientLock.Lock()
+	defer c.httpClientLock.Unlock()
 	for i, j := range c.Config.Loki.CustomHeaders {
 		c.AddHeader(i, j)
 	}
+}
+
+// LokiPost posts event to Loki
+func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
+	c.Stats.Loki.Add(Total, 1)
+	c.ContentType = LokiContentType
+
+	c.configureTenant()
+	c.configureAuth()
+	c.configureCustomHeaders()
 
 	err := c.Post(newLokiPayload(falcopayload, c.Config))
 	if err != nil {
