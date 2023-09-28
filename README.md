@@ -19,6 +19,48 @@ It works as a single endpoint for as many as you want `Falco` instances :
 
 ![falco_with_falcosidekick](https://github.com/falcosecurity/falcosidekick/raw/master/imgs/falco_with_falcosidekick.png)
 
+## Table of contents
+
+- [Falcosidekick](#falcosidekick)
+  - [Description](#description)
+  - [Table of contents](#table-of-contents)
+  - [Outputs](#outputs)
+    - [Chat](#chat)
+    - [Metrics / Observability](#metrics--observability)
+    - [Alerting](#alerting)
+    - [Logs](#logs)
+    - [Object Storage](#object-storage)
+    - [FaaS / Serverless](#faas--serverless)
+    - [Message queue / Streaming](#message-queue--streaming)
+    - [Email](#email)
+    - [Database](#database)
+    - [Web](#web)
+    - [SIEM](#siem)
+    - [Workflow](#workflow)
+    - [Other](#other)
+  - [Usage](#usage)
+    - [With docker](#with-docker)
+    - [With Helm](#with-helm)
+    - [Falco's config](#falcos-config)
+      - [with falco.yaml](#with-falcoyaml)
+      - [with Helm](#with-helm-1)
+    - [Configuration](#configuration)
+      - [YAML File](#yaml-file)
+  - [Usage](#usage-1)
+  - [Endpoints](#endpoints)
+  - [Logs](#logs-1)
+  - [Mutual TLS](#mutual-tls)
+  - [Metrics](#metrics)
+    - [Golang ExpVar](#golang-expvar)
+    - [Prometheus](#prometheus)
+    - [StatsD / DogStatsD](#statsd--dogstatsd)
+  - [Try](#try)
+  - [Development](#development)
+    - [Build](#build)
+    - [Quicktest](#quicktest)
+    - [Test \& Coverage](#test--coverage)
+  - [Author](#author)
+
 ## Outputs
 
 `Falcosidekick` manages a large variety of outputs with different purposes.
@@ -101,7 +143,7 @@ Follow the links to get the configuration of each output.
 
 ### Email
 
-- **SMTP**
+- [**SMTP**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/smtp.md)
 
 ### Database
 
@@ -147,7 +189,7 @@ helm install falcosidekick --set config.debug=true falcosecurity/falcosidekick
 ```
 
 > **Note**
-You can also deploy falcosidekick as a dependency of the falco chart, the settings for the communication between falco and falcosidekick are automatically set. Just prefix all falcosidekick settings with `falcosidekick.`,:
+You can also deploy `falcosidekick` as a dependency of the `falco` chart, the settings for the communication between falco and `falcosidekick` are automatically set. Just prefix all `falcosidekick` settings with `falcosidekick.`:
 ```bash
 helm repo add falcosecurity https://falcosecurity.github.io/charts
 helm repo update
@@ -232,6 +274,11 @@ tlsserver:
     # - "/healthz"
 ```
 
+> **Note**
+For the confiuration of the outputs, see the [docs](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/).
+
+## Usage
+
 Usage :
 
 ```bash
@@ -242,22 +289,16 @@ Flags:
   -c, --config-file=CONFIG-FILE  config file
 ```
 
-## Handlers
+## Endpoints
 
-Different URI (handlers) are available :
+Different endpoints (handlers) are available :
 
 - `/` : main and default handler, your falco config must be configured to use it
-- `/ping` : you will get a `pong` as answer, useful to test if falcosidekick is
-  running and its port is opened (for healthcheck purpose for example). This
-  endpoint is deprecated and it will be removed in `3.0.0`.
-- `/healthz`: you will get a HTTP status code `200` response as answer, useful
-  to test if falcosidekick is running and its port is opened (for healthcheck or
-  purpose for example)
+- `/ping` : you will get a `pong` as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck purpose for example). This endpoint is deprecated and it will be removed in `3.0.0`.
+- `/healthz`: you will get a HTTP status code `200` response as answer, useful to test if falcosidekick is running and its port is opened (for healthcheck or purpose for example)
 - `/test` : (for debug only) send a test event to all enabled outputs.
-- `/debug/vars` : get statistics from daemon (in JSON format), it uses classic
-  `expvar` package and some custom values are added
-- `/metrics` : prometheus endpoint, for scraping metrics about events and
-  `falcosidekick`
+- `/debug/vars` : get statistics from daemon (in JSON format), it uses classic `expvar` package and some custom values are added
+- `/metrics` : prometheus endpoint, for scraping metrics about events and `falcosidekick`
 
 ## Logs
 
