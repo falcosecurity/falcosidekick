@@ -95,6 +95,10 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
+	if falcopayload.Rule == "Test rule" {
+		falcopayload.Source = "internal"
+	}
+
 	if falcopayload.Source == "" {
 		falcopayload.Source = "syscalls"
 	}
