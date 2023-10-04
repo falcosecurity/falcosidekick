@@ -21,7 +21,7 @@ require (
 	github.com/jackc/pgx/v5 v5.4.3
 	github.com/nats-io/nats.go v1.30.2
 	github.com/nats-io/stan.go v0.10.4
-	github.com/prometheus/client_golang v1.16.0
+	github.com/prometheus/client_golang v1.17.0
 	github.com/rabbitmq/amqp091-go v1.8.1
 	github.com/redis/go-redis/v9 v9.2.1
 	github.com/segmentio/kafka-go v0.4.42
@@ -110,7 +110,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.18 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_model v0.4.0 // indirect
+	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.11.1 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
