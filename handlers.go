@@ -133,7 +133,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + falcopayload.Priority.String()})
 	stats.Falco.Add(strings.ToLower(falcopayload.Priority.String()), 1)
-	promLabels := map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "k8s_ns_name": kn, "k8s_pod_name": kp}
+	promLabels := map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "source": falcopayload.Source, "k8s_ns_name": kn, "k8s_pod_name": kp}
 	if falcopayload.Hostname != "" {
 		promLabels["hostname"] = falcopayload.Hostname
 	} else {

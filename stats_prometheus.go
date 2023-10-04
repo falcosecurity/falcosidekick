@@ -44,6 +44,7 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 		"hostname",
 		"rule",
 		"priority",
+		"source",
 		"k8s_ns_name",
 		"k8s_pod_name",
 	}
