@@ -153,6 +153,13 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Loki.Endpoint", "/loki/api/v1/push")
 	v.SetDefault("Loki.ExtraLabels", "")
 
+	v.SetDefault("SumoLogic.MinimumPriority", "")
+	v.SetDefault("SumoLogic.ReceiverURL", "")
+	v.SetDefault("SumoLogic.SourceCategory", "")
+	v.SetDefault("SumoLogic.SourceHost", "")
+	v.SetDefault("SumoLogic.Name", "")
+	v.SetDefault("SumoLogic.CheckCert", true)
+
 	v.SetDefault("AWS.AccessKeyID", "")
 	v.SetDefault("AWS.SecretAccessKey", "")
 	v.SetDefault("AWS.Region", "")
@@ -691,6 +698,7 @@ func getConfig() *types.Configuration {
 	c.Elasticsearch.MinimumPriority = checkPriority(c.Elasticsearch.MinimumPriority)
 	c.Influxdb.MinimumPriority = checkPriority(c.Influxdb.MinimumPriority)
 	c.Loki.MinimumPriority = checkPriority(c.Loki.MinimumPriority)
+	c.SumoLogic.MinimumPriority = checkPriority(c.SumoLogic.MinimumPriority)
 	c.Nats.MinimumPriority = checkPriority(c.Nats.MinimumPriority)
 	c.Stan.MinimumPriority = checkPriority(c.Stan.MinimumPriority)
 	c.AWS.Lambda.MinimumPriority = checkPriority(c.AWS.Lambda.MinimumPriority)

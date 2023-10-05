@@ -425,7 +425,7 @@ tekton:
   # eventListener: "" # EventListener address, if not empty, Tekton output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
-  
+
 spyderbat:
   # orguid: "" # Organization to send output to, if not empty, Spyderbat output is enabled
   # apikey: "" # Spyderbat API key with access to the organization
@@ -481,5 +481,13 @@ openobserve:
 dynatrace:
   apitoken: "" # Dynatrace API token with the "logs.ingest" scope, more info : https://dt-url.net/8543sda, if not empty, Dynatrace output is enabled
   apiurl: "" # Dynatrace API url, use https://ENVIRONMENTID.live.dynatrace.com/api for Dynatrace SaaS and https://YOURDOMAIN/e/ENVIRONMENTID/api for Dynatrace Managed, more info : https://dt-url.net/ej43qge
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+
+sumologic:
+  ReceiverURL: "" # Sumologic HTTP Source URL, if not empty, Sumologic output is enabled
+  # SourceCategory: "" # Override the default Sumologic Source Category
+  # SourceHost: "" # Override the default Sumologic Source Host
+  # Name: "" # Override the default Sumologic Source Name
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)

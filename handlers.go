@@ -222,6 +222,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go lokiClient.LokiPost(falcopayload)
 	}
 
+	if config.SumoLogic.ReceiverURL != "" && (falcopayload.Priority >= types.Priority(config.SumoLogic.MinimumPriority) || falcopayload.Rule == testRule) {
+		go sumologicClient.SumoLogicPost(falcopayload)
+	}
+
 	if config.Nats.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Nats.MinimumPriority) || falcopayload.Rule == testRule) {
 		go natsClient.NatsPublish(falcopayload)
 	}

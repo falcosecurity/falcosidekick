@@ -32,6 +32,7 @@ func getInitStats() *types.Statistics {
 		Alertmanager:      getOutputNewMap("alertmanager"),
 		Elasticsearch:     getOutputNewMap("elasticsearch"),
 		Loki:              getOutputNewMap("loki"),
+		SumoLogic:         getOutputNewMap("sumologic"),
 		Nats:              getOutputNewMap("nats"),
 		Stan:              getOutputNewMap("stan"),
 		Influxdb:          getOutputNewMap("influxdb"),
