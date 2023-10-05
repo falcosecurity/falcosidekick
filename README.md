@@ -107,6 +107,7 @@ Follow the links to get the configuration of each output.
 - [**Syslog**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/syslog.md)
 - [**Zincsearch**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs//zincsearch.md)
 - [**OpenObserve**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/openobserve.md)
+- [**SumoLogic**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/sumologic.md)
 
 ### Object Storage
 

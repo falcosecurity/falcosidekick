@@ -69,6 +69,7 @@ type Configuration struct {
 	Elasticsearch      ElasticsearchOutputConfig
 	Influxdb           influxdbOutputConfig
 	Loki               LokiOutputConfig
+	SumoLogic          SumoLogicOutputConfig
 	Nats               natsOutputConfig
 	Stan               stanOutputConfig
 	AWS                awsOutputConfig
@@ -284,6 +285,16 @@ type LokiOutputConfig struct {
 	ExtraLabels     string
 	ExtraLabelsList []string
 	CustomHeaders   map[string]string
+}
+
+type SumoLogicOutputConfig struct {
+	MinimumPriority string
+	ReceiverURL     string
+	SourceCategory  string
+	SourceHost      string
+	Name            string
+	CheckCert       bool
+	MutualTLS       bool
 }
 
 type prometheusOutputConfig struct {
@@ -750,6 +761,7 @@ type Statistics struct {
 	Alertmanager      *expvar.Map
 	Elasticsearch     *expvar.Map
 	Loki              *expvar.Map
+	SumoLogic         *expvar.Map
 	Nats              *expvar.Map
 	Stan              *expvar.Map
 	Influxdb          *expvar.Map

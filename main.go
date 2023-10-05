@@ -35,6 +35,7 @@ var (
 	elasticsearchClient *outputs.Client
 	influxdbClient      *outputs.Client
 	lokiClient          *outputs.Client
+	sumologicClient     *outputs.Client
 	natsClient          *outputs.Client
 	stanClient          *outputs.Client
 	awsClient           *outputs.Client
@@ -224,6 +225,16 @@ func init() {
 			config.Loki.HostPort = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Loki")
+		}
+	}
+
+	if config.SumoLogic.ReceiverURL != "" {
+		var err error
+		sumologicClient, err = outputs.NewClient("SumoLogic", config.SumoLogic.ReceiverURL, false, config.SumoLogic.CheckCert, config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.SumoLogic.ReceiverURL = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "SumoLogic")
 		}
 	}
 
