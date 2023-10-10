@@ -31,9 +31,9 @@ The Env var values override the settings from yaml file.
 
 ```yaml
 sumologic:
-  ReceiverURL: "" # Sumologic HTTP Source URL, if not empty, Sumologic output is enabled
-  # SourceCategory: "" # Override the default Sumologic Source Category
-  # SourceHost: "" # Override the default Sumologic Source Host
+  receiverURL: "" # Sumologic HTTP Source URL, if not empty, Sumologic output is enabled
+  # sourceCategory: "" # Override the default Sumologic Source Category
+  # sourceHost: "" # Override the default Sumologic Source Host
   # Name: "" # Override the default Sumologic Source Name
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)

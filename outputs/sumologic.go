@@ -35,7 +35,7 @@ func (c *Client) SumoLogicPost(falcopayload types.FalcoPayload) {
 	err = c.Post(falcopayload)
 	if err != nil {
 		c.setSumoLogicErrorMetrics()
-		log.Printf("[ERROR] : SumoLogic - %v\n", err)
+		log.Printf("[ERROR] : %x - %v\n", c.OutputType, err)
 		return
 	}
 
