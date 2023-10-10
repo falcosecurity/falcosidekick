@@ -159,6 +159,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("SumoLogic.SourceHost", "")
 	v.SetDefault("SumoLogic.Name", "")
 	v.SetDefault("SumoLogic.CheckCert", true)
+	v.SetDefault("SumoLogic.MutualTLS", false)
 
 	v.SetDefault("AWS.AccessKeyID", "")
 	v.SetDefault("AWS.SecretAccessKey", "")
