@@ -826,6 +826,7 @@ func main() {
 			server.TLSConfig = &tls.Config{
 				ClientAuth: tls.RequireAndVerifyClientCert,
 				RootCAs:    caCertPool,
+				ClientCAs:    caCertPool,
 				MinVersion: tls.VersionTLS12,
 			}
 		}
