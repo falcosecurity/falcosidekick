@@ -22,7 +22,8 @@ tlsserver:
   mutualtls: false # if true, mTLS server will be deployed instead of TLS, deploy also has to be true
   cacertfile: "/etc/certs/server/ca.crt" # for client certification if mutualtls is true
   notlsport: 2810 # port to serve http server serving selected endpoints (default: 2810)
-  # notlspaths: # if not empty, a separate http server will be deployed for the specified endpoints
+  notlspaths: # if not empty, and tlsserver.deploy is true, a separate http server will be deployed for the specified endpoints
+    - "/ping"
     # - "/metrics"
     # - "/healthz"
 

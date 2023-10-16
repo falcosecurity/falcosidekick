@@ -757,7 +757,7 @@ func init() {
 		}
 	}
 
-	log.Printf("[INFO]  : Falco Sidekick version: %s\n", GetVersionInfo().GitVersion)
+	log.Printf("[INFO]  : Falcosidekick version: %s\n", GetVersionInfo().GitVersion)
 	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
 
 }
@@ -835,6 +835,10 @@ func main() {
 			log.Printf("[DEBUG] : running TLS server")
 		}
 
+		if len(config.TLSServer.NoTLSPaths) == 0 {
+			log.Printf("[WARN]  : tlsserver.deploy is true but tlsserver.notlspaths is empty, change tlsserver.deploy to true to deploy two servers, at least for /ping endpoint")
+		}
+
 		if len(config.TLSServer.NoTLSPaths) != 0 {
 			if config.Debug {
 				log.Printf("[DEBUG] : running HTTP server for endpoints defined in tlsserver.notlspaths")
@@ -849,14 +853,14 @@ func main() {
 				WriteTimeout:      60 * time.Second,
 				IdleTimeout:       60 * time.Second,
 			}
-			log.Printf("[INFO] : Falco Sidekick is up and listening on %s:%d and %s:%d", config.ListenAddress, config.ListenPort, config.ListenAddress, config.TLSServer.NoTLSPort)
+			log.Printf("[INFO]  : Falcosidekick is up and listening on %s:%d for TLS and %s:%d for non-TLS", config.ListenAddress, config.ListenPort, config.ListenAddress, config.TLSServer.NoTLSPort)
 
 			errs := make(chan error, 1)
 			go serveTLS(server, errs)
 			go serveHTTP(httpServer, errs)
 			log.Fatal(<-errs)
 		} else {
-			log.Printf("[INFO] : Falco Sidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
+			log.Printf("[INFO]  : Falcosidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
 			if err := server.ListenAndServeTLS(config.TLSServer.CertFile, config.TLSServer.KeyFile); err != nil {
 				log.Fatalf("[ERROR] : %v", err.Error())
 			}
@@ -867,14 +871,10 @@ func main() {
 		}
 
 		if config.TLSServer.MutualTLS {
-			log.Printf("[WARN] : tlsserver.deploy is false but tlsserver.mutualtls is true, change tlsserver.deploy to true to use mTLS")
+			log.Printf("[WARN]  : tlsserver.deploy is false but tlsserver.mutualtls is true, change tlsserver.deploy to true to use mTLS")
 		}
 
-		if len(config.TLSServer.NoTLSPaths) != 0 {
-			log.Printf("[WARN] : tlsserver.deploy is false but tlsserver.notlspaths is not empty, change tlsserver.deploy to true to deploy two servers")
-		}
-
-		log.Printf("[INFO]  : Falco Sidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
+		log.Printf("[INFO]  : Falcosidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatalf("[ERROR] : %v", err.Error())
 		}
