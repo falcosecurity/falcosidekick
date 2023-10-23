@@ -33,7 +33,7 @@ require (
 	golang.org/x/oauth2 v0.13.0
 	google.golang.org/api v0.148.0
 	google.golang.org/genproto v0.0.0-20231002182017-d307bd883b97
-	k8s.io/api v0.28.2
+	k8s.io/api v0.28.3
 	k8s.io/apimachinery v0.28.3
 	k8s.io/client-go v0.28.2
 	sigs.k8s.io/wg-policy-prototypes v0.0.0-20230828153944-22764d64b0c3
