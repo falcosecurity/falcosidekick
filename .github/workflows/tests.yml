@@ -1,13 +1,10 @@
 name: tests
 
 on:
-  push:
-    branches:
-      - master
-  pull_request:
+  workflow_call:
 
 jobs:
-  unit-tests:
+  tests:
     name: Run unit tests
     permissions:
       contents: read

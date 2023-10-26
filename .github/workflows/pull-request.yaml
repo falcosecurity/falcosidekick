@@ -1,0 +1,14 @@
+name: pull-request
+
+on:
+  pull_request:
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml
+  tests:
+    needs: lint
+    uses: ./.github/workflows/tests.yml
+  build-images:
+    needs: [lint, tests]
+    uses: ./.github/workflows/build-images.yml

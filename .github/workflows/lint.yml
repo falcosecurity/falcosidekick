@@ -1,17 +1,13 @@
 name: lint
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - master
-  pull_request:
+  workflow_call:
 
 permissions: read-all
 
 jobs:
-  golangci:
-    name: lint
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1

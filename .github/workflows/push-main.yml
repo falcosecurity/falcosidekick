@@ -1,4 +1,4 @@
-name: push-ci-images
+name: push-main
 
 on:
   workflow_dispatch:
@@ -7,7 +7,14 @@ on:
       - master
 
 jobs:
-  build-push-image:
+  lint:
+    uses: ./.github/workflows/lint.yml
+  tests:
+    needs: lint
+    uses: ./.github/workflows/tests.yml
+
+  build-push-images:
+    name: Build and Push latest images
     permissions:
       contents: read
       id-token: write

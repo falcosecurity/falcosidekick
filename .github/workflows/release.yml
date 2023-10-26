@@ -12,7 +12,14 @@ permissions:
   id-token: write # needed for keyless signing
 
 jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml
+  tests:
+    needs: lint
+    uses: ./.github/workflows/tests.yml
+
   release:
+    name: Create a release
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
       tag_name: ${{ steps.tag.outputs.tag_name }}
@@ -87,6 +94,7 @@ jobs:
           echo "hashes=$(cat $checksum_file | base64 -w0)" >> "$GITHUB_OUTPUT"
 
   provenance:
+    name: Set up the provenance
     needs: [release]
     permissions:
       actions: read # To read the workflow path.

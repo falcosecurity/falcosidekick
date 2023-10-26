@@ -1,13 +1,12 @@
-name: build-ci-images
+name: build-images
 
 on:
-  pull_request:
+  workflow_call:
 
 jobs:
-  build-image:
-
+  build-images:
+    name: Build the images
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
