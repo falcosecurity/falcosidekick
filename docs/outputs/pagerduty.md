@@ -16,7 +16,7 @@
 
 | Setting                     | Env var                     | Default value    | Description                                                                                                                         |
 | --------------------------- | --------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `pagerduty.routingkey`      | `PAGERDUTY_APIKEY`          |                  | Pagerduty Routing Key, if not empty, Pagerduty output is **enabled**                                                                |
+| `pagerduty.routingkey`      | `PAGERDUTY_ROUTINGKEY`          |                  | Pagerduty Routing Key, if not empty, Pagerduty output is **enabled**                                                                |
 | `pagerduty.region`          | `PAGERDUTY_REGION`          | `us`             | Pagerduty Region (`us`, `eu`)                                                                                                       |
 | `pagerduty.minimumpriority` | `PAGERDUTY_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
