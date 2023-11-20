@@ -9,7 +9,7 @@ require (
 	github.com/Azure/azure-event-hubs-go/v3 v3.6.1
 	github.com/DataDog/datadog-go v4.8.3+incompatible
 	github.com/PagerDuty/go-pagerduty v1.7.0
-	github.com/alecthomas/kingpin/v2 v2.3.2
+	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/aws/aws-sdk-go v1.47.9
 	github.com/cloudevents/sdk-go/v2 v2.14.0
 	github.com/eclipse/paho.mqtt.golang v1.4.3
