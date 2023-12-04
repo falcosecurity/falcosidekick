@@ -212,11 +212,15 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 	}
 
 	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format(time.RFC3339Nano))
-	resp, err := s3.New(c.AWSSession).PutObject(&s3.PutObjectInput{
+	awsConfig := aws.NewConfig()
+	if c.Config.AWS.S3.Endpoint != "" {
+		awsConfig = awsConfig.WithEndpoint(c.Config.AWS.S3.Endpoint)
+	}
+	resp, err := s3.New(c.AWSSession, awsConfig).PutObject(&s3.PutObjectInput{
 		Bucket: aws.String(c.Config.AWS.S3.Bucket),
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(f),
-		ACL:    aws.String(s3.ObjectCannedACLBucketOwnerFullControl),
+		ACL:    aws.String(c.Config.AWS.S3.ObjectCannedACL),
 	})
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:awss3", "status:error"})
