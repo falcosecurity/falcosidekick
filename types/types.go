@@ -403,6 +403,8 @@ type awsS3Config struct {
 	Prefix          string
 	Bucket          string
 	MinimumPriority string
+	Endpoint        string
+	ObjectCannedACL string
 }
 
 type awsKinesisConfig struct {

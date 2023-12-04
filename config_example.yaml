@@ -170,8 +170,10 @@ aws:
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   s3:
     # bucket: "falcosidekick" # AWS S3, bucket name
-    # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+    # prefix: "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # endpoint: "" # endpoint URL that overrides the default generated endpoint, use this for S3 compatible APIs
+    # objectcannedacl: "bucket-owner-full-control" # Canned ACL (x-amz-acl) to use when creating the object
   securitylake.:
     # bucket: "" # Bucket for AWS SecurityLake data, if not empty, AWS SecurityLake output is enabled
     # region: "" # Bucket Region  (mandatory)
