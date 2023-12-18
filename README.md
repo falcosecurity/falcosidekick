@@ -38,15 +38,18 @@ It works as a single endpoint for as many as you want `Falco` instances :
     - [SIEM](#siem)
     - [Workflow](#workflow)
     - [Other](#other)
-  - [Usage](#usage)
-    - [With docker](#with-docker)
-    - [With Helm](#with-helm)
-    - [Falco's config](#falcos-config)
+  - [Installation](#installation)
+    - [Localhost](#localhost)
+      - [With docker](#with-docker)
+      - [With systemd](#with-systemd)
+    - [In Kubernetes](#in-kubernetes)
+      - [With Helm](#with-helm)
+    - [Connect Falco](#connect-falco)
       - [with falco.yaml](#with-falcoyaml)
       - [with Helm](#with-helm-1)
     - [Configuration](#configuration)
       - [YAML File](#yaml-file)
-  - [Usage](#usage-1)
+  - [Usage](#usage)
   - [Endpoints](#endpoints)
   - [Logs](#logs-1)
   - [Mutual TLS](#mutual-tls)
@@ -167,17 +170,63 @@ Follow the links to get the configuration of each output.
 ### Other
 - [**Policy Report**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/policy-reporter.md)
 
-## Usage
+## Installation
 
-Run the daemon as any other daemon in your architecture (systemd, k8s daemonset, swarm service, ...)
+Run the daemon as any other daemon in your architecture (systemd, k8s deployment, swarm service, ...).
 
-### With docker
+### Localhost
 
+#### With docker
+
+Use the environment variables to set up the outputs:
 ```bash
 docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX falcosecurity/falcosidekick
 ```
 
-### With Helm
+#### With systemd
+
+* Download the latest release:
+  ```shell
+  wget https://github.com/falcosecurity/falcosidekick/releases/latest -o falcosidekick
+  chmod +x falcosidekick
+  sudo mv falcosidekick /usr/local/bin/
+  ```
+
+* Create the `/etc/falcosidekick/config.yaml` file, see [Configuration](#configuration).
+
+* Create the systemd unit files `/etc/systemd/system/falcosidekick.service`:
+  ```shell
+  sudo touch /etc/systemd/system/falcosidekick.service
+  sudo chmod 664 /etc/systemd/system/falcosidekick.service
+  ```
+  ```toml
+  [Unit]
+  Description=Falcosidekick
+  After=network.target
+  StartLimitIntervalSec=0
+
+  [Service]
+  Type=simple
+  Restart=always
+  RestartSec=1
+  ExecStart=/usr/local/bin/falcosidekick -c /etc/falcosidekick/config.yaml 
+  ```
+
+* Reload `systemd` and start `Falcosidekick`:
+  ```shell
+  sudo systemctl daemon-reload
+  sudo systemctl enable falcosidekick
+  sudo systemctl start falcosidekick
+  ```
+
+* Check if `Falcosidekick` runs:
+  ```shell
+  curl localhost:2801/healthz
+  ```  
+
+### In Kubernetes
+
+#### With Helm
 
 See
 [https://github.com/falcosecurity/charts/blob/master/falcosidekick/README.md](https://github.com/falcosecurity/charts/blob/master/falcosidekick/README.md)
@@ -198,7 +247,9 @@ helm repo update
 helm install falco --set falcosidekick.enabled=true falcosecurity/falco
 ```
 
-### Falco's config
+### Connect Falco
+
+To connect Falco with Falcosidekick, you need to change it configuration as following:
 
 #### with falco.yaml
 
@@ -216,6 +267,13 @@ http_output:
 
 If installing `falco` with `Helm`, set this (adapted to your environment) in
 your _values.yaml_ :
+
+```yaml
+falcosidekick:
+  enabled: true
+```
+
+or
 
 ```yaml
 jsonOutput: true
