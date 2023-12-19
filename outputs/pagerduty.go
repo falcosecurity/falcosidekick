@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PagerDuty/go-pagerduty"
+	pagerduty "github.com/PagerDuty/go-pagerduty"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )

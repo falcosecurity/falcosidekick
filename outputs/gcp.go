@@ -17,7 +17,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/googleapis/gax-go/v2"
+	gax "github.com/googleapis/gax-go/v2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 

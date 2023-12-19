@@ -30,6 +30,10 @@ const Status200 string = "/200"
 
 var falcoTestInput = `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"2001-01-01T01:10:00Z","source":"syscalls","output_fields": {"proc.name":"falcosidekick", "proc.tty": 1234}, "tags":["test","example"], "hostname":"test-host"}`
 
+const (
+	Path200 = "/200"
+)
+
 func TestNewClient(t *testing.T) {
 	u, _ := url.Parse("http://localhost")
 

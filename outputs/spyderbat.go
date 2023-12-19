@@ -230,7 +230,7 @@ func (c *Client) SpyderbatPost(falcopayload types.FalcoPayload) {
 
 	c.httpClientLock.Lock()
 	defer c.httpClientLock.Unlock()
-	c.AddHeader("Authorization", "Bearer "+c.Config.Spyderbat.APIKey)
+	c.AddHeader("Authorization", Bearer+" "+c.Config.Spyderbat.APIKey)
 	c.AddHeader("Content-Encoding", "gzip")
 
 	payload, err := newSpyderbatPayload(falcopayload)

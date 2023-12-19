@@ -92,6 +92,16 @@ const MutualTLSCacertFilename = "/ca.crt"
 const HttpPost = "POST"
 const HttpPut = "PUT"
 
+// HTTP Protocol
+const Http = "http://"
+
+// HTTP Headers
+const Bearer = "Bearer"
+
+// Pahs
+const APIv1Namespaces = "/api/v1/namespaces/"
+const Services = "/services/"
+
 // Headers to add to the client before sending the request
 type Header struct {
 	Key   string
