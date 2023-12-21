@@ -127,7 +127,7 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 	s := slackPayload{
 		Text:        messageText,
-		Username:    "Falcosidekick",
+		Username:    config.Mattermost.Username,
 		IconURL:     iconURL,
 		Attachments: attachments,
 	}
