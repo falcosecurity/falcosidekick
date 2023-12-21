@@ -124,7 +124,7 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 
 	s := slackPayload{
 		Text:        messageText,
-		Username:    "Falcosidekick",
+		Username:    config.Rocketchat.Username,
 		IconURL:     iconURL,
 		Attachments: attachments}
 
