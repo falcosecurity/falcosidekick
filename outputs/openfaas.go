@@ -54,7 +54,7 @@ func NewOpenfaasClient(config *types.Configuration, stats *types.Statistics, pro
 	}
 	return NewClient(
 		Openfaas,
-		"http://"+config.Openfaas.GatewayService+"."+config.Openfaas.GatewayNamespace+":"+strconv.Itoa(config.Openfaas.GatewayPort)+"/function/"+config.Openfaas.FunctionName+"."+config.Openfaas.FunctionNamespace,
+		Http+config.Openfaas.GatewayService+"."+config.Openfaas.GatewayNamespace+":"+strconv.Itoa(config.Openfaas.GatewayPort)+"/function/"+config.Openfaas.FunctionName+"."+config.Openfaas.FunctionNamespace,
 		config.Openfaas.MutualTLS,
 		config.Openfaas.CheckCert,
 		config,
@@ -71,7 +71,7 @@ func (c *Client) OpenfaasCall(falcopayload types.FalcoPayload) {
 
 	if c.Config.Openfaas.Kubeconfig != "" {
 		str, _ := json.Marshal(falcopayload)
-		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath("/api/v1/namespaces/" + c.Config.Openfaas.GatewayNamespace + "/services/" + c.Config.Openfaas.GatewayService + ":" + strconv.Itoa(c.Config.Openfaas.GatewayPort) + "/proxy" + "/function/" + c.Config.Openfaas.FunctionName + "." + c.Config.Openfaas.FunctionNamespace).Body(str)
+		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath(APIv1Namespaces + c.Config.Openfaas.GatewayNamespace + Services + c.Config.Openfaas.GatewayService + ":" + strconv.Itoa(c.Config.Openfaas.GatewayPort) + "/proxy" + "/function/" + c.Config.Openfaas.FunctionName + "." + c.Config.Openfaas.FunctionNamespace).Body(str)
 		req.SetHeader("event-id", uuid.New().String())
 		req.SetHeader("Content-Type", "application/json")
 		req.SetHeader("User-Agent", "Falcosidekick")

@@ -60,7 +60,7 @@ func NewFissionClient(config *types.Configuration, stats *types.Statistics, prom
 	}
 	return NewClient(
 		Fission,
-		"http://"+config.Fission.RouterService+"."+config.Fission.RouterNamespace+
+		Http+config.Fission.RouterService+"."+config.Fission.RouterNamespace+
 			".svc.cluster.local:"+strconv.Itoa(config.Fission.RouterPort)+
 			"/fission-function/"+config.Fission.Function,
 		config.Fission.MutualTLS,
@@ -79,8 +79,8 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 
 	if c.Config.Fission.KubeConfig != "" {
 		str, _ := json.Marshal(falcopayload)
-		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath("/api/v1/namespaces/" +
-			c.Config.Fission.RouterNamespace + "/services/" + c.Config.Fission.RouterService +
+		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath(APIv1Namespaces +
+			c.Config.Fission.RouterNamespace + Services + c.Config.Fission.RouterService +
 			":" + strconv.Itoa(c.Config.Fission.RouterPort) + "/proxy/" + "/fission-function/" +
 			c.Config.Fission.Function).Body(str)
 		req.SetHeader(FissionEventIDKey, uuid.New().String())

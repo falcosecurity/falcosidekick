@@ -96,7 +96,8 @@ var (
 	stats                         *types.Statistics
 	promStats                     *types.PromStatistics
 
-	regPromLabels *regexp.Regexp
+	regPromLabels   *regexp.Regexp
+	regOutputFormat *regexp.Regexp
 )
 
 func init() {
@@ -109,6 +110,7 @@ func init() {
 	}
 
 	regPromLabels, _ = regexp.Compile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
+	regOutputFormat, _ = regexp.Compile("(?i)[0-9:]+\\.[0-9]+: (Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency) .*")
 
 	config = getConfig()
 	stats = getInitStats()

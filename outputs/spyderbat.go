@@ -34,11 +34,16 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	SourcePath = "/source/"
+	APIV1Org   = "api/v1/org/"
+)
+
 func isSourcePresent(config *types.Configuration) (bool, error) {
 
 	client := &http.Client{}
 
-	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIV1Org+config.Spyderbat.OrgUID+SourcePath)
 	if err != nil {
 		return false, err
 	}
@@ -46,7 +51,7 @@ func isSourcePresent(config *types.Configuration) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	req.Header.Add("Authorization", "Bearer "+config.Spyderbat.APIKey)
+	req.Header.Add("Authorization", Bearer+" "+config.Spyderbat.APIKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -65,7 +70,7 @@ func isSourcePresent(config *types.Configuration) (bool, error) {
 	if err := json.Unmarshal(body, &sources); err != nil {
 		return false, err
 	}
-	uid := "falcosidekick_" + config.Spyderbat.OrgUID
+	uid := fmt.Sprintf("falcosidekick_%v", config.Spyderbat.OrgUID)
 	for _, source := range sources {
 		if id, ok := source["uid"]; ok && id.(string) == uid {
 			return true, nil
@@ -85,7 +90,7 @@ func makeSource(config *types.Configuration) error {
 	data := SourceBody{
 		Name:        config.Spyderbat.Source,
 		Description: config.Spyderbat.SourceDescription,
-		UID:         "falcosidekick_" + config.Spyderbat.OrgUID,
+		UID:         fmt.Sprintf("falcosidekick_%v", config.Spyderbat.OrgUID),
 	}
 	body := new(bytes.Buffer)
 	if err := json.NewEncoder(body).Encode(data); err != nil {
@@ -94,7 +99,7 @@ func makeSource(config *types.Configuration) error {
 
 	client := &http.Client{}
 
-	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIV1Org+config.Spyderbat.OrgUID+SourcePath)
 	if err != nil {
 		return err
 	}
@@ -102,7 +107,7 @@ func makeSource(config *types.Configuration) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+config.Spyderbat.APIKey)
+	req.Header.Add("Authorization", Bearer+" "+config.Spyderbat.APIKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -211,8 +216,8 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 		}
 	}
 
-	source := "falcosidekick_" + config.Spyderbat.OrgUID
-	data_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/"+source+"/data/sb-agent")
+	source := fmt.Sprintf("falcosidekick_%v", config.Spyderbat.OrgUID)
+	data_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIV1Org+config.Spyderbat.OrgUID+SourcePath+source+"/data/sb-agent")
 	if err != nil {
 		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
 		return nil, ErrClientCreation
@@ -241,7 +246,7 @@ func (c *Client) SpyderbatPost(falcopayload types.FalcoPayload) {
 
 	c.httpClientLock.Lock()
 	defer c.httpClientLock.Unlock()
-	c.AddHeader("Authorization", "Bearer "+c.Config.Spyderbat.APIKey)
+	c.AddHeader("Authorization", Bearer+" "+c.Config.Spyderbat.APIKey)
 	c.AddHeader("Content-Encoding", "gzip")
 
 	payload, err := newSpyderbatPayload(falcopayload)

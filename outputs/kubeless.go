@@ -62,7 +62,7 @@ func NewKubelessClient(config *types.Configuration, stats *types.Statistics, pro
 	}
 	return NewClient(
 		"Kubeless",
-		"http://"+config.Kubeless.Function+"."+config.Kubeless.Namespace+".svc.cluster.local:"+strconv.Itoa(config.Kubeless.Port),
+		Http+config.Kubeless.Function+"."+config.Kubeless.Namespace+".svc.cluster.local:"+strconv.Itoa(config.Kubeless.Port),
 		config.Kubeless.MutualTLS,
 		config.Kubeless.CheckCert,
 		config,
@@ -79,7 +79,7 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 
 	if c.Config.Kubeless.Kubeconfig != "" {
 		str, _ := json.Marshal(falcopayload)
-		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath("/api/v1/namespaces/" + c.Config.Kubeless.Namespace + "/services/" + c.Config.Kubeless.Function + ":" + strconv.Itoa(c.Config.Kubeless.Port) + "/proxy/").Body(str)
+		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath(APIv1Namespaces + c.Config.Kubeless.Namespace + Services + c.Config.Kubeless.Function + ":" + strconv.Itoa(c.Config.Kubeless.Port) + "/proxy/").Body(str)
 		req.SetHeader(KubelessEventIDKey, uuid.New().String())
 		req.SetHeader(ContentTypeHeaderKey, KubelessContentType)
 		req.SetHeader(UserAgentHeaderKey, UserAgentHeaderValue)

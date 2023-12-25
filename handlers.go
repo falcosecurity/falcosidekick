@@ -30,11 +30,13 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/google/uuid"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const testRule string = "Test rule"
 
-// mainHandler is Falco Sidekick main handler (default).
+// mainHandler is Falcosidekick main handler (default).
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	stats.Requests.Add("total", 1)
 	nullClient.CountMetric("total", 1, []string{})
@@ -103,11 +105,13 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		return types.FalcoPayload{}, err
 	}
 
+	var customFields string
 	if len(config.Customfields) > 0 {
 		if falcopayload.OutputFields == nil {
 			falcopayload.OutputFields = make(map[string]interface{})
 		}
 		for key, value := range config.Customfields {
+			customFields += key + "=" + value + " "
 			falcopayload.OutputFields[key] = value
 		}
 	}
@@ -134,6 +138,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
+	var templatedFields string
 	if len(config.Templatedfields) > 0 {
 		if falcopayload.OutputFields == nil {
 			falcopayload.OutputFields = make(map[string]interface{})
@@ -148,6 +153,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 			if err := tmpl.Execute(v, falcopayload.OutputFields); err != nil {
 				log.Printf("[ERROR] : Parsing error for templated field '%v': %v\n", key, err)
 			}
+			templatedFields += key + "=" + v.String() + " "
 			falcopayload.OutputFields[key] = v.String()
 		}
 	}
@@ -187,6 +193,26 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 				falcopayload.OutputFields[strings.ReplaceAll(strings.ReplaceAll(i, "]", ""), "[", config.BracketReplacer)] = j
 				delete(falcopayload.OutputFields, i)
 			}
+		}
+	}
+
+	if config.OutputFieldFormat != "" && regOutputFormat.MatchString(falcopayload.Output) {
+		outputElements := strings.Split(falcopayload.Output, " ")
+		if len(outputElements) >= 3 {
+			t := strings.TrimSuffix(outputElements[0], ":")
+			p := cases.Title(language.English).String(falcopayload.Priority.String())
+			o := strings.Join(outputElements[2:], " ")
+			n := config.OutputFieldFormat
+			n = strings.ReplaceAll(n, "<timestamp>", t)
+			n = strings.ReplaceAll(n, "<priority>", p)
+			n = strings.ReplaceAll(n, "<output>", o)
+			n = strings.ReplaceAll(n, "<custom_fields>", strings.TrimSuffix(customFields, " "))
+			n = strings.ReplaceAll(n, "<templated_fields>", strings.TrimSuffix(templatedFields, " "))
+			n = strings.TrimSuffix(n, " ")
+			n = strings.TrimSuffix(n, "( )")
+			n = strings.TrimSuffix(n, "()")
+			n = strings.TrimSuffix(n, " ")
+			falcopayload.Output = n
 		}
 	}
 
