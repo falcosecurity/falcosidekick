@@ -235,6 +235,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go elasticsearchClient.ElasticsearchPost(falcopayload)
 	}
 
+	if config.Quickwit.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Quickwit.MinimumPriority) || falcopayload.Rule == testRule) {
+		go quickwitClient.QuickwitPost(falcopayload)
+	}
+
 	if config.Influxdb.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Influxdb.MinimumPriority) || falcopayload.Rule == testRule) {
 		go influxdbClient.InfluxdbPost(falcopayload)
 	}

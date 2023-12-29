@@ -50,6 +50,7 @@ var (
 	discordClient       *outputs.Client
 	alertmanagerClient  *outputs.Client
 	elasticsearchClient *outputs.Client
+	quickwitClient      *outputs.Client
 	influxdbClient      *outputs.Client
 	lokiClient          *outputs.Client
 	sumologicClient     *outputs.Client
@@ -95,6 +96,7 @@ var (
 	config                        *types.Configuration
 	stats                         *types.Statistics
 	promStats                     *types.PromStatistics
+	initClientArgs                *types.InitClientArgs
 
 	regPromLabels *regexp.Regexp
 )
@@ -121,6 +123,13 @@ func init() {
 		PromStats:       promStats,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
+	}
+
+	initClientArgs = &types.InitClientArgs{
+		Config:          config,
+		Stats:           stats,
+		DogstatsdClient: dogstatsdClient,
+		PromStats:       promStats,
 	}
 
 	if config.Statsd.Forwarder != "" {
@@ -232,6 +241,22 @@ func init() {
 			config.Elasticsearch.HostPort = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Elasticsearch")
+		}
+	}
+
+	if config.Quickwit.HostPort != "" {
+		var err error
+
+		endpointUrl := fmt.Sprintf("%s/%s/%s/ingest", config.Quickwit.HostPort, config.Quickwit.ApiEndpoint, config.Quickwit.Index)
+		quickwitClient, err = outputs.InitClient("Quickwit", endpointUrl, config.Quickwit.MutualTLS, config.Quickwit.CheckCert, *initClientArgs)
+		if err == nil && config.Quickwit.AutoCreateIndex {
+			err = quickwitClient.AutoCreateQuickwitIndex(*initClientArgs)
+		}
+
+		if err != nil {
+			config.Quickwit.HostPort = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Quickwit")
 		}
 	}
 

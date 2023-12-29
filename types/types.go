@@ -24,6 +24,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/embano1/memlog"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -84,6 +85,7 @@ type Configuration struct {
 	Discord            DiscordOutputConfig
 	Alertmanager       AlertmanagerOutputConfig
 	Elasticsearch      ElasticsearchOutputConfig
+	Quickwit           QuickwitOutputConfig
 	Influxdb           influxdbOutputConfig
 	Loki               LokiOutputConfig
 	SumoLogic          SumoLogicOutputConfig
@@ -125,6 +127,15 @@ type Configuration struct {
 	N8N                N8NConfig
 	OpenObserve        OpenObserveConfig
 	Dynatrace          DynatraceOutputConfig
+}
+
+// InitClientArgs represent a client parameters for initialization
+type InitClientArgs struct {
+	Config          *Configuration
+	Stats           *Statistics
+	PromStats       *PromStatistics
+	StatsdClient    *statsd.Client
+	DogstatsdClient *statsd.Client
 }
 
 // MutualTLSClient represents parameters for mutual TLS as client
@@ -274,6 +285,18 @@ type ElasticsearchOutputConfig struct {
 	CheckCert       bool
 	MutualTLS       bool
 	CustomHeaders   map[string]string
+}
+
+type QuickwitOutputConfig struct {
+	HostPort        string
+	ApiEndpoint     string
+	Index           string
+	Version         string
+	CustomHeaders   map[string]string
+	MinimumPriority string
+	CheckCert       bool
+	MutualTLS       bool
+	AutoCreateIndex bool
 }
 
 type influxdbOutputConfig struct {
@@ -777,6 +800,7 @@ type Statistics struct {
 	Discord           *expvar.Map
 	Alertmanager      *expvar.Map
 	Elasticsearch     *expvar.Map
+	Quickwit          *expvar.Map
 	Loki              *expvar.Map
 	SumoLogic         *expvar.Map
 	Nats              *expvar.Map

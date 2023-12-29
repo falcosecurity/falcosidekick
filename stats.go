@@ -48,6 +48,7 @@ func getInitStats() *types.Statistics {
 		Discord:           getOutputNewMap("discord"),
 		Alertmanager:      getOutputNewMap("alertmanager"),
 		Elasticsearch:     getOutputNewMap("elasticsearch"),
+		Quickwit:          getOutputNewMap("quickwit"),
 		Loki:              getOutputNewMap("loki"),
 		SumoLogic:         getOutputNewMap("sumologic"),
 		Nats:              getOutputNewMap("nats"),

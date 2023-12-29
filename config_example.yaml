@@ -95,6 +95,18 @@ elasticsearch:
   # customHeaders: # Custom headers to add in POST, useful for Authentication
   #   key: value
 
+quickwit:
+  # hostport: "" # http(s)://{domain or ip}:{port}, if not empty, Quickwit output is enabled
+  # apiendpoint: "/api/v1"
+  # index: "falco" # index (default: falco)
+  # version: "0.7"
+  # autocreateindex: false # create the index mapping if true and if the index doesn't already exists
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 influxdb:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Influxdb output is enabled
   # database: "falco" # Influxdb database (api v1 only) (default: falco)
