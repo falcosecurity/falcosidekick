@@ -44,6 +44,7 @@ func getConfig() *types.Configuration {
 		Grafana:         types.GrafanaOutputConfig{CustomHeaders: make(map[string]string)},
 		Loki:            types.LokiOutputConfig{CustomHeaders: make(map[string]string)},
 		Elasticsearch:   types.ElasticsearchOutputConfig{CustomHeaders: make(map[string]string)},
+		Quickwit:        types.QuickwitOutputConfig{CustomHeaders: make(map[string]string)},
 		OpenObserve:     types.OpenObserveConfig{CustomHeaders: make(map[string]string)},
 		Webhook:         types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
 		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[types.PriorityType]string)},
@@ -147,6 +148,15 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Elasticsearch.CheckCert", true)
 	v.SetDefault("Elasticsearch.Username", "")
 	v.SetDefault("Elasticsearch.Password", "")
+
+	v.SetDefault("Quickwit.HostPort", "")
+	v.SetDefault("Quickwit.Index", "falco")
+	v.SetDefault("Quickwit.ApiEndpoint", "api/v1")
+	v.SetDefault("Quickwit.Version", "0.7")
+	v.SetDefault("Quickwit.AutoCreateIndex", false)
+	v.SetDefault("Quickwit.MinimumPriority", "")
+	v.SetDefault("Quickwit.MutualTls", false)
+	v.SetDefault("Quickwit.CheckCert", true)
 
 	v.SetDefault("Influxdb.HostPort", "")
 	v.SetDefault("Influxdb.Database", "falco")
@@ -714,6 +724,7 @@ func getConfig() *types.Configuration {
 	c.Alertmanager.MinimumPriority = checkPriority(c.Alertmanager.MinimumPriority)
 	c.Alertmanager.DropEventDefaultPriority = checkPriority(c.Alertmanager.DropEventDefaultPriority)
 	c.Elasticsearch.MinimumPriority = checkPriority(c.Elasticsearch.MinimumPriority)
+	c.Quickwit.MinimumPriority = checkPriority(c.Quickwit.MinimumPriority)
 	c.Influxdb.MinimumPriority = checkPriority(c.Influxdb.MinimumPriority)
 	c.Loki.MinimumPriority = checkPriority(c.Loki.MinimumPriority)
 	c.SumoLogic.MinimumPriority = checkPriority(c.SumoLogic.MinimumPriority)

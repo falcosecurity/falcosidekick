@@ -143,6 +143,11 @@ type Client struct {
 	RedisClient       *redis.Client
 }
 
+// InitClient returns a new output.Client for accessing the different API.
+func InitClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bool, checkCert bool, params types.InitClientArgs) (*Client, error) {
+	return NewClient(outputType, defaultEndpointURL, mutualTLSEnabled, checkCert, params.Config, params.Stats, params.PromStats, params.StatsdClient, params.DogstatsdClient)
+}
+
 // NewClient returns a new output.Client for accessing the different API.
 func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bool, checkCert bool, config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
