@@ -23,9 +23,8 @@
 | `elasticsearch.password`        | `ELASTICSEARCH_PASSWORD`        |                  | Use this password to authenticate to Elasticsearch                                                                                  |
 | `elasticsearch.customheaders`   | `ELASTICSEARCH_CUSTOMHEADERS`   |                  | Custom headers to add in POST, useful for Authentication                                                                            |
 | `elasticsearch.mutualtls`       | `ELASTICSEARCH_MUTUALTLS`       | `false`          | Authenticate to the output with TLS, if true, checkcert flag will be ignored (server cert will always be checked)                   |
-| `elasticsearch.checkcert`       | `ELASTICSEARCH_CHECKCERT`       | `true` | Check if ssl certificate of the output is valid                                                                                     | `mattermost.minimumpriority` | `MATTERMOST_MINIMUMPRIORITY` | `""` (= `debug`)                                                                                    | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""`
+| `elasticsearch.checkcert`       | `ELASTICSEARCH_CHECKCERT`       | `true`           | Check if ssl certificate of the output is valid                                                                                     |
 | `elasticsearch.minimumpriority` | `ELASTICSEARCH_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
-
 
 > **Note**
 The Env var values override the settings from yaml file.
