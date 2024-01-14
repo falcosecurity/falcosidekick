@@ -38,7 +38,7 @@ syslog:
 
 ## Additional info
 ```
-Reccomended version rsyslogd  8.2102 or newer
+# Recommended version rsyslogd  8.2102 or newer
 rsyslogd -v to check the version
 ```
 ## Screenshots
