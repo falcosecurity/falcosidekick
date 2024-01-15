@@ -188,12 +188,10 @@ docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX falco
 * Download the latest release:
   ```shell
   VER=$(curl --silent -qI https://github.com/falcosecurity/falcosidekick/releases/latest | awk -F '/' '/^location/ {print  substr($NF, 1, length($NF)-1)}')
-  wget https://github.com/falcosecurity/falcosidekick/releases/download/$VER/falcosidekick_${VER}_linux_arm64.tar.gz
+
+wget -c https://github.com/falcosecurity/falcosidekick/releases/download/${VER}/falcosidekick_${VER}_linux_arm64.tar.gz -O - | tar -xz
   or
-  wget https://github.com/falcosecurity/falcosidekick/releases/download/$VER/falcosidekick_${VER}_linux_amd64.tar.gz
-  tar -xvf falcosidekick_${VER}_linux_amd64.tar.gz
-  or
-  tar -xvf tar -xvf falcosidekick_${VER}_linux_arm64.tar.gz
+wget -c https://github.com/falcosecurity/falcosidekick/releases/download/${VER}/falcosidekick_${VER}_linux_amd64.tar.gz -O - | tar -xz
   chmod +x falcosidekick
   sudo mv falcosidekick /usr/local/bin/
   ```
