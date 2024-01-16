@@ -1,0 +1,57 @@
+---
+version: "3.9"
+services:
+  falco:
+    image: falcosecurity/falco-no-driver:latest
+    privileged: true
+    command: "falco --modern-bpf -r /etc/falco/rules"
+    volumes:
+      - /var/run/docker.sock:/host/var/run/docker.sock
+      - /dev:/host/dev
+      - /proc:/host/proc:ro
+      - /boot:/host/boot:ro
+      - /lib/modules:/host/lib/modules:ro
+      - ./etc/falco:/etc/falco:ro
+
+  falcosidekick:
+    # Build from locally cloned repository
+    #build: ../../../
+    image: falcosecurity/falcosidekick
+    volumes:
+      - ./etc/falco:/etc/falco:ro
+    command: -c /etc/falco/falcosidekick.yaml
+    ports:
+      - 2801:2801
+    environment:
+      - OTLP_TRACES_ENDPOINT=http://traces-backend:4318/v1/traces
+      - OTLP_HEADERS=X-Scope-OrgID=1
+      - OTLP_TRACES_SYNCED=true
+  traces-backend:
+    image: grafana/tempo:latest
+    ports:
+      - 4317
+      - 4318
+      - 3200
+    volumes:
+      - ./etc/tempo:/etc/tempo:ro
+    command: "-config.file /etc/tempo/config.yaml"
+    restart: always
+
+  grafana:
+    image: grafana/grafana:10.0.3
+    volumes:
+      - ./etc/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    ports:
+      - "3000:3000"
+  event-generator:
+    image: falcosecurity/event-generator
+    command: run
+    restart: always
+  trigger:
+    image: alpine
+    command: ["sh", "-c", "while true; do cat /etc/shadow > /dev/null; sleep 5; done"]

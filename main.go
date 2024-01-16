@@ -91,6 +91,7 @@ var (
 	n8nClient           *outputs.Client
 	openObserveClient   *outputs.Client
 	dynatraceClient     *outputs.Client
+	otlpClient          *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -99,6 +100,7 @@ var (
 	initClientArgs                *types.InitClientArgs
 
 	regPromLabels *regexp.Regexp
+	shutDownFuncs []func()
 )
 
 func init() {
@@ -789,12 +791,26 @@ func init() {
 		}
 	}
 
-	log.Printf("[INFO]  : Falcosidekick version: %s\n", GetVersionInfo().GitVersion)
+	if config.OTLP.Traces.Endpoint != "" {
+		var err error
+		otlpClient, err = outputs.NewOtlpTracesClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.OTLP.Traces.Endpoint = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPTraces")
+			shutDownFuncs = append(shutDownFuncs, otlpClient.ShutDownFunc)
+		}
+	}
+
+	log.Printf("[INFO]  : Falco Sidekick version: %s\n", GetVersionInfo().GitVersion)
 	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
 
 }
 
 func main() {
+	for _, shutdown := range shutDownFuncs {
+		defer shutdown()
+	}
 	if config.Debug {
 		log.Printf("[INFO]  : Debug mode : %v", config.Debug)
 	}

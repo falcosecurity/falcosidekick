@@ -127,6 +127,7 @@ type Configuration struct {
 	N8N                N8NConfig
 	OpenObserve        OpenObserveConfig
 	Dynatrace          DynatraceOutputConfig
+	OTLP               OTLPOutputConfig
 }
 
 // InitClientArgs represent a client parameters for initialization
@@ -786,6 +787,26 @@ type OpenObserveConfig struct {
 	CustomHeaders    map[string]string
 }
 
+// OTLPTraces represents config parameters for OTLP Traces
+type OTLPTraces struct {
+	Endpoint            string
+	Protocol            string
+	Timeout             int64
+	Headers             string
+	Duration            int64
+	Synced              bool
+	ExtraEnvVars        map[string]string
+	CheckCert           bool
+	MinimumPriority     string
+	TraceIDHash         string
+	TraceIDHashTemplate *template.Template
+}
+
+// OTLPOutputConfig represents config parameters for OTLP
+type OTLPOutputConfig struct {
+	Traces OTLPTraces
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -853,6 +874,7 @@ type Statistics struct {
 	N8N               *expvar.Map
 	OpenObserve       *expvar.Map
 	Dynatrace         *expvar.Map
+	OTLPTraces        *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
