@@ -3,7 +3,7 @@ ARG BASE_IMAGE=alpine:3.17
 FROM ${BASE_IMAGE} AS final-stage
 LABEL MAINTAINER "Thomas Labarussias <issif+falcosidekick@gadz.org>"
 
-RUN apk add --update --no-cache ca-certificates
+RUN apk add --update --no-cache ca-certificates gcompat
 
 # Create user falcosidekick
 RUN addgroup -S falcosidekick && adduser -u 1234 -S falcosidekick -G falcosidekick

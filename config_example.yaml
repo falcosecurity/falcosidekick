@@ -358,7 +358,7 @@ grafana:
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # customHeaders: # Custom headers to add in POST, useful for Authentication
-  #   key: value
+  #   - key: value
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 grafanaoncall:
@@ -504,3 +504,17 @@ sumologic:
   # name: "" # Override the default Sumologic Source Name
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
+
+otlp:
+  traces:
+    # endpoint: "" # OTLP endpoint in the form of http://{domain or ip}:4318/v1/traces
+    # protocol: "" # OTLP protocol http/json, http/protobuf, grpc (default: "" which uses SDK default: http/json)
+    # timeout: "" # OTLP timeout: timeout value in milliseconds (default: "" which uses SDK default: 10000)
+    # headers: "" # OTLP headers: list of headers to apply to all outgoing traces in the form of "some-key=some-value,other-key=other-value" (default: "")
+    # synced: false # Set to true if you want traces to be sent synchronously (default: false)
+    # duration: 1000 # Artificial span duration in milliseconds (default: 1000)
+    # extraenvvars: # Extra env vars (override the other settings)
+      # OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: 10000
+      # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # checkcert: true # Set if you want to skip TLS certificate validation (default: true)

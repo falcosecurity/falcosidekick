@@ -120,6 +120,7 @@ type Client struct {
 	CheckCert               bool
 	HeaderList              []Header
 	ContentType             string
+	ShutDownFunc            func()
 	Config                  *types.Configuration
 	Stats                   *types.Statistics
 	PromStats               *types.PromStatistics

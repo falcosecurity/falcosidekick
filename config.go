@@ -36,6 +36,12 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
+// NB: create OS interface to allow unit-testing
+type OS interface {
+	Getenv(string) string
+	Setenv(string, string) error
+}
+
 func getConfig() *types.Configuration {
 	c := &types.Configuration{
 		Customfields:    make(map[string]string),
@@ -50,6 +56,7 @@ func getConfig() *types.Configuration {
 		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[types.PriorityType]string)},
 		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
+		OTLP:            types.OTLPOutputConfig{Traces: types.OTLPTraces{ExtraEnvVars: make(map[string]string)}},
 	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
@@ -511,6 +518,18 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Dynatrace.CheckCert", true)
 	v.SetDefault("Dynatrace.MinimumPriority", "")
 
+	v.SetDefault("OTLP.Traces.Endpoint", "")
+	v.SetDefault("OTLP.Traces.Protocol", "http/json")
+	v.SetDefault("OTLP.Traces.Headers", "")
+	v.SetDefault("OTLP.Traces.Timeout", 10000)
+	v.SetDefault("OTLP.Traces.Synced", false)
+	v.SetDefault("OTLP.Traces.MinimumPriority", "")
+	v.SetDefault("OTLP.Traces.CheckCert", true)
+	v.SetDefault("OTLP.Traces.TraceIDHash", "")
+	// NB: Unfortunately falco events don't provide endtime, artificially set
+	// it to 1000ms by default, override-able via OTLP_DURATION environment variable.
+	v.SetDefault("OTLP.Traces.Duration", 1000)
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -536,6 +555,7 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("AlertManager.ExtraAnnotations")
 	v.GetStringMapString("AlertManager.CustomSeverityMap")
 	v.GetStringMapString("GCP.PubSub.CustomAttributes")
+	v.GetStringMapString("OTLP.Traces.ExtraEnvVars")
 	if err := v.Unmarshal(c); err != nil {
 		log.Printf("[ERROR] : Error unmarshalling config : %s", err)
 	}
@@ -654,6 +674,21 @@ func getConfig() *types.Configuration {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
 				c.GCP.PubSub.CustomAttributes[tagkeys[0]] = tagkeys[1]
+			}
+		}
+	}
+
+	if value, present := os.LookupEnv("OTLP_TRACES_EXTRAENVVARS"); present {
+		extraEnvVars := strings.Split(value, ",")
+		for _, extraEnvVarData := range extraEnvVars {
+			envName, envValue, found := strings.Cut(extraEnvVarData, ":")
+			envName, envValue = strings.TrimSpace(envName), strings.TrimSpace(envValue)
+			if !promKVNameRegex.MatchString(envName) {
+				log.Printf("[ERROR] : OTLPTraces - Extra Env Var name '%v' is not valid", envName)
+			} else if found {
+				c.OTLP.Traces.ExtraEnvVars[envName] = envValue
+			} else {
+				c.OTLP.Traces.ExtraEnvVars[envName] = ""
 			}
 		}
 	}
@@ -777,6 +812,7 @@ func getConfig() *types.Configuration {
 	c.Mattermost.MessageFormatTemplate = getMessageFormatTemplate("Mattermost", c.Mattermost.MessageFormat)
 	c.Googlechat.MessageFormatTemplate = getMessageFormatTemplate("Googlechat", c.Googlechat.MessageFormat)
 	c.Cliq.MessageFormatTemplate = getMessageFormatTemplate("Cliq", c.Cliq.MessageFormat)
+
 	return c
 }
 
