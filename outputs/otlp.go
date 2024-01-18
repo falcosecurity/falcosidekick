@@ -43,7 +43,7 @@ func NewOtlpTracesClient(config *types.Configuration, stats *types.Statistics, p
 		log.Printf("[ERROR] : OLTP Traces - Error client creation: %v\n", err)
 		return nil, err
 	}
-	log.Printf("[INFO]  : OTLP.Traces=%+v\n", config.OTLP.Traces)
+	log.Printf("[INFO]  : OTLP Traces - %+v\n", config.OTLP.Traces)
 	otlpClient.ShutDownFunc = shutDownFunc
 	return otlpClient, nil
 }
