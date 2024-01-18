@@ -25,61 +25,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Need to mock three interfaces: TracerProvider, Tracer, Span
-// type (
-// 	MockTracerProvider struct{}
-// 	MockTracer         struct{}
-// 	MockSpan           struct {
-// 		name       string
-// 		startOpts  []trace.SpanStartOption
-// 		endOpts    []trace.SpanEndOption
-// 		ctx        context.Context
-// 		attributes map[attribute.Key]attribute.Value
-// 	}
-// )
-
-// // TracerProvider interface {
-// func (*MockTracerProvider) Tracer(string, ...trace.TracerOption) trace.Tracer {
-// 	return &MockTracer{}
-// }
-
-// // Tracer interface
-// func (*MockTracer) Start(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
-// 	return ctx, &MockSpan{
-// 		ctx:        ctx,
-// 		name:       name,
-// 		startOpts:  opts,
-// 		attributes: make(map[attribute.Key]attribute.Value),
-// 	}
-// }
-
-// // Span interface
-// func (*MockSpan) AddEvent(string, ...trace.EventOption)            {}
-// func (*MockSpan) IsRecording() bool                                { return true }
-// func (*MockSpan) RecordError(err error, opts ...trace.EventOption) {}
-// func (*MockSpan) SetName(name string)                              {}
-// func (*MockSpan) SetStatus(code codes.Code, description string)    {}
-
-// func (*MockSpan) TracerProvider() trace.TracerProvider { return &MockTracerProvider{} }
-
-// func (m *MockSpan) End(opts ...trace.SpanEndOption) {
-// 	m.endOpts = opts
-// }
-
-// func (m *MockSpan) SetAttributes(kv ...attribute.KeyValue) {
-// 	for _, k := range kv {
-// 		m.attributes[k.Key] = k.Value
-// 	}
-// }
-
-// func (m *MockSpan) SpanContext() trace.SpanContext {
-// 	return trace.SpanContextFromContext(m.ctx)
-// }
-
-// func MockGetTracerProvider() trace.TracerProvider {
-// 	return &MockTracerProvider{}
-// }
-
 func startOptIn(opt trace.SpanStartOption, opts []trace.SpanStartOption) bool {
 	res := lo.Filter(opts, func(o trace.SpanStartOption, index int) bool {
 		return o == opt
