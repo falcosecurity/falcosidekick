@@ -789,15 +789,15 @@ type OpenObserveConfig struct {
 
 // OTLPTraces represents config parameters for OTLP Traces
 type OTLPTraces struct {
-	Endpoint            string
-	Protocol            string
-	Timeout             int64
-	Headers             string
-	Duration            int64
-	Synced              bool
-	ExtraEnvVars        map[string]string
-	CheckCert           bool
-	MinimumPriority     string
+	Endpoint        string
+	Protocol        string
+	Timeout         int64
+	Headers         string
+	Duration        int64
+	Synced          bool
+	ExtraEnvVars    map[string]string
+	CheckCert       bool
+	MinimumPriority string
 }
 
 // OTLPOutputConfig represents config parameters for OTLP

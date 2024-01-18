@@ -36,12 +36,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-// NB: create OS interface to allow unit-testing
-type OS interface {
-	Getenv(string) string
-	Setenv(string, string) error
-}
-
 func getConfig() *types.Configuration {
 	c := &types.Configuration{
 		Customfields:    make(map[string]string),
@@ -525,7 +519,6 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.Traces.Synced", false)
 	v.SetDefault("OTLP.Traces.MinimumPriority", "")
 	v.SetDefault("OTLP.Traces.CheckCert", true)
-	v.SetDefault("OTLP.Traces.TraceIDHash", "")
 	// NB: Unfortunately falco events don't provide endtime, artificially set
 	// it to 1000ms by default, override-able via OTLP_DURATION environment variable.
 	v.SetDefault("OTLP.Traces.Duration", 1000)
