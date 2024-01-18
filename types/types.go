@@ -798,8 +798,6 @@ type OTLPTraces struct {
 	ExtraEnvVars        map[string]string
 	CheckCert           bool
 	MinimumPriority     string
-	TraceIDHash         string
-	TraceIDHashTemplate *template.Template
 }
 
 // OTLPOutputConfig represents config parameters for OTLP
