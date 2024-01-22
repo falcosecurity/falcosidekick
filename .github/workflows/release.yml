@@ -33,7 +33,7 @@ jobs:
 
       - uses: sigstore/cosign-installer@9614fae9e5c5eddabb09f90a270fcb487c9f7149
 
-      - uses: anchore/sbom-action/download-syft@c7f031d9249a826a082ea14c79d3b686a51d485a # v0.15.3
+      - uses: anchore/sbom-action/download-syft@24b0d5238516480139aa8bc6f92eeb7b54a9eb0a # v0.15.5
 
       # Push images to DockerHUB
       - name: Login to Docker Hub
