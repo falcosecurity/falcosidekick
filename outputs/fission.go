@@ -20,6 +20,7 @@ package outputs
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strconv"
 
@@ -58,19 +59,17 @@ func NewFissionClient(config *types.Configuration, stats *types.Statistics, prom
 			KubernetesClient: clientset,
 		}, nil
 	}
-	return NewClient(
-		Fission,
-		"http://"+config.Fission.RouterService+"."+config.Fission.RouterNamespace+
-			".svc.cluster.local:"+strconv.Itoa(config.Fission.RouterPort)+
-			"/fission-function/"+config.Fission.Function,
-		config.Fission.MutualTLS,
-		config.Fission.CheckCert,
-		config,
-		stats,
-		promStats,
-		statsdClient,
-		dogstatsdClient,
-	)
+
+	endpointUrl := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/fission-function/%s", config.Fission.RouterService, config.Fission.RouterNamespace, config.Fission.RouterPort, config.Fission.Function)
+	initClientArgs := &types.InitClientArgs{
+		Config:          config,
+		Stats:           stats,
+		DogstatsdClient: dogstatsdClient,
+		PromStats:       promStats,
+		StatsdClient:    statsdClient,
+	}
+
+	return NewClient(Fission, endpointUrl, config.Fission.MutualTLS, config.Fission.CheckCert, *initClientArgs)
 }
 
 // FissionCall .
