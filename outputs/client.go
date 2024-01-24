@@ -144,12 +144,7 @@ type Client struct {
 }
 
 // InitClient returns a new output.Client for accessing the different API.
-func InitClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bool, checkCert bool, params types.InitClientArgs) (*Client, error) {
-	return NewClient(outputType, defaultEndpointURL, mutualTLSEnabled, checkCert, params.Config, params.Stats, params.PromStats, params.StatsdClient, params.DogstatsdClient)
-}
-
-// NewClient returns a new output.Client for accessing the different API.
-func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bool, checkCert bool, config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bool, checkCert bool, params types.InitClientArgs) (*Client, error) {
 	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad Endpoint")
@@ -164,7 +159,7 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, CheckCert: checkCert, HeaderList: []Header{}, ContentType: DefaultContentType, Config: config, Stats: stats, PromStats: promStats, StatsdClient: statsdClient, DogstatsdClient: dogstatsdClient}, nil
+	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, CheckCert: checkCert, HeaderList: []Header{}, ContentType: DefaultContentType, Config: params.Config, Stats: params.Stats, PromStats: params.PromStats, StatsdClient: params.StatsdClient, DogstatsdClient: params.DogstatsdClient}, nil
 }
 
 // Post sends event (payload) to Output with POST http method.

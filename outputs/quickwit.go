@@ -63,7 +63,7 @@ func (c *Client) checkQuickwitIndexAlreadyExists(args types.InitClientArgs) bool
 	config := args.Config.Quickwit
 
 	endpointUrl := fmt.Sprintf("%s/%s/indexes/%s/describe", config.HostPort, config.ApiEndpoint, config.Index)
-	quickwitCheckClient, err := InitClient("QuickwitCheckAlreadyExists", endpointUrl, config.MutualTLS, config.CheckCert, args)
+	quickwitCheckClient, err := NewClient("QuickwitCheckAlreadyExists", endpointUrl, config.MutualTLS, config.CheckCert, args)
 	if err != nil {
 		return false
 	}
@@ -83,7 +83,7 @@ func (c *Client) AutoCreateQuickwitIndex(args types.InitClientArgs) error {
 	}
 
 	endpointUrl := fmt.Sprintf("%s/%s/indexes", config.HostPort, config.ApiEndpoint)
-	quickwitInitClient, err := InitClient("QuickwitInit", endpointUrl, config.MutualTLS, config.CheckCert, args)
+	quickwitInitClient, err := NewClient("QuickwitInit", endpointUrl, config.MutualTLS, config.CheckCert, args)
 	if err != nil {
 		return err
 	}

@@ -20,6 +20,7 @@ package outputs
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strconv"
 
@@ -60,17 +61,17 @@ func NewKubelessClient(config *types.Configuration, stats *types.Statistics, pro
 			KubernetesClient: clientset,
 		}, nil
 	}
-	return NewClient(
-		"Kubeless",
-		"http://"+config.Kubeless.Function+"."+config.Kubeless.Namespace+".svc.cluster.local:"+strconv.Itoa(config.Kubeless.Port),
-		config.Kubeless.MutualTLS,
-		config.Kubeless.CheckCert,
-		config,
-		stats,
-		promStats,
-		statsdClient,
-		dogstatsdClient,
-	)
+
+	endpointUrl := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", config.Kubeless.Function, config.Kubeless.Namespace, config.Kubeless.Port)
+	initClientArgs := &types.InitClientArgs{
+		Config:          config,
+		Stats:           stats,
+		DogstatsdClient: dogstatsdClient,
+		PromStats:       promStats,
+		StatsdClient:    statsdClient,
+	}
+
+	return NewClient("Kubeless", endpointUrl, config.Kubeless.MutualTLS, config.Kubeless.CheckCert, *initClientArgs)
 }
 
 // KubelessCall .

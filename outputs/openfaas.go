@@ -20,6 +20,7 @@ package outputs
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"strconv"
 
@@ -52,17 +53,17 @@ func NewOpenfaasClient(config *types.Configuration, stats *types.Statistics, pro
 			KubernetesClient: clientset,
 		}, nil
 	}
-	return NewClient(
-		Openfaas,
-		"http://"+config.Openfaas.GatewayService+"."+config.Openfaas.GatewayNamespace+":"+strconv.Itoa(config.Openfaas.GatewayPort)+"/function/"+config.Openfaas.FunctionName+"."+config.Openfaas.FunctionNamespace,
-		config.Openfaas.MutualTLS,
-		config.Openfaas.CheckCert,
-		config,
-		stats,
-		promStats,
-		statsdClient,
-		dogstatsdClient,
-	)
+
+	endpointUrl := fmt.Sprintf("http://%s.%s:%d/function/%s.%s", config.Openfaas.GatewayService, config.Openfaas.GatewayNamespace, config.Openfaas.GatewayPort, config.Openfaas.FunctionName, config.Openfaas.FunctionNamespace)
+	initClientArgs := &types.InitClientArgs{
+		Config:          config,
+		Stats:           stats,
+		DogstatsdClient: dogstatsdClient,
+		PromStats:       promStats,
+		StatsdClient:    statsdClient,
+	}
+
+	return NewClient(Openfaas, endpointUrl, config.Openfaas.MutualTLS, config.Openfaas.CheckCert, *initClientArgs)
 }
 
 // OpenfaasCall .

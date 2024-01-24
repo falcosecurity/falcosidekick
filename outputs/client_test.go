@@ -50,11 +50,17 @@ func TestNewClient(t *testing.T) {
 	stats := &types.Statistics{}
 	promStats := &types.PromStatistics{}
 
+	initClientArgs := &types.InitClientArgs{
+		Config:    config,
+		Stats:     stats,
+		PromStats: promStats,
+	}
+
 	testClientOutput := Client{OutputType: "test", EndpointURL: u, MutualTLSEnabled: false, CheckCert: true, HeaderList: []Header{}, ContentType: "application/json; charset=utf-8", Config: config, Stats: stats, PromStats: promStats}
-	_, err := NewClient("test", "localhost/%*$¨^!/:;", false, true, config, stats, promStats, nil, nil)
+	_, err := NewClient("test", "localhost/%*$¨^!/:;", false, true, *initClientArgs)
 	require.NotNil(t, err)
 
-	nc, err := NewClient("test", "http://localhost", false, true, config, stats, promStats, nil, nil)
+	nc, err := NewClient("test", "http://localhost", false, true, *initClientArgs)
 	require.Nil(t, err)
 	require.Equal(t, &testClientOutput, nc)
 }
@@ -93,7 +99,12 @@ func TestPost(t *testing.T) {
 		"/429": ErrTooManyRequest,
 		"/502": ErrBadGateway,
 	} {
-		nc, err := NewClient("", ts.URL+i, false, true, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
+		initClientArgs := &types.InitClientArgs{
+			Config:    &types.Configuration{},
+			Stats:     &types.Statistics{},
+			PromStats: &types.PromStatistics{},
+		}
+		nc, err := NewClient("", ts.URL+i, false, true, *initClientArgs)
 		require.Nil(t, err)
 		require.NotEmpty(t, nc)
 
@@ -108,7 +119,12 @@ func TestAddHeader(t *testing.T) {
 		passedVal := r.Header.Get(headerKey)
 		require.Equal(t, passedVal, headerVal)
 	}))
-	nc, err := NewClient("", ts.URL, false, true, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
+	initClientArgs := &types.InitClientArgs{
+		Config:    &types.Configuration{},
+		Stats:     &types.Statistics{},
+		PromStats: &types.PromStatistics{},
+	}
+	nc, err := NewClient("", ts.URL, false, true, *initClientArgs)
 	require.Nil(t, err)
 	require.NotEmpty(t, nc)
 
@@ -159,7 +175,12 @@ func TestAddBasicAuth(t *testing.T) {
 		// and that should be the provided value.
 		require.Equal(t, digest, "dXNlcjpwYXNz")
 	}))
-	nc, err := NewClient("", ts.URL, false, true, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
+	initClientArgs := &types.InitClientArgs{
+		Config:    &types.Configuration{},
+		Stats:     &types.Statistics{},
+		PromStats: &types.PromStatistics{},
+	}
+	nc, err := NewClient("", ts.URL, false, true, *initClientArgs)
 	require.Nil(t, err)
 	require.NotEmpty(t, nc)
 
@@ -175,7 +196,12 @@ func TestHeadersResetAfterReq(t *testing.T) {
 		require.Equal(t, 1, len(passedList), "Expected %v to have 1 element", passedList)
 	}))
 
-	nc, err := NewClient("", ts.URL, false, true, &types.Configuration{}, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
+	initClientArgs := &types.InitClientArgs{
+		Config:    &types.Configuration{},
+		Stats:     &types.Statistics{},
+		PromStats: &types.PromStatistics{},
+	}
+	nc, err := NewClient("", ts.URL, false, true, *initClientArgs)
 	require.Nil(t, err)
 	require.NotEmpty(t, nc)
 
@@ -221,7 +247,12 @@ func TestMutualTlsPost(t *testing.T) {
 	server.StartTLS()
 	defer server.Close()
 
-	nc, err := NewClient("", server.URL+"/200", true, true, config, &types.Statistics{}, &types.PromStatistics{}, nil, nil)
+	initClientArgs := &types.InitClientArgs{
+		Config:    config,
+		Stats:     &types.Statistics{},
+		PromStats: &types.PromStatistics{},
+	}
+	nc, err := NewClient("", server.URL+"/200", true, true, *initClientArgs)
 	require.Nil(t, err)
 	require.NotEmpty(t, nc)
 
