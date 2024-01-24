@@ -177,6 +177,21 @@ func (c *Client) Put(payload interface{}) error {
 	return c.sendRequest("PUT", payload)
 }
 
+// Get the response body as inlined string
+func getInlinedBodyAsString(resp *http.Response) string {
+	body, _ := io.ReadAll(resp.Body)
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "application/json" {
+		var compactedBody bytes.Buffer
+		err := json.Compact(&compactedBody, body)
+		if err == nil {
+			return string(compactedBody.Bytes())
+		}
+	}
+
+	return string(body)
+}
+
 // Post sends event (payload) to Output.
 func (c *Client) sendRequest(method string, payload interface{}) error {
 	// defer + recover to catch panic if output doesn't respond
@@ -308,34 +323,27 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
 		log.Printf("[INFO]  : %v - Post OK (%v)\n", c.OutputType, resp.StatusCode)
-		body, _ := io.ReadAll(resp.Body)
 		if ot := c.OutputType; ot == Kubeless || ot == Openfaas || ot == Fission {
-			log.Printf("[INFO]  : %v - Function Response : %v\n", ot, string(body))
+			log.Printf("[INFO]  : %v - Function Response : %s\n", ot, getInlinedBodyAsString(resp))
 		}
 		return nil
 	case http.StatusBadRequest: //400
-		body, _ := io.ReadAll(resp.Body)
-		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrHeaderMissing, resp.StatusCode, string(body))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrHeaderMissing, resp.StatusCode, getInlinedBodyAsString(resp))
 		return ErrHeaderMissing
 	case http.StatusUnauthorized: //401
-		body, _ := io.ReadAll(resp.Body)
-		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode, string(body))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode, getInlinedBodyAsString(resp))
 		return ErrClientAuthenticationError
 	case http.StatusForbidden: //403
-		body, _ := io.ReadAll(resp.Body)
-		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrForbidden, resp.StatusCode, string(body))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrForbidden, resp.StatusCode, getInlinedBodyAsString(resp))
 		return ErrForbidden
 	case http.StatusNotFound: //404
-		body, _ := io.ReadAll(resp.Body)
-		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrNotFound, resp.StatusCode, string(body))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrNotFound, resp.StatusCode, getInlinedBodyAsString(resp))
 		return ErrNotFound
 	case http.StatusUnprocessableEntity: //422
-		body, _ := io.ReadAll(resp.Body)
-		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrUnprocessableEntityError, resp.StatusCode, string(body))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrUnprocessableEntityError, resp.StatusCode, getInlinedBodyAsString(resp))
 		return ErrUnprocessableEntityError
 	case http.StatusTooManyRequests: //429
-		body, _ := io.ReadAll(resp.Body)
-		log.Printf("[ERROR] : %v - %v (%v): %v\n", c.OutputType, ErrTooManyRequest, resp.StatusCode, string(body))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrTooManyRequest, resp.StatusCode, getInlinedBodyAsString(resp))
 		return ErrTooManyRequest
 	case http.StatusInternalServerError: //500
 		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
