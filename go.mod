@@ -33,9 +33,9 @@ require (
 	golang.org/x/oauth2 v0.16.0
 	google.golang.org/api v0.157.0
 	google.golang.org/genproto v0.0.0-20240102182953-50ed04b92917
-	k8s.io/api v0.29.0
+	k8s.io/api v0.29.1
 	k8s.io/apimachinery v0.29.1
-	k8s.io/client-go v0.29.0
+	k8s.io/client-go v0.29.1
 	sigs.k8s.io/wg-policy-prototypes v0.0.0-20230828153944-22764d64b0c3
 )
 
