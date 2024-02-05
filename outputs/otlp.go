@@ -34,7 +34,14 @@ import (
 var getTracerProvider = otel.GetTracerProvider
 
 func NewOtlpTracesClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
-	otlpClient, err := NewClient("OTLPTraces", config.OTLP.Traces.Endpoint, false, false, config, stats, promStats, statsdClient, dogstatsdClient)
+	initClientArgs := &types.InitClientArgs{
+		Config:          config,
+		Stats:           stats,
+		DogstatsdClient: dogstatsdClient,
+		PromStats:       promStats,
+		StatsdClient:    statsdClient,
+	}
+	otlpClient, err := NewClient("OTLPTraces", config.OTLP.Traces.Endpoint, false, false, *initClientArgs)
 	if err != nil {
 		return nil, err
 	}
