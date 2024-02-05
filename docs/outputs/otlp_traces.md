@@ -9,7 +9,8 @@
   - [Table of content](#table-of-content)
   - [Configuration](#configuration)
   - [Example of config.yaml](#example-of-configyaml)
-  - [Screenshots](#screenshots)
+  - [Additional info](#additional-info)
+  - [Running a whole stack with docker-compose](#running-a-whole-stack-with-docker-compose)
 
 ## Configuration
 
@@ -51,15 +52,7 @@ otlp:
 > **Note**
 The OTLP Traces are only available for the source: `syscalls`.
 
-## Screenshots
-
-With Grafana as UI and Tempo as traces backend:
-
-![otlp_traces example](images/otlp_traces.png)
-
-## Additional info
-
-### Running a whole stack with docker-compose
+## Running a whole stack with docker-compose
 
 Below `docker-compose` file runs a stack of:
 
@@ -69,12 +62,12 @@ Below `docker-compose` file runs a stack of:
 - [Tempo](https://grafana.com/oss/tempo/) as OTLP traces backend
 - [Grafana](https://grafana.com/oss/grafana/) for visualization
 
-#### Requirements
+### Requirements
 
 A local Linux kernel capable of running `falco`--modern-bpf`, see
 <https://falco.org/blog/falco-modern-bpf/>.
 
-#### Configuration files
+### Configuration files
 
 You need to create these files:
 
@@ -223,7 +216,7 @@ storage:
       path: /tmp/tempo/blocks
 ```
 
-#### Run it
+### Run it
 
 To bring up the stack, and peek at how Grafana shows it:
 
@@ -236,8 +229,11 @@ To bring up the stack, and peek at how Grafana shows it:
 1. Navigate to <http://localhost:3000/> to start browsing the local Grafana UI
 
 1. Navigate to [/explore](http://localhost:3000/explore/), choose `Tempo` datasource, and query `{}`, or just click [here](http://localhost:3000/explore?orgId=1&left=%7B%22datasource%22:%22tempo%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22datasource%22:%7B%22type%22:%22tempo%22,%22uid%22:%22tempo%22%7D,%22queryType%22:%22traceql%22,%22limit%22:20,%22query%22:%22%7B%7D%22%7D%5D) for such already crafted query.
+   ![Grafana explore](images/otlp_traces-grafana_explore.png)
 
-1. Click on any of the shown traces on the left panel.
+1. Click on any of the shown traces on the left panel, you should see something
+   similar to the below attached screenshot.
+   ![Falco traces view](images/otlp_traces-traces_view.png)
 
 1. Bring down the stack
 
