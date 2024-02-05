@@ -514,6 +514,10 @@ func getConfig() *types.Configuration {
 
 	v.SetDefault("OTLP.Traces.Endpoint", "")
 	v.SetDefault("OTLP.Traces.Protocol", "http/json")
+	// NOTE: we don't need to parse the OTLP.Traces.Headers field, as use it to
+	// set OTEL_EXPORTER_OTLP_TRACES_HEADERS (at otlp_init.go), which is then
+	// parsed by the OTLP SDK libs, see
+	// https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_traces_headers
 	v.SetDefault("OTLP.Traces.Headers", "")
 	v.SetDefault("OTLP.Traces.Timeout", 10000)
 	v.SetDefault("OTLP.Traces.Synced", false)
