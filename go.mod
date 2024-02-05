@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	cloud.google.com/go/functions v1.16.0
-	cloud.google.com/go/pubsub v1.36.0
+	cloud.google.com/go/pubsub v1.36.1
 	cloud.google.com/go/storage v1.37.0
 	github.com/Azure/azure-event-hubs-go/v3 v3.6.2
 	github.com/DataDog/datadog-go v4.8.3+incompatible
