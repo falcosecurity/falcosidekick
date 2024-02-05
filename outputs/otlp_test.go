@@ -108,7 +108,17 @@ func TestOtlpNewTrace(t *testing.T) {
 	}
 	for idx, c := range cases {
 		var err error
-		client, _ := NewClient("OTLP", "http://localhost:4317", false, false, &c.config, nil, nil, nil, nil)
+		config := &types.Configuration{}
+		stats := &types.Statistics{}
+		promStats := &types.PromStatistics{}
+
+		initClientArgs := &types.InitClientArgs{
+			Config:    config,
+			Stats:     stats,
+			PromStats: promStats,
+		}
+
+		client, _ := NewClient("OTLP", "http://localhost:4317", false, false, *initClientArgs)
 		// Test newTrace()
 		span, err := client.newTrace(c.fp)
 		require.Nil(t, err)
