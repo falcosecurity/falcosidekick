@@ -1,5 +1,0 @@
-debug: true # if true all outputs will print in stdout the payload they send (default: false)
-otlp:
-  address: "http://localhost:4318/v1/traces"
-  user: user-foo
-  apikey: apikey-foo
