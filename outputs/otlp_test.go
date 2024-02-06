@@ -20,24 +20,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/falcosecurity/falcosidekick/types"
-	"github.com/samber/lo"
 
 	"go.opentelemetry.io/otel/trace"
 )
-
-func startOptIn(opt trace.SpanStartOption, opts []trace.SpanStartOption) bool {
-	res := lo.Filter(opts, func(o trace.SpanStartOption, index int) bool {
-		return o == opt
-	})
-	return len(res) == 1
-}
-
-func endOptIn(opt trace.SpanEndOption, opts []trace.SpanEndOption) bool {
-	res := lo.Filter(opts, func(o trace.SpanEndOption, index int) bool {
-		return o == opt
-	})
-	return len(res) == 1
-}
 
 func TestOtlpNewTrace(t *testing.T) {
 	// getTracerProvider = MockGetTracerProvider
