@@ -365,5 +365,10 @@ func (c *Client) BasicAuth(username, password string) {
 
 // AddHeader adds an HTTP Header to the Client.
 func (c *Client) AddHeader(key, value string) {
+	for _, header := range c.HeaderList {
+		if header.Key == key && header.Value == value {
+			return
+		}
+	}
 	c.HeaderList = append(c.HeaderList, Header{Key: key, Value: value})
 }
