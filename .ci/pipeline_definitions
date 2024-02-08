@@ -1,0 +1,25 @@
+falcosidekick:
+  jobs:
+    manualrelease:
+      traits:
+        version: ~
+        component_descriptor:
+          ocm_repository: europe-docker.pkg.dev/gardener-project/releases
+        publish:
+          platforms:
+          - linux/x86_64
+          - linux/arm64
+          oci-builder: docker-buildx
+          dockerimages:
+            # pipeline name
+            falcosidekick-fork: 
+              dockerfile: Dockerfile-fork
+              # platform is added to docker buildx command
+              registry: gcr-readwrite
+              tag_as_latest: True
+              image: europe-docker.pkg.dev/gardener-project/releases/falcosidekick-fork
+
+        release:
+          nextversion: bump_minor
+          release_notes_policy: disabled
+
