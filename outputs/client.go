@@ -11,8 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"github.com/segmentio/kafka-go"
 	"io"
 	"log"
 	"math"
@@ -22,6 +20,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/segmentio/kafka-go"
 
 	"golang.org/x/sync/semaphore"
 	crdClient "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/generated/v1alpha2/clientset/versioned"
