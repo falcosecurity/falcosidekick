@@ -1,0 +1,17 @@
+#############      builder                                  #############
+FROM golang:1.21.4 AS builder
+
+WORKDIR /go/src/github.com/falcosecurity/falcosidekick
+COPY . .
+
+RUN make falcosidekick
+
+#############      base                                     #############
+FROM gcr.io/distroless/static-debian11:nonroot as base
+WORKDIR /
+
+#############      machine-controller-manager               #############
+FROM base AS machine-controller-manager
+
+COPY --from=builder /go/src/github.com/falcosecurity/falcosidekick /falcosidekick
+ENTRYPOINT ["/falcosidekick"]
