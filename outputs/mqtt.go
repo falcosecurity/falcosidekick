@@ -40,9 +40,8 @@ func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promSta
 		options.Password = config.MQTT.Password
 	}
 	if !config.MQTT.CheckCert {
-		// #nosec G402 This is only set as a result of explicit configuration
 		options.TLSConfig = &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
 		}
 	}
 	options.OnConnectionLost = func(client mqtt.Client, err error) {

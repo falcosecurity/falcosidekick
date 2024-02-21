@@ -41,6 +41,8 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
+const Status200 string = "/200"
+
 var falcoTestInput = `{"output":"This is a test from falcosidekick","priority":"Debug","rule":"Test rule", "time":"2001-01-01T01:10:00Z","source":"syscalls","output_fields": {"proc.name":"falcosidekick", "proc.tty": 1234}, "tags":["test","example"], "hostname":"test-host"}`
 
 func TestNewClient(t *testing.T) {
@@ -71,7 +73,7 @@ func TestPost(t *testing.T) {
 			t.Fatalf("expected method : POST, got %s\n", r.Method)
 		}
 		switch r.URL.EscapedPath() {
-		case "/200":
+		case Status200:
 			w.WriteHeader(http.StatusOK)
 		case "/400":
 			w.WriteHeader(http.StatusBadRequest)
@@ -91,7 +93,7 @@ func TestPost(t *testing.T) {
 	}))
 
 	for i, j := range map[string]error{
-		"/200": nil, "/400": ErrHeaderMissing,
+		Status200: nil, "/400": ErrHeaderMissing,
 		"/401": ErrClientAuthenticationError,
 		"/403": ErrForbidden,
 		"/404": ErrNotFound,
@@ -235,7 +237,7 @@ func TestMutualTlsPost(t *testing.T) {
 		if r.Method != "POST" {
 			t.Fatalf("expected method : POST, got %s\n", r.Method)
 		}
-		if r.URL.EscapedPath() == "/200" {
+		if r.URL.EscapedPath() == Status200 {
 			w.WriteHeader(http.StatusOK)
 		}
 	}))
@@ -252,7 +254,7 @@ func TestMutualTlsPost(t *testing.T) {
 		Stats:     &types.Statistics{},
 		PromStats: &types.PromStatistics{},
 	}
-	nc, err := NewClient("", server.URL+"/200", true, true, *initClientArgs)
+	nc, err := NewClient("", server.URL+Status200, true, true, *initClientArgs)
 	require.Nil(t, err)
 	require.NotEmpty(t, nc)
 
