@@ -23,7 +23,8 @@ import (
 	"log"
 	"time"
 
-	eventhub "github.com/Azure/azure-event-hubs-go/v3"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	azeventhubs "github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
 	"github.com/DataDog/datadog-go/statsd"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -45,13 +46,24 @@ func NewEventHubClient(config *types.Configuration, stats *types.Statistics, pro
 func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 	c.Stats.AzureEventHub.Add(Total, 1)
 
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	log.Printf("[INFO] : %v EventHub - Try sending event", c.OutputType)
-	hub, err := eventhub.NewHubWithNamespaceNameAndEnvironment(c.Config.Azure.EventHub.Namespace, c.Config.Azure.EventHub.Name)
+	defaultAzureCred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		c.setEventHubErrorMetrics()
 		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
 		return
 	}
+
+	producerClient, err := azeventhubs.NewProducerClient(c.Config.Azure.EventHub.Namespace, c.Config.Azure.EventHub.Name, defaultAzureCred, nil)
+	if err != nil {
+		c.setEventHubErrorMetrics()
+		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
+		return
+	}
+	defer producerClient.Close(ctx)
 
 	log.Printf("[INFO]  : %v EventHub - Hub client created\n", c.OutputType)
 
@@ -62,11 +74,21 @@ func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	err = hub.Send(ctx, eventhub.NewEvent(data))
+	batch, err := producerClient.NewEventDataBatch(ctx, nil)
 	if err != nil {
+		c.setEventHubErrorMetrics()
+		log.Printf("[ERROR] : Cannot marshal payload: %v", err.Error())
+		return
+	}
+
+	if err := batch.AddEventData(&azeventhubs.EventData{Body: data}, nil); err != nil {
+		c.setEventHubErrorMetrics()
+		log.Printf("[ERROR] : Cannot marshal payload: %v", err.Error())
+		return
+	}
+
+	producerClient.SendEventDataBatch(ctx, batch, nil)
+	if err := producerClient.SendEventDataBatch(ctx, batch, nil); err != nil {
 		c.setEventHubErrorMetrics()
 		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
 		return

@@ -34,11 +34,15 @@ import (
 	"github.com/google/uuid"
 )
 
+const Falcosidekick_ string = "falcosidekick_"
+const SourcePath string = "/source/"
+const APIv1Path string = "api/v1/org/"
+
 func isSourcePresent(config *types.Configuration) (bool, error) {
 
 	client := &http.Client{}
 
-	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIv1Path+config.Spyderbat.OrgUID+SourcePath)
 	if err != nil {
 		return false, err
 	}
@@ -46,7 +50,7 @@ func isSourcePresent(config *types.Configuration) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	req.Header.Add("Authorization", "Bearer "+config.Spyderbat.APIKey)
+	req.Header.Add("Authorization", Bearer+" "+config.Spyderbat.APIKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -65,7 +69,7 @@ func isSourcePresent(config *types.Configuration) (bool, error) {
 	if err := json.Unmarshal(body, &sources); err != nil {
 		return false, err
 	}
-	uid := "falcosidekick_" + config.Spyderbat.OrgUID
+	uid := Falcosidekick_ + config.Spyderbat.OrgUID
 	for _, source := range sources {
 		if id, ok := source["uid"]; ok && id.(string) == uid {
 			return true, nil
@@ -85,7 +89,7 @@ func makeSource(config *types.Configuration) error {
 	data := SourceBody{
 		Name:        config.Spyderbat.Source,
 		Description: config.Spyderbat.SourceDescription,
-		UID:         "falcosidekick_" + config.Spyderbat.OrgUID,
+		UID:         Falcosidekick_ + config.Spyderbat.OrgUID,
 	}
 	body := new(bytes.Buffer)
 	if err := json.NewEncoder(body).Encode(data); err != nil {
@@ -94,7 +98,7 @@ func makeSource(config *types.Configuration) error {
 
 	client := &http.Client{}
 
-	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIv1Path+config.Spyderbat.OrgUID+SourcePath)
 	if err != nil {
 		return err
 	}
@@ -102,7 +106,7 @@ func makeSource(config *types.Configuration) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+config.Spyderbat.APIKey)
+	req.Header.Add("Authorization", Bearer+" "+config.Spyderbat.APIKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -211,8 +215,8 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 		}
 	}
 
-	source := "falcosidekick_" + config.Spyderbat.OrgUID
-	data_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/"+source+"/data/sb-agent")
+	source := Falcosidekick_ + config.Spyderbat.OrgUID
+	data_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIv1Path+config.Spyderbat.OrgUID+SourcePath+source+"/data/sb-agent")
 	if err != nil {
 		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
 		return nil, ErrClientCreation

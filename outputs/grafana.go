@@ -95,7 +95,7 @@ func (c *Client) GrafanaPost(falcopayload types.FalcoPayload) {
 	c.ContentType = GrafanaContentType
 	c.httpClientLock.Lock()
 	defer c.httpClientLock.Unlock()
-	c.AddHeader("Authorization", "Bearer "+c.Config.Grafana.APIKey)
+	c.AddHeader("Authorization", Bearer+" "+c.Config.Grafana.APIKey)
 	for i, j := range c.Config.Grafana.CustomHeaders {
 		c.AddHeader(i, j)
 	}

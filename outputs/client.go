@@ -96,6 +96,7 @@ const ContentTypeHeaderKey = "Content-Type"
 const UserAgentHeaderKey = "User-Agent"
 const AuthorizationHeaderKey = "Authorization"
 const UserAgentHeaderValue = "Falcosidekick"
+const Bearer = "Bearer"
 
 // files names are static fo the shake of helm and single docker compatibility
 const MutualTLSClientCertFilename = "/client.crt"
@@ -282,9 +283,8 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	} else {
 		// With MutualTLS enabled, the check cert flag is ignored
 		if !c.CheckCert {
-			// #nosec G402 This is only set as a result of explicit configuration
 			customTransport.TLSClientConfig = &tls.Config{
-				InsecureSkipVerify: true,
+				InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
 			}
 		}
 	}

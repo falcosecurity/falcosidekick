@@ -36,6 +36,8 @@ import (
 const FissionEventIDKey = "event-id"
 const FissionEventNamespaceKey = "event-namespace"
 const FissionContentType = "application/json"
+const APIv1Namespaces = "/api/v1/namespaces/"
+const ServicesPath = "/services/"
 
 // NewFissionClient returns a new output.Client for accessing Kubernetes.
 func NewFissionClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
@@ -78,8 +80,8 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 
 	if c.Config.Fission.KubeConfig != "" {
 		str, _ := json.Marshal(falcopayload)
-		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath("/api/v1/namespaces/" +
-			c.Config.Fission.RouterNamespace + "/services/" + c.Config.Fission.RouterService +
+		req := c.KubernetesClient.CoreV1().RESTClient().Post().AbsPath(APIv1Namespaces +
+			c.Config.Fission.RouterNamespace + ServicesPath + c.Config.Fission.RouterService +
 			":" + strconv.Itoa(c.Config.Fission.RouterPort) + "/proxy/" + "/fission-function/" +
 			c.Config.Fission.Function).Body(str)
 		req.SetHeader(FissionEventIDKey, uuid.New().String())

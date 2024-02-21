@@ -30,7 +30,7 @@ func (c *Client) CloudRunFunctionPost(falcopayload types.FalcoPayload) {
 	if c.Config.GCP.CloudRun.JWT != "" {
 		c.httpClientLock.Lock()
 		defer c.httpClientLock.Unlock()
-		c.AddHeader(AuthorizationHeaderKey, "Bearer "+c.Config.GCP.CloudRun.JWT)
+		c.AddHeader(AuthorizationHeaderKey, Bearer+" "+c.Config.GCP.CloudRun.JWT)
 	}
 
 	err := c.Post(falcopayload)
