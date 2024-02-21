@@ -128,6 +128,7 @@ type Configuration struct {
 	OpenObserve        OpenObserveConfig
 	Dynatrace          DynatraceOutputConfig
 	OTLP               OTLPOutputConfig
+	StackState         StackStateOutputConfig
 }
 
 // InitClientArgs represent a client parameters for initialization
@@ -776,6 +777,15 @@ type DynatraceOutputConfig struct {
 	CheckCert       bool
 }
 
+// StackStateOutputConfig represents config parameters for StackState
+type StackStateOutputConfig struct {
+	APIToken        string
+	APIUrl          string
+	MinimumPriority string
+	CheckCert       bool
+	ClusterName     string
+}
+
 // OpenObserveConfig represents config parameters for OpenObserve
 type OpenObserveConfig struct {
 	HostPort         string
@@ -875,6 +885,7 @@ type Statistics struct {
 	OpenObserve       *expvar.Map
 	Dynatrace         *expvar.Map
 	OTLPTraces        *expvar.Map
+	StackState        *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

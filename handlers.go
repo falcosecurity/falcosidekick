@@ -434,7 +434,12 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go dynatraceClient.DynatracePost(falcopayload)
 	}
 
+
 	if config.OTLP.Traces.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.OTLP.Traces.MinimumPriority)) && (falcopayload.Source == "syscall" || falcopayload.Source == "syscalls") {
 		go otlpClient.OTLPTracesPost(falcopayload)
+	}
+
+	if config.StackState.APIToken != "" && config.StackState.APIUrl != "" && (falcopayload.Priority >= types.Priority(config.StackState.MinimumPriority) || falcopayload.Rule == testRule) {
+		go stackstateClient.StackStatePost(falcopayload)
 	}
 }

@@ -92,6 +92,7 @@ var (
 	openObserveClient   *outputs.Client
 	dynatraceClient     *outputs.Client
 	otlpClient          *outputs.Client
+	stackstateClient    *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -802,7 +803,19 @@ func init() {
 		}
 	}
 
-	log.Printf("[INFO]  : Falco Sidekick version: %s\n", GetVersionInfo().GitVersion)
+	if config.StackState.APIToken != "" && config.StackState.APIUrl != "" {
+		var err error
+		stackStateAPIUrl := strings.TrimRight(config.StackState.APIUrl, "/") + "/receiver/stsAgent/intake?api_key=" + config.StackState.APIToken
+		stackstateClient, err = outputs.NewClient("StackState", stackStateAPIUrl, false, config.StackState.CheckCert, *initClientArgs)
+		if err != nil {
+			config.StackState.APIToken = ""
+			config.StackState.APIUrl = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "StackState")
+		}
+	}
+
+	log.Printf("[INFO]  : Falcosidekick version: %s\n", GetVersionInfo().GitVersion)
 	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
 
 }
