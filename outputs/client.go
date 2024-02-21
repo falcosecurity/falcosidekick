@@ -20,6 +20,7 @@ package outputs
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -48,6 +49,9 @@ import (
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/segmentio/kafka-go"
 	"k8s.io/client-go/kubernetes"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	timescaledb "github.com/jackc/pgx/v5/pgxpool"
@@ -159,6 +163,12 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
+	}
+	if params.Config.OIDC.Enabled {
+		if params.Config.OIDC.ClientID == "" || params.Config.OIDC.ClientSecret == "" || ( params.Config.OIDC.TokenURL == "" && params.Config.OIDC.IssuerURL == "" ) {
+			log.Printf("[ERROR] : %v - %v\n", outputType, "OIDC configuration is missing")
+			return nil, ErrClientCreation
+		}
 	}
 	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, CheckCert: checkCert, HeaderList: []Header{}, ContentType: DefaultContentType, Config: params.Config, Stats: params.Stats, PromStats: params.PromStats, StatsdClient: params.StatsdClient, DogstatsdClient: params.DogstatsdClient}, nil
 }
@@ -292,6 +302,12 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 		Transport: customTransport,
 	}
 
+	// OIDC Authentication
+	var ctx context.Context
+	if c.Config.OIDC.Enabled {
+		client = c.oAuth2Auth(ctx, client)
+	}
+
 	req, err := http.NewRequest(method, c.EndpointURL.String(), body)
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
@@ -366,4 +382,50 @@ func (c *Client) BasicAuth(username, password string) {
 // AddHeader adds an HTTP Header to the Client.
 func (c *Client) AddHeader(key, value string) {
 	c.HeaderList = append(c.HeaderList, Header{Key: key, Value: value})
+}
+
+// OAuth2Auth adds an OAuth2 compliant header to the Client.
+func (c *Client) oAuth2Auth(ctx context.Context, client *http.Client) *http.Client {
+	if c.Config.OIDC.TokenURL == "" {
+		c.Config.OIDC.TokenURL = c.getTokenURL(client)
+	}
+	conf := &clientcredentials.Config{
+		ClientID:     c.Config.OIDC.ClientID,
+		ClientSecret: c.Config.OIDC.ClientSecret,
+		Scopes:       c.Config.OIDC.Scopes,
+		TokenURL:     c.Config.OIDC.TokenURL,
+	}
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, client) // surprisingly, this jank works
+	return conf.Client(ctx)
+}
+
+func getJson(client *http.Client, url string, target interface{}) error {
+	res, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(body, target)
+}
+
+type wellKnown struct {
+	Issuer                string `json:"issuer"`
+	AuthorizationEndpoint string `json:"authorization_endpoint"`
+	TokenEndpoint         string `json:"token_endpoint"`
+	JwksURI               string `json:"jwks_uri"`
+}
+
+func (c *Client) getTokenURL(client *http.Client) string {
+	if c.Config.OIDC.IssuerURL != "" {
+		return c.Config.OIDC.TokenURL
+	}
+	var wk wellKnown
+	if err := getJson(client, c.Config.OIDC.IssuerURL + "/.well-known/openid-configuration", &wk); err != nil {
+		log.Fatal(err)
+	}
+	return wk.TokenEndpoint
 }
