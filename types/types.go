@@ -69,6 +69,7 @@ type Configuration struct {
 	MutualTLSClient    MutualTLSClient
 	TLSClient          TLSClient
 	TLSServer          TLSServer
+	OIDC               OIDCConfig
 	Debug              bool
 	ListenAddress      string
 	ListenPort         int
@@ -160,6 +161,16 @@ type TLSServer struct {
 	CaCertFile string
 	NoTLSPort  int
 	NoTLSPaths []string
+}
+
+// OIDCConfig represents parameters for OIDC
+type OIDCConfig struct {
+	Enabled      bool
+	IssuerURL    string
+	TokenURL     string
+	ClientID     string
+	ClientSecret string
+	Scopes       []string
 }
 
 // SlackOutputConfig represents parameters for Slack
