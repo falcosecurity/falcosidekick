@@ -20,6 +20,7 @@ package outputs
 import (
 	"encoding/json"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -103,6 +104,7 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 		amPayload.Labels[Hostname] = falcopayload.Hostname
 	}
 	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 		amPayload.Labels["tags"] = strings.Join(falcopayload.Tags, ",")
 	}
 

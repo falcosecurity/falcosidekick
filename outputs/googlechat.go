@@ -20,6 +20,7 @@ package outputs
 import (
 	"bytes"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -72,6 +73,13 @@ func newGooglechatPayload(falcopayload types.FalcoPayload, config *types.Configu
 		}
 	}
 
+	widgets = append(widgets, widget{KeyValue: keyValue{"rule", falcopayload.Rule}})
+	widgets = append(widgets, widget{KeyValue: keyValue{"priority", falcopayload.Priority.String()}})
+	widgets = append(widgets, widget{KeyValue: keyValue{"source", falcopayload.Source}})
+	if falcopayload.Hostname != "" {
+		widgets = append(widgets, widget{KeyValue: keyValue{Hostname, falcopayload.Hostname}})
+	}
+
 	for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
 		widgets = append(widgets, widget{
 			KeyValue: keyValue{
@@ -81,15 +89,8 @@ func newGooglechatPayload(falcopayload types.FalcoPayload, config *types.Configu
 		})
 	}
 
-	widgets = append(widgets, widget{KeyValue: keyValue{"rule", falcopayload.Rule}})
-	widgets = append(widgets, widget{KeyValue: keyValue{"priority", falcopayload.Priority.String()}})
-	widgets = append(widgets, widget{KeyValue: keyValue{"source", falcopayload.Source}})
-
-	if falcopayload.Hostname != "" {
-		widgets = append(widgets, widget{KeyValue: keyValue{Hostname, falcopayload.Hostname}})
-	}
-
 	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 		widgets = append(widgets, widget{
 			KeyValue: keyValue{
 				TopLabel: "tags",

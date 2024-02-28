@@ -56,7 +56,7 @@ func TestNewRocketchatPayload(t *testing.T) {
 					},
 					{
 						Title: "tags",
-						Value: "test, example",
+						Value: "example, test",
 						Short: true,
 					},
 					{

@@ -20,6 +20,7 @@ package outputs
 import (
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -68,6 +69,7 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	}
 
 	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 		s["tags"] = strings.Join(falcopayload.Tags, ",")
 	}
 

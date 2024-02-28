@@ -20,6 +20,7 @@ package outputs
 import (
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -78,23 +79,19 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	embedFields := make([]discordEmbedFieldPayload, 0)
 	var embedField discordEmbedFieldPayload
 
-	for i, j := range falcopayload.OutputFields {
-		switch v := j.(type) {
-		case string:
-			embedField = discordEmbedFieldPayload{i, fmt.Sprintf("```%s```", v), true}
-		default:
-			continue
-		}
-		embedFields = append(embedFields, embedField)
-	}
-
 	embedFields = append(embedFields, discordEmbedFieldPayload{Rule, falcopayload.Rule, true})
 	embedFields = append(embedFields, discordEmbedFieldPayload{Priority, falcopayload.Priority.String(), true})
 	embedFields = append(embedFields, discordEmbedFieldPayload{Source, falcopayload.Source, true})
 	if falcopayload.Hostname != "" {
 		embedFields = append(embedFields, discordEmbedFieldPayload{Hostname, falcopayload.Hostname, true})
 	}
+
+	for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
+		embedField = discordEmbedFieldPayload{i, fmt.Sprintf("```%v```", falcopayload.OutputFields[i]), true}
+		embedFields = append(embedFields, embedField)
+	}
 	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 		embedFields = append(embedFields, discordEmbedFieldPayload{Tags, strings.Join(falcopayload.Tags, ", "), true})
 	}
 	embedFields = append(embedFields, discordEmbedFieldPayload{Time, falcopayload.Time.String(), true})

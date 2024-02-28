@@ -18,7 +18,9 @@ limitations under the License.
 package outputs
 
 import (
+	"fmt"
 	"log"
+	"sort"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -38,21 +40,19 @@ type datadogPayload struct {
 
 func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 	var d datadogPayload
-	var tags []string
+	tags := make([]string, 0)
 
-	for i, j := range falcopayload.OutputFields {
-		switch v := j.(type) {
-		case string:
-			tags = append(tags, i+":"+v)
-		default:
-			continue
-		}
+	for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
+		tags = append(tags, fmt.Sprintf("%v:%v", i, falcopayload.OutputFields[i]))
+
 	}
 	tags = append(tags, "source:"+falcopayload.Source)
 	if falcopayload.Hostname != "" {
 		tags = append(tags, Hostname+":"+falcopayload.Hostname)
 	}
+
 	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 		tags = append(tags, falcopayload.Tags...)
 	}
 	d.Tags = tags

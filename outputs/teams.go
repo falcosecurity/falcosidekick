@@ -19,6 +19,7 @@ package outputs
 
 import (
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -65,18 +66,6 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	}
 
 	if config.Teams.OutputFormat == All || config.Teams.OutputFormat == "facts" || config.Teams.OutputFormat == "" {
-		for i, j := range falcopayload.OutputFields {
-			switch v := j.(type) {
-			case string:
-				fact.Name = i
-				fact.Value = v
-			default:
-				continue
-			}
-
-			facts = append(facts, fact)
-		}
-
 		fact.Name = Rule
 		fact.Value = falcopayload.Rule
 		facts = append(facts, fact)
@@ -91,7 +80,15 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 			fact.Value = falcopayload.Hostname
 			facts = append(facts, fact)
 		}
+
+		for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
+			fact.Name = i
+			fact.Value = falcopayload.OutputFields[i].(string)
+			facts = append(facts, fact)
+		}
+
 		if len(falcopayload.Tags) != 0 {
+			sort.Strings(falcopayload.Tags)
 			fact.Name = Tags
 			fact.Value = strings.Join(falcopayload.Tags, ", ")
 			facts = append(facts, fact)

@@ -37,12 +37,6 @@ func TestNewGoogleChatPayload(t *testing.T) {
 						Widgets: []widget{
 							{
 								keyValue{
-									TopLabel: "proc.name",
-									Content:  "falcosidekick",
-								},
-							},
-							{
-								keyValue{
 									TopLabel: "rule",
 									Content:  "Test rule",
 								},
@@ -67,8 +61,14 @@ func TestNewGoogleChatPayload(t *testing.T) {
 							},
 							{
 								keyValue{
+									TopLabel: "proc.name",
+									Content:  "falcosidekick",
+								},
+							},
+							{
+								keyValue{
 									TopLabel: "tags",
-									Content:  "test, example",
+									Content:  "example, test",
 								},
 							},
 							{
