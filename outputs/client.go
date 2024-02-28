@@ -306,6 +306,7 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		c.HeaderList = []Header{}
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		go c.CountMetric("outputs", 1, []string{"output:" + strings.ToLower(c.OutputType), "status:connectionrefused"})
 		return err
