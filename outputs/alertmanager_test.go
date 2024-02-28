@@ -30,7 +30,7 @@ import (
 const defaultThresholds = `[{"priority":"critical", "value":10000}, {"priority":"critical", "value":1000}, {"priority":"critical", "value":100} ,{"priority":"warning", "value":10}, {"priority":"warning", "value":1}]`
 
 func TestNewAlertmanagerPayloadO(t *testing.T) {
-	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","priority":"Debug","severity": "information","proc_tty":"1234","eventsource":"syscalls","hostname":"test-host","rule":"Test rule","source":"falco","tags":"test,example"},"annotations":{"info":"This is a test from falcosidekick","description":"This is a test from falcosidekick","summary":"Test rule"}}]`
+	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","priority":"Debug","severity": "information","proc_tty":"1234","eventsource":"syscalls","hostname":"test-host","rule":"Test rule","source":"falco","tags":"example,test"},"annotations":{"info":"This is a test from falcosidekick","description":"This is a test from falcosidekick","summary":"Test rule"}}]`
 	var f types.FalcoPayload
 	d := json.NewDecoder(strings.NewReader(falcoTestInput))
 	d.UseNumber()

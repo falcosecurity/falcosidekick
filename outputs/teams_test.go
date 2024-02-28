@@ -39,10 +39,6 @@ func TestNewTeamsPayload(t *testing.T) {
 				Text:             "This is a test from falcosidekick",
 				Facts: []teamsFact{
 					{
-						Name:  "proc.name",
-						Value: "falcosidekick",
-					},
-					{
 						Name:  "rule",
 						Value: "Test rule",
 					},
@@ -59,8 +55,12 @@ func TestNewTeamsPayload(t *testing.T) {
 						Value: "test-host",
 					},
 					{
+						Name:  "proc.name",
+						Value: "falcosidekick",
+					},
+					{
 						Name:  "tags",
-						Value: "test, example",
+						Value: "example, test",
 					},
 				},
 			},

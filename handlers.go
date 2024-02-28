@@ -24,6 +24,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -150,6 +151,10 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 			}
 			falcopayload.OutputFields[key] = v.String()
 		}
+	}
+
+	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 	}
 
 	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + falcopayload.Priority.String()})

@@ -20,6 +20,7 @@ package outputs
 import (
 	"context"
 	"log"
+	"sort"
 	"strings"
 	"time"
 
@@ -68,6 +69,7 @@ func createPagerdutyEvent(falcopayload types.FalcoPayload, config types.Pagerdut
 		falcopayload.OutputFields[Hostname] = falcopayload.Hostname
 	}
 	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 		details["tags"] = strings.Join(falcopayload.Tags, ", ")
 	}
 	event := pagerduty.V2Event{

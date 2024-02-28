@@ -20,6 +20,7 @@ package outputs
 import (
 	"bytes"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -54,6 +55,7 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 		field.Short = true
 		fields = append(fields, field)
 		if len(falcopayload.Tags) != 0 {
+			sort.Strings(falcopayload.Tags)
 			field.Title = Tags
 			field.Value = strings.Join(falcopayload.Tags, ", ")
 			field.Short = true
