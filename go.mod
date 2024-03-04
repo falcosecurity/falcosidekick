@@ -18,7 +18,7 @@ require (
 	github.com/emersion/go-sasl v0.0.0-20231106173351-e73c9f7bad43
 	github.com/emersion/go-smtp v0.20.2
 	github.com/google/uuid v1.6.0
-	github.com/googleapis/gax-go/v2 v2.12.1
+	github.com/googleapis/gax-go/v2 v2.12.2
 	github.com/jackc/pgx/v5 v5.5.3
 	github.com/nats-io/nats.go v1.33.1
 	github.com/nats-io/stan.go v0.10.4
