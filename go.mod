@@ -12,7 +12,7 @@ require (
 	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/aws/aws-sdk-go v1.50.25
-	github.com/cloudevents/sdk-go/v2 v2.15.1
+	github.com/cloudevents/sdk-go/v2 v2.15.2
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/embano1/memlog v0.4.5
 	github.com/emersion/go-sasl v0.0.0-20231106173351-e73c9f7bad43
