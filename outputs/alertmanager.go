@@ -139,6 +139,11 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 // AlertmanagerPost posts event to AlertManager
 func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	c.Stats.Alertmanager.Add(Total, 1)
+	c.httpClientLock.Lock()
+	defer c.httpClientLock.Unlock()
+	for i, j := range c.Config.Alertmanager.CustomHeaders {
+		c.AddHeader(i, j)
+	}
 
 	err := c.Post(newAlertmanagerPayload(falcopayload, c.Config))
 	if err != nil {

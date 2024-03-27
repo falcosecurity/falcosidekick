@@ -273,6 +273,7 @@ type AlertmanagerOutputConfig struct {
 	DropEventThresholds      string
 	DropEventThresholdsList  []ThresholdConfig
 	DropEventDefaultPriority string
+	CustomHeaders            map[string]string
 }
 
 type ElasticsearchOutputConfig struct {
