@@ -14,7 +14,7 @@
 ## Configuration
 
 | Setting                                 | Env var                                 | Default value                                                        | Description                                                                                                                                                                                                                              |
-| --------------------------------------- | --------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|-----------------------------------------|-----------------------------------------|----------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `alertmanager.hostport`                 | `ALERTMANAGER_HOSTPORT`                 |                                                                      | http://{domain or ip}:{port}, if not empty, Alertmanager output is **enabled**                                                                                                                                                           |
 | `alertmanager.mutualtls`                | `ALERTMANAGER_MUTUALTLS`                | `false`                                                              | Authenticate to the output with TLS, if true, checkcert flag will be ignored (server cert will always be checked)                                                                                                                        |
 | `alertmanager.checkcert`                | `ALERTMANAGER_CHECKCERT`                | `true`                                                               | check if ssl certificate of the output is valid                                                                                                                                                                                          |
@@ -26,6 +26,7 @@
 | `alertmanager.dropeventdefaultpriority` | `ALERTMANAGER_DROPEVENTDEFAULTPRIORITY` | `critical`                                                           | Default priority of dropped events, values are `emergency,alert,critical,error,warning,notice,informational,debug`                                                                                                                       |
 | `alertmanager.dropeventthresholds`      | `ALERTMANAGER_DROPEVENTTHRESHOLDS`      | `10000:critical, 1000:critical, 100:critical, 10:warning, 1:warning` | Comma separated list of priority re-evaluation thresholds of dropped events composed of a ':' separated integer threshold and string priority. Example: `10000:critical, 100:warning, 1:informational`                                   |
 | `alertmanager.minimumpriority`          | `ALERTMANAGER_MINIMUMPRIORITY`          | `""` (= `debug`)                                                     | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""`                                                                                                      |
+| `alertmanager.customheaders`            | `ALERTMANAGER_CUSTOMHEADERS`            |                                                                      | Custom headers for the POST request                                                                                                                                                                                                      |
 
 > **Note**
 The Env var values override the settings from yaml file.
@@ -45,6 +46,8 @@ alertmanager:
   # dropeventdefaultpriority: "" # default priority of dropped events, values are emergency|alert|critical|error|warning|notice|informational|debug (default: "critical")
   # dropeventthresholds: # comma separated list of priority re-evaluation thresholds of dropped events composed of a ':' separated integer threshold and string priority. Example: `10000:critical, 100:warning, 1:informational` (default: `"10000:critical, 1000:critical, 100:critical, 10:warning, 1:warning"`)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
 ```
 
 ## Screenshots
