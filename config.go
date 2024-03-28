@@ -667,6 +667,16 @@ func getConfig() *types.Configuration {
 		c.Alertmanager.DropEventThresholds = value
 	}
 
+	if value, present := os.LookupEnv("ALERTMANAGER_CUSTOMHEADERS"); present {
+		customheaders := strings.Split(value, ",")
+		for _, label := range customheaders {
+			tagkeys := strings.Split(label, ":")
+			if len(tagkeys) == 2 {
+				c.Alertmanager.CustomHeaders[tagkeys[0]] = tagkeys[1]
+			}
+		}
+	}
+
 	if value, present := os.LookupEnv("GCP_PUBSUB_CUSTOMATTRIBUTES"); present {
 		customattributes := strings.Split(value, ",")
 		for _, label := range customattributes {
