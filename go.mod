@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/pubsub v1.37.0
 	cloud.google.com/go/storage v1.38.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1
-	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.0.3
+	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.0.4
 	github.com/DataDog/datadog-go v4.8.3+incompatible
 	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/alecthomas/kingpin/v2 v2.4.0
@@ -53,7 +53,7 @@ require (
 	cloud.google.com/go/longrunning v0.5.5 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.2 // indirect
-	github.com/Azure/go-amqp v1.0.4 // indirect
+	github.com/Azure/go-amqp v1.0.5 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/alecthomas/units v0.0.0-20231202071711-9a357b53e9c9 // indirect
