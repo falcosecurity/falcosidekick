@@ -219,7 +219,10 @@ docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX falco
   Type=simple
   Restart=always
   RestartSec=1
-  ExecStart=/usr/local/bin/falcosidekick -c /etc/falcosidekick/config.yaml 
+  ExecStart=/usr/local/bin/falcosidekick -c /etc/falcosidekick/config.yaml
+
+  [Install]
+  WantedBy=default.target
   ```
 
 * Reload `systemd` and start `Falcosidekick`:
