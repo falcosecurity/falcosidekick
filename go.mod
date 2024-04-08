@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/pubsub v1.37.0
 	cloud.google.com/go/storage v1.38.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1
-	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.0.4
+	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.1.0
 	github.com/DataDog/datadog-go v4.8.3+incompatible
 	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/alecthomas/kingpin/v2 v2.4.0
