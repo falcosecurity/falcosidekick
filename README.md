@@ -8,7 +8,6 @@
 ![last commit](https://flat.badgen.net/github/last-commit/falcosecurity/falcosidekick)
 ![licence](https://flat.badgen.net/badge/license/MIT/blue)
 ![docker pulls](https://flat.badgen.net/docker/pulls/falcosecurity/falcosidekick?icon=docker)
-[![falcosidekick](https://circleci.com/gh/falcosecurity/falcosidekick.svg?style=shield)](https://circleci.com/gh/falcosecurity/falcosidekick)
 
 ## Description
 
