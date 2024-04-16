@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/functions v1.16.1
 	cloud.google.com/go/pubsub v1.37.0
 	cloud.google.com/go/storage v1.40.0
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.2
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.1.0
 	github.com/DataDog/datadog-go v4.8.3+incompatible
 	github.com/PagerDuty/go-pagerduty v1.8.0
@@ -51,7 +51,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.7 // indirect
 	cloud.google.com/go/longrunning v0.5.5 // indirect
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.2 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.11.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.2 // indirect
 	github.com/Azure/go-amqp v1.0.5 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2 // indirect
@@ -75,7 +75,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.4 // indirect
 	github.com/go-openapi/swag v0.22.9 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.0 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
