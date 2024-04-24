@@ -26,7 +26,7 @@
 | `aws.sqs.url`             | `AWS_SQS_URL`             |                  | SQS Queue URL, if not empty, AWS SQS output is **enabled**                                                                          |
 | `aws.sqs.minimumpriority` | `AWS_SQS_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
@@ -46,7 +46,7 @@ aws:
 
 ## Additional info
 
-> **Note**
+> [!NOTE]
 When using this AWS output you will need to set the AWS keys or role with some permissions.
 
 ### SQS Sample IAM Policy

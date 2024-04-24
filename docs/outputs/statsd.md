@@ -19,7 +19,7 @@
 | `statsd.forwarder` | `STATSD_FORWARDER` |                  | The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is **enabled** |
 | `statsd.namespace` | `STATSD_NAMESPACE` | `falcosidekick.` | A prefix for all metrics                                                                          |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
@@ -32,7 +32,7 @@ statsd:
 
 ## Additional info
 
-> **Note**
+> [!NOTE]
 This output is used to collect metrics about Falco events and Falcosidekick outputs.
 
 ## Screenshots

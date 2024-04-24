@@ -20,7 +20,7 @@
 |         |         |               |             |
 |         |         |               |             |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

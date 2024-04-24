@@ -301,7 +301,7 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	req.Header.Add(UserAgentHeaderKey, UserAgentHeaderValue)
 
 	for _, headerObj := range c.HeaderList {
-		req.Header.Add(headerObj.Key, headerObj.Value)
+		req.Header.Set(headerObj.Key, headerObj.Value)
 	}
 
 	resp, err := client.Do(req)

@@ -30,7 +30,7 @@
 | `kafka.clientid`        | `KAFKA_CLIENTID`        |                  | Specify a client.id when communicating with the broker for tracing                                                                                                                                                                                         |
 | `kafka.minimumpriority` | `KAFKA_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""`                                                                                                                        |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

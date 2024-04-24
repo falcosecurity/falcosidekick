@@ -25,7 +25,7 @@
 | `wavefront.flushintervalseconds` | `WAVEFRONT_FLUSHINTERVALSECONDS` | `1`              | Time in seconds between flushing metrics to Wavefront                                                                               |
 | `wavefront.minimumpriority`      | `WAVEFRONT_MINIMUMPRIORITY`      | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

@@ -24,7 +24,7 @@
 | `yandex.s3.prefix`          | `YANDEX_S3_PREFIX`          |                  | Prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json                                   |
 | `yandex.s3.minimumpriority` | `YANDEX_S3_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

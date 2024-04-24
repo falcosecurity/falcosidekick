@@ -18,7 +18,7 @@
 | ------------------------ | ------------------------ | ------------- | -------------------------------------------------------------------------------------------------------------- |
 | `prometheus.extralabels` | `PROMETHEUS_EXTRALABELS` |               | Comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
@@ -30,7 +30,7 @@ prometheus:
 
 ## Additional info
 
-> **Note**
+> [!NOTE]
 This output is used to collect metrics about Falco events and Falcosidekick outputs in prometheus format, scrape the endpoint `/metrics` to collect them.
 
 ## Screenshots

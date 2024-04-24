@@ -28,7 +28,7 @@
 | `alertmanager.minimumpriority`          | `ALERTMANAGER_MINIMUMPRIORITY`          | `""` (= `debug`)                                                     | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""`                                                                                                      |
 | `alertmanager.customheaders`            | `ALERTMANAGER_CUSTOMHEADERS`            |                                                                      | Custom headers for the POST request                                                                                                                                                                                                      |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
