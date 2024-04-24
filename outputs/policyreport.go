@@ -196,7 +196,7 @@ func newResult(falcopayload types.FalcoPayload) (_ *wgpolicy.PolicyReportResult,
 }
 
 // check for low priority events to delete first
-func checklow(result []*wgpolicy.PolicyReportResult) (swapint int) {
+func checklow(result []wgpolicy.PolicyReportResult) (swapint int) {
 	for i, j := range result {
 		if j.Severity == medium || j.Severity == low || j.Severity == info {
 			return i
@@ -261,7 +261,7 @@ func updatePolicyReports(c *Client, namespace string, event *wgpolicy.PolicyRepo
 			policyReports[namespace].Results = policyReports[namespace].Results[1:]
 		}
 	}
-	policyReports[namespace].Results = append(policyReports[namespace].Results, event)
+	policyReports[namespace].Results = append(policyReports[namespace].Results, *event)
 	_, getErr := policyr.Get(context.Background(), policyReports[namespace].Name, metav1.GetOptions{})
 	if errors.IsNotFound(getErr) {
 		result, err := policyr.Create(context.TODO(), policyReports[namespace], metav1.CreateOptions{})
@@ -308,12 +308,11 @@ func updateClusterPolicyReport(c *Client, event *wgpolicy.PolicyReportResult) er
 		} else {
 			summaryDeletion(&clusterPolicyReport.Summary, clusterPolicyReport.Results[0].Result)
 
-			clusterPolicyReport.Results[0] = nil
 			clusterPolicyReport.Results = clusterPolicyReport.Results[1:]
 		}
 	}
 
-	clusterPolicyReport.Results = append(clusterPolicyReport.Results, event)
+	clusterPolicyReport.Results = append(clusterPolicyReport.Results, *event)
 
 	_, getErr := clusterpr.Get(context.Background(), clusterPolicyReport.Name, metav1.GetOptions{})
 	if errors.IsNotFound(getErr) {
@@ -368,7 +367,6 @@ func pruningLogicForPolicyReports(namespace string) {
 	} else {
 		summaryDeletion(&policyReports[namespace].Summary, result.Result)
 	}
-	policyReports[namespace].Results[0] = nil
 	policyReports[namespace].Results = policyReports[namespace].Results[1:]
 }
 
@@ -387,7 +385,6 @@ func pruningLogicForClusterPolicyReport() {
 	} else {
 		summaryDeletion(&clusterPolicyReport.Summary, result.Result)
 	}
-	clusterPolicyReport.Results[0] = nil
 	clusterPolicyReport.Results = clusterPolicyReport.Results[1:]
 }
 
@@ -426,7 +423,7 @@ func mapSeverity(event types.FalcoPayload) wgpolicy.PolicyResultSeverity {
 	}
 }
 
-func mapResource(event types.FalcoPayload, ns string) []*corev1.ObjectReference {
+func mapResource(event types.FalcoPayload, ns string) []corev1.ObjectReference {
 	name := determineResourceName(event.OutputFields)
 	if name != "" {
 		return nil
@@ -434,7 +431,7 @@ func mapResource(event types.FalcoPayload, ns string) []*corev1.ObjectReference 
 
 	targetResource, ok := event.OutputFields[targetResource]
 	if !ok {
-		return []*corev1.ObjectReference{
+		return []corev1.ObjectReference{
 			{
 				Namespace: ns,
 				Name:      toString(name),
@@ -447,7 +444,7 @@ func mapResource(event types.FalcoPayload, ns string) []*corev1.ObjectReference 
 		resource.kind = toString(targetResource)
 	}
 
-	return []*corev1.ObjectReference{
+	return []corev1.ObjectReference{
 		{
 			Namespace:  ns,
 			Name:       toString(name),
