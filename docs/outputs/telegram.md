@@ -20,7 +20,7 @@
 | `telegram.token`           | `TELEGRAM_TOKEN`           |                  | Telegram bot authentication token                                                                                                   |
 | `telegram.minimumpriority` | `TELEGRAM_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

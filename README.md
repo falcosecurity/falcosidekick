@@ -68,7 +68,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 
 `Falcosidekick` manages a large variety of outputs with different purposes.
 
-> **Note**
+> [!NOTE]
 Follow the links to get the configuration of each output.
 
 ### Chat
@@ -250,7 +250,7 @@ helm repo update
 helm install falcosidekick --set config.debug=true falcosecurity/falcosidekick
 ```
 
-> **Note**
+> [!NOTE]
 You can also deploy `falcosidekick` as a dependency of the `falco` chart, the settings for the communication between falco and `falcosidekick` are automatically set. Just prefix all `falcosidekick` settings with `falcosidekick.`:
 ```bash
 helm repo add falcosecurity https://falcosecurity.github.io/charts
@@ -346,7 +346,7 @@ tlsserver:
     # - "/healthz"
 ```
 
-> **Note**
+> [!NOTE]
 For the confiuration of the outputs, see the [docs](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/).
 
 ## Usage

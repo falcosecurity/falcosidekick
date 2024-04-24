@@ -26,7 +26,7 @@
 | `otlp.traces.duration`        | `OTLP_TRACES_DURATION`        | `1000`             | Artificial span duration in milliseconds (as Falco doesn't provide an ending timestamp)                                             |
 | `otlp.traces.extraenvvars`    | `OTLP_TRACES_EXTRAENVVARS`    |                    | Extra env vars (override the other settings)                                                                                        |
 
-> **Note**
+> [!NOTE]
 For the extra Env Vars values see [standard `OTEL_*` environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/):
 
 ## Example of config.yaml
@@ -49,7 +49,7 @@ otlp:
 
 ## Additional info
 
-> **Note**
+> [!NOTE]
 The OTLP Traces are only available for the source: `syscalls`.
 
 ## Running a whole stack with docker-compose

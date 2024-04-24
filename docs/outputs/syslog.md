@@ -22,7 +22,7 @@
 | `syslog.format`          | `SYSLOG_FORMAT`          | `json`           | Syslog payload format. It can be either `json` or `cef`                                                                             |
 | `syslog.minimumpriority` | `SYSLOG_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
