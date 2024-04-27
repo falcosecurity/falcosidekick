@@ -190,10 +190,23 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 
 	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format(time.RFC3339Nano))
 	bucketWriter := c.GCSStorageClient.Bucket(c.Config.GCP.Storage.Bucket).Object(key).NewWriter(context.Background())
-	defer bucketWriter.Close()
-	_, err := bucketWriter.Write(payload)
+	n, err := bucketWriter.Write(payload)
 	if err != nil {
 		log.Printf("[ERROR] : GCPStorage - %v - %v\n", "Error while Uploading message", err.Error())
+		c.Stats.GCPStorage.Add(Error, 1)
+		go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": Error}).Inc()
+		return
+	}
+	if n == 0 {
+		log.Printf("[ERROR] : GCPStorage - %v\n", "Empty payload uploaded")
+		c.Stats.GCPStorage.Add(Error, 1)
+		go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": Error}).Inc()
+		return
+	}
+	if err := bucketWriter.Close(); err != nil {
+		log.Printf("[ERROR] : GCPStorage - %v - %v\n", "Error while closing the writer", err.Error())
 		c.Stats.GCPStorage.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": Error}).Inc()
