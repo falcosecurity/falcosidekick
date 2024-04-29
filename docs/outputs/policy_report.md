@@ -23,7 +23,7 @@
 | `policyreport.prunebypriority` | `POLICYREPORT_PRUNEBYPRIORITY` | `false`          | If true; the events with lowest severity are pruned first, in FIFO order                                                            |
 | `policyreport.minimumpriority` | `POLICYREPORT_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
@@ -41,7 +41,7 @@ policyreport:
 
 ### Installing Policy Report Custom Resource Definition (CRD)
 
-> **Warning**
+> [!WARNING]
 Installation of the Policy Report Custom Resource Definition (CRD) is a prerequisite for using the Policy Report output.
 
 Information about how to find and install the CRD for the reports can be found [here](https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report#installing). 

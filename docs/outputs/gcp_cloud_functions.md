@@ -20,7 +20,7 @@
 | `gcp.cloudfunctions.name`            | `GCP_CLOUDFUNCTIONS_NAME`            |                  | The name of the Cloud Function, if not empty, Google Cloud Functions is **enabled**                                                 |
 | `gcp.cloudfunctions.minimumpriority` | `GCP_CLOUDFUNCTIONS_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

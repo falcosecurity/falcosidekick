@@ -147,21 +147,22 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 
 	to := strings.Split(strings.ReplaceAll(c.Config.SMTP.To, " ", ""), ",")
 
-	smtpClient, err := smtp.Dial(c.Config.SMTP.HostPort)
-	if err != nil {
-		c.ReportErr("Client error", err)
-		return
-	}
+	var smtpClient *smtp.Client
+	var err error
 	if c.Config.SMTP.TLS {
 		tlsCfg := &tls.Config{
 			ServerName: strings.Split(c.Config.SMTP.HostPort, ":")[0],
 			MinVersion: tls.VersionTLS12,
 		}
-		if err := smtpClient.StartTLS(tlsCfg); err != nil {
-			c.ReportErr("TLS error", err)
-			return
-		}
+		smtpClient, err = smtp.DialStartTLS(c.Config.SMTP.HostPort, tlsCfg)
+	} else {
+		smtpClient, err = smtp.Dial(c.Config.SMTP.HostPort)
 	}
+	if err != nil {
+		c.ReportErr("Client error", err)
+		return
+	}
+
 	if c.Config.SMTP.AuthMechanism != "none" {
 		auth, err := c.GetAuth()
 		if err != nil {

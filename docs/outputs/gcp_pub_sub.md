@@ -22,7 +22,7 @@
 | `gcp.pubsub.customattributes` | `GCP_PUBSUB_CUSTOMATTRIBUTES` |                  | Custom attributes to add to the Pub/Sub messages                                                                                    |
 | `gcp.pubsub.minimumpriority`  | `GCP_PUBSUB_MINIMUMPRIORITY`  | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

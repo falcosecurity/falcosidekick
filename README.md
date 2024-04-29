@@ -8,7 +8,6 @@
 ![last commit](https://flat.badgen.net/github/last-commit/falcosecurity/falcosidekick)
 ![licence](https://flat.badgen.net/badge/license/MIT/blue)
 ![docker pulls](https://flat.badgen.net/docker/pulls/falcosecurity/falcosidekick?icon=docker)
-[![falcosidekick](https://circleci.com/gh/falcosecurity/falcosidekick.svg?style=shield)](https://circleci.com/gh/falcosecurity/falcosidekick)
 
 ## Description
 
@@ -69,7 +68,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 
 `Falcosidekick` manages a large variety of outputs with different purposes.
 
-> **Note**
+> [!NOTE]
 Follow the links to get the configuration of each output.
 
 ### Chat
@@ -219,7 +218,10 @@ docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX falco
   Type=simple
   Restart=always
   RestartSec=1
-  ExecStart=/usr/local/bin/falcosidekick -c /etc/falcosidekick/config.yaml 
+  ExecStart=/usr/local/bin/falcosidekick -c /etc/falcosidekick/config.yaml
+
+  [Install]
+  WantedBy=default.target
   ```
 
 * Reload `systemd` and start `Falcosidekick`:
@@ -248,7 +250,7 @@ helm repo update
 helm install falcosidekick --set config.debug=true falcosecurity/falcosidekick
 ```
 
-> **Note**
+> [!NOTE]
 You can also deploy `falcosidekick` as a dependency of the `falco` chart, the settings for the communication between falco and `falcosidekick` are automatically set. Just prefix all `falcosidekick` settings with `falcosidekick.`:
 ```bash
 helm repo add falcosecurity https://falcosecurity.github.io/charts
@@ -344,7 +346,7 @@ tlsserver:
     # - "/healthz"
 ```
 
-> **Note**
+> [!NOTE]
 For the confiuration of the outputs, see the [docs](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/).
 
 ## Usage

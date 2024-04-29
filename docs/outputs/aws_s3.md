@@ -28,7 +28,7 @@
 | `aws.s3.endpoint`        | `AWS_S3_ENDPOINT`        |                             | Endpoint URL that overrides the default generated endpoint, use this for S3 compatible APIs                                         |
 | `aws.s3.objectcannedacl` | `AWS_S3_OBJECTCANNEDACL` | `bucket-owner-full-control` | Canned ACL (`x-amz-acl`) to use when creating the object                                                                            |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
@@ -51,7 +51,7 @@ aws:
 
 ## Additional info
 
-> **Note**
+> [!NOTE]
 When using this AWS output you will need to set the AWS keys or role with some permissions.
 
 ## Screenshots

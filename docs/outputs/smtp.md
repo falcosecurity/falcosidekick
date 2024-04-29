@@ -30,8 +30,11 @@
 | `smtp.minimumpriority` | `SMTP_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
+
+> [!WARNING]
+The `smtp` can't work with the Office365 domains because of the authentication method used by the platform, it includes outlook.com, office365.com, hotmail.com, ...
 
 ## Example of config.yaml
 

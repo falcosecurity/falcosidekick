@@ -24,7 +24,7 @@
 | `cliq.messageformat`   | `CLIQ_MESSAGEFORMAT`   |                  | A Go template to format Cliq Text above Attachment, displayed in addition to the output from `CLIQ_OUTPUTFORMAT`, see [Message Formatting](#message-formatting) in the README for details. If empty, no Text is displayed before Attachment. |
 | `cliq.minimumpriority` | `CLIQ_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""`                                                                                                                    |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
