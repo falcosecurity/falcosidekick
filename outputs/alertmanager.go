@@ -20,6 +20,7 @@ package outputs
 import (
 	"encoding/json"
 	"log"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,11 +46,13 @@ var defaultSeverityMap = map[types.PriorityType]string{
 	types.Emergency:     "critical",
 }
 
+// labels should match [a-zA-Z_][a-zA-Z0-9_]*
+var reg = regexp.MustCompile("[^a-zA-Z0-9_]")
+
 func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Configuration) []alertmanagerPayload {
 	var amPayload alertmanagerPayload
 	amPayload.Labels = make(map[string]string)
 	amPayload.Annotations = make(map[string]string)
-	replacer := strings.NewReplacer(".", "_", "[", "_", "]", "")
 
 	for i, j := range falcopayload.OutputFields {
 		if strings.HasPrefix(i, "n_evts") {
@@ -87,12 +90,13 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 			}
 			continue
 		}
+		safeLabel := reg.ReplaceAllString(i, "_")
 		switch v := j.(type) {
 		case string:
 			//AlertManger unsupported chars in a label name
-			amPayload.Labels[replacer.Replace(i)] = v
+			amPayload.Labels[safeLabel] = v
 		case json.Number:
-			amPayload.Labels[replacer.Replace(i)] = v.String()
+			amPayload.Labels[safeLabel] = v.String()
 		default:
 			continue
 		}
