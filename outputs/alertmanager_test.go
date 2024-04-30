@@ -60,3 +60,27 @@ func TestNewAlertmanagerPayloadDropEvent(t *testing.T) {
 
 	require.Equal(t, o1, o2)
 }
+
+func TestNewAlertmanagerPayloadBadLabels(t *testing.T) {
+	input := `{"hostname":"host","output":"Falco internal: syscall event drop. 815508 system calls dropped in last second.","output_fields":{"ebpf/enabled":"1","n drops/buffer?clone{fork]enter":"0","n_drops_buffer_clone_fork_exit":"0"},"priority":"Debug","rule":"Falco internal: syscall event drop","time":"2023-03-03T03:03:03.000000003Z"}`
+	expectedOutput := `[{"labels":{"ebpf_enabled":"1","eventsource":"","hostname":"host","n_drops_buffer_clone_fork_enter":"0","n_drops_buffer_clone_fork_exit":"0","priority":"Warning","rule":"Falco internal: syscall event drop","severity":"warning","source":"falco"},"annotations":{"description":"Falco internal: syscall event drop. 815508 system calls dropped in last second.","info":"Falco internal: syscall event drop. 815508 system calls dropped in last second.","summary":"Falco internal: syscall event drop"},"endsAt":"0001-01-01T00:00:00Z"}]`
+	var f types.FalcoPayload
+	d := json.NewDecoder(strings.NewReader(input))
+	d.UseNumber()
+	err := d.Decode(&f) //have to decode it the way newFalcoPayload does
+	require.Nil(t, err)
+
+	config := &types.Configuration{
+		Alertmanager: types.AlertmanagerOutputConfig{DropEventDefaultPriority: Critical},
+	}
+	json.Unmarshal([]byte(defaultThresholds), &config.Alertmanager.DropEventThresholdsList)
+
+	s, err := json.Marshal(newAlertmanagerPayload(f, config))
+	require.Nil(t, err)
+
+	var o1, o2 []alertmanagerPayload
+	require.Nil(t, json.Unmarshal([]byte(expectedOutput), &o1))
+	require.Nil(t, json.Unmarshal(s, &o2))
+
+	require.Equal(t, o1, o2)
+}
