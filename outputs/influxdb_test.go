@@ -16,7 +16,7 @@ func TestNewInfluxdbPayload(t *testing.T) {
 	var f types.FalcoPayload
 	require.Nil(t, json.Unmarshal([]byte(falcoTestInput), &f))
 
-	influxdbPayload, err := json.Marshal(newInfluxdbPayload(f, &types.Configuration{}))
+	influxdbPayload, err := json.Marshal(newInfluxdbPayload(f))
 	require.Nil(t, err)
 
 	require.Equal(t, string(influxdbPayload), expectedOutput)

@@ -65,7 +65,7 @@ func newGrafanaPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	return g
 }
 
-func newGrafanaOnCallPayload(falcopayload types.FalcoPayload, config *types.Configuration) grafanaOnCallPayload {
+func newGrafanaOnCallPayload(falcopayload types.FalcoPayload) grafanaOnCallPayload {
 	return grafanaOnCallPayload{
 		AlertUID: falcopayload.UUID,
 		Title:    fmt.Sprintf("[%v] %v", falcopayload.Priority, falcopayload.Rule),
@@ -109,7 +109,7 @@ func (c *Client) GrafanaOnCallPost(falcopayload types.FalcoPayload) {
 		c.AddHeader(i, j)
 	}
 
-	err := c.Post(newGrafanaOnCallPayload(falcopayload, c.Config))
+	err := c.Post(newGrafanaOnCallPayload(falcopayload))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:grafanaoncall", "status:error"})
 		c.Stats.Grafana.Add(Error, 1)

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -232,6 +233,15 @@ func init() {
 		if err != nil {
 			config.Elasticsearch.HostPort = ""
 		} else {
+			if config.Elasticsearch.CreateIndexTemplate {
+				elasticsearchClient.EndpointURL, _ = url.Parse(fmt.Sprintf("%s/_index_template/falco", config.Elasticsearch.HostPort))
+				err = elasticsearchClient.ElasticsearchCreateIndexTemplate(config.Elasticsearch)
+			}
+		}
+		if err != nil {
+			config.Elasticsearch.HostPort = ""
+		} else {
+
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Elasticsearch")
 		}
 	}

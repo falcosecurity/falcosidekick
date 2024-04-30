@@ -149,6 +149,11 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, CheckCert: checkCert, HeaderList: []Header{}, ContentType: DefaultContentType, Config: params.Config, Stats: params.Stats, PromStats: params.PromStats, StatsdClient: params.StatsdClient, DogstatsdClient: params.DogstatsdClient}, nil
 }
 
+// Get get a payload from Output with GET http method.
+func (c *Client) Get() error {
+	return c.sendRequest("GET", nil)
+}
+
 // Post sends event (payload) to Output with POST http method.
 func (c *Client) Post(payload interface{}) error {
 	return c.sendRequest("POST", payload)
@@ -167,7 +172,7 @@ func getInlinedBodyAsString(resp *http.Response) string {
 		var compactedBody bytes.Buffer
 		err := json.Compact(&compactedBody, body)
 		if err == nil {
-			return string(compactedBody.Bytes())
+			return compactedBody.String()
 		}
 	}
 
@@ -177,11 +182,12 @@ func getInlinedBodyAsString(resp *http.Response) string {
 // Post sends event (payload) to Output.
 func (c *Client) sendRequest(method string, payload interface{}) error {
 	// defer + recover to catch panic if output doesn't respond
-	defer func() {
+	defer func(c *Client) {
 		if err := recover(); err != nil {
+			go c.CountMetric("outputs", 1, []string{"output:" + strings.ToLower(c.OutputType), "status:connectionrefused"})
 			log.Printf("[ERROR] : %v - %s", c.OutputType, err)
 		}
-	}()
+	}(c)
 
 	body := new(bytes.Buffer)
 	switch payload.(type) {
@@ -276,8 +282,13 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	client := &http.Client{
 		Transport: customTransport,
 	}
-
-	req, err := http.NewRequest(method, c.EndpointURL.String(), body)
+	req := new(http.Request)
+	var err error
+	if method == "GET" {
+		req, err = http.NewRequest(method, c.EndpointURL.String(), nil)
+	} else {
+		req, err = http.NewRequest(method, c.EndpointURL.String(), body)
+	}
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 	}
@@ -304,13 +315,17 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
-		log.Printf("[INFO]  : %v - Post OK (%v)\n", c.OutputType, resp.StatusCode)
+		log.Printf("[INFO]  : %v - %v OK (%v)\n", c.OutputType, method, resp.StatusCode)
 		if ot := c.OutputType; ot == Kubeless || ot == Openfaas || ot == Fission {
 			log.Printf("[INFO]  : %v - Function Response : %s\n", ot, getInlinedBodyAsString(resp))
 		}
 		return nil
 	case http.StatusBadRequest: //400
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrHeaderMissing, resp.StatusCode, getInlinedBodyAsString(resp))
+		msg := getInlinedBodyAsString(resp)
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrHeaderMissing, resp.StatusCode, msg)
+		if msg != "" {
+			return fmt.Errorf(msg)
+		}
 		return ErrHeaderMissing
 	case http.StatusUnauthorized: //401
 		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode, getInlinedBodyAsString(resp))

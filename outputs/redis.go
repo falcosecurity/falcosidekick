@@ -18,7 +18,6 @@ func (c *Client) ReportError(err error) {
 	c.Stats.Redis.Add(Error, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "redis", "status": Error}).Inc()
 	log.Printf("[ERROR] : Redis - %v\n", err)
-	return
 }
 
 func NewRedisClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
