@@ -263,16 +263,20 @@ type AlertmanagerOutputConfig struct {
 }
 
 type ElasticsearchOutputConfig struct {
-	HostPort        string
-	Index           string
-	Type            string
-	MinimumPriority string
-	Suffix          string
-	Username        string
-	Password        string
-	CheckCert       bool
-	MutualTLS       bool
-	CustomHeaders   map[string]string
+	HostPort            string
+	Index               string
+	Type                string
+	MinimumPriority     string
+	Suffix              string
+	Username            string
+	Password            string
+	FlattenFields       bool
+	CreateIndexTemplate bool
+	NumberOfShards      int
+	NumberOfReplicas    int
+	CheckCert           bool
+	MutualTLS           bool
+	CustomHeaders       map[string]string
 }
 
 type QuickwitOutputConfig struct {

@@ -148,7 +148,7 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	if c.Config.SMTP.AuthMechanism != "none" {
+	if c.Config.SMTP.AuthMechanism != None {
 		auth, err := c.GetAuth()
 		if err != nil {
 			c.ReportErr("SASL Authentication mechanisms", err)

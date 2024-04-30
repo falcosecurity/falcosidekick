@@ -135,6 +135,10 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Elasticsearch.CheckCert", true)
 	v.SetDefault("Elasticsearch.Username", "")
 	v.SetDefault("Elasticsearch.Password", "")
+	v.SetDefault("Elasticsearch.FlattenFields", false)
+	v.SetDefault("Elasticsearch.CreateIndexTemplate", false)
+	v.SetDefault("Elasticsearch.NumberOfShards", 3)
+	v.SetDefault("Elasticsearch.NumberOfReplicas", 3)
 
 	v.SetDefault("Quickwit.HostPort", "")
 	v.SetDefault("Quickwit.Index", "falco")
@@ -710,6 +714,13 @@ func getConfig() *types.Configuration {
 
 	if c.Loki.ExtraLabels != "" {
 		c.Loki.ExtraLabelsList = strings.Split(strings.ReplaceAll(c.Loki.ExtraLabels, " ", ""), ",")
+	}
+
+	if c.Elasticsearch.NumberOfReplicas <= 0 {
+		c.Elasticsearch.NumberOfReplicas = 3
+	}
+	if c.Elasticsearch.NumberOfShards <= 0 {
+		c.Elasticsearch.NumberOfShards = 3
 	}
 
 	if c.Prometheus.ExtraLabels != "" {

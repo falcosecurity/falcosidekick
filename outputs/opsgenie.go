@@ -17,7 +17,7 @@ type opsgeniePayload struct {
 	Priority    string            `json:"priority,omitempty"`
 }
 
-func newOpsgeniePayload(falcopayload types.FalcoPayload, config *types.Configuration) opsgeniePayload {
+func newOpsgeniePayload(falcopayload types.FalcoPayload) opsgeniePayload {
 	details := make(map[string]string, len(falcopayload.OutputFields))
 	for i, j := range falcopayload.OutputFields {
 		switch v := j.(type) {
@@ -68,7 +68,7 @@ func (c *Client) OpsgeniePost(falcopayload types.FalcoPayload) {
 	defer c.httpClientLock.Unlock()
 	c.AddHeader(AuthorizationHeaderKey, "GenieKey "+c.Config.Opsgenie.APIKey)
 
-	err := c.Post(newOpsgeniePayload(falcopayload, c.Config))
+	err := c.Post(newOpsgeniePayload(falcopayload))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:opsgenie", "status:error"})
 		c.Stats.Opsgenie.Add(Error, 1)

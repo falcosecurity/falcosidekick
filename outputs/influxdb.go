@@ -11,7 +11,7 @@ import (
 
 type influxdbPayload string
 
-func newInfluxdbPayload(falcopayload types.FalcoPayload, config *types.Configuration) influxdbPayload {
+func newInfluxdbPayload(falcopayload types.FalcoPayload) influxdbPayload {
 	s := "events,rule=" + strings.Replace(falcopayload.Rule, " ", "_", -1) + ",priority=" + falcopayload.Priority.String() + ",source=" + falcopayload.Source
 
 	for i, j := range falcopayload.OutputFields {
@@ -48,7 +48,7 @@ func (c *Client) InfluxdbPost(falcopayload types.FalcoPayload) {
 		c.AddHeader("Authorization", "Token "+c.Config.Influxdb.Token)
 	}
 
-	err := c.Post(newInfluxdbPayload(falcopayload, c.Config))
+	err := c.Post(newInfluxdbPayload(falcopayload))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:influxdb", "status:error"})
 		c.Stats.Influxdb.Add(Error, 1)

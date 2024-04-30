@@ -13,21 +13,28 @@
 
 ## Configuration
 
-| Setting                         | Env var                         | Default value    | Description                                                                                                                         |
-| ------------------------------- | ------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `elasticsearch.hosport`         | `ELASTICSEARCH_HOSTPORT`        |                  | http://{domain or ip}:{port}, if not empty, Elasticsearch output is **enabled**                                                     |
-| `elasticsearch.index`           | `ELASTICSEARCH_INDEX`           | `falco`          | Index                                                                                                                               |
-| `elasticsearch.type`            | `ELASTICSEARCH_TYPE`            | `_doc`           | Index                                                                                                                               |
-| `elasticsearch.suffix`          | `ELASTICSEARCH_SUFFIX`          | `daily`          | Date suffix for index rotation : `daily`, `monthly`, `annually`, `none`                                                             |
-| `elasticsearch.username`        | `ELASTICSEARCH_USERNAME`        |                  | Use this username to authenticate to Elasticsearch                                                                                  |
-| `elasticsearch.password`        | `ELASTICSEARCH_PASSWORD`        |                  | Use this password to authenticate to Elasticsearch                                                                                  |
-| `elasticsearch.customheaders`   | `ELASTICSEARCH_CUSTOMHEADERS`   |                  | Custom headers to add in POST, useful for Authentication                                                                            |
-| `elasticsearch.mutualtls`       | `ELASTICSEARCH_MUTUALTLS`       | `false`          | Authenticate to the output with TLS, if true, checkcert flag will be ignored (server cert will always be checked)                   |
-| `elasticsearch.checkcert`       | `ELASTICSEARCH_CHECKCERT`       | `true`           | Check if ssl certificate of the output is valid                                                                                     |
-| `elasticsearch.minimumpriority` | `ELASTICSEARCH_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
+|               Setting               |               Env var               |  Default value   |                                                             Description                                                             |
+| ----------------------------------- | ----------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `elasticsearch.hosport`             | `ELASTICSEARCH_HOSTPORT`            |                  | http://{domain or ip}:{port}, if not empty, Elasticsearch output is **enabled**                                                     |
+| `elasticsearch.index`               | `ELASTICSEARCH_INDEX`               | `falco`          | Index                                                                                                                               |
+| `elasticsearch.type`                | `ELASTICSEARCH_TYPE`                | `_doc`           | Index                                                                                                                               |
+| `elasticsearch.suffix`              | `ELASTICSEARCH_SUFFIX`              | `daily`          | Date suffix for index rotation : `daily`, `monthly`, `annually`, `none`                                                             |
+| `elasticsearch.username`            | `ELASTICSEARCH_USERNAME`            |                  | Use this username to authenticate to Elasticsearch                                                                                  |
+| `elasticsearch.password`            | `ELASTICSEARCH_PASSWORD`            |                  | Use this password to authenticate to Elasticsearch                                                                                  |
+| `elasticsearch.flattenfields`       | `ELASTICSEARCH_FLATTENFIELDS`       | `false`          | Replace . by _ to avoid mapping conflicts, force to true if `createindextemplate=true`                                              |
+| `elasticsearch.createindextemplate` | `ELASTICSEARCH_CREATEINDEXTEMPLATE` | `false`          | Create an index template                                                                                                            |
+| `elasticsearch.numberofshards`      | `ELASTICSEARCH_NUMBEROFSHARDS`      | `3`              | Number of shards set by the index template                                                                                          |
+| `elasticsearch.numberofreplicas`    | `ELASTICSEARCH_REPLICAS`            | `3`              | Number of replicas set by the index template                                                                                        |
+| `elasticsearch.customheaders`       | `ELASTICSEARCH_CUSTOMHEADERS`       |                  | Custom headers to add in POST, useful for Authentication                                                                            |
+| `elasticsearch.mutualtls`           | `ELASTICSEARCH_MUTUALTLS`           | `false`          | Authenticate to the output with TLS, if true, checkcert flag will be ignored (server cert will always be checked)                   |
+| `elasticsearch.checkcert`           | `ELASTICSEARCH_CHECKCERT`           | `true`           | Check if ssl certificate of the output is valid                                                                                     |
+| `elasticsearch.minimumpriority`     | `ELASTICSEARCH_MINIMUMPRIORITY`     | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
 > [!NOTE]
 The Env var values override the settings from yaml file.
+
+> [!WARNING]
+By enabling the creation of the index template with `elasticsearch.createindextemplate=true`, the output fields of the Falco events will be flatten to avoid any mapping conflict.
 
 ## Example of config.yaml
 
