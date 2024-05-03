@@ -195,9 +195,23 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
+	if len(falcopayload.String()) > 4096 {
+		for i, j := range falcopayload.OutputFields {
+			switch j.(type) {
+			case string:
+				if len(j.(string)) > 512 {
+					k := j.(string)[:507] + "[...]"
+					falcopayload.Output = strings.ReplaceAll(falcopayload.Output, j.(string), k)
+					falcopayload.OutputFields[i] = k
+				}
+			}
+		}
+	}
+
+	fmt.Println(falcopayload.String())
+
 	if config.Debug {
-		body, _ := json.Marshal(falcopayload)
-		log.Printf("[DEBUG] : Falco's payload : %v\n", string(body))
+		log.Printf("[DEBUG] : Falco's payload : %v\n", falcopayload.String())
 	}
 
 	return falcopayload, nil
