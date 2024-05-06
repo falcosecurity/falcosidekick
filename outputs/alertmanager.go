@@ -47,7 +47,10 @@ var defaultSeverityMap = map[types.PriorityType]string{
 }
 
 // labels should match [a-zA-Z_][a-zA-Z0-9_]*
-var reg = regexp.MustCompile("[^a-zA-Z0-9_]")
+var (
+	reg      = regexp.MustCompile("[^a-zA-Z0-9_]")
+	replacer = strings.NewReplacer("]", "", ")", "", "}", "")
+)
 
 func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Configuration) []alertmanagerPayload {
 	var amPayload alertmanagerPayload
@@ -90,7 +93,7 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 			}
 			continue
 		}
-		safeLabel := reg.ReplaceAllString(i, "_")
+		safeLabel := alertmanagerSafeLabel(i)
 		switch v := j.(type) {
 		case string:
 			//AlertManger unsupported chars in a label name
@@ -161,4 +164,9 @@ func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:ok"})
 	c.Stats.Alertmanager.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": OK}).Inc()
+}
+
+func alertmanagerSafeLabel(label string) string {
+	replace := replacer.Replace(label)
+	return reg.ReplaceAllString(replace, "_")
 }
