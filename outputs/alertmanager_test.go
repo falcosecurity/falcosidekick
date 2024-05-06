@@ -84,3 +84,42 @@ func TestNewAlertmanagerPayloadBadLabels(t *testing.T) {
 
 	require.Equal(t, o1, o2)
 }
+
+func Test_alertmanagerSafeLabel(t *testing.T) {
+	tests := []struct {
+		label string
+		want  string
+	}{
+		{
+			label: "host",
+			want:  "host",
+		},
+		{
+			label: "host_name",
+			want:  "host_name",
+		},
+		{
+			label: "host{name}",
+			want:  "host_name",
+		},
+		{
+			label: "host[name]",
+			want:  "host_name",
+		},
+		{
+			label: "host(name)",
+			want:  "host_name",
+		},
+		{
+			label: "json.value[/user/extra/sessionName]",
+			want:  "json_value__user_extra_sessionName",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.label, func(t *testing.T) {
+			if got := alertmanagerSafeLabel(tt.label); got != tt.want {
+				t.Errorf("alertmanagerSafeLabel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
