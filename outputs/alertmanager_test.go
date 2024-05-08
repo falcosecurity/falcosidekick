@@ -127,7 +127,7 @@ func Test_alertmanagerSafeLabel(t *testing.T) {
 		},
 		{
 			label: "json.value[/user/extra/sessionName]",
-			want:  "json_value__user_extra_sessionName",
+			want:  "json_value_user_extra_sessionName",
 		},
 	}
 	for _, tt := range tests {
