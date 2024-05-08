@@ -153,5 +153,6 @@ func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 
 func alertmanagerSafeLabel(label string) string {
 	replace := replacer.Replace(label)
-	return reg.ReplaceAllString(replace, "_")
+	underscored := reg.ReplaceAllString(replace, "_")
+	return strings.ReplaceAll(underscored, "__", "_")
 }
