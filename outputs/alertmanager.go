@@ -48,8 +48,7 @@ var defaultSeverityMap = map[types.PriorityType]string{
 
 // labels should match [a-zA-Z_][a-zA-Z0-9_]*
 var (
-	reg      = regexp.MustCompile("[^a-zA-Z0-9_]")
-	replacer = strings.NewReplacer("]", "", ")", "", "}", "")
+	reg = regexp.MustCompile("[^a-zA-Z0-9_]")
 )
 
 func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Configuration) []alertmanagerPayload {
@@ -167,7 +166,12 @@ func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 }
 
 func alertmanagerSafeLabel(label string) string {
-	replace := replacer.Replace(label)
-	underscored := reg.ReplaceAllString(replace, "_")
-	return strings.ReplaceAll(underscored, "__", "_")
+	// replace all unsafe characters with _
+	replaced := reg.ReplaceAllString(label, "_")
+	// remove double __
+	replaced = strings.ReplaceAll(replaced, "__", "_")
+	// remove trailing _
+	replaced = strings.TrimRight(replaced, "_")
+	// remove leading _
+	return strings.TrimLeft(replaced, "_")
 }
