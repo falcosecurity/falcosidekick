@@ -107,6 +107,14 @@ func Test_alertmanagerSafeLabel(t *testing.T) {
 			want:  "host_name",
 		},
 		{
+			label: "{host}[name]",
+			want:  "host_name",
+		},
+		{
+			label: "host[name]other",
+			want:  "host_name_other",
+		},
+		{
 			label: "host(name)",
 			want:  "host_name",
 		},
