@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	cloud.google.com/go/functions v1.16.2
-	cloud.google.com/go/pubsub v1.37.0
+	cloud.google.com/go/pubsub v1.38.0
 	cloud.google.com/go/storage v1.40.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.2
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs v1.2.0
