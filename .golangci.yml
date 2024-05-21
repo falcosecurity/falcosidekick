@@ -1,7 +1,8 @@
 run:
   deadline: 5m
-  skip-files:
-  - "zz_generated.*\\.go$"
+issues:
+  exclude-files:
+    - "zz_generated.*\\.go$"
 linters:
   disable-all: true
   enable:

@@ -2,7 +2,10 @@
 
 package outputs
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 func getSortedStringKeys(m map[string]interface{}) []string {
 	var keys []string
@@ -16,4 +19,8 @@ func getSortedStringKeys(m map[string]interface{}) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func toString(value interface{}) string {
+	return fmt.Sprintf("%v", value)
 }

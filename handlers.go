@@ -20,7 +20,11 @@ import (
 	"golang.org/x/text/language"
 )
 
-const testRule string = "Test rule"
+const (
+	testRule string = "Test rule"
+	syscalls string = "syscalls"
+	syscall  string = "syscall"
+)
 
 // mainHandler is Falcosidekick main handler (default).
 func mainHandler(w http.ResponseWriter, r *http.Request) {
@@ -107,7 +111,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 
 	if falcopayload.Source == "" {
-		falcopayload.Source = "syscalls"
+		falcopayload.Source = syscalls
 	}
 
 	falcopayload.UUID = uuid.New().String()
@@ -407,7 +411,9 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go fissionClient.FissionCall(falcopayload)
 	}
 	if config.PolicyReport.Enabled && (falcopayload.Priority >= types.Priority(config.PolicyReport.MinimumPriority)) {
-		go policyReportClient.UpdateOrCreatePolicyReport(falcopayload)
+		if falcopayload.Source == syscalls || falcopayload.Source == syscall || falcopayload.Source == "k8saudit" {
+			go policyReportClient.UpdateOrCreatePolicyReport(falcopayload)
+		}
 	}
 
 	if config.Yandex.S3.Bucket != "" && (falcopayload.Priority >= types.Priority(config.Yandex.S3.MinimumPriority) || falcopayload.Rule == testRule) {
@@ -462,7 +468,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go dynatraceClient.DynatracePost(falcopayload)
 	}
 
-	if config.OTLP.Traces.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.OTLP.Traces.MinimumPriority)) && (falcopayload.Source == "syscall" || falcopayload.Source == "syscalls") {
+	if config.OTLP.Traces.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.OTLP.Traces.MinimumPriority)) && (falcopayload.Source == syscall || falcopayload.Source == syscalls) {
 		go otlpClient.OTLPTracesPost(falcopayload)
 	}
 }
