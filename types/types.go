@@ -597,6 +597,7 @@ type PolicyReportConfig struct {
 	Enabled         bool
 	PruneByPriority bool
 	Kubeconfig      string
+	FalcoNamespace  string
 	MinimumPriority string
 	MaxEvents       int
 }

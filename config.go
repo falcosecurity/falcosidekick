@@ -370,6 +370,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("PolicyReport.Kubeconfig", "")
 	v.SetDefault("PolicyReport.MinimumPriority", "")
 	v.SetDefault("PolicyReport.MaxEvents", 1000)
+	v.SetDefault("PolicyReport.FalcoNamespace", "")
 	v.SetDefault("PolicyReport.PruneByPriority", false)
 
 	v.SetDefault("Rabbitmq.URL", "")
