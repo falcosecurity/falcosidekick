@@ -19,7 +19,7 @@ require (
 	github.com/emersion/go-smtp v0.21.2
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.12.4
-	github.com/jackc/pgx/v5 v5.5.5
+	github.com/jackc/pgx/v5 v5.6.0
 	github.com/nats-io/nats.go v1.35.0
 	github.com/nats-io/stan.go v0.10.4
 	github.com/prometheus/client_golang v1.19.1
