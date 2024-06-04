@@ -174,7 +174,7 @@ Follow the links to get the configuration of each output.
 
 
 ### Other
-- [**Policy Report**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/policy-reporter.md)
+- [**Policy Report**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/policy_report.md)
 
 ## Installation
 
