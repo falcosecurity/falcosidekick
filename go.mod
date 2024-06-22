@@ -42,7 +42,7 @@ require (
 	google.golang.org/genproto v0.0.0-20240528184218-531527333157
 	k8s.io/api v0.30.2
 	k8s.io/apimachinery v0.30.2
-	k8s.io/client-go v0.30.1
+	k8s.io/client-go v0.30.2
 	sigs.k8s.io/wg-policy-prototypes v0.0.0-20240327135653-0fc2ddc5d3e3
 )
 
