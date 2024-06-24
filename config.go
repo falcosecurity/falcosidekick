@@ -520,6 +520,10 @@ func getConfig() *types.Configuration {
 	// it to 1000ms by default, override-able via OTLP_DURATION environment variable.
 	v.SetDefault("OTLP.Traces.Duration", 1000)
 
+	v.SetDefault("Talon.Address", "")
+	v.SetDefault("Talon.MinimumPriority", "")
+	v.SetDefault("Talon.CheckCert", true)
+
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 	if *configFile != "" {
@@ -813,6 +817,8 @@ func getConfig() *types.Configuration {
 	c.N8N.MinimumPriority = checkPriority(c.N8N.MinimumPriority)
 	c.OpenObserve.MinimumPriority = checkPriority(c.OpenObserve.MinimumPriority)
 	c.Dynatrace.MinimumPriority = checkPriority(c.Dynatrace.MinimumPriority)
+	c.SumoLogic.MinimumPriority = checkPriority(c.SumoLogic.MinimumPriority)
+	c.Talon.MinimumPriority = checkPriority(c.Talon.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)
