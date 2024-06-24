@@ -38,6 +38,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
     - [Workflow](#workflow)
     - [Traces](#traces)
     - [Other](#other)
+    - [Response engine](#response-engine)
   - [Installation](#installation)
     - [Localhost](#localhost)
       - [With docker](#with-docker)
@@ -172,9 +173,11 @@ Follow the links to get the configuration of each output.
 
 - [**OTEL Traces**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/otlp_traces.md)
 
-
 ### Other
 - [**Policy Report**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/policy_report.md)
+
+### Response engine
+- [**Falco Talon**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/talon.md)
 
 ## Installation
 

@@ -78,6 +78,7 @@ var (
 	openObserveClient   *outputs.Client
 	dynatraceClient     *outputs.Client
 	otlpClient          *outputs.Client
+	talonClient         *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -796,6 +797,16 @@ func init() {
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPTraces")
 			shutDownFuncs = append(shutDownFuncs, otlpClient.ShutDownFunc)
+		}
+	}
+
+	if config.Talon.Address != "" {
+		var err error
+		talonClient, err = outputs.NewClient("Talon", config.Talon.Address, false, config.Talon.CheckCert, *initClientArgs)
+		if err != nil {
+			config.Talon.Address = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Talon")
 		}
 	}
 

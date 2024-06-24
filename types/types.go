@@ -114,6 +114,7 @@ type Configuration struct {
 	OpenObserve        OpenObserveConfig
 	Dynatrace          DynatraceOutputConfig
 	OTLP               OTLPOutputConfig
+	Talon              TalonOutputConfig
 }
 
 // InitClientArgs represent a client parameters for initialization
@@ -799,6 +800,13 @@ type OTLPOutputConfig struct {
 	Traces OTLPTraces
 }
 
+// TalonOutputConfig represents parameters for Talon
+type TalonOutputConfig struct {
+	Address         string
+	CheckCert       bool
+	MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -867,6 +875,7 @@ type Statistics struct {
 	OpenObserve       *expvar.Map
 	Dynatrace         *expvar.Map
 	OTLPTraces        *expvar.Map
+	Talon             *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

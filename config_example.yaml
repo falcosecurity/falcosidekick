@@ -527,3 +527,8 @@ otlp:
       # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
     # checkcert: true # Set if you want to skip TLS certificate validation (default: true)
+
+talon:
+  # address: "" # Falco talon address, if not empty, Falco Talon output is enabled
+  # checkcert: false # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
