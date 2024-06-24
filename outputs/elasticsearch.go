@@ -117,41 +117,53 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 
 func (c *Client) ElasticsearchCreateIndexTemplate(config types.ElasticsearchOutputConfig) error {
 	d := c
-	var err error
-	u, err := url.Parse(fmt.Sprintf("%s/_index_template/falco", config.HostPort))
+	indexExists, err := c.isIndexTemplateExist(config)
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		return err
 	}
-	d.EndpointURL = u
-	if err := d.Get(); err != nil {
-		if err.Error() == "resource not found" {
-			pattern := "-*"
-			if config.Suffix == None {
-				pattern = ""
-			}
-			m := strings.ReplaceAll(ESmapping, "${INDEX}", config.Index)
-			m = strings.ReplaceAll(m, "${PATTERN}", pattern)
-			m = strings.ReplaceAll(m, "${SHARDS}", fmt.Sprintf("%v", config.NumberOfShards))
-			m = strings.ReplaceAll(m, "${REPLICAS}", fmt.Sprintf("%v", config.NumberOfReplicas))
-			j := make(map[string]interface{})
-			if err := json.Unmarshal([]byte(m), &j); err != nil {
-				log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
-				return err
-			}
-			if d.Put(j) != nil {
-				log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
-				return err
-			}
-			log.Printf("[INFO]  : %v - %v\n", c.OutputType, "Index template created")
-		} else {
-			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
-			return err
-		}
-	} else {
+	if indexExists {
 		log.Printf("[INFO]  : %v - %v\n", c.OutputType, "Index template already exists")
+		return nil
 	}
+
+	pattern := "-*"
+	if config.Suffix == None {
+		pattern = ""
+	}
+	m := strings.ReplaceAll(ESmapping, "${INDEX}", config.Index)
+	m = strings.ReplaceAll(m, "${PATTERN}", pattern)
+	m = strings.ReplaceAll(m, "${SHARDS}", fmt.Sprintf("%v", config.NumberOfShards))
+	m = strings.ReplaceAll(m, "${REPLICAS}", fmt.Sprintf("%v", config.NumberOfReplicas))
+	j := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(m), &j); err != nil {
+		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		return err
+	}
+	// create the index template by PUT
+	if d.Put(j) != nil {
+		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		return err
+	}
+
+	log.Printf("[INFO]  : %v - %v\n", c.OutputType, "Index template created")
 	return nil
+}
+
+func (c *Client) isIndexTemplateExist(config types.ElasticsearchOutputConfig) (bool, error) {
+	clientCopy := c
+	var err error
+	u, err := url.Parse(fmt.Sprintf("%s/_index_template/falco", config.HostPort))
+	if err != nil {
+		return false, err
+	}
+	clientCopy.EndpointURL = u
+	if err := clientCopy.Get(); err != nil {
+		if err.Error() == "resource not found" {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // setElasticSearchErrorMetrics set the error stats
