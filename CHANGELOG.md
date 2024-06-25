@@ -1,5 +1,44 @@
 # Changelog
 
+## 2.29.0 - 2024-07-01
+#### New
+- New output: **Dynatrace** ([PR#575](https://github.com/falcosecurity/falcosidekick/pull/575) thanks to [@blu3r4y](https://github.com/blu3r4y))
+- New output: **OTLP Traces** ([PR#613](https://github.com/falcosecurity/falcosidekick/pull/613) thanks to [@jjo](https://github.com/jjo))
+- New output: **Sumologic** ([PR#656](https://github.com/falcosecurity/falcosidekick/pull/656) thanks to [@mencarellic](https://github.com/mencarellic))
+- New output: **Quickwit** ([PR#736](https://github.com/falcosecurity/falcosidekick/pull/736) thanks to [@idrissneumann](https://github.com/idrissneumann))
+- New output: **Falco Talon** ([PR#929](https://github.com/falcosecurity/falcosidekick/pull/929))
+
+#### Enhancement
+- Add global TLS config ([PR#588](https://github.com/falcosecurity/falcosidekick/pull/588) thanks to [@ibice](https://github.com/ibice))
+- Add `source` as label for `Prometheus` metrics ([PR#665](https://github.com/falcosecurity/falcosidekick/pull/665))
+- Better logs when TLS is enabled ([PR#668](https://github.com/falcosecurity/falcosidekick/pull/668))
+- Add test for utils sorting function ([PR#694](https://github.com/falcosecurity/falcosidekick/pull/694) thanks to [@stevemcquaid](https://github.com/stevemcquaid))
+- Refactor of the `InitClient` ([PR#765](https://github.com/falcosecurity/falcosidekick/pull/765) thanks to [@idrissneumann](https://github.com/idrissneumann))
+- Allow to use alternative endpoints for the `AWS S3` output ([PR#791](https://github.com/falcosecurity/falcosidekick/pull/791) thanks to [@gysel](https://github.com/gysel))
+- Consistent order for the `output_fields` and `tags` ([PR#802](https://github.com/falcosecurity/falcosidekick/pull/802))
+- Allow to add custom headers for `AlertManager` output ([PR#827](https://github.com/falcosecurity/falcosidekick/pull/827) thanks to [@Umaaz](https://github.com/Umaaz))
+- Add more checks for the `GCP Storage` output ([PR#858](https://github.com/falcosecurity/falcosidekick/pull/858))
+- Possibility to create an index template for the `Elasticsearch` output ([PR#868](https://github.com/falcosecurity/falcosidekick/pull/868))
+- Possibility to "flatten" the `output_fields` (replace `.` by `_`) for the `Elasticsearch` output to avoid mapping conflicts ([PR#868](https://github.com/falcosecurity/falcosidekick/pull/868))
+- Truncate the fields with a length > 512 chars to avoid rejection from some outputs ([PR#871](https://github.com/falcosecurity/falcosidekick/pull/871))
+- Change the license to Apache 2.0 ([PR#882](https://github.com/falcosecurity/falcosidekick/pull/882) thanks to [@leogr](https://github.com/leogr))
+- Revamp the `PolicyReport` output ([PR#899](https://github.com/falcosecurity/falcosidekick/pull/899))
+- New parameter `outputFieldFormat` to modify on the fly the format of the `output` field ([PR#901](https://github.com/falcosecurity/falcosidekick/pull/901))
+
+#### Fix
+- Fix missing root CA for the `Kafka` output ([PR#581](https://github.com/falcosecurity/falcosidekick/pull/581) thanks to [@claviola](https://github.com/claviola))
+- Fix bug with the extension `source` in the `CloudEvent` output ([PR#587](https://github.com/falcosecurity/falcosidekick/pull/587))
+- Fix panics in the `Prometheus` output when `hostname` field is missing ([PR#628](https://github.com/falcosecurity/falcosidekick/pull/628))
+- Remove refs to deprecated `ioutil` modules ([PR#639](https://github.com/falcosecurity/falcosidekick/pull/639) thanks to [@testwill](https://github.com/testwill))
+- Fix locks in the `Loki` output ([PR#647](https://github.com/falcosecurity/falcosidekick/pull/647) thanks to [@bsod90](https://github.com/bsod90))
+- Split the docs for the outputs into multiple files ([PR#648](https://github.com/falcosecurity/falcosidekick/pull/648))
+- Fix mTLS client verification failures due to missing ClientCAs ([PR#666](https://github.com/falcosecurity/falcosidekick/pull/666) thanks to [@jgmartinez](https://github.com/jgmartinez))
+- Fix wrong env var for pagerduty output ([PR#682](https://github.com/falcosecurity/falcosidekick/pull/682))
+- Remove hard settings for usernames in `Mattermost` and `Rocketchat` ([PR#731](https://github.com/falcosecurity/falcosidekick/pull/731))
+- Fix multi lines json in the error lines ([PR#764](https://github.com/falcosecurity/falcosidekick/pull/764) thanks to [@idrissneumann](https://github.com/idrissneumann))
+- Fix duplicated custom headers in clients ([PR#801](https://github.com/falcosecurity/falcosidekick/pull/801), [PR#857](https://github.com/falcosecurity/falcosidekick/pull/857))
+- Fix the labels for the `AlertManager` output ([PR#870](https://github.com/falcosecurity/falcosidekick/pull/870) thanks to [@Umaaz](https://github.com/Umaaz))
+
 ## 2.28.0 - 2023-07-18
 #### New
 - New output: **Redis** ([PR#396](https://github.com/falcosecurity/falcosidekick/pull/396) thanks to [@pandyamarut](https://github.com/pandyamarut))
@@ -67,7 +106,7 @@
 - Allow to override the `Slack` channel ([PR#366](https://github.com/falcosecurity/falcosidekick/pull/366))
 - Add From, To and Date headers in `SMTP` payload ([PR#364](https://github.com/falcosecurity/falcosidekick/pull/364))
 - Improve the check of the payload from `Falco`, it allows now to have an empty output ([PR#372](https://github.com/falcosecurity/falcosidekick/pull/372))
-- Allow to set user and api key for `Loki` output for `Grafana Logs` ([PR#379](https://github.com/falcosecurity/falcosidekick/pull/379)
+- Allow to set user and api key for `Loki` output for `Grafana Logs` ([PR#379](https://github.com/falcosecurity/falcosidekick/pull/379))
 - Add `hostname` in json payload for all outputs ([PR#383](https://github.com/falcosecurity/falcosidekick/pull/383) thanks to [@Lowaiz](https://github.com/Lowaiz))
 - Add SASL authentication for `Kafka` output ([PR#385](https://github.com/falcosecurity/falcosidekick/pull/385) thanks to [@Lowaiz](https://github.com/Lowaiz)) and [@lyoung-confluent](https://github.com/lyoung-confluent))
 - Support CEF format for `Syslog` output ([PR#386](https://github.com/falcosecurity/falcosidekick/pull/386))
