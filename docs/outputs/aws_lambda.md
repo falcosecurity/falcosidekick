@@ -22,7 +22,7 @@
 | `aws.region`                 | `AWS_REGION`                 |                  | AWS region (by default, the metadata are used to get it)                                                                            |
 | `aws.rolearn`                | `AWS_ROLEARN`                |                  | AWS role to assume (optional if you use EC2 Instance Profile)                                                                       |
 | `aws.externalid`             | `AWS_EXTERNALID`             |                  | External id for the role to assume (optional if you use EC2 Instance Profile)                                                       |
-| `aws.checkidentity`          | `AWS_checkidentity`          | `true`           | Check the identity credentials, set to false for locale developments                                                                |
+| `aws.checkidentity`          | `AWS_CHECKIDENTITY`          | `true`           | Check the identity credentials, set to false for locale developments                                                                |
 | `aws.lambda.functionname`    | `AWS_LAMBDA_FUNCTIONNAME`    |                  | Lambda function name, if not empty, AWS Lambda output is **enabled**                                                                |
 | `aws.lambda.minimumpriority` | `AWS_LAMBDA_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 

@@ -21,7 +21,7 @@
 | `aws.region`             | `AWS_REGION`             |                             | AWS region (by default, the metadata are used to get it)                                                                            |
 | `aws.rolearn`            | `AWS_ROLEARN`            |                             | AWS role to assume (optional if you use EC2 Instance Profile)                                                                       |
 | `aws.externalid`         | `AWS_EXTERNALID`         |                             | External id for the role to assume (optional if you use EC2 Instance Profile)                                                       |
-| `aws.checkidentity`      | `AWS_checkidentity`      | `true`                      | Check the identity credentials, set to false for locale developments                                                                |
+| `aws.checkidentity`      | `AWS_CHECKIDENTITY`      | `true`                      | Check the identity credentials, set to false for locale developments                                                                |
 | `aws.s3.bucket`          | `AWS_S3_BUCKET`          |                             | AWS S3 bucket name, if not empty, AWS S3 output is **enabled**                                                                      |
 | `aws.s3.prefix`          | `AWS_S3_PREFIX`          |                             | Prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json                                   |
 | `aws.s3.minimumpriority` | `AWS_S3_MINIMUMPRIORITY` | `""` (= `debug`)            | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
