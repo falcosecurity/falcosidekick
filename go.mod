@@ -3,7 +3,7 @@ module github.com/falcosecurity/falcosidekick
 go 1.22.0
 
 require (
-	cloud.google.com/go/functions v1.16.3
+	cloud.google.com/go/functions v1.16.4
 	cloud.google.com/go/pubsub v1.40.0
 	cloud.google.com/go/storage v1.42.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
@@ -11,7 +11,7 @@ require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
 	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/alecthomas/kingpin/v2 v2.4.0
-	github.com/aws/aws-sdk-go v1.54.11
+	github.com/aws/aws-sdk-go v1.54.12
 	github.com/cloudevents/sdk-go/v2 v2.15.2
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/embano1/memlog v0.4.6
@@ -38,8 +38,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.27.0
 	golang.org/x/oauth2 v0.21.0
 	golang.org/x/text v0.16.0
-	google.golang.org/api v0.186.0
-	google.golang.org/genproto v0.0.0-20240617180043-68d350f18fd4
+	google.golang.org/api v0.187.0
+	google.golang.org/genproto v0.0.0-20240624140628-dc46fd24d27d
 	k8s.io/api v0.30.2
 	k8s.io/apimachinery v0.30.2
 	k8s.io/client-go v0.30.2
@@ -48,7 +48,7 @@ require (
 
 require (
 	cloud.google.com/go v0.115.0 // indirect
-	cloud.google.com/go/auth v0.6.0 // indirect
+	cloud.google.com/go/auth v0.6.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	cloud.google.com/go/iam v1.1.8 // indirect
@@ -142,7 +142,7 @@ require (
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240617180043-68d350f18fd4 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240617180043-68d350f18fd4 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240624140628-dc46fd24d27d // indirect
 	google.golang.org/grpc v1.64.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
