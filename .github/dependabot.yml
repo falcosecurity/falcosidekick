@@ -9,6 +9,11 @@ updates:
       - "area/dependency"
       - "release-note-none"
       - "ok-to-test"
+    groups:
+      gomod:
+        update-types:
+          - "patch"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -17,3 +22,8 @@ updates:
       - "area/dependency"
       - "release-note-none"
       - "ok-to-test"
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"
