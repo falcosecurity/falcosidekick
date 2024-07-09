@@ -1,6 +1,6 @@
 module github.com/falcosecurity/falcosidekick
 
-go 1.22.0
+go 1.22.5
 
 require (
 	cloud.google.com/go/functions v1.16.4
