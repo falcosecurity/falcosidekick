@@ -38,4 +38,4 @@ Filter the events in the UI with `sources: falco`.
 
 ## Screenshots
 
-![datadog example](mages/datadog.png)
+![datadog example](images/datadog.png)
