@@ -3,7 +3,7 @@ module github.com/falcosecurity/falcosidekick
 go 1.22.5
 
 require (
-	cloud.google.com/go/functions v1.16.5
+	cloud.google.com/go/functions v1.16.6
 	cloud.google.com/go/pubsub v1.40.0
 	cloud.google.com/go/storage v1.43.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.7.0
@@ -18,13 +18,13 @@ require (
 	github.com/emersion/go-sasl v0.0.0-20231106173351-e73c9f7bad43
 	github.com/emersion/go-smtp v0.21.3
 	github.com/google/uuid v1.6.0
-	github.com/googleapis/gax-go/v2 v2.12.5
+	github.com/googleapis/gax-go/v2 v2.13.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/nats-io/nats.go v1.36.0
 	github.com/nats-io/stan.go v0.10.4
 	github.com/prometheus/client_golang v1.19.1
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/redis/go-redis/v9 v9.6.0
+	github.com/redis/go-redis/v9 v9.6.1
 	github.com/segmentio/kafka-go v0.4.47
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
@@ -38,19 +38,19 @@ require (
 	go.opentelemetry.io/otel/trace v1.28.0
 	golang.org/x/oauth2 v0.21.0
 	golang.org/x/text v0.16.0
-	google.golang.org/api v0.188.0
-	google.golang.org/genproto v0.0.0-20240708141625-4ad9e859172b
-	k8s.io/api v0.30.2
-	k8s.io/apimachinery v0.30.2
-	k8s.io/client-go v0.30.2
+	google.golang.org/api v0.189.0
+	google.golang.org/genproto v0.0.0-20240722135656-d784300faade
+	k8s.io/api v0.30.3
+	k8s.io/apimachinery v0.30.3
+	k8s.io/client-go v0.30.3
 	sigs.k8s.io/wg-policy-prototypes v0.0.0-20240327135653-0fc2ddc5d3e3
 )
 
 require (
 	cloud.google.com/go v0.115.0 // indirect
-	cloud.google.com/go/auth v0.7.0 // indirect
-	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
-	cloud.google.com/go/compute/metadata v0.4.0 // indirect
+	cloud.google.com/go/auth v0.7.2 // indirect
+	cloud.google.com/go/auth/oauth2adapt v0.2.3 // indirect
+	cloud.google.com/go/compute/metadata v0.5.0 // indirect
 	cloud.google.com/go/iam v1.1.10 // indirect
 	cloud.google.com/go/longrunning v0.5.9 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.11.1 // indirect
@@ -141,8 +141,8 @@ require (
 	golang.org/x/term v0.22.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20240701130421-f6361c86f094 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240708141625-4ad9e859172b // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240722135656-d784300faade // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240722135656-d784300faade // indirect
 	google.golang.org/grpc v1.64.1 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
