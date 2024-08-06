@@ -128,6 +128,11 @@ type Client struct {
 	MQTTClient        mqtt.Client
 	TimescaleDBClient *timescaledb.Pool
 	RedisClient       *redis.Client
+
+	// cached http.Client
+	httpcli *http.Client
+	// lock for http client creation
+	mx sync.Mutex
 }
 
 // InitClient returns a new output.Client for accessing the different API.
@@ -217,72 +222,9 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 		}
 	}
 
-	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+	client := c.httpClient()
 
-	if customTransport.TLSClientConfig == nil {
-		customTransport.TLSClientConfig = &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		}
-	}
-
-	if customTransport.TLSClientConfig.RootCAs == nil {
-		pool, err := x509.SystemCertPool()
-		if err != nil {
-			pool = x509.NewCertPool()
-		}
-		customTransport.TLSClientConfig.RootCAs = pool
-	}
-
-	if c.Config.TLSClient.CaCertFile != "" {
-		caCert, err := os.ReadFile(c.Config.TLSClient.CaCertFile)
-		if err != nil {
-			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
-		}
-		customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
-	}
-
-	if c.MutualTLSEnabled {
-		// Load client cert
-		var MutualTLSClientCertPath, MutualTLSClientKeyPath, MutualTLSClientCaCertPath string
-		if c.Config.MutualTLSClient.CertFile != "" {
-			MutualTLSClientCertPath = c.Config.MutualTLSClient.CertFile
-		} else {
-			MutualTLSClientCertPath = c.Config.MutualTLSFilesPath + MutualTLSClientCertFilename
-		}
-		if c.Config.MutualTLSClient.KeyFile != "" {
-			MutualTLSClientKeyPath = c.Config.MutualTLSClient.KeyFile
-		} else {
-			MutualTLSClientKeyPath = c.Config.MutualTLSFilesPath + MutualTLSClientKeyFilename
-		}
-		if c.Config.MutualTLSClient.CaCertFile != "" {
-			MutualTLSClientCaCertPath = c.Config.MutualTLSClient.CaCertFile
-		} else {
-			MutualTLSClientCaCertPath = c.Config.MutualTLSFilesPath + MutualTLSCacertFilename
-		}
-		cert, err := tls.LoadX509KeyPair(MutualTLSClientCertPath, MutualTLSClientKeyPath)
-		if err != nil {
-			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
-		}
-
-		// Load CA cert
-		caCert, err := os.ReadFile(MutualTLSClientCaCertPath)
-		if err != nil {
-			log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
-		}
-		customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
-		customTransport.TLSClientConfig.Certificates = []tls.Certificate{cert}
-	} else {
-		// With MutualTLS enabled, the check cert flag is ignored
-		if !c.CheckCert {
-			customTransport.TLSClientConfig = &tls.Config{
-				InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
-			}
-		}
-	}
-	client := &http.Client{
-		Transport: customTransport,
-	}
-	req := new(http.Request)
+	var req *http.Request
 	var err error
 	if method == "GET" {
 		req, err = http.NewRequest(method, c.EndpointURL.String(), nil)
@@ -352,6 +294,98 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 		log.Printf("[ERROR] : %v - unexpected Response  (%v)\n", c.OutputType, resp.StatusCode)
 		return errors.New(resp.Status)
 	}
+}
+
+// httpClient returns http client.
+// It returns the cached client if it was successfully configured before, for compatibility.
+// It returns misconfigured client as before if some of the configuration steps failed.
+// It was only logging the failures in it's original implementation, so keeping it the same.
+func (c *Client) httpClient() *http.Client {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+	if c.httpcli != nil {
+		return c.httpcli
+	}
+
+	customTransport, err := c.configureTransport()
+	client := &http.Client{
+		Transport: customTransport,
+	}
+	if err != nil {
+		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+	} else {
+		c.httpcli = client // cache the client instance for future http calls
+	}
+
+	return client
+}
+
+// configureTransport configure http transport
+// This preserves the previous behavour where it only logged errors, but returned misconfigured transport in case of errors
+func (c *Client) configureTransport() (*http.Transport, error) {
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+
+	if customTransport.TLSClientConfig == nil {
+		customTransport.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+	}
+
+	if customTransport.TLSClientConfig.RootCAs == nil {
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			pool = x509.NewCertPool()
+		}
+		customTransport.TLSClientConfig.RootCAs = pool
+	}
+
+	if c.Config.TLSClient.CaCertFile != "" {
+		caCert, err := os.ReadFile(c.Config.TLSClient.CaCertFile)
+		if err != nil {
+			return customTransport, err
+		}
+		customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
+	}
+
+	if c.MutualTLSEnabled {
+		// Load client cert
+		var MutualTLSClientCertPath, MutualTLSClientKeyPath, MutualTLSClientCaCertPath string
+		if c.Config.MutualTLSClient.CertFile != "" {
+			MutualTLSClientCertPath = c.Config.MutualTLSClient.CertFile
+		} else {
+			MutualTLSClientCertPath = c.Config.MutualTLSFilesPath + MutualTLSClientCertFilename
+		}
+		if c.Config.MutualTLSClient.KeyFile != "" {
+			MutualTLSClientKeyPath = c.Config.MutualTLSClient.KeyFile
+		} else {
+			MutualTLSClientKeyPath = c.Config.MutualTLSFilesPath + MutualTLSClientKeyFilename
+		}
+		if c.Config.MutualTLSClient.CaCertFile != "" {
+			MutualTLSClientCaCertPath = c.Config.MutualTLSClient.CaCertFile
+		} else {
+			MutualTLSClientCaCertPath = c.Config.MutualTLSFilesPath + MutualTLSCacertFilename
+		}
+		cert, err := tls.LoadX509KeyPair(MutualTLSClientCertPath, MutualTLSClientKeyPath)
+		if err != nil {
+			return customTransport, err
+		}
+
+		// Load CA cert
+		caCert, err := os.ReadFile(MutualTLSClientCaCertPath)
+		if err != nil {
+			return customTransport, err
+		}
+		customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
+		customTransport.TLSClientConfig.Certificates = []tls.Certificate{cert}
+	} else {
+		// With MutualTLS enabled, the check cert flag is ignored
+		if !c.CheckCert {
+			customTransport.TLSClientConfig = &tls.Config{
+				InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
+			}
+		}
+	}
+	return customTransport, nil
 }
 
 // BasicAuth adds an HTTP Basic Authentication compliant header to the Client.
