@@ -321,7 +321,7 @@ func (c *Client) httpClient() *http.Client {
 }
 
 // configureTransport configure http transport
-// This preserves the previous behavour where it only logged errors, but returned misconfigured transport in case of errors
+// This preserves the previous behavior where it only logged errors, but returned misconfigured transport in case of errors
 func (c *Client) configureTransport() (*http.Transport, error) {
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 
