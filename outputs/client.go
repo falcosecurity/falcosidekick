@@ -233,6 +233,7 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	}
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		return err
 	}
 
 	req.Header.Add(ContentTypeHeaderKey, c.ContentType)
