@@ -48,7 +48,7 @@ func NewOpenfaasClient(config *types.Configuration, stats *types.Statistics, pro
 		StatsdClient:    statsdClient,
 	}
 
-	return NewClient(Openfaas, endpointUrl, config.Openfaas.MutualTLS, config.Openfaas.CheckCert, *initClientArgs)
+	return NewClient(Openfaas, endpointUrl, config.Openfaas.CommonConfig, *initClientArgs)
 }
 
 // OpenfaasCall .

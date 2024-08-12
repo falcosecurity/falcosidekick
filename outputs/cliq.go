@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -164,10 +165,9 @@ func newCliqPayload(falcopayload types.FalcoPayload, config *types.Configuration
 func (c *Client) CliqPost(falcopayload types.FalcoPayload) {
 	c.Stats.Cliq.Add(Total, 1)
 
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	c.AddHeader(ContentTypeHeaderKey, "application/json")
-	err := c.Post(newCliqPayload(falcopayload, c.Config))
+	err := c.Post(newCliqPayload(falcopayload, c.Config), func(req *http.Request) {
+		req.Header.Set(ContentTypeHeaderKey, "application/json")
+	})
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:cliq", "status:error"})
 		c.Stats.Cliq.Add(Error, 1)

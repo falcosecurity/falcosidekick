@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -44,6 +45,7 @@ func NewFissionClient(config *types.Configuration, stats *types.Statistics, prom
 			StatsdClient:     statsdClient,
 			DogstatsdClient:  dogstatsdClient,
 			KubernetesClient: clientset,
+			cfg:              config.Fission.CommonConfig,
 		}, nil
 	}
 
@@ -56,7 +58,7 @@ func NewFissionClient(config *types.Configuration, stats *types.Statistics, prom
 		StatsdClient:    statsdClient,
 	}
 
-	return NewClient(Fission, endpointUrl, config.Fission.MutualTLS, config.Fission.CheckCert, *initClientArgs)
+	return NewClient(Fission, endpointUrl, config.Fission.CommonConfig, *initClientArgs)
 }
 
 // FissionCall .
@@ -84,12 +86,11 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 		}
 		log.Printf("[INFO]  : %s - Function Response : %v\n", Fission, string(rawbody))
 	} else {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.AddHeader(FissionEventIDKey, uuid.New().String())
 		c.ContentType = FissionContentType
 
-		err := c.Post(falcopayload)
+		err := c.Post(falcopayload, func(req *http.Request) {
+			req.Header.Set(FissionEventIDKey, uuid.New().String())
+		})
 		if err != nil {
 			go c.CountMetric(Outputs, 1, []string{"output:Fission", "status:error"})
 			c.Stats.Fission.Add(Error, 1)

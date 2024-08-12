@@ -5,14 +5,15 @@ package outputs
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/sync/semaphore"
 	crdClient "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/generated/v1alpha2/clientset/versioned"
 
 	gcpfunctions "cloud.google.com/go/functions/apiv1"
@@ -92,19 +94,10 @@ const MutualTLSCacertFilename = "/ca.crt"
 const HttpPost = "POST"
 const HttpPut = "PUT"
 
-// Headers to add to the client before sending the request
-type Header struct {
-	Key   string
-	Value string
-}
-
 // Client communicates with the different API.
 type Client struct {
 	OutputType              string
 	EndpointURL             *url.URL
-	MutualTLSEnabled        bool
-	CheckCert               bool
-	HeaderList              []Header
 	ContentType             string
 	ShutDownFunc            func()
 	Config                  *types.Configuration
@@ -115,8 +108,6 @@ type Client struct {
 	DogstatsdClient         *statsd.Client
 	GCPTopicClient          *pubsub.Topic
 	GCPCloudFunctionsClient *gcpfunctions.CloudFunctionsClient
-	// FIXME: this lock requires a per-output usage lock currently if headers are used -- needs to be refactored
-	httpClientLock sync.Mutex
 
 	GCSStorageClient  *storage.Client
 	KafkaProducer     *kafka.Writer
@@ -132,11 +123,15 @@ type Client struct {
 	// cached http.Client
 	httpcli *http.Client
 	// lock for http client creation
-	mx sync.Mutex
+	mx  sync.Mutex
+	cfg types.CommonConfig
+
+	initOnce sync.Once
+	sem      *semaphore.Weighted
 }
 
 // InitClient returns a new output.Client for accessing the different API.
-func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bool, checkCert bool, params types.InitClientArgs) (*Client, error) {
+func NewClient(outputType string, defaultEndpointURL string, cfg types.CommonConfig, params types.InitClientArgs) (*Client, error) {
 	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
 		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad Endpoint")
@@ -151,22 +146,34 @@ func NewClient(outputType string, defaultEndpointURL string, mutualTLSEnabled bo
 		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
 		return nil, ErrClientCreation
 	}
-	return &Client{OutputType: outputType, EndpointURL: endpointURL, MutualTLSEnabled: mutualTLSEnabled, CheckCert: checkCert, HeaderList: []Header{}, ContentType: DefaultContentType, Config: params.Config, Stats: params.Stats, PromStats: params.PromStats, StatsdClient: params.StatsdClient, DogstatsdClient: params.DogstatsdClient}, nil
+	return &Client{
+		cfg:             cfg,
+		OutputType:      outputType,
+		EndpointURL:     endpointURL,
+		ContentType:     DefaultContentType,
+		Config:          params.Config,
+		Stats:           params.Stats,
+		PromStats:       params.PromStats,
+		StatsdClient:    params.StatsdClient,
+		DogstatsdClient: params.DogstatsdClient,
+	}, nil
 }
 
+type RequestOptionFunc func(req *http.Request)
+
 // Get get a payload from Output with GET http method.
-func (c *Client) Get() error {
-	return c.sendRequest("GET", nil)
+func (c *Client) Get(opts ...RequestOptionFunc) error {
+	return c.sendRequest("GET", nil, opts...)
 }
 
 // Post sends event (payload) to Output with POST http method.
-func (c *Client) Post(payload interface{}) error {
-	return c.sendRequest("POST", payload)
+func (c *Client) Post(payload interface{}, opts ...RequestOptionFunc) error {
+	return c.sendRequest("POST", payload, opts...)
 }
 
 // Put sends event (payload) to Output with PUT http method.
-func (c *Client) Put(payload interface{}) error {
-	return c.sendRequest("PUT", payload)
+func (c *Client) Put(payload interface{}, opts ...RequestOptionFunc) error {
+	return c.sendRequest("PUT", payload, opts...)
 }
 
 // Get the response body as inlined string
@@ -185,7 +192,18 @@ func getInlinedBodyAsString(resp *http.Response) string {
 }
 
 // Post sends event (payload) to Output.
-func (c *Client) sendRequest(method string, payload interface{}) error {
+func (c *Client) sendRequest(method string, payload interface{}, opts ...RequestOptionFunc) error {
+	// Initialize the semaphore once here
+	// because currently there are multiple code paths
+	// where the client is created directly without using NewClient constructor
+	c.initOnce.Do(func() {
+		if c.cfg.MaxConcurrentRequests == 0 {
+			c.sem = semaphore.NewWeighted(math.MaxInt64)
+		} else {
+			c.sem = semaphore.NewWeighted(int64(c.cfg.MaxConcurrentRequests))
+		}
+	})
+
 	// defer + recover to catch panic if output doesn't respond
 	defer func(c *Client) {
 		if err := recover(); err != nil {
@@ -239,13 +257,25 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	req.Header.Add(ContentTypeHeaderKey, c.ContentType)
 	req.Header.Add(UserAgentHeaderKey, UserAgentHeaderValue)
 
-	for _, headerObj := range c.HeaderList {
-		req.Header.Set(headerObj.Key, headerObj.Value)
+	// Call request options functions
+	// Allows the clients to adjust request as needed
+	for _, opt := range opts {
+		opt(req)
 	}
+
+	// Using the background context for now
+	// TODO: Eventually pass the proper context to sendRequest, and pass it to NewRequest call as well
+	// in order to make the requests cancellable
+	ctx := context.Background()
+	err = c.sem.Acquire(ctx, 1)
+	if err != nil {
+		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		return err
+	}
+	defer c.sem.Release(1)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		c.HeaderList = []Header{}
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		go c.CountMetric("outputs", 1, []string{"output:" + strings.ToLower(c.OutputType), "status:connectionrefused"})
 		return err
@@ -253,7 +283,6 @@ func (c *Client) sendRequest(method string, payload interface{}) error {
 	defer resp.Body.Close()
 
 	// Clear out headers - they will be set for the next request.
-	c.HeaderList = []Header{}
 	go c.CountMetric("outputs", 1, []string{"output:" + strings.ToLower(c.OutputType), "status:" + strings.ToLower(http.StatusText(resp.StatusCode))})
 
 	switch resp.StatusCode {
@@ -348,7 +377,7 @@ func (c *Client) configureTransport() (*http.Transport, error) {
 		customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
 	}
 
-	if c.MutualTLSEnabled {
+	if c.cfg.MutualTLS {
 		// Load client cert
 		var MutualTLSClientCertPath, MutualTLSClientKeyPath, MutualTLSClientCaCertPath string
 		if c.Config.MutualTLSClient.CertFile != "" {
@@ -380,26 +409,11 @@ func (c *Client) configureTransport() (*http.Transport, error) {
 		customTransport.TLSClientConfig.Certificates = []tls.Certificate{cert}
 	} else {
 		// With MutualTLS enabled, the check cert flag is ignored
-		if !c.CheckCert {
+		if !c.cfg.CheckCert {
 			customTransport.TLSClientConfig = &tls.Config{
 				InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
 			}
 		}
 	}
 	return customTransport, nil
-}
-
-// BasicAuth adds an HTTP Basic Authentication compliant header to the Client.
-func (c *Client) BasicAuth(username, password string) {
-	// Check out RFC7617 for the specifics on this code.
-	// https://datatracker.ietf.org/doc/html/rfc7617
-	// This might break I18n, but we can cross that bridge when we come to it.
-	userPass := username + ":" + password
-	b64UserPass := base64.StdEncoding.EncodeToString([]byte(userPass))
-	c.AddHeader(AuthorizationHeaderKey, "Basic "+b64UserPass)
-}
-
-// AddHeader adds an HTTP Header to the Client.
-func (c *Client) AddHeader(key, value string) {
-	c.HeaderList = append(c.HeaderList, Header{Key: key, Value: value})
 }

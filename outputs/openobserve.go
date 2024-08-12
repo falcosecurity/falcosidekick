@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -12,17 +13,16 @@ import (
 func (c *Client) OpenObservePost(falcopayload types.FalcoPayload) {
 	c.Stats.OpenObserve.Add(Total, 1)
 
-	if c.Config.OpenObserve.Username != "" && c.Config.OpenObserve.Password != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.BasicAuth(c.Config.OpenObserve.Username, c.Config.OpenObserve.Password)
-	}
+	err := c.Post(falcopayload, func(req *http.Request) {
+		if c.Config.OpenObserve.Username != "" && c.Config.OpenObserve.Password != "" {
+			req.SetBasicAuth(c.Config.OpenObserve.Username, c.Config.OpenObserve.Password)
+		}
 
-	for i, j := range c.Config.OpenObserve.CustomHeaders {
-		c.AddHeader(i, j)
-	}
-
-	if err := c.Post(falcopayload); err != nil {
+		for i, j := range c.Config.OpenObserve.CustomHeaders {
+			req.Header.Set(i, j)
+		}
+	})
+	if err != nil {
 		c.setOpenObserveErrorMetrics()
 		log.Printf("[ERROR] : OpenObserve - %v\n", err)
 		return

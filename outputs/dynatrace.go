@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"log"
+	"net/http"
 	"regexp"
 	"strconv"
 	"time"
@@ -114,11 +115,9 @@ func (c *Client) DynatracePost(falcopayload types.FalcoPayload) {
 
 	c.ContentType = DynatraceContentType
 
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	c.AddHeader("Authorization", "Api-Token "+c.Config.Dynatrace.APIToken)
-
-	err := c.Post(newDynatracePayload(falcopayload).Payload)
+	err := c.Post(newDynatracePayload(falcopayload).Payload, func(req *http.Request) {
+		req.Header.Set("Authorization", "Api-Token "+c.Config.Dynatrace.APIToken)
+	})
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:dynatrace", "status:error"})
 		c.Stats.Dynatrace.Add(Error, 1)

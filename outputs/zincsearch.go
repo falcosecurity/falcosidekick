@@ -3,8 +3,8 @@
 package outputs
 
 import (
-	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -13,14 +13,11 @@ import (
 func (c *Client) ZincsearchPost(falcopayload types.FalcoPayload) {
 	c.Stats.Zincsearch.Add(Total, 1)
 
-	if c.Config.Zincsearch.Username != "" && c.Config.Zincsearch.Password != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.BasicAuth(c.Config.Zincsearch.Username, c.Config.Zincsearch.Password)
-	}
-
-	fmt.Println(c.EndpointURL)
-	err := c.Post(falcopayload)
+	err := c.Post(falcopayload, func(req *http.Request) {
+		if c.Config.Zincsearch.Username != "" && c.Config.Zincsearch.Password != "" {
+			req.SetBasicAuth(c.Config.Zincsearch.Username, c.Config.Zincsearch.Password)
+		}
+	})
 	if err != nil {
 		c.setZincsearchErrorMetrics()
 		log.Printf("[ERROR] : Zincsearch - %v\n", err)

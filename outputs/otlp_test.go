@@ -91,7 +91,7 @@ func TestOtlpNewTrace(t *testing.T) {
 			PromStats: promStats,
 		}
 
-		client, _ := NewClient("OTLP", "http://localhost:4317", false, false, *initClientArgs)
+		client, _ := NewClient("OTLP", "http://localhost:4317", types.CommonConfig{}, *initClientArgs)
 		// Test newTrace()
 		span, err := client.newTrace(c.fp)
 		require.Nil(t, err)

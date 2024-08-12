@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"log"
+	"net/http"
 	"net/url"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -22,19 +23,20 @@ func (c *Client) SumoLogicPost(falcopayload types.FalcoPayload) {
 
 	c.EndpointURL = endpointURL
 
-	if c.Config.SumoLogic.SourceCategory != "" {
-		c.AddHeader("X-Sumo-Category", c.Config.SumoLogic.SourceCategory)
-	}
+	err = c.Post(falcopayload, func(req *http.Request) {
+		if c.Config.SumoLogic.SourceCategory != "" {
+			req.Header.Set("X-Sumo-Category", c.Config.SumoLogic.SourceCategory)
+		}
 
-	if c.Config.SumoLogic.SourceHost != "" {
-		c.AddHeader("X-Sumo-Host", c.Config.SumoLogic.SourceHost)
-	}
+		if c.Config.SumoLogic.SourceHost != "" {
+			req.Header.Set("X-Sumo-Host", c.Config.SumoLogic.SourceHost)
+		}
 
-	if c.Config.SumoLogic.Name != "" {
-		c.AddHeader("X-Sumo-Name", c.Config.SumoLogic.Name)
-	}
+		if c.Config.SumoLogic.Name != "" {
+			req.Header.Set("X-Sumo-Name", c.Config.SumoLogic.Name)
+		}
+	})
 
-	err = c.Post(falcopayload)
 	if err != nil {
 		c.setSumoLogicErrorMetrics()
 		log.Printf("[ERROR] : %x - %v\n", c.OutputType, err)

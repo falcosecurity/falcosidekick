@@ -5,6 +5,7 @@ package outputs
 import (
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -78,14 +79,13 @@ func newGrafanaOnCallPayload(falcopayload types.FalcoPayload) grafanaOnCallPaylo
 func (c *Client) GrafanaPost(falcopayload types.FalcoPayload) {
 	c.Stats.Grafana.Add(Total, 1)
 	c.ContentType = GrafanaContentType
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	c.AddHeader("Authorization", Bearer+" "+c.Config.Grafana.APIKey)
-	for i, j := range c.Config.Grafana.CustomHeaders {
-		c.AddHeader(i, j)
-	}
 
-	err := c.Post(newGrafanaPayload(falcopayload, c.Config))
+	err := c.Post(newGrafanaPayload(falcopayload, c.Config), func(req *http.Request) {
+		req.Header.Set("Authorization", Bearer+" "+c.Config.Grafana.APIKey)
+		for i, j := range c.Config.Grafana.CustomHeaders {
+			req.Header.Set(i, j)
+		}
+	})
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:grafana", "status:error"})
 		c.Stats.Grafana.Add(Error, 1)
@@ -103,13 +103,13 @@ func (c *Client) GrafanaPost(falcopayload types.FalcoPayload) {
 func (c *Client) GrafanaOnCallPost(falcopayload types.FalcoPayload) {
 	c.Stats.GrafanaOnCall.Add(Total, 1)
 	c.ContentType = GrafanaContentType
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	for i, j := range c.Config.GrafanaOnCall.CustomHeaders {
-		c.AddHeader(i, j)
-	}
 
-	err := c.Post(newGrafanaOnCallPayload(falcopayload))
+	err := c.Post(newGrafanaOnCallPayload(falcopayload), func(req *http.Request) {
+		for i, j := range c.Config.GrafanaOnCall.CustomHeaders {
+			req.Header.Set(i, j)
+		}
+	})
+
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:grafanaoncall", "status:error"})
 		c.Stats.Grafana.Add(Error, 1)

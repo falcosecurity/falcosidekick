@@ -43,11 +43,11 @@ func TestNewClient(t *testing.T) {
 		PromStats: promStats,
 	}
 
-	testClientOutput := Client{OutputType: "test", EndpointURL: u, MutualTLSEnabled: false, CheckCert: true, HeaderList: []Header{}, ContentType: "application/json; charset=utf-8", Config: config, Stats: stats, PromStats: promStats}
-	_, err := NewClient("test", "localhost/%*$¨^!/:;", false, true, *initClientArgs)
+	testClientOutput := Client{OutputType: "test", EndpointURL: u, cfg: types.CommonConfig{CheckCert: true}, ContentType: "application/json; charset=utf-8", Config: config, Stats: stats, PromStats: promStats}
+	_, err := NewClient("test", "localhost/%*$¨^!/:;", types.CommonConfig{CheckCert: true}, *initClientArgs)
 	require.NotNil(t, err)
 
-	nc, err := NewClient("test", "http://localhost", false, true, *initClientArgs)
+	nc, err := NewClient("test", "http://localhost", types.CommonConfig{CheckCert: true}, *initClientArgs)
 	require.Nil(t, err)
 	require.Equal(t, &testClientOutput, nc)
 }
@@ -91,7 +91,7 @@ func TestPost(t *testing.T) {
 			Stats:     &types.Statistics{},
 			PromStats: &types.PromStatistics{},
 		}
-		nc, err := NewClient("", ts.URL+i, false, true, *initClientArgs)
+		nc, err := NewClient("", ts.URL+i, types.CommonConfig{CheckCert: true}, *initClientArgs)
 		require.Nil(t, err)
 		require.NotEmpty(t, nc)
 
@@ -111,13 +111,13 @@ func TestAddHeader(t *testing.T) {
 		Stats:     &types.Statistics{},
 		PromStats: &types.PromStatistics{},
 	}
-	nc, err := NewClient("", ts.URL, false, true, *initClientArgs)
+	nc, err := NewClient("", ts.URL, types.CommonConfig{CheckCert: true}, *initClientArgs)
 	require.Nil(t, err)
 	require.NotEmpty(t, nc)
 
-	nc.AddHeader(headerKey, headerVal)
-
-	nc.Post("")
+	nc.Post("", func(req *http.Request) {
+		req.Header.Set(headerKey, headerVal)
+	})
 }
 
 func TestAddBasicAuth(t *testing.T) {
@@ -167,13 +167,13 @@ func TestAddBasicAuth(t *testing.T) {
 		Stats:     &types.Statistics{},
 		PromStats: &types.PromStatistics{},
 	}
-	nc, err := NewClient("", ts.URL, false, true, *initClientArgs)
+	nc, err := NewClient("", ts.URL, types.CommonConfig{CheckCert: true}, *initClientArgs)
 	require.Nil(t, err)
 	require.NotEmpty(t, nc)
 
-	nc.BasicAuth(username, password)
-
-	nc.Post("")
+	nc.Post("", func(req *http.Request) {
+		req.SetBasicAuth(username, password)
+	})
 }
 
 func TestHeadersResetAfterReq(t *testing.T) {
@@ -188,17 +188,17 @@ func TestHeadersResetAfterReq(t *testing.T) {
 		Stats:     &types.Statistics{},
 		PromStats: &types.PromStatistics{},
 	}
-	nc, err := NewClient("", ts.URL, false, true, *initClientArgs)
+	nc, err := NewClient("", ts.URL, types.CommonConfig{CheckCert: true}, *initClientArgs)
 	require.Nil(t, err)
 	require.NotEmpty(t, nc)
 
-	nc.AddHeader(headerKey, headerVal)
+	nc.Post("", func(req *http.Request) {
+		req.Header.Set(headerKey, headerVal)
+	})
 
-	nc.Post("")
-
-	nc.AddHeader(headerKey, headerVal)
-
-	nc.Post("")
+	nc.Post("", func(req *http.Request) {
+		req.Header.Set(headerKey, headerVal)
+	})
 }
 
 func TestMutualTlsPost(t *testing.T) {
@@ -239,7 +239,7 @@ func TestMutualTlsPost(t *testing.T) {
 		Stats:     &types.Statistics{},
 		PromStats: &types.PromStatistics{},
 	}
-	nc, err := NewClient("", server.URL+Status200, true, true, *initClientArgs)
+	nc, err := NewClient("", server.URL+Status200, types.CommonConfig{MutualTLS: true, CheckCert: true}, *initClientArgs)
 	require.Nil(t, err)
 	require.NotEmpty(t, nc)
 

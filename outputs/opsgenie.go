@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"log"
+	"net/http"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -64,11 +65,10 @@ func newOpsgeniePayload(falcopayload types.FalcoPayload) opsgeniePayload {
 // OpsgeniePost posts event to OpsGenie
 func (c *Client) OpsgeniePost(falcopayload types.FalcoPayload) {
 	c.Stats.Opsgenie.Add(Total, 1)
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	c.AddHeader(AuthorizationHeaderKey, "GenieKey "+c.Config.Opsgenie.APIKey)
 
-	err := c.Post(newOpsgeniePayload(falcopayload))
+	err := c.Post(newOpsgeniePayload(falcopayload), func(req *http.Request) {
+		req.Header.Set(AuthorizationHeaderKey, "GenieKey "+c.Config.Opsgenie.APIKey)
+	})
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:opsgenie", "status:error"})
 		c.Stats.Opsgenie.Add(Error, 1)

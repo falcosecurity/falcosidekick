@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"log"
+	"net/http"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -13,18 +14,16 @@ import (
 func (c *Client) WebhookPost(falcopayload types.FalcoPayload) {
 	c.Stats.Webhook.Add(Total, 1)
 
-	if len(c.Config.Webhook.CustomHeaders) != 0 {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
+	optfn := func(req *http.Request) {
 		for i, j := range c.Config.Webhook.CustomHeaders {
-			c.AddHeader(i, j)
+			req.Header.Set(i, j)
 		}
 	}
 	var err error
 	if strings.ToUpper(c.Config.Webhook.Method) == HttpPut {
-		err = c.Put(falcopayload)
+		err = c.Put(falcopayload, optfn)
 	} else {
-		err = c.Post(falcopayload)
+		err = c.Post(falcopayload, optfn)
 	}
 
 	if err != nil {

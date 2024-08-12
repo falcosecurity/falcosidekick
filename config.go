@@ -21,6 +21,397 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
+// Max concurrent requests at a time per output, unlimited if set to 0
+// Setting it to 1 by default, because the previously
+// many outputs were synchronized on headers locks, in all or some cases
+// and that was limiting the the number of requests to 1 at a time.
+const defaultMaxConcurrentHttpRequests = 1
+
+// Common http outputs defaults
+var commonHttpOutputDefaults = map[string]any{
+	"MutualTLS": false,
+	"CheckCert": true,
+	// Max concurrent requests at a time per http-based output
+	"MaxConcurrentRequests": defaultMaxConcurrentHttpRequests,
+}
+
+// Http based outputs that share the common http defaults above
+var httpOutputDefaults = map[string]map[string]any{
+	"Slack": {
+		"WebhookURL":      "",
+		"Footer":          "https://github.com/falcosecurity/falcosidekick",
+		"Username":        "Falcosidekick",
+		"Channel":         "",
+		"Icon":            "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
+		"OutputFormat":    "all",
+		"MessageFormat":   "",
+		"MinimumPriority": "",
+	},
+	"Rocketchat": {
+		"WebhookURL":      "",
+		"Footer":          "https://github.com/falcosecurity/falcosidekick",
+		"Username":        "Falcosidekick",
+		"Icon":            "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
+		"OutputFormat":    "all",
+		"MessageFormat":   "",
+		"MinimumPriority": "",
+	},
+	"Mattermost": {
+		"WebhookURL":      "",
+		"Footer":          "https://github.com/falcosecurity/falcosidekick",
+		"Username":        "Falcosidekick",
+		"Icon":            "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
+		"OutputFormat":    "all",
+		"MessageFormat":   "",
+		"MinimumPriority": "",
+	},
+	"Teams": {
+		"WebhookURL":      "",
+		"ActivityImage":   "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
+		"OutputFormat":    "all",
+		"MinimumPriority": "",
+	},
+	"Datadog": {
+		"APIKey":          "",
+		"Host":            "https://api.datadoghq.com",
+		"MinimumPriority": "",
+	},
+	"Discord": {
+		"WebhookURL":      "",
+		"MinimumPriority": "",
+		"Icon":            "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
+	},
+	"Alertmanager": {
+		"HostPort":                 "",
+		"MinimumPriority":          "",
+		"Endpoint":                 "/api/v1/alerts",
+		"ExpiresAfter":             0,
+		"DropEventDefaultPriority": "critical",
+		"DropEventThresholds":      "10000:critical: 1000:critical: 100:critical: 10:warning: 1:warning",
+	},
+	"Elasticsearch": {
+		"HostPort":            "",
+		"Index":               "falco",
+		"Type":                "_doc",
+		"MinimumPriority":     "",
+		"Suffix":              "daily",
+		"Username":            "",
+		"Password":            "",
+		"FlattenFields":       false,
+		"CreateIndexTemplate": false,
+		"NumberOfShards":      3,
+		"NumberOfReplicas":    3,
+	},
+	"Quickwit": {
+		"HostPort":        "",
+		"Index":           "falco",
+		"ApiEndpoint":     "api/v1",
+		"Version":         "0.7",
+		"AutoCreateIndex": false,
+		"MinimumPriority": "",
+	},
+	"Influxdb": {
+		"HostPort":        "",
+		"Database":        "falco",
+		"Organization":    "",
+		"Bucket":          "falco",
+		"Precision":       "ns",
+		"User":            "",
+		"Password":        "",
+		"Token":           "",
+		"MinimumPriority": "",
+	},
+	"Loki": {
+		"HostPort":        "",
+		"User":            "",
+		"APIKey":          "",
+		"MinimumPriority": "",
+		"Tenant":          "",
+		"Endpoint":        "/loki/api/v1/push",
+		"ExtraLabels":     "",
+	},
+	"SumoLogic": {
+		"MinimumPriority": "",
+		"ReceiverURL":     "",
+		"SourceCategory":  "",
+		"SourceHost":      "",
+		"Name":            "",
+	},
+	"STAN": {
+		"HostPort":  "",
+		"ClusterID": "",
+		"ClientID":  "",
+	},
+	"NATS": {
+		"HostPort":  "",
+		"ClusterID": "",
+		"ClientID":  "",
+	},
+	"Opsgenie": {
+		"Region":          "us",
+		"APIKey":          "",
+		"MinimumPriority": "",
+	},
+	"Webhook": {
+		"Address":         "",
+		"Method":          "POST",
+		"MinimumPriority": "",
+	},
+	"CloudEvents": {
+		"Address":         "",
+		"MinimumPriority": "",
+	},
+	"Googlechat": {
+		"WebhookURL":      "",
+		"OutputFormat":    "all",
+		"MessageFormat":   "",
+		"MinimumPriority": "",
+	},
+	"Cliq": {
+		"WebhookURL":      "",
+		"Icon":            "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
+		"OutputFormat":    "all",
+		"UseEmoji":        false,
+		"MessageFormat":   "",
+		"MinimumPriority": "",
+	},
+	"KafkaRest": {
+		"Address":         "",
+		"Version":         2,
+		"MinimumPriority": "",
+	},
+	"Pagerduty": {
+		"RoutingKey":      "",
+		"Region":          "us",
+		"MinimumPriority": "",
+	},
+	"Kubeless": {
+		"Namespace":       "",
+		"Function":        "",
+		"Port":            8080,
+		"Kubeconfig":      "",
+		"MinimumPriority": "",
+	},
+	"Openfaas": {
+		"GatewayNamespace":  "openfaas",
+		"GatewayService":    "gateway",
+		"FunctionName":      "",
+		"FunctionNamespace": "openfaas-fn",
+		"GatewayPort":       8080,
+		"Kubeconfig":        "",
+		"MinimumPriority":   "",
+	},
+	"Fission": {
+		"RouterNamespace":   "fission",
+		"RouterService":     "router",
+		"RouterPort":        80,
+		"FunctionNamespace": "fission-function",
+		"Function":          "",
+		"Kubeconfig":        "",
+		"MinimumPriority":   "",
+		"MutualTLS":         false,
+		"CheckCert":         true,
+	},
+	"Webui": {
+		"URL": "",
+	},
+	"Grafana": {
+		"HostPort":        "",
+		"DashboardID":     0,
+		"PanelID":         0,
+		"APIKey":          "",
+		"AllFieldsAsTags": false,
+		"MinimumPriority": "",
+	},
+	"GrafanaOnCall": {
+		"WebhookURL":      "",
+		"MinimumPriority": "",
+	},
+	"Redis": {
+		"Address":         "",
+		"Password":        "",
+		"Database":        0,
+		"StorageType":     "list",
+		"Key":             "falco",
+		"MinimumPriority": "",
+	},
+	"OpenObserve": {
+		"HostPort":         "",
+		"OrganizationName": "default",
+		"StreamName":       "falco",
+		"MinimumPriority":  "",
+		"Username":         "",
+		"Password":         "",
+	},
+}
+
+// Other output defaults that do not need commonHttpOutputDefaults
+var outputDefaults = map[string]map[string]any{
+	"SMTP": {
+		"HostPort":        "",
+		"Tls":             true,
+		"From":            "",
+		"To":              "",
+		"OutputFormat":    "html",
+		"MinimumPriority": "",
+		"AuthMechanism":   "plain",
+		"User":            "",
+		"Password":        "",
+		"Token":           "",
+		"Identity":        "",
+		"Trace":           "",
+	},
+	"Statsd": {
+		"Forwarder": "",
+		"Namespace": "falcosidekick.",
+	},
+	"Dogstatsd": {
+		"Forwarder": "",
+		"Namespace": "falcosidekick.",
+		"Tags":      []string{},
+	},
+	"NodeRed": {
+		"Address":         "",
+		"User":            "",
+		"Password":        "",
+		"MinimumPriority": "",
+		"CheckCert":       true,
+	},
+	"Kafka": {
+		"HostPort":        "",
+		"Topic":           "",
+		"MinimumPriority": "",
+		"SASL":            "",
+		"TLS":             false,
+		"Username":        "",
+		"Password":        "",
+		"Balancer":        "round_robin",
+		"ClientID":        "",
+		"Compression":     "NONE",
+		"Async":           false,
+		"RequiredACKs":    "NONE",
+		"TopicCreation":   false,
+	},
+	"PolicyReport": {
+		"Enabled":         false,
+		"Kubeconfig":      "",
+		"MinimumPriority": "",
+		"MaxEvents":       1000,
+		"FalcoNamespace":  "",
+		"PruneByPriority": false,
+	},
+	"Rabbitmq": {
+		"URL":             "",
+		"Queue":           "",
+		"MinimumPriority": "",
+	},
+	"Wavefront": {
+		"EndpointType":        "",
+		"EndpointHost":        "",
+		"EndpointToken":       "",
+		"MetricName":          "falco.alert",
+		"EndpointMetricPort":  2878,
+		"MinimumPriority":     "",
+		"FlushIntervalSecods": 1,
+		"BatchSize":           10000,
+	},
+	"Syslog": {
+		"Host":            "",
+		"Port":            "",
+		"Protocol":        "",
+		"Format":          "json",
+		"MinimumPriority": "",
+	},
+	"MQTT": {
+		"Broker":          "",
+		"Topic":           "falco/events",
+		"QOS":             0,
+		"Retained":        false,
+		"User":            "",
+		"Password":        "",
+		"CheckCert":       true,
+		"MinimumPriority": "",
+	},
+	"Zincsearch": {
+		"HostPort":        "",
+		"Index":           "falco",
+		"Username":        "",
+		"Password":        "",
+		"CheckCert":       true,
+		"MinimumPriority": "",
+	},
+	"Gotify": {
+		"HostPort":        "",
+		"Token":           "",
+		"Format":          "markdown",
+		"CheckCert":       true,
+		"MinimumPriority": "",
+	},
+	"Tekton": {
+		"EventListener":   "",
+		"MinimumPriority": "",
+		"CheckCert":       true,
+	},
+	"Spyderbat": {
+		"OrgUID":            "",
+		"APIKey":            "",
+		"APIUrl":            "https://api.spyderbat.com",
+		"Source":            "falcosidekick",
+		"SourceDescription": "",
+		"MinimumPriority":   "",
+	},
+	"TimescaleDB": {
+		"Host":            "",
+		"Port":            "5432",
+		"User":            "postgres",
+		"Password":        "postgres",
+		"Database":        "falcosidekick",
+		"HypertableName":  "falcosidekick_events",
+		"MinimumPriority": "",
+	},
+	"N8n": {
+		"Address":         "",
+		"User":            "",
+		"Password":        "",
+		"HeaderAuthName":  "",
+		"HeaderAuthValue": "",
+		"MinimumPriority": "",
+		"CheckCert":       true,
+	},
+	"Telegram": {
+		"Token":           "",
+		"ChatID":          "",
+		"MinimumPriority": "",
+		"CheckCert":       true,
+	},
+	"Dynatrace": {
+		"APIToken":        "",
+		"APIUrl":          "",
+		"CheckCert":       true,
+		"MinimumPriority": "",
+	},
+	"Talon": {
+		"Address":         "",
+		"MinimumPriority": "",
+		"CheckCert":       true,
+	},
+}
+
+func init() {
+	for name, dst := range httpOutputDefaults {
+		// Apply common http output defaults to http output defaults
+		for k, v := range commonHttpOutputDefaults {
+			dst[k] = v
+		}
+
+		// Merge http outputs defaults with other outputs defaults
+		if _, ok := outputDefaults[name]; ok {
+			panic(fmt.Sprintf("key %v already set in the output defaults", name))
+		}
+		outputDefaults[name] = dst
+	}
+}
+
 func getConfig() *types.Configuration {
 	c := &types.Configuration{
 		Customfields:    make(map[string]string),
@@ -67,117 +458,12 @@ func getConfig() *types.Configuration {
 	v.SetDefault("TLSServer.CaCertFile", "/etc/certs/server/ca.crt")
 	v.SetDefault("TLSServer.NoTLSPort", 2810)
 
-	v.SetDefault("Slack.WebhookURL", "")
-	v.SetDefault("Slack.Footer", "https://github.com/falcosecurity/falcosidekick")
-	v.SetDefault("Slack.Username", "Falcosidekick")
-	v.SetDefault("Slack.Channel", "")
-	v.SetDefault("Slack.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
-	v.SetDefault("Slack.OutputFormat", "all")
-	v.SetDefault("Slack.MessageFormat", "")
-	v.SetDefault("Slack.MinimumPriority", "")
-	v.SetDefault("Slack.MutualTLS", false)
-	v.SetDefault("Slack.CheckCert", true)
-
-	v.SetDefault("Rocketchat.WebhookURL", "")
-	v.SetDefault("Rocketchat.Footer", "https://github.com/falcosecurity/falcosidekick")
-	v.SetDefault("Rocketchat.Username", "Falcosidekick")
-	v.SetDefault("Rocketchat.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
-	v.SetDefault("Rocketchat.OutputFormat", "all")
-	v.SetDefault("Rocketchat.MessageFormat", "")
-	v.SetDefault("Rocketchat.MinimumPriority", "")
-	v.SetDefault("Rocketchat.MutualTLS", false)
-	v.SetDefault("Rocketchat.CheckCert", true)
-
-	v.SetDefault("Mattermost.WebhookURL", "")
-	v.SetDefault("Mattermost.Footer", "https://github.com/falcosecurity/falcosidekick")
-	v.SetDefault("Mattermost.Username", "Falcosidekick")
-	v.SetDefault("Mattermost.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
-	v.SetDefault("Mattermost.OutputFormat", "all")
-	v.SetDefault("Mattermost.MessageFormat", "")
-	v.SetDefault("Mattermost.MinimumPriority", "")
-	v.SetDefault("Mattermost.MutualTLS", false)
-	v.SetDefault("Mattermost.CheckCert", true)
-
-	v.SetDefault("Teams.WebhookURL", "")
-	v.SetDefault("Teams.ActivityImage", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
-	v.SetDefault("Teams.OutputFormat", "all")
-	v.SetDefault("Teams.MinimumPriority", "")
-	v.SetDefault("Teams.MutualTLS", false)
-	v.SetDefault("Teams.CheckCert", true)
-
-	v.SetDefault("Datadog.APIKey", "")
-	v.SetDefault("Datadog.Host", "https://api.datadoghq.com")
-	v.SetDefault("Datadog.MinimumPriority", "")
-	v.SetDefault("Datadog.MutualTLS", false)
-	v.SetDefault("Datadog.CheckCert", true)
-
-	v.SetDefault("Discord.WebhookURL", "")
-	v.SetDefault("Discord.MinimumPriority", "")
-	v.SetDefault("Discord.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
-	v.SetDefault("Discord.MutualTLS", false)
-	v.SetDefault("Discord.CheckCert", true)
-
-	v.SetDefault("Alertmanager.HostPort", "")
-	v.SetDefault("Alertmanager.MinimumPriority", "")
-	v.SetDefault("Alertmanager.MutualTls", false)
-	v.SetDefault("Alertmanager.CheckCert", true)
-	v.SetDefault("Alertmanager.Endpoint", "/api/v1/alerts")
-	v.SetDefault("Alertmanager.ExpiresAfter", 0)
-	v.SetDefault("Alertmanager.DropEventDefaultPriority", "critical")
-	v.SetDefault("Alertmanager.DropEventThresholds", "10000:critical, 1000:critical, 100:critical, 10:warning, 1:warning")
-
-	v.SetDefault("Elasticsearch.HostPort", "")
-	v.SetDefault("Elasticsearch.Index", "falco")
-	v.SetDefault("Elasticsearch.Type", "_doc")
-	v.SetDefault("Elasticsearch.MinimumPriority", "")
-	v.SetDefault("Elasticsearch.Suffix", "daily")
-	v.SetDefault("Elasticsearch.MutualTls", false)
-	v.SetDefault("Elasticsearch.CheckCert", true)
-	v.SetDefault("Elasticsearch.Username", "")
-	v.SetDefault("Elasticsearch.Password", "")
-	v.SetDefault("Elasticsearch.FlattenFields", false)
-	v.SetDefault("Elasticsearch.CreateIndexTemplate", false)
-	v.SetDefault("Elasticsearch.NumberOfShards", 3)
-	v.SetDefault("Elasticsearch.NumberOfReplicas", 3)
-
-	v.SetDefault("Quickwit.HostPort", "")
-	v.SetDefault("Quickwit.Index", "falco")
-	v.SetDefault("Quickwit.ApiEndpoint", "api/v1")
-	v.SetDefault("Quickwit.Version", "0.7")
-	v.SetDefault("Quickwit.AutoCreateIndex", false)
-	v.SetDefault("Quickwit.MinimumPriority", "")
-	v.SetDefault("Quickwit.MutualTls", false)
-	v.SetDefault("Quickwit.CheckCert", true)
-
-	v.SetDefault("Influxdb.HostPort", "")
-	v.SetDefault("Influxdb.Database", "falco")
-	v.SetDefault("Influxdb.Organization", "")
-	v.SetDefault("Influxdb.Bucket", "falco")
-	v.SetDefault("Influxdb.Precision", "ns")
-	v.SetDefault("Influxdb.User", "")
-	v.SetDefault("Influxdb.Password", "")
-	v.SetDefault("Influxdb.Token", "")
-	v.SetDefault("Influxdb.MinimumPriority", "")
-	v.SetDefault("Influxdb.MutualTls", false)
-	v.SetDefault("Influxdb.CheckCert", true)
-
-	v.SetDefault("Loki.HostPort", "")
-	v.SetDefault("Loki.User", "")
-	v.SetDefault("Loki.APIKey", "")
-	v.SetDefault("Loki.MinimumPriority", "")
-	v.SetDefault("Loki.MutualTLS", false)
-	v.SetDefault("Loki.CheckCert", true)
-	v.SetDefault("Loki.Tenant", "")
-	v.SetDefault("Loki.Endpoint", "/loki/api/v1/push")
-	v.SetDefault("Loki.ExtraLabels", "")
-
-	v.SetDefault("SumoLogic.MinimumPriority", "")
-	v.SetDefault("SumoLogic.ReceiverURL", "")
-	v.SetDefault("SumoLogic.SourceCategory", "")
-	v.SetDefault("SumoLogic.SourceHost", "")
-	v.SetDefault("SumoLogic.Name", "")
-	v.SetDefault("SumoLogic.CheckCert", true)
-	v.SetDefault("SumoLogic.MutualTLS", false)
+	// Set outputs defaults
+	for prefix, m := range outputDefaults {
+		for key, val := range m {
+			v.SetDefault(prefix+"."+key, val)
+		}
+	}
 
 	v.SetDefault("AWS.AccessKeyID", "")
 	v.SetDefault("AWS.SecretAccessKey", "")
@@ -219,62 +505,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.Kinesis.StreamName", "")
 	v.SetDefault("AWS.Kinesis.MinimumPriority", "")
 
-	v.SetDefault("SMTP.HostPort", "")
-	v.SetDefault("SMTP.Tls", true)
-	v.SetDefault("SMTP.From", "")
-	v.SetDefault("SMTP.To", "")
-	v.SetDefault("SMTP.OutputFormat", "html")
-	v.SetDefault("SMTP.MinimumPriority", "")
-	v.SetDefault("SMTP.AuthMechanism", "plain")
-	v.SetDefault("SMTP.User", "")
-	v.SetDefault("SMTP.Password", "")
-	v.SetDefault("SMTP.Token", "")
-	v.SetDefault("SMTP.Identity", "")
-	v.SetDefault("SMTP.Trace", "")
-
-	v.SetDefault("STAN.HostPort", "")
-	v.SetDefault("STAN.ClusterID", "")
-	v.SetDefault("STAN.ClientID", "")
-	v.SetDefault("STAN.MutualTls", false)
-	v.SetDefault("STAN.CheckCert", true)
-
-	v.SetDefault("NATS.HostPort", "")
-	v.SetDefault("NATS.ClusterID", "")
-	v.SetDefault("NATS.ClientID", "")
-	v.SetDefault("NATS.MutualTls", false)
-	v.SetDefault("NATS.CheckCert", true)
-
-	v.SetDefault("Opsgenie.Region", "us")
-	v.SetDefault("Opsgenie.APIKey", "")
-	v.SetDefault("Opsgenie.MinimumPriority", "")
-	v.SetDefault("Opsgenie.MutualTLS", false)
-	v.SetDefault("Opsgenie.CheckCert", true)
-
-	v.SetDefault("Statsd.Forwarder", "")
-	v.SetDefault("Statsd.Namespace", "falcosidekick.")
-
 	v.SetDefault("Prometheus.ExtraLabels", "")
-
-	v.SetDefault("Dogstatsd.Forwarder", "")
-	v.SetDefault("Dogstatsd.Namespace", "falcosidekick.")
-	v.SetDefault("Dogstatsd.Tags", []string{})
-
-	v.SetDefault("Webhook.Address", "")
-	v.SetDefault("Webhook.Method", "POST")
-	v.SetDefault("Webhook.MinimumPriority", "")
-	v.SetDefault("Webhook.MutualTls", false)
-	v.SetDefault("Webhook.CheckCert", true)
-
-	v.SetDefault("NodeRed.Address", "")
-	v.SetDefault("NodeRed.User", "")
-	v.SetDefault("NodeRed.Password", "")
-	v.SetDefault("NodeRed.MinimumPriority", "")
-	v.SetDefault("NodeRed.CheckCert", true)
-
-	v.SetDefault("CloudEvents.Address", "")
-	v.SetDefault("CloudEvents.MinimumPriority", "")
-	v.SetDefault("CloudEvents.MutualTls", false)
-	v.SetDefault("CloudEvents.CheckCert", true)
 
 	v.SetDefault("Azure.eventHub.Namespace", "")
 	v.SetDefault("Azure.eventHub.Name", "")
@@ -297,118 +528,6 @@ func getConfig() *types.Configuration {
 	v.SetDefault("GCP.CloudRun.JWT", "")
 	v.SetDefault("GCP.CloudRun.MinimumPriority", "")
 
-	v.SetDefault("Googlechat.WebhookURL", "")
-	v.SetDefault("Googlechat.OutputFormat", "all")
-	v.SetDefault("Googlechat.MessageFormat", "")
-	v.SetDefault("Googlechat.MinimumPriority", "")
-	v.SetDefault("Googlechat.MutualTls", false)
-	v.SetDefault("Googlechat.CheckCert", true)
-
-	v.SetDefault("Cliq.WebhookURL", "")
-	v.SetDefault("Cliq.Icon", "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png")
-	v.SetDefault("Cliq.OutputFormat", "all")
-	v.SetDefault("Cliq.UseEmoji", false)
-	v.SetDefault("Cliq.MessageFormat", "")
-	v.SetDefault("Cliq.MinimumPriority", "")
-	v.SetDefault("Cliq.MutualTls", false)
-	v.SetDefault("Cliq.CheckCert", true)
-
-	v.SetDefault("Kafka.HostPort", "")
-	v.SetDefault("Kafka.Topic", "")
-	v.SetDefault("Kafka.MinimumPriority", "")
-	v.SetDefault("Kafka.SASL", "")
-	v.SetDefault("Kafka.TLS", false)
-	v.SetDefault("Kafka.Username", "")
-	v.SetDefault("Kafka.Password", "")
-	v.SetDefault("Kafka.Balancer", "round_robin")
-	v.SetDefault("Kafka.ClientID", "")
-	v.SetDefault("Kafka.Compression", "NONE")
-	v.SetDefault("Kafka.Async", false)
-	v.SetDefault("Kafka.RequiredACKs", "NONE")
-	v.SetDefault("Kafka.TopicCreation", false)
-
-	v.SetDefault("KafkaRest.Address", "")
-	v.SetDefault("KafkaRest.Version", 2)
-	v.SetDefault("KafkaRest.MinimumPriority", "")
-	v.SetDefault("KafkaRest.MutualTls", false)
-	v.SetDefault("KafkaRest.CheckCert", true)
-
-	v.SetDefault("Pagerduty.RoutingKey", "")
-	v.SetDefault("Pagerduty.Region", "us")
-	v.SetDefault("Pagerduty.MinimumPriority", "")
-	v.SetDefault("Pagerduty.MutualTls", false)
-	v.SetDefault("Pagerduty.CheckCert", true)
-
-	v.SetDefault("Kubeless.Namespace", "")
-	v.SetDefault("Kubeless.Function", "")
-	v.SetDefault("Kubeless.Port", 8080)
-	v.SetDefault("Kubeless.Kubeconfig", "")
-	v.SetDefault("Kubeless.MinimumPriority", "")
-	v.SetDefault("Kubeless.MutualTls", false)
-	v.SetDefault("Kubeless.CheckCert", true)
-
-	v.SetDefault("Openfaas.GatewayNamespace", "openfaas")
-	v.SetDefault("Openfaas.GatewayService", "gateway")
-	v.SetDefault("Openfaas.FunctionName", "")
-	v.SetDefault("Openfaas.FunctionNamespace", "openfaas-fn")
-	v.SetDefault("Openfaas.GatewayPort", 8080)
-	v.SetDefault("Openfaas.Kubeconfig", "")
-	v.SetDefault("Openfaas.MinimumPriority", "")
-	v.SetDefault("Openfaas.MutualTls", false)
-	v.SetDefault("Openfaas.CheckCert", true)
-
-	v.SetDefault("Fission.RouterNamespace", "fission")
-	v.SetDefault("Fission.RouterService", "router")
-	v.SetDefault("Fission.RouterPort", 80)
-	v.SetDefault("Fission.FunctionNamespace", "fission-function")
-	v.SetDefault("Fission.Function", "")
-	v.SetDefault("Fission.Kubeconfig", "")
-	v.SetDefault("Fission.MinimumPriority", "")
-	v.SetDefault("Fission.MutualTls", false)
-	v.SetDefault("Fission.CheckCert", true)
-
-	v.SetDefault("Webui.URL", "")
-	v.SetDefault("Webui.MutualTls", false)
-	v.SetDefault("Webui.CheckCert", true)
-
-	v.SetDefault("PolicyReport.Enabled", false)
-	v.SetDefault("PolicyReport.Kubeconfig", "")
-	v.SetDefault("PolicyReport.MinimumPriority", "")
-	v.SetDefault("PolicyReport.MaxEvents", 1000)
-	v.SetDefault("PolicyReport.FalcoNamespace", "")
-	v.SetDefault("PolicyReport.PruneByPriority", false)
-
-	v.SetDefault("Rabbitmq.URL", "")
-	v.SetDefault("Rabbitmq.Queue", "")
-	v.SetDefault("Rabbitmq.MinimumPriority", "")
-
-	v.SetDefault("Wavefront.EndpointType", "")
-	v.SetDefault("Wavefront.EndpointHost", "")
-	v.SetDefault("Wavefront.EndpointToken", "")
-	v.SetDefault("Wavefront.MetricName", "falco.alert")
-	v.SetDefault("Wavefront.EndpointMetricPort", 2878)
-	v.SetDefault("Wavefront.MinimumPriority", "")
-	v.SetDefault("Wavefront.FlushIntervalSecods", 1)
-	v.SetDefault("Wavefront.BatchSize", 10000)
-
-	v.SetDefault("Grafana.HostPort", "")
-	v.SetDefault("Grafana.DashboardID", 0)
-	v.SetDefault("Grafana.PanelID", 0)
-	v.SetDefault("Grafana.APIKey", "")
-	v.SetDefault("Grafana.AllFieldsAsTags", false)
-	v.SetDefault("Grafana.MinimumPriority", "")
-	v.SetDefault("Grafana.MutualTls", false)
-	v.SetDefault("Grafana.CheckCert", true)
-
-	v.SetDefault("GrafanaOnCall.WebhookURL", "")
-	v.SetDefault("GrafanaOnCall.MinimumPriority", "")
-	v.SetDefault("GrafanaOnCall.MutualTls", false)
-	v.SetDefault("GrafanaOnCall.CheckCert", true)
-
-	v.SetDefault("Grafana.MinimumPriority", "")
-	v.SetDefault("Grafana.MutualTls", false)
-	v.SetDefault("Grafana.CheckCert", true)
-
 	v.SetDefault("Yandex.AccessKeyID", "")
 	v.SetDefault("Yandex.SecretAccessKey", "")
 	v.SetDefault("Yandex.Region", "ru-central1")
@@ -421,89 +540,6 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Yandex.DataStreams.Endpoint", "https://yds.serverless.yandexcloud.net")
 	v.SetDefault("Yandex.DataStreams.StreamName", "")
 	v.SetDefault("Yandex.DataStreams.MinimumPriority", "")
-
-	v.SetDefault("Syslog.Host", "")
-	v.SetDefault("Syslog.Port", "")
-	v.SetDefault("Syslog.Protocol", "")
-	v.SetDefault("Syslog.Format", "json")
-	v.SetDefault("Syslog.MinimumPriority", "")
-
-	v.SetDefault("MQTT.Broker", "")
-	v.SetDefault("MQTT.Topic", "falco/events")
-	v.SetDefault("MQTT.QOS", 0)
-	v.SetDefault("MQTT.Retained", false)
-	v.SetDefault("MQTT.User", "")
-	v.SetDefault("MQTT.Password", "")
-	v.SetDefault("MQTT.CheckCert", true)
-	v.SetDefault("MQTT.MinimumPriority", "")
-
-	v.SetDefault("Zincsearch.HostPort", "")
-	v.SetDefault("Zincsearch.Index", "falco")
-	v.SetDefault("Zincsearch.Username", "")
-	v.SetDefault("Zincsearch.Password", "")
-	v.SetDefault("Zincsearch.CheckCert", true)
-	v.SetDefault("Zincsearch.MinimumPriority", "")
-
-	v.SetDefault("Gotify.HostPort", "")
-	v.SetDefault("Gotify.Token", "")
-	v.SetDefault("Gotify.Format", "markdown")
-	v.SetDefault("Gotify.CheckCert", true)
-	v.SetDefault("Gotify.MinimumPriority", "")
-
-	v.SetDefault("Tekton.EventListener", "")
-	v.SetDefault("Tekton.MinimumPriority", "")
-	v.SetDefault("Tekton.CheckCert", true)
-
-	v.SetDefault("Spyderbat.OrgUID", "")
-	v.SetDefault("Spyderbat.APIKey", "")
-	v.SetDefault("Spyderbat.APIUrl", "https://api.spyderbat.com")
-	v.SetDefault("Spyderbat.Source", "falcosidekick")
-	v.SetDefault("Spyderbat.SourceDescription", "")
-	v.SetDefault("Spyderbat.MinimumPriority", "")
-
-	v.SetDefault("TimescaleDB.Host", "")
-	v.SetDefault("TimescaleDB.Port", "5432")
-	v.SetDefault("TimescaleDB.User", "postgres")
-	v.SetDefault("TimescaleDB.Password", "postgres")
-	v.SetDefault("TimescaleDB.Database", "falcosidekick")
-	v.SetDefault("TimescaleDB.HypertableName", "falcosidekick_events")
-	v.SetDefault("TimescaleDB.MinimumPriority", "")
-
-	v.SetDefault("Redis.Address", "")
-	v.SetDefault("Redis.Password", "")
-	v.SetDefault("Redis.Database", 0)
-	v.SetDefault("Redis.StorageType", "list")
-	v.SetDefault("Redis.Key", "falco")
-	v.SetDefault("Redis.MinimumPriority", "")
-	v.SetDefault("Redis.MutualTls", false)
-	v.SetDefault("Redis.CheckCert", true)
-
-	v.SetDefault("N8n.Address", "")
-	v.SetDefault("N8n.User", "")
-	v.SetDefault("N8n.Password", "")
-	v.SetDefault("N8n.HeaderAuthName", "")
-	v.SetDefault("N8n.HeaderAuthValue", "")
-	v.SetDefault("N8n.MinimumPriority", "")
-	v.SetDefault("N8n.CheckCert", true)
-
-	v.SetDefault("Telegram.Token", "")
-	v.SetDefault("Telegram.ChatID", "")
-	v.SetDefault("Telegram.MinimumPriority", "")
-	v.SetDefault("Telegram.CheckCert", true)
-
-	v.SetDefault("OpenObserve.HostPort", "")
-	v.SetDefault("OpenObserve.OrganizationName", "default")
-	v.SetDefault("OpenObserve.StreamName", "falco")
-	v.SetDefault("OpenObserve.MinimumPriority", "")
-	v.SetDefault("OpenObserve.MutualTls", false)
-	v.SetDefault("OpenObserve.CheckCert", true)
-	v.SetDefault("OpenObserve.Username", "")
-	v.SetDefault("OpenObserve.Password", "")
-
-	v.SetDefault("Dynatrace.APIToken", "")
-	v.SetDefault("Dynatrace.APIUrl", "")
-	v.SetDefault("Dynatrace.CheckCert", true)
-	v.SetDefault("Dynatrace.MinimumPriority", "")
 
 	v.SetDefault("OTLP.Traces.Endpoint", "")
 	v.SetDefault("OTLP.Traces.Protocol", "http/json")
@@ -519,10 +555,6 @@ func getConfig() *types.Configuration {
 	// NB: Unfortunately falco events don't provide endtime, artificially set
 	// it to 1000ms by default, override-able via OTLP_DURATION environment variable.
 	v.SetDefault("OTLP.Traces.Duration", 1000)
-
-	v.SetDefault("Talon.Address", "")
-	v.SetDefault("Talon.MinimumPriority", "")
-	v.SetDefault("Talon.CheckCert", true)
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()

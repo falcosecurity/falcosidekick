@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -12,19 +13,15 @@ import (
 func (c *Client) N8NPost(falcopayload types.FalcoPayload) {
 	c.Stats.N8N.Add(Total, 1)
 
-	if c.Config.N8N.User != "" && c.Config.N8N.Password != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.BasicAuth(c.Config.N8N.User, c.Config.N8N.Password)
-	}
+	err := c.Post(falcopayload, func(req *http.Request) {
+		if c.Config.N8N.User != "" && c.Config.N8N.Password != "" {
+			req.SetBasicAuth(c.Config.N8N.User, c.Config.N8N.Password)
+		}
 
-	if c.Config.N8N.HeaderAuthName != "" && c.Config.N8N.HeaderAuthValue != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.AddHeader(c.Config.N8N.HeaderAuthName, c.Config.N8N.HeaderAuthValue)
-	}
-
-	err := c.Post(falcopayload)
+		if c.Config.N8N.HeaderAuthName != "" && c.Config.N8N.HeaderAuthValue != "" {
+			req.Header.Set(c.Config.N8N.HeaderAuthName, c.Config.N8N.HeaderAuthValue)
+		}
+	})
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:n8n", "status:error"})
 		c.Stats.N8N.Add(Error, 1)
