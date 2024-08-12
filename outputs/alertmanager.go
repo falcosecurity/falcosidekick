@@ -5,6 +5,7 @@ package outputs
 import (
 	"encoding/json"
 	"log"
+	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
@@ -130,13 +131,12 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 // AlertmanagerPost posts event to AlertManager
 func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	c.Stats.Alertmanager.Add(Total, 1)
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	for i, j := range c.Config.Alertmanager.CustomHeaders {
-		c.AddHeader(i, j)
-	}
 
-	err := c.Post(newAlertmanagerPayload(falcopayload, c.Config))
+	err := c.Post(newAlertmanagerPayload(falcopayload, c.Config), func(req *http.Request) {
+		for i, j := range c.Config.Alertmanager.CustomHeaders {
+			req.Header.Set(i, j)
+		}
+	})
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:error"})
 		c.Stats.Alertmanager.Add(Error, 1)

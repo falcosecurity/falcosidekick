@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"log"
+	"net/http"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -40,15 +41,13 @@ func newInfluxdbPayload(falcopayload types.FalcoPayload) influxdbPayload {
 func (c *Client) InfluxdbPost(falcopayload types.FalcoPayload) {
 	c.Stats.Influxdb.Add(Total, 1)
 
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	c.AddHeader("Accept", "application/json")
+	err := c.Post(newInfluxdbPayload(falcopayload), func(req *http.Request) {
+		req.Header.Set("Accept", "application/json")
 
-	if c.Config.Influxdb.Token != "" {
-		c.AddHeader("Authorization", "Token "+c.Config.Influxdb.Token)
-	}
-
-	err := c.Post(newInfluxdbPayload(falcopayload))
+		if c.Config.Influxdb.Token != "" {
+			req.Header.Set("Authorization", "Token "+c.Config.Influxdb.Token)
+		}
+	})
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:influxdb", "status:error"})
 		c.Stats.Influxdb.Add(Error, 1)

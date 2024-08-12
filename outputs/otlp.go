@@ -29,7 +29,7 @@ func NewOtlpTracesClient(config *types.Configuration, stats *types.Statistics, p
 		PromStats:       promStats,
 		StatsdClient:    statsdClient,
 	}
-	otlpClient, err := NewClient("OTLPTraces", config.OTLP.Traces.Endpoint, false, false, *initClientArgs)
+	otlpClient, err := NewClient("OTLPTraces", config.OTLP.Traces.Endpoint, types.CommonConfig{}, *initClientArgs)
 	if err != nil {
 		return nil, err
 	}

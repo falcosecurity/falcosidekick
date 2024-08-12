@@ -5,6 +5,7 @@ package outputs
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"sort"
 	"strings"
 
@@ -66,27 +67,21 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	}}
 }
 
-func (c *Client) configureTenant() {
-	if c.Config.Loki.Tenant != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.AddHeader("X-Scope-OrgID", c.Config.Loki.Tenant)
+func lokiConfigureTenant(cfg *types.Configuration, req *http.Request) {
+	if cfg.Loki.Tenant != "" {
+		req.Header.Set("X-Scope-OrgID", cfg.Loki.Tenant)
 	}
 }
 
-func (c *Client) configureAuth() {
-	if c.Config.Loki.User != "" && c.Config.Loki.APIKey != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.BasicAuth(c.Config.Loki.User, c.Config.Loki.APIKey)
+func lokiConfigureAuth(cfg *types.Configuration, req *http.Request) {
+	if cfg.Loki.User != "" && cfg.Loki.APIKey != "" {
+		req.SetBasicAuth(cfg.Loki.User, cfg.Loki.APIKey)
 	}
 }
 
-func (c *Client) configureCustomHeaders() {
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	for i, j := range c.Config.Loki.CustomHeaders {
-		c.AddHeader(i, j)
+func lokiConfigureCustomHeaders(cfg *types.Configuration, req *http.Request) {
+	for i, j := range cfg.Loki.CustomHeaders {
+		req.Header.Set(i, j)
 	}
 }
 
@@ -95,11 +90,12 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	c.Stats.Loki.Add(Total, 1)
 	c.ContentType = LokiContentType
 
-	c.configureTenant()
-	c.configureAuth()
-	c.configureCustomHeaders()
+	err := c.Post(newLokiPayload(falcopayload, c.Config), func(req *http.Request) {
+		lokiConfigureTenant(c.Config, req)
+		lokiConfigureAuth(c.Config, req)
+		lokiConfigureCustomHeaders(c.Config, req)
+	})
 
-	err := c.Post(newLokiPayload(falcopayload, c.Config))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:loki", "status:error"})
 		c.Stats.Loki.Add(Error, 1)

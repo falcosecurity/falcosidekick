@@ -5,6 +5,7 @@ package outputs
 import (
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -48,7 +49,7 @@ func (c *Client) checkQuickwitIndexAlreadyExists(args types.InitClientArgs) bool
 	config := args.Config.Quickwit
 
 	endpointUrl := fmt.Sprintf("%s/%s/indexes/%s/describe", config.HostPort, config.ApiEndpoint, config.Index)
-	quickwitCheckClient, err := NewClient("QuickwitCheckAlreadyExists", endpointUrl, config.MutualTLS, config.CheckCert, args)
+	quickwitCheckClient, err := NewClient("QuickwitCheckAlreadyExists", endpointUrl, config.CommonConfig, args)
 	if err != nil {
 		return false
 	}
@@ -68,7 +69,7 @@ func (c *Client) AutoCreateQuickwitIndex(args types.InitClientArgs) error {
 	}
 
 	endpointUrl := fmt.Sprintf("%s/%s/indexes", config.HostPort, config.ApiEndpoint)
-	quickwitInitClient, err := NewClient("QuickwitInit", endpointUrl, config.MutualTLS, config.CheckCert, args)
+	quickwitInitClient, err := NewClient("QuickwitInit", endpointUrl, config.CommonConfig, args)
 	if err != nil {
 		return err
 	}
@@ -158,19 +159,15 @@ func (c *Client) AutoCreateQuickwitIndex(args types.InitClientArgs) error {
 func (c *Client) QuickwitPost(falcopayload types.FalcoPayload) {
 	c.Stats.Quickwit.Add(Total, 1)
 
-	if len(c.Config.Quickwit.CustomHeaders) != 0 {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		for i, j := range c.Config.Quickwit.CustomHeaders {
-			c.AddHeader(i, j)
-		}
-	}
-
 	if c.Config.Debug {
 		log.Printf("[DEBUG] : Quickwit - ingesting payload: %v\n", falcopayload)
 	}
 
-	err := c.Post(falcopayload)
+	err := c.Post(falcopayload, func(req *http.Request) {
+		for i, j := range c.Config.Quickwit.CustomHeaders {
+			req.Header.Set(i, j)
+		}
+	})
 
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:quickwit", "status:error"})

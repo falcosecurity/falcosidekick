@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"net/http"
 	"strings"
 	textTemplate "text/template"
 
@@ -93,13 +94,11 @@ func newGotifyPayload(falcopayload types.FalcoPayload, config *types.Configurati
 func (c *Client) GotifyPost(falcopayload types.FalcoPayload) {
 	c.Stats.Gotify.Add(Total, 1)
 
-	if c.Config.Gotify.Token != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.AddHeader("X-Gotify-Key", c.Config.Gotify.Token)
-	}
-
-	err := c.Post(newGotifyPayload(falcopayload, c.Config))
+	err := c.Post(newGotifyPayload(falcopayload, c.Config), func(req *http.Request) {
+		if c.Config.Gotify.Token != "" {
+			req.Header.Set("X-Gotify-Key", c.Config.Gotify.Token)
+		}
+	})
 	if err != nil {
 		c.setGotifyErrorMetrics()
 		log.Printf("[ERROR] : Gotify - %v\n", err)

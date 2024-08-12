@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -12,13 +13,11 @@ import (
 func (c *Client) CloudRunFunctionPost(falcopayload types.FalcoPayload) {
 	c.Stats.GCPCloudRun.Add(Total, 1)
 
-	if c.Config.GCP.CloudRun.JWT != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.AddHeader(AuthorizationHeaderKey, Bearer+" "+c.Config.GCP.CloudRun.JWT)
-	}
-
-	err := c.Post(falcopayload)
+	err := c.Post(falcopayload, func(req *http.Request) {
+		if c.Config.GCP.CloudRun.JWT != "" {
+			req.Header.Set(AuthorizationHeaderKey, Bearer+" "+c.Config.GCP.CloudRun.JWT)
+		}
+	})
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:gcpcloudrun", "status:error"})
 		c.Stats.GCPCloudRun.Add(Error, 1)

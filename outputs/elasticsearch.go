@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -56,15 +57,6 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 	}
 
 	c.EndpointURL = endpointURL
-	if c.Config.Elasticsearch.Username != "" && c.Config.Elasticsearch.Password != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.BasicAuth(c.Config.Elasticsearch.Username, c.Config.Elasticsearch.Password)
-	}
-
-	for i, j := range c.Config.Elasticsearch.CustomHeaders {
-		c.AddHeader(i, j)
-	}
 
 	payload := eSPayload{FalcoPayload: falcopayload, Timestamp: falcopayload.Time}
 	if c.Config.Elasticsearch.FlattenFields || c.Config.Elasticsearch.CreateIndexTemplate {
@@ -74,7 +66,17 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 		}
 	}
 
-	err = c.Post(payload)
+	reqOpt := func(req *http.Request) {
+		if c.Config.Elasticsearch.Username != "" && c.Config.Elasticsearch.Password != "" {
+			req.SetBasicAuth(c.Config.Elasticsearch.Username, c.Config.Elasticsearch.Password)
+		}
+
+		for i, j := range c.Config.Elasticsearch.CustomHeaders {
+			req.Header.Set(i, j)
+		}
+	}
+
+	err = c.Post(payload, reqOpt)
 	if err != nil {
 		var mappingErr mappingError
 		if err2 := json.Unmarshal([]byte(err.Error()), &mappingErr); err2 != nil {
@@ -99,9 +101,8 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 					delete(payload.OutputFields, i)
 				}
 			}
-			fmt.Println(payload.OutputFields)
 			log.Printf("[INFO]  : %v - %v\n", c.OutputType, "attempt to POST again the payload without the wrong field")
-			err = c.Post(payload)
+			err = c.Post(payload, reqOpt)
 			if err != nil {
 				c.setElasticSearchErrorMetrics()
 				return

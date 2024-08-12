@@ -212,30 +212,27 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 		return nil, ErrClientCreation
 	}
 	return &Client{
-		OutputType:       "Spyderbat",
-		EndpointURL:      endpointURL,
-		MutualTLSEnabled: false,
-		CheckCert:        true,
-		ContentType:      "application/ndjson",
-		Config:           config,
-		Stats:            stats,
-		PromStats:        promStats,
-		StatsdClient:     statsdClient,
-		DogstatsdClient:  dogstatsdClient,
+		OutputType:      "Spyderbat",
+		EndpointURL:     endpointURL,
+		cfg:             types.CommonConfig{MutualTLS: false, CheckCert: true, MaxConcurrentRequests: 1},
+		ContentType:     "application/ndjson",
+		Config:          config,
+		Stats:           stats,
+		PromStats:       promStats,
+		StatsdClient:    statsdClient,
+		DogstatsdClient: dogstatsdClient,
 	}, nil
 }
 
 func (c *Client) SpyderbatPost(falcopayload types.FalcoPayload) {
 	c.Stats.Spyderbat.Add(Total, 1)
 
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	c.AddHeader("Authorization", "Bearer "+c.Config.Spyderbat.APIKey)
-	c.AddHeader("Content-Encoding", "gzip")
-
 	payload, err := newSpyderbatPayload(falcopayload)
 	if err == nil {
-		err = c.Post(payload)
+		err = c.Post(payload, func(req *http.Request) {
+			req.Header.Set("Authorization", "Bearer "+c.Config.Spyderbat.APIKey)
+			req.Header.Set("Content-Encoding", "gzip")
+		})
 	}
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:spyderbat", "status:error"})

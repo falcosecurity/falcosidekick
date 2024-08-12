@@ -149,8 +149,15 @@ type TLSServer struct {
 	NoTLSPaths []string
 }
 
+type CommonConfig struct {
+	CheckCert             bool
+	MutualTLS             bool
+	MaxConcurrentRequests uint16 // Max concurrent requests at a time, unlimited if 0
+}
+
 // SlackOutputConfig represents parameters for Slack
 type SlackOutputConfig struct {
+	CommonConfig          `mapstructure:",squash"`
 	WebhookURL            string
 	Channel               string
 	Footer                string
@@ -160,12 +167,11 @@ type SlackOutputConfig struct {
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
-	CheckCert             bool
-	MutualTLS             bool
 }
 
 // CliqOutputConfig represents parameters for Zoho Cliq
 type CliqOutputConfig struct {
+	CommonConfig          `mapstructure:",squash"`
 	WebhookURL            string
 	Icon                  string
 	OutputFormat          string
@@ -173,12 +179,11 @@ type CliqOutputConfig struct {
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
 	UseEmoji              bool
-	CheckCert             bool
-	MutualTLS             bool
 }
 
 // RocketchatOutputConfig .
 type RocketchatOutputConfig struct {
+	CommonConfig          `mapstructure:",squash"`
 	WebhookURL            string
 	Footer                string
 	Icon                  string
@@ -187,12 +192,11 @@ type RocketchatOutputConfig struct {
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
-	CheckCert             bool
-	MutualTLS             bool
 }
 
 // MattermostOutputConfig represents parameters for Mattermost
 type MattermostOutputConfig struct {
+	CommonConfig          `mapstructure:",squash"`
 	WebhookURL            string
 	Footer                string
 	Icon                  string
@@ -201,8 +205,6 @@ type MattermostOutputConfig struct {
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
-	CheckCert             bool
-	MutualTLS             bool
 }
 
 type WavefrontOutputConfig struct {
@@ -217,29 +219,26 @@ type WavefrontOutputConfig struct {
 }
 
 type teamsOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	WebhookURL      string
 	ActivityImage   string
 	OutputFormat    string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type datadogOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	APIKey          string
 	Host            string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 // DiscordOutputConfig .
 type DiscordOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	WebhookURL      string
 	MinimumPriority string
 	Icon            string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type ThresholdConfig struct {
@@ -248,10 +247,9 @@ type ThresholdConfig struct {
 }
 
 type AlertmanagerOutputConfig struct {
+	CommonConfig             `mapstructure:",squash"`
 	HostPort                 string
 	MinimumPriority          string
-	CheckCert                bool
-	MutualTLS                bool
 	Endpoint                 string
 	ExpiresAfter             int
 	ExtraLabels              map[string]string
@@ -264,6 +262,7 @@ type AlertmanagerOutputConfig struct {
 }
 
 type ElasticsearchOutputConfig struct {
+	CommonConfig        `mapstructure:",squash"`
 	HostPort            string
 	Index               string
 	Type                string
@@ -275,24 +274,22 @@ type ElasticsearchOutputConfig struct {
 	CreateIndexTemplate bool
 	NumberOfShards      int
 	NumberOfReplicas    int
-	CheckCert           bool
-	MutualTLS           bool
 	CustomHeaders       map[string]string
 }
 
 type QuickwitOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	HostPort        string
 	ApiEndpoint     string
 	Index           string
 	Version         string
 	CustomHeaders   map[string]string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 	AutoCreateIndex bool
 }
 
 type influxdbOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	HostPort        string
 	Database        string
 	Organization    string
@@ -302,17 +299,14 @@ type influxdbOutputConfig struct {
 	Password        string
 	Token           string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type LokiOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	HostPort        string
 	User            string
 	APIKey          string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 	Tenant          string
 	Endpoint        string
 	ExtraLabels     string
@@ -321,13 +315,12 @@ type LokiOutputConfig struct {
 }
 
 type SumoLogicOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	MinimumPriority string
 	ReceiverURL     string
 	SourceCategory  string
 	SourceHost      string
 	Name            string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type prometheusOutputConfig struct {
@@ -336,19 +329,17 @@ type prometheusOutputConfig struct {
 }
 
 type natsOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	HostPort        string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type stanOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	HostPort        string
 	ClusterID       string
 	ClientID        string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type awsOutputConfig struct {
@@ -434,40 +425,37 @@ type smtpOutputConfig struct {
 }
 
 type opsgenieOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	Region          string
 	APIKey          string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 // WebhookOutputConfig represents parameters for Webhook
 type WebhookOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	Address         string
 	Method          string
 	CustomHeaders   map[string]string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 // NodeRedOutputConfig represents parameters for Node-RED
 type NodeRedOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	Address         string
 	User            string
 	Password        string
 	CustomHeaders   map[string]string
 	MinimumPriority string
-	CheckCert       bool
 }
 
 // CloudEventsOutputConfig represents parameters for CloudEvents
 type CloudEventsOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	Address         string
 	Extensions      map[string]string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type statsdOutputConfig struct {
@@ -521,13 +509,12 @@ type gcpStorage struct {
 
 // GooglechatConfig represents parameters for Google chat
 type GooglechatConfig struct {
+	CommonConfig          `mapstructure:",squash"`
 	WebhookURL            string
 	OutputFormat          string
 	MinimumPriority       string
 	MessageFormat         string
 	MessageFormatTemplate *template.Template
-	CheckCert             bool
-	MutualTLS             bool
 }
 
 type kafkaConfig struct {
@@ -547,32 +534,30 @@ type kafkaConfig struct {
 }
 
 type KafkaRestConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	Address         string
 	Version         int
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type PagerdutyConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	RoutingKey      string
 	Region          string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type kubelessConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	Namespace       string
 	Function        string
 	Port            int
 	Kubeconfig      string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 type openfaasConfig struct {
+	CommonConfig      `mapstructure:",squash"`
 	GatewayNamespace  string
 	GatewayService    string
 	FunctionName      string
@@ -580,22 +565,18 @@ type openfaasConfig struct {
 	GatewayPort       int
 	Kubeconfig        string
 	MinimumPriority   string
-	CheckCert         bool
-	MutualTLS         bool
 }
 
 type tektonConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	EventListener   string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 // WebUIOutputConfig represents parameters for WebUI
 type WebUIOutputConfig struct {
-	URL       string
-	CheckCert bool
-	MutualTLS bool
+	CommonConfig `mapstructure:",squash"`
+	URL          string
 }
 
 // PolicyReportConfig represents parameters for policyreport
@@ -617,22 +598,20 @@ type RabbitmqConfig struct {
 
 // GrafanaOutputConfig represents parameters for Grafana
 type GrafanaOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	HostPort        string
 	APIKey          string
 	DashboardID     int
 	PanelID         int
 	AllFieldsAsTags bool
-	CheckCert       bool
-	MutualTLS       bool
 	MinimumPriority string
 	CustomHeaders   map[string]string
 }
 
 // GrafanaOnCallOutputConfig represents parameters for Grafana OnCall
 type GrafanaOnCallOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	WebhookURL      string
-	CheckCert       bool
-	MutualTLS       bool
 	MinimumPriority string
 	CustomHeaders   map[string]string
 }
@@ -682,14 +661,13 @@ type MQTTConfig struct {
 
 // fissionConfig represents config parameters for Fission
 type fissionConfig struct {
+	CommonConfig    `mapstructure:",squash"`
 	RouterNamespace string
 	RouterService   string
 	RouterPort      int
 	Function        string
 	KubeConfig      string
 	MinimumPriority string
-	CheckCert       bool
-	MutualTLS       bool
 }
 
 // zincsearchOutputConfig represents config parameters for Zincsearch
@@ -771,14 +749,13 @@ type DynatraceOutputConfig struct {
 
 // OpenObserveConfig represents config parameters for OpenObserve
 type OpenObserveConfig struct {
+	CommonConfig     `mapstructure:",squash"`
 	HostPort         string
 	OrganizationName string
 	StreamName       string
 	MinimumPriority  string
 	Username         string
 	Password         string
-	CheckCert        bool
-	MutualTLS        bool
 	CustomHeaders    map[string]string
 }
 

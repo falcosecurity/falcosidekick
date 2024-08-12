@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -44,6 +45,7 @@ func NewKubelessClient(config *types.Configuration, stats *types.Statistics, pro
 			StatsdClient:     statsdClient,
 			DogstatsdClient:  dogstatsdClient,
 			KubernetesClient: clientset,
+			cfg:              config.Kubeless.CommonConfig,
 		}, nil
 	}
 
@@ -56,7 +58,7 @@ func NewKubelessClient(config *types.Configuration, stats *types.Statistics, pro
 		StatsdClient:    statsdClient,
 	}
 
-	return NewClient("Kubeless", endpointUrl, config.Kubeless.MutualTLS, config.Kubeless.CheckCert, *initClientArgs)
+	return NewClient("Kubeless", endpointUrl, config.Kubeless.CommonConfig, *initClientArgs)
 }
 
 // KubelessCall .
@@ -83,14 +85,13 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 		}
 		log.Printf("[INFO]  : Kubeless - Function Response : %v\n", string(rawbody))
 	} else {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.AddHeader(KubelessEventIDKey, uuid.New().String())
-		c.AddHeader(KubelessEventTypeKey, KubelessEventTypeValue)
-		c.AddHeader(KubelessEventNamespaceKey, c.Config.Kubeless.Namespace)
 		c.ContentType = KubelessContentType
 
-		err := c.Post(falcopayload)
+		err := c.Post(falcopayload, func(req *http.Request) {
+			req.Header.Set(KubelessEventIDKey, uuid.New().String())
+			req.Header.Set(KubelessEventTypeKey, KubelessEventTypeValue)
+			req.Header.Set(KubelessEventNamespaceKey, c.Config.Kubeless.Namespace)
+		})
 		if err != nil {
 			go c.CountMetric(Outputs, 1, []string{"output:kubeless", "status:error"})
 			c.Stats.Kubeless.Add(Error, 1)
