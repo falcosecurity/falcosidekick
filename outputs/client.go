@@ -296,7 +296,7 @@ func (c *Client) sendRequest(method string, payload interface{}, opts ...Request
 		msg := getInlinedBodyAsString(resp)
 		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrHeaderMissing, resp.StatusCode, msg)
 		if msg != "" {
-			return fmt.Errorf(msg)
+			return errors.New(msg)
 		}
 		return ErrHeaderMissing
 	case http.StatusUnauthorized: //401
