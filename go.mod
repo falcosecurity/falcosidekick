@@ -17,6 +17,7 @@ require (
 	github.com/embano1/memlog v0.4.6
 	github.com/emersion/go-sasl v0.0.0-20231106173351-e73c9f7bad43
 	github.com/emersion/go-smtp v0.21.3
+	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.12.5
 	github.com/jackc/pgx/v5 v5.6.0

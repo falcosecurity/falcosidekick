@@ -40,6 +40,7 @@ import (
 	timescaledb "github.com/jackc/pgx/v5/pgxpool"
 	redis "github.com/redis/go-redis/v9"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/batcher"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -120,14 +121,25 @@ type Client struct {
 	TimescaleDBClient *timescaledb.Pool
 	RedisClient       *redis.Client
 
+	// Enable gzip compression
+	EnableCompression bool
+
 	// cached http.Client
 	httpcli *http.Client
 	// lock for http client creation
-	mx  sync.Mutex
+	mx sync.Mutex
+
+	// common config
 	cfg types.CommonConfig
 
+	// init once on first request
 	initOnce sync.Once
-	sem      *semaphore.Weighted
+
+	// maxconcurrent requests limiter
+	sem *semaphore.Weighted
+
+	// batcher
+	batcher *batcher.Batcher
 }
 
 // InitClient returns a new output.Client for accessing the different API.
@@ -163,22 +175,41 @@ type RequestOptionFunc func(req *http.Request)
 
 // Get get a payload from Output with GET http method.
 func (c *Client) Get(opts ...RequestOptionFunc) error {
-	return c.sendRequest("GET", nil, opts...)
+	return c.sendRequest("GET", nil, nil, opts...)
 }
 
 // Post sends event (payload) to Output with POST http method.
 func (c *Client) Post(payload interface{}, opts ...RequestOptionFunc) error {
-	return c.sendRequest("POST", payload, opts...)
+	return c.sendRequest("POST", payload, nil, opts...)
+}
+
+// PostWithResponse sends event (payload) to Output with POST http method and returns a stringified response body
+// This is added in order to get the response body and avoid breaking any other code that relies on the Post implmentation
+func (c *Client) PostWithResponse(payload interface{}, opts ...RequestOptionFunc) (string, error) {
+	var responseBody string
+
+	err := c.sendRequest("POST", payload, &responseBody, opts...)
+
+	return responseBody, err
 }
 
 // Put sends event (payload) to Output with PUT http method.
 func (c *Client) Put(payload interface{}, opts ...RequestOptionFunc) error {
-	return c.sendRequest("PUT", payload, opts...)
+	return c.sendRequest("PUT", payload, nil, opts...)
 }
 
 // Get the response body as inlined string
-func getInlinedBodyAsString(resp *http.Response) string {
+func (c *Client) getInlinedBodyAsString(resp *http.Response) string {
 	body, _ := io.ReadAll(resp.Body)
+	contentEncoding := resp.Header.Get("Content-Encoding")
+	if contentEncoding == "gzip" {
+		dec, err := decompressData(body)
+		if err != nil {
+			log.Printf("[INFO] : %v - Failed to decompress response: %v", c.OutputType, err)
+			return ""
+		}
+		body = dec
+	}
 	contentType := resp.Header.Get("Content-Type")
 	if contentType == "application/json" {
 		var compactedBody bytes.Buffer
@@ -191,16 +222,49 @@ func getInlinedBodyAsString(resp *http.Response) string {
 	return string(body)
 }
 
+func compressData(reader io.Reader) ([]byte, error) {
+	var compressed bytes.Buffer
+	gw := gzip.NewWriter(&compressed)
+
+	if _, err := io.Copy(gw, reader); err != nil {
+		return nil, err
+	}
+	if err := gw.Close(); err != nil {
+		return nil, err
+	}
+	return compressed.Bytes(), nil
+}
+
+func decompressData(compressed []byte) (data []byte, err error) {
+	gr, err := gzip.NewReader(bytes.NewBuffer(compressed))
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = errors.Join(err, gr.Close())
+	}()
+
+	data, err = io.ReadAll(gr)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 // Post sends event (payload) to Output.
-func (c *Client) sendRequest(method string, payload interface{}, opts ...RequestOptionFunc) error {
+// Returns stringified response body or error
+func (c *Client) sendRequest(method string, payload interface{}, responseBody *string, opts ...RequestOptionFunc) error {
 	// Initialize the semaphore once here
 	// because currently there are multiple code paths
 	// where the client is created directly without using NewClient constructor
 	c.initOnce.Do(func() {
 		if c.cfg.MaxConcurrentRequests == 0 {
 			c.sem = semaphore.NewWeighted(math.MaxInt64)
+			log.Printf("[INFO]  : %v - Max concurrent requests: unlimited", c.OutputType)
 		} else {
 			c.sem = semaphore.NewWeighted(int64(c.cfg.MaxConcurrentRequests))
+			log.Printf("[INFO]  : %v - Max concurrent requests: %v", c.OutputType, c.cfg.MaxConcurrentRequests)
 		}
 	})
 
@@ -213,7 +277,8 @@ func (c *Client) sendRequest(method string, payload interface{}, opts ...Request
 	}(c)
 
 	body := new(bytes.Buffer)
-	switch payload.(type) {
+	var reader io.Reader = body
+	switch v := payload.(type) {
 	case influxdbPayload:
 		fmt.Fprintf(body, "%v", payload)
 		if c.Config.Debug {
@@ -231,6 +296,10 @@ func (c *Client) sendRequest(method string, payload interface{}, opts ...Request
 				log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, debugBody)
 			}
 		}
+	case io.Reader:
+		reader = v
+	case []byte:
+		reader = bytes.NewBuffer(v)
 	default:
 		if err := json.NewEncoder(body).Encode(payload); err != nil {
 			log.Printf("[ERROR] : %v - %s", c.OutputType, err)
@@ -240,6 +309,15 @@ func (c *Client) sendRequest(method string, payload interface{}, opts ...Request
 		}
 	}
 
+	if c.EnableCompression {
+		data, err := compressData(reader)
+		if err != nil {
+			log.Printf("[ERROR] : %v - Failed to compress data: %v\n", c.OutputType, err.Error())
+			return err
+		}
+		reader = bytes.NewBuffer(data)
+	}
+
 	client := c.httpClient()
 
 	var req *http.Request
@@ -247,15 +325,20 @@ func (c *Client) sendRequest(method string, payload interface{}, opts ...Request
 	if method == "GET" {
 		req, err = http.NewRequest(method, c.EndpointURL.String(), nil)
 	} else {
-		req, err = http.NewRequest(method, c.EndpointURL.String(), body)
+		req, err = http.NewRequest(method, c.EndpointURL.String(), reader)
 	}
 	if err != nil {
 		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
 		return err
 	}
 
-	req.Header.Add(ContentTypeHeaderKey, c.ContentType)
-	req.Header.Add(UserAgentHeaderKey, UserAgentHeaderValue)
+	req.Header.Set(ContentTypeHeaderKey, c.ContentType)
+	req.Header.Set(UserAgentHeaderKey, UserAgentHeaderValue)
+
+	if c.EnableCompression {
+		req.Header.Set("Content-Encoding", "gzip")
+		req.Header.Set("Accept-Encoding", "gzip")
+	}
 
 	// Call request options functions
 	// Allows the clients to adjust request as needed
@@ -264,7 +347,7 @@ func (c *Client) sendRequest(method string, payload interface{}, opts ...Request
 	}
 
 	// Using the background context for now
-	// TODO: Eventually pass the proper context to sendRequest, and pass it to NewRequest call as well
+	// TODO: Eventually pass the proper context to sendRequest, add pass it to NewRequest call as well
 	// in order to make the requests cancellable
 	ctx := context.Background()
 	err = c.sem.Acquire(ctx, 1)
@@ -288,36 +371,49 @@ func (c *Client) sendRequest(method string, payload interface{}, opts ...Request
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
 		log.Printf("[INFO]  : %v - %v OK (%v)\n", c.OutputType, method, resp.StatusCode)
-		if ot := c.OutputType; ot == Kubeless || ot == Openfaas || ot == Fission {
-			log.Printf("[INFO]  : %v - Function Response : %s\n", ot, getInlinedBodyAsString(resp))
+		ot := c.OutputType
+		logResponse := ot == Kubeless || ot == Openfaas || ot == Fission
+		if responseBody != nil || logResponse {
+			s := c.getInlinedBodyAsString(resp)
+			if responseBody != nil {
+				// In some cases now we need to capture the response on 200
+				// For example the Elasticsearch output bulk request that returns 200
+				// even when some items in the bulk failed
+				*responseBody = s
+			}
+			if logResponse {
+				log.Printf("[INFO]  : %v - Function Response : %s\n", ot, s)
+			}
 		}
 		return nil
 	case http.StatusBadRequest: //400
-		msg := getInlinedBodyAsString(resp)
+		msg := c.getInlinedBodyAsString(resp)
 		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrHeaderMissing, resp.StatusCode, msg)
 		if msg != "" {
 			return errors.New(msg)
 		}
 		return ErrHeaderMissing
 	case http.StatusUnauthorized: //401
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode, getInlinedBodyAsString(resp))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode, c.getInlinedBodyAsString(resp))
 		return ErrClientAuthenticationError
 	case http.StatusForbidden: //403
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrForbidden, resp.StatusCode, getInlinedBodyAsString(resp))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrForbidden, resp.StatusCode, c.getInlinedBodyAsString(resp))
 		return ErrForbidden
 	case http.StatusNotFound: //404
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrNotFound, resp.StatusCode, getInlinedBodyAsString(resp))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrNotFound, resp.StatusCode, c.getInlinedBodyAsString(resp))
 		return ErrNotFound
 	case http.StatusUnprocessableEntity: //422
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrUnprocessableEntityError, resp.StatusCode, getInlinedBodyAsString(resp))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrUnprocessableEntityError, resp.StatusCode, c.getInlinedBodyAsString(resp))
 		return ErrUnprocessableEntityError
 	case http.StatusTooManyRequests: //429
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrTooManyRequest, resp.StatusCode, getInlinedBodyAsString(resp))
+		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrTooManyRequest, resp.StatusCode, c.getInlinedBodyAsString(resp))
 		return ErrTooManyRequest
 	case http.StatusInternalServerError: //500
 		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
 		return ErrInternalServer
 	case http.StatusBadGateway: //502
+		msg := c.getInlinedBodyAsString(resp)
+		fmt.Println(msg)
 		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
 		return ErrBadGateway
 	default:

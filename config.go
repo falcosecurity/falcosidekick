@@ -759,6 +759,15 @@ func getConfig() *types.Configuration {
 		c.Elasticsearch.NumberOfShards = 3
 	}
 
+	if c.Elasticsearch.Batching.Enabled {
+		if c.Elasticsearch.Batching.BatchSize <= 0 {
+			c.Elasticsearch.Batching.BatchSize = types.DefaultBatchSize
+		}
+		if c.Elasticsearch.Batching.FlushInterval <= 0 {
+			c.Elasticsearch.Batching.FlushInterval = types.DefaultFlushInterval
+		}
+	}
+
 	if c.Prometheus.ExtraLabels != "" {
 		c.Prometheus.ExtraLabelsList = strings.Split(strings.ReplaceAll(c.Prometheus.ExtraLabels, " ", ""), ",")
 	}

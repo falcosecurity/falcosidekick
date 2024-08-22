@@ -229,8 +229,7 @@ func init() {
 
 	if config.Elasticsearch.HostPort != "" {
 		var err error
-		endpointUrl := fmt.Sprintf("%s/%s/%s", config.Elasticsearch.HostPort, config.Elasticsearch.Index, config.Elasticsearch.Type)
-		elasticsearchClient, err = outputs.NewClient("Elasticsearch", endpointUrl, config.Elasticsearch.CommonConfig, *initClientArgs)
+		elasticsearchClient, err = outputs.NewElasticsearchClient(*initClientArgs)
 		if err != nil {
 			config.Elasticsearch.HostPort = ""
 		} else {
