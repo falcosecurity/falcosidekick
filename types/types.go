@@ -261,6 +261,17 @@ type AlertmanagerOutputConfig struct {
 	CustomHeaders            map[string]string
 }
 
+const (
+	DefaultBatchSize     = 5 * 1024 * 1024 // 5 MB
+	DefaultFlushInterval = time.Second
+)
+
+type BatchingConfig struct {
+	Enabled       bool          `json:"enabled" yaml:"enabled"`
+	BatchSize     int           `json:"batchsize" yaml:"batchsize"`
+	FlushInterval time.Duration `json:"flushinterval" yaml:"flushinterval"`
+}
+
 type ElasticsearchOutputConfig struct {
 	CommonConfig        `mapstructure:",squash"`
 	HostPort            string
@@ -275,6 +286,8 @@ type ElasticsearchOutputConfig struct {
 	NumberOfShards      int
 	NumberOfReplicas    int
 	CustomHeaders       map[string]string
+	Batching            BatchingConfig
+	EnableCompression   bool
 }
 
 type QuickwitOutputConfig struct {

@@ -54,7 +54,7 @@ func (c *Client) checkQuickwitIndexAlreadyExists(args types.InitClientArgs) bool
 		return false
 	}
 
-	if nil != quickwitCheckClient.sendRequest("GET", "") {
+	if nil != quickwitCheckClient.Get() {
 		return false
 	}
 
