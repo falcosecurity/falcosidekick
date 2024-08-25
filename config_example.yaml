@@ -102,9 +102,9 @@ elasticsearch:
   # customHeaders: # Custom headers to add in POST, useful for Authentication
   #   key: value
   # enablecompression: # if true enables gzip compression for http requests (default: false)
-  # batching: # batching configuration, improves throuput dramatically using _bulk Elasticsearch API
+  # batching: # batching configuration, improves throughput dramatically utilizing _bulk Elasticsearch API
   #   enabled: true # if true enables batching
-  #   batchsize: 5242880 # batch request size in bytes (default: 5 MB)
+  #   batchsize: 5242880 # batch size in bytes (default: 5 MB)
   #   flushinterval: 1s # batch fush interval (default: 1s)
   # maxconcurrentrequests: # max number of concurrent http requests (default: 1)
 
