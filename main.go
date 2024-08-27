@@ -32,6 +32,7 @@ var (
 	rocketchatClient    *outputs.Client
 	mattermostClient    *outputs.Client
 	teamsClient         *outputs.Client
+	webexClient         *outputs.Client
 	datadogClient       *outputs.Client
 	discordClient       *outputs.Client
 	alertmanagerClient  *outputs.Client
@@ -192,6 +193,16 @@ func init() {
 			config.Teams.WebhookURL = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Teams")
+		}
+	}
+
+	if config.Webex.WebhookURL != "" {
+		var err error
+		webexClient, err = outputs.NewClient("Webex", config.Webex.WebhookURL, config.Webex.CommonConfig, *initClientArgs)
+		if err != nil {
+			config.Webex.WebhookURL = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Webex")
 		}
 	}
 

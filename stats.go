@@ -29,6 +29,7 @@ func getInitStats() *types.Statistics {
 		Rocketchat:        getOutputNewMap("rocketchat"),
 		Mattermost:        getOutputNewMap("mattermost"),
 		Teams:             getOutputNewMap("teams"),
+		Webex:             getOutputNewMap("webex"),
 		Datadog:           getOutputNewMap("datadog"),
 		Discord:           getOutputNewMap("discord"),
 		Alertmanager:      getOutputNewMap("alertmanager"),

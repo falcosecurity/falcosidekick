@@ -71,6 +71,10 @@ var httpOutputDefaults = map[string]map[string]any{
 		"OutputFormat":    "all",
 		"MinimumPriority": "",
 	},
+	"Webex": {
+		"WebhookURL":      "",
+		"MinimumPriority": "",
+	},
 	"Datadog": {
 		"APIKey":          "",
 		"Host":            "https://api.datadoghq.com",
@@ -798,6 +802,7 @@ func getConfig() *types.Configuration {
 	c.Rocketchat.MinimumPriority = checkPriority(c.Rocketchat.MinimumPriority)
 	c.Mattermost.MinimumPriority = checkPriority(c.Mattermost.MinimumPriority)
 	c.Teams.MinimumPriority = checkPriority(c.Teams.MinimumPriority)
+	c.Webex.MinimumPriority = checkPriority(c.Webex.MinimumPriority)
 	c.Datadog.MinimumPriority = checkPriority(c.Datadog.MinimumPriority)
 	c.Alertmanager.MinimumPriority = checkPriority(c.Alertmanager.MinimumPriority)
 	c.Alertmanager.DropEventDefaultPriority = checkPriority(c.Alertmanager.DropEventDefaultPriority)

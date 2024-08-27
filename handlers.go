@@ -251,6 +251,9 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go teamsClient.TeamsPost(falcopayload)
 	}
 
+	if config.Webex.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Webex.MinimumPriority) || falcopayload.Rule == testRule) {
+		go webexClient.WebexPost(falcopayload)
+	}
 	if config.Datadog.APIKey != "" && (falcopayload.Priority >= types.Priority(config.Datadog.MinimumPriority) || falcopayload.Rule == testRule) {
 		go datadogClient.DatadogPost(falcopayload)
 	}
