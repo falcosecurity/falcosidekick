@@ -54,28 +54,6 @@ const (
 var (
 	defaultNamespace string = "default"
 
-	// default policy report
-	defaultPolicyReport *wgpolicy.PolicyReport = &wgpolicy.PolicyReport{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: policyReportName,
-			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "falcosidekick",
-			},
-		},
-		Summary: wgpolicy.PolicyReportSummary{},
-	}
-
-	// default cluster policy report
-	defaultClusterPolicyReport *wgpolicy.ClusterPolicyReport = &wgpolicy.ClusterPolicyReport{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterPolicyReportName,
-			Labels: map[string]string{
-				"app.kubernetes.io/managed-by": "falcosidekick",
-			},
-		},
-		Summary: wgpolicy.PolicyReportSummary{},
-	}
-
 	// used resources in the k8saudit ruleset
 	resourceMapping = map[string]resource{
 		"pods":                {"v1", "Pod"},
@@ -95,6 +73,30 @@ var (
 		"rolebindings":        {"rbac.authorization.k8s.io/v1", "RoleBinding"},
 	}
 )
+
+func newPolicyReport() *wgpolicy.PolicyReport {
+	return &wgpolicy.PolicyReport{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: policyReportName,
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by": "falcosidekick",
+			},
+		},
+		Summary: wgpolicy.PolicyReportSummary{},
+	}
+}
+
+func newClusterPolicyReport() *wgpolicy.ClusterPolicyReport {
+	return &wgpolicy.ClusterPolicyReport{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: clusterPolicyReportName,
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by": "falcosidekick",
+			},
+		},
+		Summary: wgpolicy.PolicyReportSummary{},
+	}
+}
 
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	clientConfig, err := rest.InClusterConfig()
@@ -201,7 +203,7 @@ func (c *Client) createOrUpdatePolicyReport(result *wgpolicy.PolicyReportResult,
 		}
 	}
 	if policyr.Name == "" {
-		policyr = defaultPolicyReport
+		policyr = newPolicyReport()
 		action = create
 	}
 
@@ -256,7 +258,7 @@ func (c *Client) createOrUpdateClusterPolicyReport(result *wgpolicy.PolicyReport
 		}
 	}
 	if cpolicyr == nil {
-		cpolicyr = defaultClusterPolicyReport
+		cpolicyr = newClusterPolicyReport()
 		action = create
 	}
 
