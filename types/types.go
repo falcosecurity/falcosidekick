@@ -67,6 +67,7 @@ type Configuration struct {
 	Mattermost         MattermostOutputConfig
 	Rocketchat         RocketchatOutputConfig
 	Teams              teamsOutputConfig
+	Webex              WebexOutputConfig
 	Datadog            datadogOutputConfig
 	Discord            DiscordOutputConfig
 	Alertmanager       AlertmanagerOutputConfig
@@ -223,6 +224,12 @@ type teamsOutputConfig struct {
 	WebhookURL      string
 	ActivityImage   string
 	OutputFormat    string
+	MinimumPriority string
+}
+
+type WebexOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
+	WebhookURL      string
 	MinimumPriority string
 }
 
@@ -831,6 +838,7 @@ type Statistics struct {
 	Statsd            *expvar.Map
 	Dogstatsd         *expvar.Map
 	Webhook           *expvar.Map
+	Webex             *expvar.Map
 	AzureEventHub     *expvar.Map
 	GCPPubSub         *expvar.Map
 	GCPStorage        *expvar.Map

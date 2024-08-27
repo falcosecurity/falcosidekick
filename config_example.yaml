@@ -65,6 +65,10 @@ teams:
   outputformat: "all" # all (default), text, facts
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
+webex:
+  # webhookurl: "" # Webex WebhookURL, if not empty, Teams Webex is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 datadog:
   # apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
   # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
