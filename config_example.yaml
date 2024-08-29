@@ -93,6 +93,7 @@ elasticsearch:
   # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # apikey: "" # use this APIKey to authenticate to Elasticsearch if the APIKey is not empty (default: "")
   # username: "" # use this username to authenticate to Elasticsearch if the username is not empty (default: "")
   # password: "" # use this password to authenticate to Elasticsearch if the password is not empty (default: "")
   # flattenfields: false # replace . by _ to avoid mapping conflicts, force to true if createindextemplate==true (default: false)

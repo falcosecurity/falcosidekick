@@ -13,27 +13,28 @@
 
 ## Configuration
 
-|               Setting               |               Env var               |  Default value   |                                                             Description                                                             |
-| ----------------------------------- | ----------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `elasticsearch.hostport`             | `ELASTICSEARCH_HOSTPORT`            |                  | http://{domain or ip}:{port}, if not empty, Elasticsearch output is **enabled**                                                     |
-| `elasticsearch.index`               | `ELASTICSEARCH_INDEX`               | `falco`          | Index                                                                                                                               |
-| `elasticsearch.type`                | `ELASTICSEARCH_TYPE`                | `_doc`           | Index                                                                                                                               |
-| `elasticsearch.suffix`              | `ELASTICSEARCH_SUFFIX`              | `daily`          | Date suffix for index rotation : `daily`, `monthly`, `annually`, `none`                                                             |
-| `elasticsearch.username`            | `ELASTICSEARCH_USERNAME`            |                  | Use this username to authenticate to Elasticsearch                                                                                  |
-| `elasticsearch.password`            | `ELASTICSEARCH_PASSWORD`            |                  | Use this password to authenticate to Elasticsearch                                                                                  |
-| `elasticsearch.flattenfields`       | `ELASTICSEARCH_FLATTENFIELDS`       | `false`          | Replace . by _ to avoid mapping conflicts, force to true if `createindextemplate=true`                                              |
-| `elasticsearch.createindextemplate` | `ELASTICSEARCH_CREATEINDEXTEMPLATE` | `false`          | Create an index template                                                                                                            |
-| `elasticsearch.numberofshards`      | `ELASTICSEARCH_NUMBEROFSHARDS`      | `3`              | Number of shards set by the index template                                                                                          |
-| `elasticsearch.numberofreplicas`    | `ELASTICSEARCH_REPLICAS`            | `3`              | Number of replicas set by the index template                                                                                        |
-| `elasticsearch.customheaders`       | `ELASTICSEARCH_CUSTOMHEADERS`       |                  | Custom headers to add in POST, useful for Authentication                                                                            |
-| `elasticsearch.mutualtls`           | `ELASTICSEARCH_MUTUALTLS`           | `false`          | Authenticate to the output with TLS, if true, checkcert flag will be ignored (server cert will always be checked)                   |
-| `elasticsearch.checkcert`           | `ELASTICSEARCH_CHECKCERT`           | `true`           | Check if ssl certificate of the output is valid                                                                                     |
-| `elasticsearch.minimumpriority`     | `ELASTICSEARCH_MINIMUMPRIORITY`     | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
-| `elasticsearch.maxconcurrentrequests`           | `ELASTICSEARCH_MAXCONCURRENTREQUESTS`           | `1`           | Max number of concurrent requests                                                                                     |
-| `elasticsearch.enablecompression`           | `ELASTICSEARCH_ENABLECOMPRESSION`           | `false`           | Enables gzip compression                                                                                     |
-| `elasticsearch.batching.enabled`           |           | `false`           | Enables batching (utilizing Elasticsearch bulk API)
-| `elasticsearch.batching.batchsize`           |           | `5242880`           | Batch size in bytes, default 5MB
-| `elasticsearch.batching.flushinterval`           |           | `1s`           | Batch flush interval, use valid Go duration string
+|               Setting                 |               Env var                |  Default value   |                                                             Description                                                             |
+| ------------------------------------- | ------------------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `elasticsearch.hostport`              | `ELASTICSEARCH_HOSTPORT`             |                  | http://{domain or ip}:{port}, if not empty, Elasticsearch output is **enabled**                                                     |
+| `elasticsearch.index`                 | `ELASTICSEARCH_INDEX`                | `falco`          | Index                                                                                                                               |
+| `elasticsearch.type`                  | `ELASTICSEARCH_TYPE`                 | `_doc`           | Index                                                                                                                               |
+| `elasticsearch.suffix`                | `ELASTICSEARCH_SUFFIX`               | `daily`          | Date suffix for index rotation : `daily`, `monthly`, `annually`, `none`                                                             |
+| `elasticsearch.apikey`                | `ELASTICSEARCH_APIKEY`               |                  | Use this APIKey to authenticate to Elasticsearch                                                                                  |
+| `elasticsearch.username`              | `ELASTICSEARCH_USERNAME`             |                  | Use this username to authenticate to Elasticsearch                                                                                  |
+| `elasticsearch.password`              | `ELASTICSEARCH_PASSWORD`             |                  | Use this password to authenticate to Elasticsearch                                                                                  |
+| `elasticsearch.flattenfields`         | `ELASTICSEARCH_FLATTENFIELDS`        | `false`          | Replace . by _ to avoid mapping conflicts, force to true if `createindextemplate=true`                                              |
+| `elasticsearch.createindextemplate`   | `ELASTICSEARCH_CREATEINDEXTEMPLATE`  | `false`          | Create an index template                                                                                                            |
+| `elasticsearch.numberofshards`        | `ELASTICSEARCH_NUMBEROFSHARDS`       | `3`              | Number of shards set by the index template                                                                                          |
+| `elasticsearch.numberofreplicas`      | `ELASTICSEARCH_REPLICAS`             | `3`              | Number of replicas set by the index template                                                                                        |
+| `elasticsearch.customheaders`         | `ELASTICSEARCH_CUSTOMHEADERS`        |                  | Custom headers to add in POST, useful for Authentication                                                                            |
+| `elasticsearch.mutualtls`             | `ELASTICSEARCH_MUTUALTLS`            | `false`          | Authenticate to the output with TLS, if true, checkcert flag will be ignored (server cert will always be checked)                   |
+| `elasticsearch.checkcert`             | `ELASTICSEARCH_CHECKCERT`            | `true`           | Check if ssl certificate of the output is valid                                                                                     |
+| `elasticsearch.minimumpriority`       | `ELASTICSEARCH_MINIMUMPRIORITY`      | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
+| `elasticsearch.maxconcurrentrequests` | `ELASTICSEARCH_MAXCONCURRENTREQUESTS`| `1`              | Max number of concurrent requests                                                                                                   |
+| `elasticsearch.enablecompression`     | `ELASTICSEARCH_ENABLECOMPRESSION`    | `false`          | Enables gzip compression                                                                                                            |
+| `elasticsearch.batching.enabled`      |                                      | `false`          | Enables batching (utilizing Elasticsearch bulk API)                                                                                 |
+| `elasticsearch.batching.batchsize`    |                                      | `5242880`        | Batch size in bytes, default 5MB                                                                                                    |
+| `elasticsearch.batching.flushinterval`|                                      | `1s`             | Batch flush interval, use valid Go duration string                                                                                  |
 
 > [!NOTE]
 The Env var values override the settings from yaml file.
