@@ -105,6 +105,10 @@ func (c *Client) elasticsearchPost(index string, payload []byte, falcoPayloads .
 	c.EndpointURL = endpointURL
 
 	reqOpt := func(req *http.Request) {
+		if c.Config.Elasticsearch.ApiKey != "" {
+			req.Header.Set("Authorization", "APIKey "+c.Config.Elasticsearch.ApiKey)
+		}
+
 		if c.Config.Elasticsearch.Username != "" && c.Config.Elasticsearch.Password != "" {
 			req.SetBasicAuth(c.Config.Elasticsearch.Username, c.Config.Elasticsearch.Password)
 		}

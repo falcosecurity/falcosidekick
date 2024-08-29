@@ -281,6 +281,7 @@ type ElasticsearchOutputConfig struct {
 	Suffix              string
 	Username            string
 	Password            string
+	ApiKey              string
 	FlattenFields       bool
 	CreateIndexTemplate bool
 	NumberOfShards      int
