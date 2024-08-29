@@ -101,12 +101,12 @@ elasticsearch:
   # numberofreplicas: 3 # number of replicas set by the index template (default: 3)
   # customHeaders: # Custom headers to add in POST, useful for Authentication
   #   key: value
-  # enablecompression: # if true enables gzip compression for http requests (default: false)
+  # enablecompression: false # if true enables gzip compression for http requests (default: false)
   # batching: # batching configuration, improves throughput dramatically utilizing _bulk Elasticsearch API
   #   enabled: true # if true enables batching
   #   batchsize: 5242880 # batch size in bytes (default: 5 MB)
   #   flushinterval: 1s # batch fush interval (default: 1s)
-  # maxconcurrentrequests: # max number of concurrent http requests (default: 1)
+  # maxconcurrentrequests: 1 # max number of concurrent http requests (default: 1)
 
 quickwit:
   # hostport: "" # http(s)://{domain or ip}:{port}, if not empty, Quickwit output is enabled
