@@ -97,8 +97,11 @@ const HttpPut = "PUT"
 
 // Client communicates with the different API.
 type Client struct {
-	OutputType              string
-	EndpointURL             *url.URL
+	OutputType string
+
+	// FIXME: This causes race condition if outputs overwrite this URL during requests from multiple go routines
+	EndpointURL *url.URL
+
 	ContentType             string
 	ShutDownFunc            func()
 	Config                  *types.Configuration

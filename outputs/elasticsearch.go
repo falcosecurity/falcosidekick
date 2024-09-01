@@ -102,26 +102,39 @@ func (c *Client) elasticsearchPost(index string, payload []byte, falcoPayloads .
 		return
 	}
 
-	c.EndpointURL = endpointURL
+	reqOpts := []RequestOptionFunc{
+		// Set request headers
+		func(req *http.Request) {
+			if c.Config.Elasticsearch.ApiKey != "" {
+				req.Header.Set("Authorization", "APIKey "+c.Config.Elasticsearch.ApiKey)
+			}
 
-	reqOpt := func(req *http.Request) {
-		if c.Config.Elasticsearch.ApiKey != "" {
-			req.Header.Set("Authorization", "APIKey "+c.Config.Elasticsearch.ApiKey)
-		}
+			if c.Config.Elasticsearch.Username != "" && c.Config.Elasticsearch.Password != "" {
+				req.SetBasicAuth(c.Config.Elasticsearch.Username, c.Config.Elasticsearch.Password)
+			}
 
-		if c.Config.Elasticsearch.Username != "" && c.Config.Elasticsearch.Password != "" {
-			req.SetBasicAuth(c.Config.Elasticsearch.Username, c.Config.Elasticsearch.Password)
-		}
+			for i, j := range c.Config.Elasticsearch.CustomHeaders {
+				req.Header.Set(i, j)
+			}
+		},
 
-		for i, j := range c.Config.Elasticsearch.CustomHeaders {
-			req.Header.Set(i, j)
-		}
+		// Set the final endpointURL
+		func(req *http.Request) {
+			// Append pipeline parameter to the URL if configured
+			if c.Config.Elasticsearch.Pipeline != "" {
+				query := endpointURL.Query()
+				query.Set("pipeline", c.Config.Elasticsearch.Pipeline)
+				endpointURL.RawQuery = query.Encode()
+			}
+			// Set request URL
+			req.URL = endpointURL
+		},
 	}
 
 	var response string
 	if c.Config.Elasticsearch.Batching.Enabled {
 		// Use PostWithResponse call when batching is enabled in order to capture response body on 200
-		res, err := c.PostWithResponse(payload, reqOpt)
+		res, err := c.PostWithResponse(payload, reqOpts...)
 		if err != nil {
 			response = err.Error()
 		} else {
@@ -129,7 +142,7 @@ func (c *Client) elasticsearchPost(index string, payload []byte, falcoPayloads .
 		}
 	} else {
 		// Use regular Post call, this avoid parsing response on http status 200
-		err = c.Post(payload, reqOpt)
+		err = c.Post(payload, reqOpts...)
 		if err != nil {
 			response = err.Error()
 		}
@@ -194,7 +207,7 @@ func (c *Client) elasticsearchPost(index string, payload []byte, falcoPayloads .
 					}
 				}
 				log.Printf("[INFO]  : %v - %v\n", c.OutputType, "attempt to POST again the payload without the wrong field")
-				err = c.Post(payload, reqOpt)
+				err = c.Post(payload, reqOpts...)
 				if err != nil {
 					c.setElasticSearchErrorMetrics(sz)
 					return

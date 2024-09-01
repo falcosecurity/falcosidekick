@@ -21,21 +21,24 @@ func (c *Client) SumoLogicPost(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	c.EndpointURL = endpointURL
+	err = c.Post(falcopayload,
+		func(req *http.Request) {
+			if c.Config.SumoLogic.SourceCategory != "" {
+				req.Header.Set("X-Sumo-Category", c.Config.SumoLogic.SourceCategory)
+			}
 
-	err = c.Post(falcopayload, func(req *http.Request) {
-		if c.Config.SumoLogic.SourceCategory != "" {
-			req.Header.Set("X-Sumo-Category", c.Config.SumoLogic.SourceCategory)
-		}
+			if c.Config.SumoLogic.SourceHost != "" {
+				req.Header.Set("X-Sumo-Host", c.Config.SumoLogic.SourceHost)
+			}
 
-		if c.Config.SumoLogic.SourceHost != "" {
-			req.Header.Set("X-Sumo-Host", c.Config.SumoLogic.SourceHost)
-		}
-
-		if c.Config.SumoLogic.Name != "" {
-			req.Header.Set("X-Sumo-Name", c.Config.SumoLogic.Name)
-		}
-	})
+			if c.Config.SumoLogic.Name != "" {
+				req.Header.Set("X-Sumo-Name", c.Config.SumoLogic.Name)
+			}
+		},
+		func(req *http.Request) {
+			req.URL = endpointURL
+		},
+	)
 
 	if err != nil {
 		c.setSumoLogicErrorMetrics()
