@@ -277,6 +277,7 @@ type ElasticsearchOutputConfig struct {
 	HostPort            string
 	Index               string
 	Type                string
+	Pipeline            string
 	MinimumPriority     string
 	Suffix              string
 	Username            string
