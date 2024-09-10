@@ -329,6 +329,9 @@ customfields: # custom fields are added to falco events, if the value starts wit
   # Ckey: "CValue"
 templatedfields: # templated fields are added to falco events and metrics, it uses Go template + output_fields values
   # Dkey: '{{ or (index . "k8s.ns.labels.foo") "bar" }}'
+customtags: # custom tags are added to the falco events, if the value starts with % the relative env var is used
+  # - tagA
+  # - tagB
 # bracketreplacer: "_" # if not empty, replace the brackets in keys of Output Fields
 outputFieldFormat: "<timestamp>: <priority> <output> <custom_fields> <templated_fields>" # if not empty, allow to change the format of the output field. (default: "<timestamp>: <priority> <output>")
 mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls for outputs, will be deprecated in the future (default: "/etc/certs")

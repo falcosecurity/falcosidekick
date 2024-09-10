@@ -106,6 +106,8 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
+	falcopayload.Tags = append(falcopayload.Tags, config.Customtags...)
+
 	if falcopayload.Rule == "Test rule" {
 		falcopayload.Source = "internal"
 	}
@@ -202,6 +204,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 			n = strings.ReplaceAll(n, "<output>", o)
 			n = strings.ReplaceAll(n, "<custom_fields>", strings.TrimSuffix(customFields, " "))
 			n = strings.ReplaceAll(n, "<templated_fields>", strings.TrimSuffix(templatedFields, " "))
+			n = strings.ReplaceAll(n, "<tags>", strings.Join(falcopayload.Tags, ","))
 			n = strings.TrimSuffix(n, " ")
 			n = strings.TrimSuffix(n, "( )")
 			n = strings.TrimSuffix(n, "()")
@@ -212,9 +215,9 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	if len(falcopayload.String()) > 4096 {
 		for i, j := range falcopayload.OutputFields {
-			switch j.(type) {
+			switch l := j.(type) {
 			case string:
-				if len(j.(string)) > 512 {
+				if len(l) > 512 {
 					k := j.(string)[:507] + "[...]"
 					falcopayload.Output = strings.ReplaceAll(falcopayload.Output, j.(string), k)
 					falcopayload.OutputFields[i] = k

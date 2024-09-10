@@ -60,6 +60,7 @@ type Configuration struct {
 	BracketReplacer    string
 	OutputFieldFormat  string
 	Customfields       map[string]string
+	Customtags         []string
 	Templatedfields    map[string]string
 	Prometheus         prometheusOutputConfig
 	Slack              SlackOutputConfig
