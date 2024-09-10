@@ -509,6 +509,8 @@ func getConfig() *types.Configuration {
 	v.SetDefault("AWS.Kinesis.StreamName", "")
 	v.SetDefault("AWS.Kinesis.MinimumPriority", "")
 
+	v.SetDefault("Alertmanager.MinimumPriority", "")
+
 	v.SetDefault("Prometheus.ExtraLabels", "")
 
 	v.SetDefault("Azure.eventHub.Namespace", "")
@@ -576,6 +578,7 @@ func getConfig() *types.Configuration {
 	}
 
 	v.GetStringSlice("TLSServer.NoTLSPaths")
+	v.GetStringSlice("Customtags")
 
 	v.GetStringMapString("Customfields")
 	v.GetStringMapString("Templatedfields")
@@ -592,6 +595,10 @@ func getConfig() *types.Configuration {
 
 	if value, present := os.LookupEnv("TLSSERVER_NOTLSPATHS"); present {
 		c.TLSServer.NoTLSPaths = strings.Split(value, ",")
+	}
+
+	if value, present := os.LookupEnv("CUSTOMTAGS"); present {
+		c.Customtags = strings.Split(strings.ReplaceAll(value, " ", ""), ",")
 	}
 
 	if value, present := os.LookupEnv("CUSTOMFIELDS"); present {
@@ -791,11 +798,11 @@ func getConfig() *types.Configuration {
 				log.Printf("[ERROR] : AlertManager - Fail to parse threshold - Atoi fail %v", threshold)
 				continue
 			}
-			priority := types.Priority(strings.TrimSpace(values[1]))
-			if priority == types.Default {
-				log.Printf("[ERROR] : AlertManager - Priority '%v' is not a valid falco priority level", priority.String())
+			if p := strings.TrimSpace(values[1]); p == "" {
+				log.Printf("[ERROR] : AlertManager - Priority '%v' is not a valid falco priority level", p)
 				continue
 			}
+			priority := types.Priority(strings.TrimSpace(values[1]))
 			c.Alertmanager.DropEventThresholdsList = append(c.Alertmanager.DropEventThresholdsList, types.ThresholdConfig{Priority: priority, Value: valueInt})
 		}
 	}
