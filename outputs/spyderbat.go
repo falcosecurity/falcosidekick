@@ -175,7 +175,7 @@ func newSpyderbatPayload(falcopayload types.FalcoPayload) (spyderbatPayload, err
 		MonotonicTime: time.Now().Nanosecond(),
 		OrcTime:       nowTime,
 		Time:          eventTime,
-		PID:           int32(pid),
+		PID:           int32(pid), //nolint:gosec // disable G115
 		Level:         level,
 		Message:       message,
 		Arguments:     arguments,

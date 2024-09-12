@@ -175,7 +175,7 @@ func newResult(falcopayload types.FalcoPayload) *wgpolicy.PolicyReportResult {
 		Rule:        falcopayload.Rule,
 		Category:    "SI - System and Information Integrity",
 		Source:      policyReportSource,
-		Timestamp:   metav1.Timestamp{Seconds: int64(falcopayload.Time.Second()), Nanos: int32(falcopayload.Time.Nanosecond())},
+		Timestamp:   metav1.Timestamp{Seconds: int64(falcopayload.Time.Second()), Nanos: int32(falcopayload.Time.Nanosecond())}, //nolint:gosec // disable G115
 		Severity:    mapSeverity(falcopayload),
 		Result:      mapResult(falcopayload),
 		Description: falcopayload.Output,
