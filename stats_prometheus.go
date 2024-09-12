@@ -13,6 +13,8 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
+const metricPrefix string = "falcosecurity_falcosidekick_"
+
 func getInitPromStats(config *types.Configuration) *types.PromStatistics {
 	promStats = &types.PromStatistics{
 		Falco:   getFalcoNewCounterVec(config),
@@ -25,7 +27,7 @@ func getInitPromStats(config *types.Configuration) *types.PromStatistics {
 func getInputNewCounterVec() *prometheus.CounterVec {
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "falcosidekick_inputs",
+			Name: metricPrefix + "inputs_total",
 		},
 		[]string{"source", "status"},
 	)
@@ -34,7 +36,7 @@ func getInputNewCounterVec() *prometheus.CounterVec {
 func getOutputNewCounterVec() *prometheus.CounterVec {
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "falcosidekick_outputs",
+			Name: metricPrefix + "outputs_total",
 		},
 		[]string{"destination", "status"},
 	)
@@ -46,6 +48,7 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 		"hostname",
 		"rule",
 		"priority",
+		"priority_raw",
 		"source",
 		"k8s_ns_name",
 		"k8s_pod_name",
@@ -66,7 +69,7 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 	}
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "falco_events",
+			Name: metricPrefix + "falco_events_total",
 		},
 		labelnames,
 	)

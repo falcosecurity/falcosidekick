@@ -18,11 +18,11 @@ func TestFalcoNewCounterVec(t *testing.T) {
 	c.Customfields["should*fail"] = "bar"
 
 	cv := getFalcoNewCounterVec(c)
-	shouldbe := []string{"hostname", "rule", "priority", "source", "k8s_ns_name", "k8s_pod_name", "test"}
+	shouldbe := []string{"hostname", "rule", "priority", "priority_raw", "source", "k8s_ns_name", "k8s_pod_name", "test"}
 	mm, err := cv.GetMetricWithLabelValues(shouldbe...)
 	if err != nil {
 		t.Errorf("Error getting Metrics from promauto")
 	}
 	metricDescString := mm.Desc().String()
-	require.Equal(t, metricDescString, "Desc{fqName: \"falco_events\", help: \"\", constLabels: {}, variableLabels: {hostname,rule,priority,source,k8s_ns_name,k8s_pod_name,test}}")
+	require.Equal(t, metricDescString, "Desc{fqName: \"falcosecurity_falcosidekick_falco_events_total\", help: \"\", constLabels: {}, variableLabels: {hostname,rule,priority,priority_raw,source,k8s_ns_name,k8s_pod_name,test}}")
 }
