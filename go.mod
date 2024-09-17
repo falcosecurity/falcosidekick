@@ -13,7 +13,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/cloudevents/sdk-go/v2 v2.15.2
-	github.com/eclipse/paho.mqtt.golang v1.4.3
+	github.com/eclipse/paho.mqtt.golang v1.5.0
 	github.com/embano1/memlog v0.4.6
 	github.com/emersion/go-sasl v0.0.0-20231106173351-e73c9f7bad43
 	github.com/emersion/go-smtp v0.21.3
@@ -89,7 +89,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
-	github.com/gorilla/websocket v1.5.1 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v1.0.0 // indirect
