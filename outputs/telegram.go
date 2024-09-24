@@ -45,6 +45,7 @@ type telegramPayload struct {
 	ParseMode             string `json:"parse_mode,omitempty"`
 	DisableWebPagePreview bool   `json:"disable_web_page_preview,omitempty"`
 	ChatID                string `json:"chat_id,omitempty"`
+	MessageThreadID       string  `json:"message_thread_id,omitempty"`
 }
 
 func newTelegramPayload(falcopayload types.FalcoPayload, config *types.Configuration) telegramPayload {
@@ -53,6 +54,11 @@ func newTelegramPayload(falcopayload types.FalcoPayload, config *types.Configura
 		ParseMode:             "MarkdownV2",
 		DisableWebPagePreview: true,
 		ChatID:                config.Telegram.ChatID,
+	}
+
+	// Check if message_thread_id is present in falcopayload
+  if config.Telegram.MessageThreadID != "" {
+			payload.MessageThreadID = config.Telegram.MessageThreadID
 	}
 
 	// template engine
