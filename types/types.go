@@ -750,6 +750,7 @@ type TelegramConfig struct {
 	ChatID          string
 	MinimumPriority string
 	CheckCert       bool
+	MessageThreadID string
 }
 
 // N8NConfig represents config parameters for N8N
