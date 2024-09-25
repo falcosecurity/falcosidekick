@@ -57,8 +57,8 @@ func newTelegramPayload(falcopayload types.FalcoPayload, config *types.Configura
 	}
 
 	// Check if message_thread_id is present in falcopayload
-  if config.Telegram.MessageThreadID != "" {
-			payload.MessageThreadID = config.Telegram.MessageThreadID
+	if config.Telegram.MessageThreadID != "" {
+		payload.MessageThreadID = config.Telegram.MessageThreadID
 	}
 
 	// template engine
