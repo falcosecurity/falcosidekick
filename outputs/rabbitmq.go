@@ -5,6 +5,8 @@ package outputs
 import (
 	"encoding/json"
 	"errors"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -13,7 +15,8 @@ import (
 )
 
 // NewRabbitmqClient returns a new output.Client for accessing the RabbitmMQ API.
-func NewRabbitmqClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewRabbitmqClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	var channel *amqp.Channel
 	if config.Rabbitmq.URL != "" && config.Rabbitmq.Queue != "" {
@@ -36,6 +39,7 @@ func NewRabbitmqClient(config *types.Configuration, stats *types.Statistics, pro
 		RabbitmqClient:  channel,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -57,6 +61,8 @@ func (c *Client) Publish(falcopayload types.FalcoPayload) {
 		c.Stats.Rabbitmq.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:rabbitmq", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "rabbitmq", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "rabbitmq"),
+			attribute.String("status", Error)).Inc()
 
 		return
 	}
@@ -65,4 +71,6 @@ func (c *Client) Publish(falcopayload types.FalcoPayload) {
 	c.Stats.Rabbitmq.Add(OK, 1)
 	go c.CountMetric("outputs", 1, []string{"output:rabbitmq", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "rabbitmq", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "rabbitmq"),
+		attribute.String("status", OK)).Inc()
 }

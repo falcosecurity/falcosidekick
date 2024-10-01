@@ -543,6 +543,18 @@ otlp:
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
     # checkcert: true # Set if you want to skip TLS certificate validation (default: true)
 
+  metrics:
+    # endpoint: "" # OTLP endpoint, typically in the form http{s}://{domain or ip}:4318/v1/metrics
+    # protocol: "" # OTLP transport protocol to be used for metrics data; it can be "grpc" or "http/protobuf" (default: "grpc")
+    # timeout: "" # OTLP timeout for outgoing metrics in milliseconds (default: "" which uses SDK default: 10000)
+    # headers: "" # List of headers to apply to all outgoing metrics in the form of "some-key=some-value,other-key=other-value" (default: "")
+    # extraenvvars: # Extra env vars (override the other settings) (default: "")
+      # OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: 10000
+      # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
+    # minimumpriority: "" # Minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "")
+    # checkcert: true # Set to false if you want to skip TLS certificate validation (only with https) (default: true)
+    # extraattributes: "" # Comma-separated list of fields to use as labels additionally to source, priority, rule, hostname, tags, k8s_ns_name, k8s_pod_name and custom_fields
+
 talon:
   # address: "" # Falco talon address, if not empty, Falco Talon output is enabled
   # checkcert: false # check if ssl certificate of the output is valid (default: true)

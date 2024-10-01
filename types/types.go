@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"expvar"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"text/template"
 	"time"
 
@@ -124,6 +125,7 @@ type InitClientArgs struct {
 	Config          *Configuration
 	Stats           *Statistics
 	PromStats       *PromStatistics
+	OTLPMetrics     *otlpmetrics.OTLPMetrics
 	StatsdClient    *statsd.Client
 	DogstatsdClient *statsd.Client
 }
@@ -798,7 +800,8 @@ type OTLPTraces struct {
 
 // OTLPOutputConfig represents config parameters for OTLP
 type OTLPOutputConfig struct {
-	Traces OTLPTraces
+	Traces  OTLPTraces
+	Metrics otlpmetrics.Config
 }
 
 // TalonOutputConfig represents parameters for Talon
@@ -877,6 +880,7 @@ type Statistics struct {
 	OpenObserve       *expvar.Map
 	Dynatrace         *expvar.Map
 	OTLPTraces        *expvar.Map
+	OTLPMetrics       *expvar.Map
 	Talon             *expvar.Map
 }
 

@@ -5,6 +5,8 @@ package outputs
 import (
 	"context"
 	"encoding/json"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"time"
 
@@ -16,12 +18,14 @@ import (
 )
 
 // NewEventHubClient returns a new output.Client for accessing the Azure Event Hub.
-func NewEventHubClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewEventHubClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	return &Client{
 		OutputType:      "AzureEventHub",
 		Config:          config,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -83,6 +87,8 @@ func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:azureeventhub", "status:ok"})
 	c.Stats.AzureEventHub.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "azureeventhub"),
+		attribute.String("status", OK)).Inc()
 	log.Printf("[INFO]  : %v EventHub - Publish OK", c.OutputType)
 }
 
@@ -91,4 +97,6 @@ func (c *Client) setEventHubErrorMetrics() {
 	go c.CountMetric(Outputs, 1, []string{"output:azureeventhub", "status:error"})
 	c.Stats.AzureEventHub.Add(Error, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": Error}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "azureeventhub"),
+		attribute.String("status", Error)).Inc()
 }

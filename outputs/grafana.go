@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 
@@ -90,6 +91,8 @@ func (c *Client) GrafanaPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:grafana", "status:error"})
 		c.Stats.Grafana.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "grafana", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "grafana"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Grafana - %v\n", err)
 		return
 	}
@@ -97,6 +100,8 @@ func (c *Client) GrafanaPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:grafana", "status:ok"})
 	c.Stats.Grafana.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "grafana", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "grafana"),
+		attribute.String("status", OK)).Inc()
 }
 
 // GrafanaOnCallPost posts event to grafana onCall
@@ -114,6 +119,8 @@ func (c *Client) GrafanaOnCallPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:grafanaoncall", "status:error"})
 		c.Stats.Grafana.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "grafanaoncall", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "grafanaoncall"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Grafana OnCall - %v\n", err)
 		return
 	}
@@ -121,4 +128,6 @@ func (c *Client) GrafanaOnCallPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:grafanaoncall", "status:ok"})
 	c.Stats.Grafana.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "grafanaoncall", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "grafanaoncall"),
+		attribute.String("status", OK)).Inc()
 }

@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"bytes"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"sort"
 	"strings"
@@ -154,6 +155,8 @@ func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:slack", "status:error"})
 		c.Stats.Slack.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "slack", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "slack"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Slack - %v\n", err)
 		return
 	}
@@ -162,4 +165,5 @@ func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:slack", "status:ok"})
 	c.Stats.Slack.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "slack", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "slack"), attribute.String("status", OK)).Inc()
 }

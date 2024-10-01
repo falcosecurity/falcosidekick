@@ -4,6 +4,8 @@ package outputs
 
 import (
 	"crypto/tls"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -15,7 +17,7 @@ import (
 
 // NewMQTTClient returns a new output.Client for accessing Kubernetes.
 func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	options := mqtt.NewClientOptions()
 	options.AddBroker(config.MQTT.Broker)
@@ -41,6 +43,7 @@ func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promSta
 		MQTTClient:      client,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -56,6 +59,8 @@ func (c *Client) MQTTPublish(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:mqtt", "status:error"})
 		c.Stats.MQTT.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "mqtt", "status": err.Error()}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "mqtt"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %s - %v\n", MQTT, err.Error())
 		return
 	}
@@ -64,6 +69,8 @@ func (c *Client) MQTTPublish(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:mqtt", "status:error"})
 		c.Stats.MQTT.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "mqtt", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "mqtt"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %s - %v\n", MQTT, err.Error())
 		return
 	}
@@ -72,4 +79,5 @@ func (c *Client) MQTTPublish(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:mqtt", "status:ok"})
 	c.Stats.MQTT.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "mqtt", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "mqtt"), attribute.String("status", OK)).Inc()
 }

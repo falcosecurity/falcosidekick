@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"strconv"
 
@@ -18,7 +20,8 @@ import (
 )
 
 // NewOpenfaasClient returns a new output.Client for accessing Kubernetes.
-func NewOpenfaasClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewOpenfaasClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	if config.Openfaas.Kubeconfig != "" {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", config.Openfaas.Kubeconfig)
 		if err != nil {
@@ -33,6 +36,7 @@ func NewOpenfaasClient(config *types.Configuration, stats *types.Statistics, pro
 			Config:           config,
 			Stats:            stats,
 			PromStats:        promStats,
+			OTLPMetrics:      otlpMetrics,
 			StatsdClient:     statsdClient,
 			DogstatsdClient:  dogstatsdClient,
 			KubernetesClient: clientset,
@@ -45,6 +49,7 @@ func NewOpenfaasClient(config *types.Configuration, stats *types.Statistics, pro
 		Stats:           stats,
 		DogstatsdClient: dogstatsdClient,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 	}
 
@@ -68,6 +73,8 @@ func (c *Client) OpenfaasCall(falcopayload types.FalcoPayload) {
 			go c.CountMetric(Outputs, 1, []string{"output:openfaas", "status:error"})
 			c.Stats.Openfaas.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "openfaas", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "openfaas"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : %v - %v\n", Openfaas, err)
 			return
 		}
@@ -78,6 +85,8 @@ func (c *Client) OpenfaasCall(falcopayload types.FalcoPayload) {
 			go c.CountMetric(Outputs, 1, []string{"output:openfaas", "status:error"})
 			c.Stats.Openfaas.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "openfaas", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "openfaas"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : %v - %v\n", Openfaas, err)
 			return
 		}
@@ -86,4 +95,6 @@ func (c *Client) OpenfaasCall(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:openfaas", "status:ok"})
 	c.Stats.Openfaas.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "openfaas", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "openfaas"),
+		attribute.String("status", OK)).Inc()
 }

@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 	"strconv"
@@ -27,7 +29,8 @@ const KubelessEventTypeValue = "falco"
 const KubelessContentType = "application/json"
 
 // NewKubelessClient returns a new output.Client for accessing Kubernetes.
-func NewKubelessClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewKubelessClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	if config.Kubeless.Kubeconfig != "" {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", config.Kubeless.Kubeconfig)
 		if err != nil {
@@ -42,6 +45,7 @@ func NewKubelessClient(config *types.Configuration, stats *types.Statistics, pro
 			Config:           config,
 			Stats:            stats,
 			PromStats:        promStats,
+			OTLPMetrics:      otlpMetrics,
 			StatsdClient:     statsdClient,
 			DogstatsdClient:  dogstatsdClient,
 			KubernetesClient: clientset,
@@ -55,6 +59,7 @@ func NewKubelessClient(config *types.Configuration, stats *types.Statistics, pro
 		Stats:           stats,
 		DogstatsdClient: dogstatsdClient,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 	}
 
@@ -80,6 +85,8 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 			go c.CountMetric(Outputs, 1, []string{"output:kubeless", "status:error"})
 			c.Stats.Kubeless.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "kubeless", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "kubeless"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : Kubeless - %v\n", err)
 			return
 		}
@@ -96,6 +103,8 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 			go c.CountMetric(Outputs, 1, []string{"output:kubeless", "status:error"})
 			c.Stats.Kubeless.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "kubeless", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "kubeless"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : Kubeless - %v\n", err)
 			return
 		}
@@ -104,4 +113,6 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:kubeless", "status:ok"})
 	c.Stats.Kubeless.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "kubeless", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "kubeless"),
+		attribute.String("status", OK)).Inc()
 }

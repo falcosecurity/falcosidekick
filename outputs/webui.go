@@ -3,6 +3,7 @@
 package outputs
 
 import (
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -29,6 +30,8 @@ func (c *Client) WebUIPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:webui", "status:error"})
 		c.Stats.WebUI.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "webui", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "webui"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : WebUI - %v\n", err.Error())
 		return
 	}
@@ -37,4 +40,6 @@ func (c *Client) WebUIPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:webui", "status:ok"})
 	c.Stats.WebUI.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "webui", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "webui"),
+		attribute.String("status", OK)).Inc()
 }
