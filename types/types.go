@@ -796,9 +796,21 @@ type OTLPTraces struct {
 	MinimumPriority string
 }
 
+// OTLPMetrics represents config parameters for OTLP Metrics
+type OTLPMetrics struct {
+	Endpoint        string
+	Protocol        string
+	Timeout         int64
+	Headers         string
+	ExtraEnvVars    map[string]string
+	CheckCert       bool
+	MinimumPriority string
+}
+
 // OTLPOutputConfig represents config parameters for OTLP
 type OTLPOutputConfig struct {
-	Traces OTLPTraces
+	Traces  OTLPTraces
+	Metrics OTLPMetrics
 }
 
 // TalonOutputConfig represents parameters for Talon
@@ -877,6 +889,7 @@ type Statistics struct {
 	OpenObserve       *expvar.Map
 	Dynatrace         *expvar.Map
 	OTLPTraces        *expvar.Map
+	OTLPMetrics       *expvar.Map
 	Talon             *expvar.Map
 }
 

@@ -475,7 +475,13 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	}
 
 	if config.OTLP.Traces.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.OTLP.Traces.MinimumPriority)) && (falcopayload.Source == syscall || falcopayload.Source == syscalls) {
-		go otlpClient.OTLPTracesPost(falcopayload)
+		go otlpTracesClient.OTLPTracesPost(falcopayload)
+	}
+
+	if config.OTLP.Metrics.Endpoint != "" &&
+		(falcopayload.Priority) >= types.Priority(config.OTLP.Metrics.MinimumPriority) &&
+		(falcopayload.Source == syscall || falcopayload.Source == syscalls) {
+		go otlpMetricsClient.OTLPMetricsPost(falcopayload)
 	}
 
 	if config.Talon.Address != "" && (falcopayload.Priority >= types.Priority(config.Talon.MinimumPriority) || falcopayload.Rule == testRule) {
