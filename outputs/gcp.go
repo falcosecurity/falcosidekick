@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"time"
 
@@ -25,7 +27,8 @@ import (
 )
 
 // NewGCPClient returns a new output.Client for accessing the GCP API.
-func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	base64decodedCredentialsData, err := base64.StdEncoding.DecodeString(config.GCP.Credentials)
 	if err != nil {
 		log.Printf("[ERROR] : GCP - %v\n", "Error while base64-decoding GCP Credentials")
@@ -102,6 +105,7 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 		GCPCloudFunctionsClient: cloudFunctionsClient,
 		Stats:                   stats,
 		PromStats:               promStats,
+		OTLPMetrics:             otlpMetrics,
 		StatsdClient:            statsdClient,
 		DogstatsdClient:         dogstatsdClient,
 	}, nil
@@ -124,7 +128,8 @@ func (c *Client) GCPCallCloudFunction(falcopayload types.FalcoPayload) {
 		c.Stats.GCPPubSub.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcpcloudfunctions", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcpcloudfunctions", "status": Error}).Inc()
-
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpcloudfunctions"),
+			attribute.String("status", Error)).Inc()
 		return
 	}
 
@@ -151,7 +156,8 @@ func (c *Client) GCPPublishTopic(falcopayload types.FalcoPayload) {
 		c.Stats.GCPPubSub.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcppubsub", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcppubsub", "status": Error}).Inc()
-
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcppubsub"),
+			attribute.String("status", Error)).Inc()
 		return
 	}
 
@@ -159,6 +165,8 @@ func (c *Client) GCPPublishTopic(falcopayload types.FalcoPayload) {
 	c.Stats.GCPPubSub.Add(OK, 1)
 	go c.CountMetric("outputs", 1, []string{"output:gcppubsub", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "gcppubsub", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcppubsub"),
+		attribute.String("status", OK)).Inc()
 }
 
 // UploadGCS upload payload to
@@ -181,6 +189,8 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 		c.Stats.GCPStorage.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpstorage"),
+			attribute.String("status", Error)).Inc()
 		return
 	}
 	if n == 0 {
@@ -188,6 +198,8 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 		c.Stats.GCPStorage.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpstorage"),
+			attribute.String("status", Error)).Inc()
 		return
 	}
 	if err := bucketWriter.Close(); err != nil {
@@ -195,6 +207,8 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 		c.Stats.GCPStorage.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpstorage"),
+			attribute.String("status", Error)).Inc()
 		return
 	}
 
@@ -202,4 +216,6 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 	c.Stats.GCPStorage.Add(OK, 1)
 	go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpstorage"),
+		attribute.String("status", OK)).Inc()
 }

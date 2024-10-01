@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 	"net/url"
@@ -220,6 +221,8 @@ func (c *Client) elasticsearchPost(index string, payload []byte, falcoPayloads .
 	go c.CountMetric(Outputs, sz, []string{"output:elasticsearch", "status:ok"})
 	c.Stats.Elasticsearch.Add(OK, sz)
 	c.PromStats.Outputs.With(map[string]string{"destination": "elasticsearch", "status": OK}).Add(float64(sz))
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "elasticsearch"),
+		attribute.String("status", OK)).Inc()
 }
 
 func (c *Client) ElasticsearchCreateIndexTemplate(config types.ElasticsearchOutputConfig) error {
@@ -278,6 +281,8 @@ func (c *Client) setElasticSearchErrorMetrics(n int64) {
 	go c.CountMetric(Outputs, n, []string{"output:elasticsearch", "status:error"})
 	c.Stats.Elasticsearch.Add(Error, n)
 	c.PromStats.Outputs.With(map[string]string{"destination": "elasticsearch", "status": Error}).Add(float64(n))
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "elasticsearch"),
+		attribute.String("status", Error)).Inc()
 }
 
 func (c *Client) buildESPayload(falcopayload types.FalcoPayload) eSPayload {

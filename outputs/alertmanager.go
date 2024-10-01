@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"encoding/json"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 	"regexp"
@@ -141,6 +142,8 @@ func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:error"})
 		c.Stats.Alertmanager.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "alertmanager"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : AlertManager - %v\n", err)
 		return
 	}
@@ -148,6 +151,8 @@ func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:alertmanager", "status:ok"})
 	c.Stats.Alertmanager.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "alertmanager"),
+		attribute.String("status", OK)).Inc()
 }
 
 func alertmanagerSafeLabel(label string) string {

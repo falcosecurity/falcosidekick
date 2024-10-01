@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"log"
 	"net/http"
 	"net/url"
@@ -78,18 +79,20 @@ var (
 	n8nClient           *outputs.Client
 	openObserveClient   *outputs.Client
 	dynatraceClient     *outputs.Client
-	otlpClient          *outputs.Client
+	otlpTracesClient    *outputs.Client
 	talonClient         *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
 	stats                         *types.Statistics
 	promStats                     *types.PromStatistics
+	otlpMetrics                   *otlpmetrics.OTLPMetrics
 	initClientArgs                *types.InitClientArgs
 
-	regPromLabels   *regexp.Regexp
-	regOutputFormat *regexp.Regexp
-	shutDownFuncs   []func()
+	regPromLabels            *regexp.Regexp
+	regOTLPMetricsAttributes *regexp.Regexp
+	regOutputFormat          *regexp.Regexp
+	shutDownFuncs            []func()
 )
 
 func init() {
@@ -102,17 +105,21 @@ func init() {
 	}
 
 	regPromLabels, _ = regexp.Compile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
+	// TODO: replace the following regex if something more appropriate is found
+	regOTLPMetricsAttributes = regexp.MustCompile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
 	regOutputFormat, _ = regexp.Compile(`(?i)[0-9:]+\.[0-9]+: (Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency) .*`)
 
 	config = getConfig()
 	stats = getInitStats()
 	promStats = getInitPromStats(config)
+	otlpMetrics = newOTLPMetrics(config)
 
 	nullClient = &outputs.Client{
 		OutputType:      "null",
 		Config:          config,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}
@@ -122,6 +129,7 @@ func init() {
 		Stats:           stats,
 		DogstatsdClient: dogstatsdClient,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 	}
 
 	if config.Statsd.Forwarder != "" {
@@ -342,7 +350,7 @@ func init() {
 		config.AWS.SNS.TopicArn != "" || config.AWS.CloudWatchLogs.LogGroup != "" || config.AWS.S3.Bucket != "" ||
 		config.AWS.Kinesis.StreamName != "" || (config.AWS.SecurityLake.Bucket != "" && config.AWS.SecurityLake.Region != "" && config.AWS.SecurityLake.AccountID != "") {
 		var err error
-		awsClient, err = outputs.NewAWSClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		awsClient, err = outputs.NewAWSClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.AWS.AccessKeyID = ""
 			config.AWS.SecretAccessKey = ""
@@ -398,7 +406,7 @@ func init() {
 
 	if config.SMTP.HostPort != "" && config.SMTP.From != "" && config.SMTP.To != "" {
 		var err error
-		smtpClient, err = outputs.NewSMTPClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		smtpClient, err = outputs.NewSMTPClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.SMTP.HostPort = ""
 		} else {
@@ -452,7 +460,7 @@ func init() {
 
 	if config.Azure.EventHub.Name != "" {
 		var err error
-		azureClient, err = outputs.NewEventHubClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		azureClient, err = outputs.NewEventHubClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Azure.EventHub.Name = ""
 			config.Azure.EventHub.Namespace = ""
@@ -465,7 +473,7 @@ func init() {
 
 	if (config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "") || config.GCP.Storage.Bucket != "" || config.GCP.CloudFunctions.Name != "" {
 		var err error
-		gcpClient, err = outputs.NewGCPClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		gcpClient, err = outputs.NewGCPClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.GCP.PubSub.ProjectID = ""
 			config.GCP.PubSub.Topic = ""
@@ -509,7 +517,7 @@ func init() {
 
 	if config.Kafka.HostPort != "" && config.Kafka.Topic != "" {
 		var err error
-		kafkaClient, err = outputs.NewKafkaClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		kafkaClient, err = outputs.NewKafkaClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Kafka.HostPort = ""
 		} else {
@@ -543,7 +551,7 @@ func init() {
 
 	if config.Kubeless.Namespace != "" && config.Kubeless.Function != "" {
 		var err error
-		kubelessClient, err = outputs.NewKubelessClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		kubelessClient, err = outputs.NewKubelessClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			log.Printf("[ERROR] : Kubeless - %v\n", err)
 			config.Kubeless.Namespace = ""
@@ -565,7 +573,7 @@ func init() {
 
 	if config.PolicyReport.Enabled {
 		var err error
-		policyReportClient, err = outputs.NewPolicyReportClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		policyReportClient, err = outputs.NewPolicyReportClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.PolicyReport.Enabled = false
 		} else {
@@ -575,7 +583,7 @@ func init() {
 
 	if config.Openfaas.FunctionName != "" {
 		var err error
-		openfaasClient, err = outputs.NewOpenfaasClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		openfaasClient, err = outputs.NewOpenfaasClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			log.Printf("[ERROR] : OpenFaaS - %v\n", err)
 		} else {
@@ -595,7 +603,7 @@ func init() {
 
 	if config.Rabbitmq.URL != "" && config.Rabbitmq.Queue != "" {
 		var err error
-		rabbitmqClient, err = outputs.NewRabbitmqClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		rabbitmqClient, err = outputs.NewRabbitmqClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Rabbitmq.URL = ""
 		} else {
@@ -605,7 +613,7 @@ func init() {
 
 	if config.Wavefront.EndpointType != "" && config.Wavefront.EndpointHost != "" {
 		var err error
-		wavefrontClient, err = outputs.NewWavefrontClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		wavefrontClient, err = outputs.NewWavefrontClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			log.Printf("[ERROR] : Wavefront - %v\n", err)
 			config.Wavefront.EndpointHost = ""
@@ -616,7 +624,7 @@ func init() {
 
 	if config.Fission.Function != "" {
 		var err error
-		fissionClient, err = outputs.NewFissionClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		fissionClient, err = outputs.NewFissionClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			log.Printf("[ERROR] : Fission - %v\n", err)
 		} else {
@@ -650,7 +658,7 @@ func init() {
 
 	if config.Yandex.S3.Bucket != "" {
 		var err error
-		yandexClient, err = outputs.NewYandexClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		yandexClient, err = outputs.NewYandexClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Yandex.S3.Bucket = ""
 			log.Printf("[ERROR] : Yandex - %v\n", err)
@@ -663,7 +671,7 @@ func init() {
 
 	if config.Yandex.DataStreams.StreamName != "" {
 		var err error
-		yandexClient, err = outputs.NewYandexClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		yandexClient, err = outputs.NewYandexClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Yandex.DataStreams.StreamName = ""
 			log.Printf("[ERROR] : Yandex - %v\n", err)
@@ -676,7 +684,7 @@ func init() {
 
 	if config.Syslog.Host != "" {
 		var err error
-		syslogClient, err = outputs.NewSyslogClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		syslogClient, err = outputs.NewSyslogClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Syslog.Host = ""
 			log.Printf("[ERROR] : Syslog - %v\n", err)
@@ -687,7 +695,7 @@ func init() {
 
 	if config.MQTT.Broker != "" {
 		var err error
-		mqttClient, err = outputs.NewMQTTClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		mqttClient, err = outputs.NewMQTTClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.MQTT.Broker = ""
 			log.Printf("[ERROR] : MQTT - %v\n", err)
@@ -720,7 +728,7 @@ func init() {
 
 	if config.Spyderbat.OrgUID != "" {
 		var err error
-		spyderbatClient, err = outputs.NewSpyderbatClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		spyderbatClient, err = outputs.NewSpyderbatClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Spyderbat.OrgUID = ""
 			log.Printf("[ERROR] : Spyderbat - %v\n", err)
@@ -731,7 +739,7 @@ func init() {
 
 	if config.TimescaleDB.Host != "" {
 		var err error
-		timescaleDBClient, err = outputs.NewTimescaleDBClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		timescaleDBClient, err = outputs.NewTimescaleDBClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.TimescaleDB.Host = ""
 			log.Printf("[ERROR] : TimescaleDB - %v\n", err)
@@ -742,7 +750,7 @@ func init() {
 
 	if config.Redis.Address != "" {
 		var err error
-		redisClient, err = outputs.NewRedisClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		redisClient, err = outputs.NewRedisClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Redis.Address = ""
 		} else {
@@ -801,12 +809,27 @@ func init() {
 
 	if config.OTLP.Traces.Endpoint != "" {
 		var err error
-		otlpClient, err = outputs.NewOtlpTracesClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		otlpTracesClient, err = outputs.NewOtlpTracesClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.OTLP.Traces.Endpoint = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPTraces")
-			shutDownFuncs = append(shutDownFuncs, otlpClient.ShutDownFunc)
+			shutDownFuncs = append(shutDownFuncs, otlpTracesClient.ShutDownFunc)
+		}
+	}
+
+	if cfg := config.OTLP.Metrics; cfg.Endpoint != "" {
+		shutDownFunc, err := otlpmetrics.InitProvider(context.Background(), &cfg)
+		if err != nil {
+			cfg.Endpoint = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPMetrics")
+			fn := func() {
+				if err := shutDownFunc(context.TODO()); err != nil {
+					log.Printf("[ERROR] : OTLP Metrics - Error: %v\n", err)
+				}
+			}
+			shutDownFuncs = append(shutDownFuncs, fn)
 		}
 	}
 

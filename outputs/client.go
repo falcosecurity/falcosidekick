@@ -11,6 +11,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/segmentio/kafka-go"
 	"io"
 	"log"
 	"math"
@@ -33,7 +35,6 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/segmentio/kafka-go"
 	"k8s.io/client-go/kubernetes"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -107,6 +108,7 @@ type Client struct {
 	Config                  *types.Configuration
 	Stats                   *types.Statistics
 	PromStats               *types.PromStatistics
+	OTLPMetrics             *otlpmetrics.OTLPMetrics
 	AWSSession              *session.Session
 	StatsdClient            *statsd.Client
 	DogstatsdClient         *statsd.Client
@@ -169,6 +171,7 @@ func NewClient(outputType string, defaultEndpointURL string, cfg types.CommonCon
 		Config:          params.Config,
 		Stats:           params.Stats,
 		PromStats:       params.PromStats,
+		OTLPMetrics:     params.OTLPMetrics,
 		StatsdClient:    params.StatsdClient,
 		DogstatsdClient: params.DogstatsdClient,
 	}, nil

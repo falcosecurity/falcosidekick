@@ -3,6 +3,7 @@
 package outputs
 
 import (
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 
@@ -28,6 +29,8 @@ func (c *Client) ZincsearchPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:zincsearch", "status:ok"})
 	c.Stats.Zincsearch.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "zincsearch", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "zincsearch"),
+		attribute.String("status", OK)).Inc()
 }
 
 // setZincsearchErrorMetrics set the error stats
@@ -35,4 +38,6 @@ func (c *Client) setZincsearchErrorMetrics() {
 	go c.CountMetric(Outputs, 1, []string{"output:zincsearch", "status:error"})
 	c.Stats.Zincsearch.Add(Error, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "zincsearch", "status": Error}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "zincsearch"),
+		attribute.String("status", Error)).Inc()
 }

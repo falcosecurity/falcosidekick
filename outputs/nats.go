@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"encoding/json"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"regexp"
 	"strings"
@@ -46,6 +47,7 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 	go c.CountMetric("outputs", 1, []string{"output:nats", "status:ok"})
 	c.Stats.Nats.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "nats", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "nats"), attribute.String("status", OK)).Inc()
 	log.Printf("[INFO]  : NATS - Publish OK\n")
 }
 
@@ -54,4 +56,7 @@ func (c *Client) setNatsErrorMetrics() {
 	go c.CountMetric(Outputs, 1, []string{"output:nats", "status:error"})
 	c.Stats.Nats.Add(Error, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "nats", "status": Error}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "nats"),
+		attribute.String("status", Error)).Inc()
+
 }

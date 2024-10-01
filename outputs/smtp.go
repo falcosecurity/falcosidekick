@@ -5,6 +5,7 @@ package outputs
 import (
 	"bytes"
 	"crypto/tls"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	htmlTemplate "html/template"
 	"log"
 	"net"
@@ -31,7 +32,8 @@ type SMTPPayload struct {
 }
 
 // NewSMTPClient returns a new output.Client for accessing a SMTP server.
-func NewSMTPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewSMTPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	reg := regexp.MustCompile(`.*:[0-9]+`)
 	if !reg.MatchString(config.SMTP.HostPort) {
 		log.Printf("[ERROR] : SMTP - Bad Host:Port\n")
@@ -43,6 +45,7 @@ func NewSMTPClient(config *types.Configuration, stats *types.Statistics, promSta
 		Config:          config,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil

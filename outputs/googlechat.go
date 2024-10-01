@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"bytes"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"sort"
 	"strings"
@@ -107,6 +108,8 @@ func (c *Client) GooglechatPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:googlechat", "status:error"})
 		c.Stats.GoogleChat.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "googlechat", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "googlechat"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : GoogleChat - %v\n", err)
 		return
 	}
@@ -114,4 +117,6 @@ func (c *Client) GooglechatPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:googlechat", "status:ok"})
 	c.Stats.GoogleChat.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "googlechat", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "googlechat"),
+		attribute.String("status", OK)).Inc()
 }

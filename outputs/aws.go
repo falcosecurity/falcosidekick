@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/url"
 	"os"
@@ -33,7 +35,8 @@ import (
 )
 
 // NewAWSClient returns a new output.Client for accessing the AWS API.
-func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	var region string
 	if config.AWS.Region != "" {
 		region = config.AWS.Region
@@ -114,6 +117,7 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 		AWSSession:      sess,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -139,6 +143,8 @@ func (c *Client) InvokeLambda(falcopayload types.FalcoPayload) {
 		go c.CountMetric("outputs", 1, []string{"output:awslambda", "status:error"})
 		c.Stats.AWSLambda.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awslambda", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awslambda"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v Lambda - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -152,6 +158,8 @@ func (c *Client) InvokeLambda(falcopayload types.FalcoPayload) {
 	go c.CountMetric("outputs", 1, []string{"output:awslambda", "status:ok"})
 	c.Stats.AWSLambda.Add("ok", 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "awslambda", "status": "ok"}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "awslambda"),
+		attribute.String("status", OK)).Inc()
 }
 
 // SendMessage sends a message to SQS Queue
@@ -172,6 +180,8 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 		go c.CountMetric("outputs", 1, []string{"output:awssqs", "status:error"})
 		c.Stats.AWSSQS.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awssqs", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssqs"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v SQS - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -184,6 +194,8 @@ func (c *Client) SendMessage(falcopayload types.FalcoPayload) {
 	go c.CountMetric("outputs", 1, []string{"output:awssqs", "status:ok"})
 	c.Stats.AWSSQS.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "awssqs", "status": "ok"}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssqs"),
+		attribute.String("status", OK)).Inc()
 }
 
 // UploadS3 upload payload to S3
@@ -210,6 +222,8 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:awss3", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "awss3", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awss3"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v S3 - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -222,6 +236,8 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 
 	go c.CountMetric("outputs", 1, []string{"output:awss3", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "awss3", "status": "ok"}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "awss3"),
+		attribute.String("status", OK)).Inc()
 }
 
 // PublishTopic sends a message to a SNS Topic
@@ -298,6 +314,8 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 		go c.CountMetric("outputs", 1, []string{"output:awssns", "status:error"})
 		c.Stats.AWSSNS.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awssns", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssns"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v SNS - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -306,6 +324,8 @@ func (c *Client) PublishTopic(falcopayload types.FalcoPayload) {
 	go c.CountMetric("outputs", 1, []string{"output:awssns", "status:ok"})
 	c.Stats.AWSSNS.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "awssns", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssns"),
+		attribute.String("status", OK)).Inc()
 }
 
 // SendCloudWatchLog sends a message to CloudWatch Log
@@ -332,6 +352,8 @@ func (c *Client) SendCloudWatchLog(falcopayload types.FalcoPayload) {
 				go c.CountMetric("outputs", 1, []string{"output:awscloudwatchlogs", "status:error"})
 				c.Stats.AWSCloudWatchLogs.Add(Error, 1)
 				c.PromStats.Outputs.With(map[string]string{"destination": "awscloudwatchlogs", "status": Error}).Inc()
+				c.OTLPMetrics.Outputs.With(attribute.String("destination", "awscloudwatchlogs"),
+					attribute.String("status", Error)).Inc()
 				log.Printf("[ERROR] : %v CloudWatchLogs - %v\n", c.OutputType, err.Error())
 				return
 			}
@@ -357,6 +379,8 @@ func (c *Client) SendCloudWatchLog(falcopayload types.FalcoPayload) {
 		go c.CountMetric("outputs", 1, []string{"output:awscloudwatchlogs", "status:error"})
 		c.Stats.AWSCloudWatchLogs.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awscloudwatchlogs", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awscloudwatchlogs"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v CloudWatchLogs - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -365,6 +389,8 @@ func (c *Client) SendCloudWatchLog(falcopayload types.FalcoPayload) {
 	go c.CountMetric("outputs", 1, []string{"output:awscloudwatchlogs", "status:ok"})
 	c.Stats.AWSCloudWatchLogs.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "awscloudwatchlogs", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "awscloudwatchlogs"),
+		attribute.String("status", OK)).Inc()
 }
 
 // PutLogEvents will attempt to execute and handle invalid tokens.
@@ -402,6 +428,8 @@ func (c *Client) PutRecord(falcoPayLoad types.FalcoPayload) {
 		go c.CountMetric("outputs", 1, []string{"output:awskinesis", "status:error"})
 		c.Stats.AWSKinesis.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awskinesis", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awskinesis"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v Kinesis - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -410,4 +438,6 @@ func (c *Client) PutRecord(falcoPayLoad types.FalcoPayload) {
 	go c.CountMetric("outputs", 1, []string{"output:awskinesis", "status:ok"})
 	c.Stats.AWSKinesis.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "awskinesis", "status": "ok"}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "awskinesis"),
+		attribute.String("status", OK)).Inc()
 }

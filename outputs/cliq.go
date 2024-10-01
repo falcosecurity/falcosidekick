@@ -5,6 +5,7 @@ package outputs
 import (
 	"bytes"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 
@@ -172,6 +173,8 @@ func (c *Client) CliqPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:cliq", "status:error"})
 		c.Stats.Cliq.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "cliq", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "cliq"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Cliq - %v\n", err)
 		return
 	}
@@ -180,4 +183,5 @@ func (c *Client) CliqPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:cliq", "status:ok"})
 	c.Stats.Cliq.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "cliq", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "cliq"), attribute.String("status", OK)).Inc()
 }

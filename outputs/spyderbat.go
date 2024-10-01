@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"log"
 	"net/http"
@@ -184,7 +186,7 @@ func newSpyderbatPayload(falcopayload types.FalcoPayload) (spyderbatPayload, err
 }
 
 func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	hasSource, err := isSourcePresent(config)
 	if err != nil {
@@ -219,6 +221,7 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 		Config:          config,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -238,6 +241,8 @@ func (c *Client) SpyderbatPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:spyderbat", "status:error"})
 		c.Stats.Spyderbat.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "spyderbat", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "spyderbat"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
 		return
 	}
@@ -245,4 +250,6 @@ func (c *Client) SpyderbatPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:spyderbat", "status:ok"})
 	c.Stats.Spyderbat.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "spyderbat", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "spyderbat"),
+		attribute.String("status", OK)).Inc()
 }
