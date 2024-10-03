@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/spf13/viper"
@@ -94,17 +95,23 @@ var httpOutputDefaults = map[string]map[string]any{
 		"DropEventThresholds":      "10000:critical: 1000:critical: 100:critical: 10:warning: 1:warning",
 	},
 	"Elasticsearch": {
-		"HostPort":            "",
-		"Index":               "falco",
-		"Type":                "_doc",
-		"MinimumPriority":     "",
-		"Suffix":              "daily",
-		"Username":            "",
-		"Password":            "",
-		"FlattenFields":       false,
-		"CreateIndexTemplate": false,
-		"NumberOfShards":      3,
-		"NumberOfReplicas":    3,
+		"ApiKey":                 "",
+		"HostPort":               "",
+		"Index":                  "falco",
+		"Type":                   "_doc",
+		"MinimumPriority":        "",
+		"Suffix":                 "daily",
+		"Username":               "",
+		"Password":               "",
+		"Pipeline":               "",
+		"FlattenFields":          false,
+		"CreateIndexTemplate":    false,
+		"EnableCompression":      false,
+		"NumberOfShards":         3,
+		"NumberOfReplicas":       3,
+		"Batching.Enabled":       false,
+		"Batching.BatchSize":     5242880,
+		"Batching.FlushInterval": time.Second,
 	},
 	"Quickwit": {
 		"HostPort":        "",
@@ -589,6 +596,9 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("AlertManager.CustomSeverityMap")
 	v.GetStringMapString("GCP.PubSub.CustomAttributes")
 	v.GetStringMapString("OTLP.Traces.ExtraEnvVars")
+
+	c.Elasticsearch.CustomHeaders = v.GetStringMapString("Elasticsearch.CustomHeaders")
+
 	if err := v.Unmarshal(c); err != nil {
 		log.Printf("[ERROR] : Error unmarshalling config : %s", err)
 	}
