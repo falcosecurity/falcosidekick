@@ -78,7 +78,8 @@ var (
 	n8nClient           *outputs.Client
 	openObserveClient   *outputs.Client
 	dynatraceClient     *outputs.Client
-	otlpClient          *outputs.Client
+	otlpTracesClient    *outputs.Client
+	otlpMetricsClient   *outputs.Client
 	talonClient         *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
@@ -801,12 +802,24 @@ func init() {
 
 	if config.OTLP.Traces.Endpoint != "" {
 		var err error
-		otlpClient, err = outputs.NewOtlpTracesClient(config, stats, promStats, statsdClient, dogstatsdClient)
+		otlpTracesClient, err = outputs.NewOtlpTracesClient(config, stats, promStats, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.OTLP.Traces.Endpoint = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPTraces")
-			shutDownFuncs = append(shutDownFuncs, otlpClient.ShutDownFunc)
+			shutDownFuncs = append(shutDownFuncs, otlpTracesClient.ShutDownFunc)
+		}
+	}
+
+	if config.OTLP.Metrics.Endpoint != "" {
+		var err error
+		otlpMetricsClient, err = outputs.NewOTLPMetricsClient(context.Background(), config, stats, promStats,
+			statsdClient, dogstatsdClient)
+		if err != nil {
+			config.OTLP.Metrics.Endpoint = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPMetrics")
+			shutDownFuncs = append(shutDownFuncs, otlpMetricsClient.ShutDownFunc)
 		}
 	}
 
