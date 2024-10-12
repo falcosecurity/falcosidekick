@@ -12,7 +12,7 @@ RUN make falcosidekick
 
 # Final Docker image
 FROM ${BASE_IMAGE} AS final-stage
-LABEL MAINTAINER "Thomas Labarussias <issif+falcosidekick@gadz.org>"
+LABEL MAINTAINER="Thomas Labarussias <issif+falcosidekick@gadz.org>"
 
 RUN apk add --update --no-cache ca-certificates
 
