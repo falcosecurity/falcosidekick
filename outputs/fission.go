@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 	"strconv"
@@ -27,7 +29,7 @@ const ServicesPath = "/services/"
 
 // NewFissionClient returns a new output.Client for accessing Kubernetes.
 func NewFissionClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	oltpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	if config.Fission.KubeConfig != "" {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", config.Fission.KubeConfig)
 		if err != nil {
@@ -42,6 +44,7 @@ func NewFissionClient(config *types.Configuration, stats *types.Statistics, prom
 			Config:           config,
 			Stats:            stats,
 			PromStats:        promStats,
+			OTLPMetrics:      oltpMetrics,
 			StatsdClient:     statsdClient,
 			DogstatsdClient:  dogstatsdClient,
 			KubernetesClient: clientset,
@@ -81,6 +84,8 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 			go c.CountMetric(Outputs, 1, []string{"output:Fission", "status:error"})
 			c.Stats.Fission.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "Fission", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "Fission"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : %s - %v\n", Fission, err.Error())
 			return
 		}
@@ -95,6 +100,8 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 			go c.CountMetric(Outputs, 1, []string{"output:Fission", "status:error"})
 			c.Stats.Fission.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "Fission", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "Fission"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : %s - %v\n", Fission, err.Error())
 			return
 		}
@@ -103,4 +110,6 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:Fission", "status:ok"})
 	c.Stats.Fission.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "Fission", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "Fission"),
+		attribute.String("status", OK)).Inc()
 }

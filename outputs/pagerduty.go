@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"sort"
 	"strings"
@@ -35,6 +36,8 @@ func (c *Client) PagerdutyPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:pagerduty", "status:error"})
 		c.Stats.Pagerduty.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "pagerduty", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "pagerduty"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : PagerDuty - %v\n", err)
 		return
 	}
@@ -42,6 +45,8 @@ func (c *Client) PagerdutyPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:pagerduty", "status:ok"})
 	c.Stats.Pagerduty.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "pagerduty", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "pagerduty"),
+		attribute.String("status", OK)).Inc()
 	log.Printf("[INFO]  : Pagerduty - Create Incident OK\n")
 }
 

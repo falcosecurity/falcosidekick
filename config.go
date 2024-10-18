@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"log"
 	"net"
 	"os"
@@ -437,7 +438,10 @@ func getConfig() *types.Configuration {
 		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[types.PriorityType]string), CustomHeaders: make(map[string]string)},
 		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
-		OTLP:            types.OTLPOutputConfig{Traces: types.OTLPTraces{ExtraEnvVars: make(map[string]string)}},
+		OTLP: types.OTLPOutputConfig{
+			Traces:  types.OTLPTraces{ExtraEnvVars: make(map[string]string)},
+			Metrics: otlpmetrics.Config{ExtraEnvVars: make(map[string]string)},
+		},
 	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
@@ -557,7 +561,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.Traces.Endpoint", "")
 	v.SetDefault("OTLP.Traces.Protocol", "http/json")
 	// NOTE: we don't need to parse the OTLP.Traces.Headers field, as use it to
-	// set OTEL_EXPORTER_OTLP_TRACES_HEADERS (at otlp_init.go), which is then
+	// set OTEL_EXPORTER_OTLP_TRACES_HEADERS (at otlp_traces_init.go), which is then
 	// parsed by the OTLP SDK libs, see
 	// https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_traces_headers
 	v.SetDefault("OTLP.Traces.Headers", "")
@@ -568,6 +572,16 @@ func getConfig() *types.Configuration {
 	// NB: Unfortunately falco events don't provide endtime, artificially set
 	// it to 1000ms by default, override-able via OTLP_DURATION environment variable.
 	v.SetDefault("OTLP.Traces.Duration", 1000)
+
+	v.SetDefault("OTLP.Metrics.Endpoint", "")
+	v.SetDefault("OTLP.Metrics.Protocol", "grpc")
+	// NOTE: we don't need to parse the OTLP.Metrics.Headers field, as use it to set OTEL_EXPORTER_OTLP_METRICS_HEADERS
+	// (at outputs/otlpmetrics/otlpmetrics.go), which is then parsed by the OTLP SDK libs.
+	v.SetDefault("OTLP.Metrics.Headers", "")
+	v.SetDefault("OTLP.Metrics.Timeout", 10000)
+	v.SetDefault("OTLP.Metrics.MinimumPriority", "")
+	v.SetDefault("OTLP.Metrics.CheckCert", true)
+	v.SetDefault("OTLP.Metrics.ExtraAttributes", "")
 
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -596,6 +610,7 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("AlertManager.CustomSeverityMap")
 	v.GetStringMapString("GCP.PubSub.CustomAttributes")
 	v.GetStringMapString("OTLP.Traces.ExtraEnvVars")
+	v.GetStringMapString("OTLP.Metrics.ExtraEnvVars")
 
 	c.Elasticsearch.CustomHeaders = v.GetStringMapString("Elasticsearch.CustomHeaders")
 
@@ -750,6 +765,21 @@ func getConfig() *types.Configuration {
 		}
 	}
 
+	if value, present := os.LookupEnv("OTLP_METRICS_EXTRAENVVARS"); present {
+		extraEnvVars := strings.Split(value, ",")
+		for _, extraEnvVarData := range extraEnvVars {
+			envName, envValue, found := strings.Cut(extraEnvVarData, ":")
+			envName, envValue = strings.TrimSpace(envName), strings.TrimSpace(envValue)
+			if !promKVNameRegex.MatchString(envName) {
+				log.Printf("[ERROR] : OTLPMetrics - Extra Env Var name '%v' is not valid", envName)
+			} else if found {
+				c.OTLP.Metrics.ExtraEnvVars[envName] = envValue
+			} else {
+				c.OTLP.Metrics.ExtraEnvVars[envName] = ""
+			}
+		}
+	}
+
 	if c.AWS.SecurityLake.Interval < 5 {
 		c.AWS.SecurityLake.Interval = 5
 	}
@@ -791,6 +821,10 @@ func getConfig() *types.Configuration {
 
 	if c.Prometheus.ExtraLabels != "" {
 		c.Prometheus.ExtraLabelsList = strings.Split(strings.ReplaceAll(c.Prometheus.ExtraLabels, " ", ""), ",")
+	}
+
+	if c.OTLP.Metrics.ExtraAttributes != "" {
+		c.OTLP.Metrics.ExtraAttributesList = strings.Split(strings.ReplaceAll(c.OTLP.Metrics.ExtraAttributes, " ", ""), ",")
 	}
 
 	if c.Alertmanager.DropEventThresholds != "" {
@@ -881,6 +915,7 @@ func getConfig() *types.Configuration {
 	c.OpenObserve.MinimumPriority = checkPriority(c.OpenObserve.MinimumPriority)
 	c.Dynatrace.MinimumPriority = checkPriority(c.Dynatrace.MinimumPriority)
 	c.SumoLogic.MinimumPriority = checkPriority(c.SumoLogic.MinimumPriority)
+	c.OTLP.Metrics.MinimumPriority = checkPriority(c.OTLP.Metrics.MinimumPriority)
 	c.Talon.MinimumPriority = checkPriority(c.Talon.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)

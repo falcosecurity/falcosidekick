@@ -5,6 +5,7 @@ package outputs
 import (
 	"bytes"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"strings"
 	textTemplate "text/template"
@@ -86,6 +87,8 @@ func (c *Client) TelegramPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:telegram", "status:error"})
 		c.Stats.Telegram.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "telegram", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "telegram"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Telegram - %v\n", err)
 		return
 	}
@@ -94,4 +97,6 @@ func (c *Client) TelegramPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:telegram", "status:ok"})
 	c.Stats.Telegram.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "telegram", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "telegram"),
+		attribute.String("status", OK)).Inc()
 }

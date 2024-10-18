@@ -3,6 +3,7 @@
 package outputs
 
 import (
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 
@@ -26,6 +27,8 @@ func (c *Client) NodeRedPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:nodered", "status:error"})
 		c.Stats.NodeRed.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "nodered", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "nodered"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : NodeRed - %v\n", err.Error())
 		return
 	}
@@ -34,4 +37,6 @@ func (c *Client) NodeRedPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:nodered", "status:ok"})
 	c.Stats.NodeRed.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "nodered", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "nodered"),
+		attribute.String("status", OK)).Inc()
 }

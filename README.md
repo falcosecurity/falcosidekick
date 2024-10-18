@@ -95,6 +95,7 @@ Follow the links to get the configuration of each output.
 - [**Spyderbat**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/spyderbat.md)
 - [**TimescaleDB**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/timescaledb.md)
 - [**Dynatrace**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/dynatrace.md)
+- [**OTEL Metrics**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/otlp_metrics.md) (for both events and monitoring of `falcosidekick`)
 
 ### Alerting
 

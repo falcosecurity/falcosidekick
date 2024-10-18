@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"bytes"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"sort"
 	"strings"
@@ -131,6 +132,8 @@ func (c *Client) MattermostPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:mattermost", "status:error"})
 		c.Stats.Mattermost.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "mattermost"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Mattermost - %v\n", err)
 		return
 	}
@@ -139,4 +142,6 @@ func (c *Client) MattermostPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:mattermost", "status:ok"})
 	c.Stats.Mattermost.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "mattermost"),
+		attribute.String("status", OK)).Inc()
 }

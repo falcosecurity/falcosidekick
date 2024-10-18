@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"bytes"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"text/template"
 
@@ -60,6 +61,8 @@ func (c *Client) WebexPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:webex", "status:error"})
 		c.Stats.Webhook.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "webex", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "webex"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Webex - %v\n", err.Error())
 		return
 	}
@@ -68,4 +71,5 @@ func (c *Client) WebexPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:webex", "status:ok"})
 	c.Stats.Webhook.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "webex", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "webex"), attribute.String("status", OK)).Inc()
 }

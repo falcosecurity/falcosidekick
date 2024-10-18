@@ -87,6 +87,7 @@ func getInitStats() *types.Statistics {
 		OpenObserve:       getOutputNewMap("openobserve"),
 		Dynatrace:         getOutputNewMap("dynatrace"),
 		OTLPTraces:        getOutputNewMap("otlptraces"),
+		OTLPMetrics:       getOutputNewMap("otlpmetrics"),
 		Talon:             getOutputNewMap("talon"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)

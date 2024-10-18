@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
@@ -19,6 +20,10 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 		client, err := cloudevents.NewClientHTTP()
 		if err != nil {
 			go c.CountMetric(Outputs, 1, []string{"output:cloudevents", "status:error"})
+			c.Stats.CloudEvents.Add(Error, 1)
+			c.PromStats.Outputs.With(map[string]string{"destination": "cloudevents", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "cloudevents"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : CloudEvents - NewDefaultClient : %v\n", err)
 			return
 		}
@@ -52,6 +57,8 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:cloudevents", "status:error"})
 		c.Stats.CloudEvents.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "cloudevents", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "cloudevents"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : CloudEvents - %v\n", result)
 		return
 	}
@@ -60,5 +67,7 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:cloudevents", "status:ok"})
 	c.Stats.CloudEvents.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "cloudevents", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "cloudevents"),
+		attribute.String("status", OK)).Inc()
 	log.Printf("[INFO]  : CloudEvents - Send OK\n")
 }

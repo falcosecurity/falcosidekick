@@ -4,6 +4,8 @@ package outputs
 
 import (
 	"context"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"os"
 
@@ -98,7 +100,8 @@ func newClusterPolicyReport() *wgpolicy.ClusterPolicyReport {
 	}
 }
 
-func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	clientConfig, err := rest.InClusterConfig()
 	if err != nil {
 		clientConfig, err = clientcmd.BuildConfigFromFlags("", config.PolicyReport.Kubeconfig)
@@ -132,6 +135,7 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 		Config:           config,
 		Stats:            stats,
 		PromStats:        promStats,
+		OTLPMetrics:      otlpMetrics,
 		StatsdClient:     statsdClient,
 		DogstatsdClient:  dogstatsdClient,
 		KubernetesClient: clientset,
@@ -156,10 +160,14 @@ func (c *Client) UpdateOrCreatePolicyReport(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:policyreport", "status:" + OK})
 		c.Stats.PolicyReport.Add(OK, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "policyreport", "status": OK}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "policyreport"),
+			attribute.String("status", OK)).Inc()
 	} else {
 		go c.CountMetric(Outputs, 1, []string{"output:policyreport", "status:" + Error})
 		c.Stats.PolicyReport.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "policyreport", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "policyreport"),
+			attribute.String("status", Error)).Inc()
 	}
 }
 

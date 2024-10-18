@@ -3,6 +3,7 @@
 package outputs
 
 import (
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 	"regexp"
@@ -122,6 +123,8 @@ func (c *Client) DynatracePost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:dynatrace", "status:error"})
 		c.Stats.Dynatrace.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "dynatrace", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "dynatrace"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Dynatrace - %v\n", err)
 		return
 	}
@@ -129,4 +132,6 @@ func (c *Client) DynatracePost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:dynatrace", "status:ok"})
 	c.Stats.Dynatrace.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "dynatrace", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "dynatrace"),
+		attribute.String("status", OK)).Inc()
 }

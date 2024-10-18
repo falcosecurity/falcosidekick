@@ -3,6 +3,7 @@
 package outputs
 
 import (
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"strings"
 
@@ -47,6 +48,8 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 		if err := c.StatsdClient.Count(metric+t, value, []string{}, 1); err != nil {
 			c.Stats.Statsd.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "statsd", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "statsd"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : StatsD - Unable to send metric (%v%v%v) : %v\n", c.Config.Statsd.Namespace, metric, t, err)
 
 			return
@@ -54,6 +57,8 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 
 		c.Stats.Statsd.Add(OK, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "statsd", "status": OK}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "statsd"),
+			attribute.String("status", OK)).Inc()
 		log.Printf("[INFO]  : StatsD - Send Metric OK (%v%v%v)\n", c.Config.Statsd.Namespace, metric, t)
 	}
 
@@ -62,6 +67,8 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 		if err := c.DogstatsdClient.Count(metric, value, tags, 1); err != nil {
 			c.Stats.Dogstatsd.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "dogstatsd", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "dogstatsd"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : DogStatsD - Send Metric Error (%v%v%v) : %v\n", c.Config.Statsd.Namespace, metric, tags, err)
 
 			return
@@ -69,6 +76,8 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 
 		c.Stats.Dogstatsd.Add(OK, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "dogstatsd", "status": OK}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "dogstatsd"),
+			attribute.String("status", OK)).Inc()
 		log.Printf("[INFO]  : DogStatsD - Send Metric OK (%v%v %v)\n", c.Config.Statsd.Namespace, metric, tags)
 	}
 }

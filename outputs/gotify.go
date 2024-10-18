@@ -5,6 +5,7 @@ package outputs
 import (
 	"bytes"
 	"encoding/json"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net/http"
 	"strings"
@@ -109,6 +110,7 @@ func (c *Client) GotifyPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:gotify", "status:ok"})
 	c.Stats.Gotify.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "gotify", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "gotify"), attribute.String("status", OK)).Inc()
 }
 
 // setGotifyErrorMetrics set the error stats
@@ -116,4 +118,6 @@ func (c *Client) setGotifyErrorMetrics() {
 	go c.CountMetric(Outputs, 1, []string{"output:gotify", "status:error"})
 	c.Stats.Gotify.Add(Error, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "gotify", "status": Error}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "gotify"),
+		attribute.String("status", Error)).Inc()
 }
