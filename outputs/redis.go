@@ -5,6 +5,8 @@ package outputs
 import (
 	"context"
 	"encoding/json"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"strings"
 
@@ -17,11 +19,13 @@ func (c *Client) ReportError(err error) {
 	go c.CountMetric(Outputs, 1, []string{"output:redis", "status:error"})
 	c.Stats.Redis.Add(Error, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "redis", "status": Error}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "redis"),
+		attribute.String("status", Error)).Inc()
 	log.Printf("[ERROR] : Redis - %v\n", err)
 }
 
 func NewRedisClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	rClient := redis.NewClient(&redis.Options{
 		Addr:     config.Redis.Address,
@@ -41,6 +45,7 @@ func NewRedisClient(config *types.Configuration, stats *types.Statistics, promSt
 		RedisClient:     rClient,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -65,4 +70,5 @@ func (c *Client) RedisPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:redis", "status:ok"})
 	c.Stats.Redis.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "redis", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "redis"), attribute.String("status", OK)).Inc()
 }

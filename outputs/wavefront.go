@@ -4,6 +4,8 @@ package outputs
 
 import (
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"strings"
 
@@ -14,7 +16,8 @@ import (
 )
 
 // NewWavefrontClient returns a new output.Client for accessing the Wavefront API.
-func NewWavefrontClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewWavefrontClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	var sender wavefront.Sender
 	var err error
@@ -56,6 +59,7 @@ func NewWavefrontClient(config *types.Configuration, stats *types.Statistics, pr
 		WavefrontSender: &sender,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -95,17 +99,23 @@ func (c *Client) WavefrontPost(falcopayload types.FalcoPayload) {
 		if err := sender.SendMetric(c.Config.Wavefront.MetricName, 1, falcopayload.Time.UnixNano(), "falco-exporter", tags); err != nil {
 			c.Stats.Wavefront.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "wavefront", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "wavefront"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : Wavefront - Unable to send event %s: %s\n", falcopayload.Rule, err)
 			return
 		}
 		if err := sender.Flush(); err != nil {
 			c.Stats.Wavefront.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "wavefront", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "wavefront"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : Wavefront - Unable to flush event %s: %s\n", falcopayload.Rule, err)
 			return
 		}
 		c.Stats.Wavefront.Add(OK, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "wavefront", "status": OK}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "wavefront"),
+			attribute.String("status", OK)).Inc()
 		log.Printf("[INFO]  : Wavefront - Send Event OK %s\n", falcopayload.Rule)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"log"
 	"net/http"
@@ -36,6 +37,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Please send a valid request body", http.StatusBadRequest)
 		stats.Requests.Add("rejected", 1)
 		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
+		otlpMetrics.Inputs.With(attribute.String("source", "requests"),
+			attribute.String("status", "rejected")).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:nobody"})
 
 		return
@@ -45,6 +48,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Please send with post http method", http.StatusBadRequest)
 		stats.Requests.Add("rejected", 1)
 		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
+		otlpMetrics.Inputs.With(attribute.String("source", "requests"),
+			attribute.String("status", "rejected")).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:nobody"})
 
 		return
@@ -55,6 +60,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Please send a valid request body", http.StatusBadRequest)
 		stats.Requests.Add("rejected", 1)
 		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
+		otlpMetrics.Inputs.With(attribute.String("source", "requests"),
+			attribute.String("status", "rejected")).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:invalidjson"})
 
 		return
@@ -63,6 +70,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	nullClient.CountMetric("inputs.requests.accepted", 1, []string{})
 	stats.Requests.Add("accepted", 1)
 	promStats.Inputs.With(map[string]string{"source": "requests", "status": "accepted"}).Inc()
+	otlpMetrics.Inputs.With(attribute.String("source", "requests"),
+		attribute.String("status", "accepted")).Inc()
 	forwardEvent(falcopayload)
 }
 
@@ -190,6 +199,43 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 	promStats.Falco.With(promLabels).Inc()
+
+	// Falco OTLP metric
+	hostname := falcopayload.Hostname
+	if hostname == "" {
+		hostname = "unknown"
+	}
+	attrs := []attribute.KeyValue{
+		attribute.String("source", falcopayload.Source),
+		attribute.String("priority", falcopayload.Priority.String()),
+		attribute.String("rule", falcopayload.Rule),
+		attribute.String("hostname", hostname),
+		attribute.StringSlice("tags", falcopayload.Tags),
+	}
+
+	for key, value := range config.Customfields {
+		if regOTLPMetricsAttributes.MatchString(key) {
+			attrs = append(attrs, attribute.String(key, value))
+		}
+	}
+	for _, attr := range config.OTLP.Metrics.ExtraAttributesList {
+		attrName := strings.ReplaceAll(attr, ".", "_")
+		attrValue := ""
+		for key, val := range falcopayload.OutputFields {
+			if key != attr {
+				continue
+			}
+			if keyName := strings.ReplaceAll(key, ".", "_"); !regOTLPMetricsAttributes.MatchString(keyName) {
+				continue
+			}
+			// Notice: Don't remove the _ for the second return value, otherwise will panic if it can convert the value
+			// to string
+			attrValue, _ = val.(string)
+			break
+		}
+		attrs = append(attrs, attribute.String(attrName, attrValue))
+	}
+	otlpMetrics.Falco.With(attrs...).Inc()
 
 	if config.BracketReplacer != "" {
 		for i, j := range falcopayload.OutputFields {
@@ -483,7 +529,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	}
 
 	if config.OTLP.Traces.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.OTLP.Traces.MinimumPriority)) && (falcopayload.Source == syscall || falcopayload.Source == syscalls) {
-		go otlpClient.OTLPTracesPost(falcopayload)
+		go otlpTracesClient.OTLPTracesPost(falcopayload)
 	}
 
 	if config.Talon.Address != "" && (falcopayload.Priority >= types.Priority(config.Talon.MinimumPriority) || falcopayload.Rule == testRule) {

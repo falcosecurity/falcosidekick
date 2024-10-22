@@ -4,6 +4,7 @@ package outputs
 
 import (
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"sort"
 	"strings"
@@ -105,6 +106,8 @@ func (c *Client) DiscordPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:discord", "status:error"})
 		c.Stats.Discord.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "discord"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Discord - %v\n", err)
 		return
 	}
@@ -113,4 +116,6 @@ func (c *Client) DiscordPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:discord", "status:ok"})
 	c.Stats.Discord.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "discord"),
+		attribute.String("status", OK)).Inc()
 }

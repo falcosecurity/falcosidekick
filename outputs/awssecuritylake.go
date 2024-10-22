@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"log"
 	"time"
@@ -203,6 +204,8 @@ func (c *Client) EnqueueSecurityLake(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 		c.Stats.AWSSecurityLake.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v SecurityLake - %v\n", c.OutputType, err)
 		return
 	}
@@ -233,6 +236,8 @@ func (c *Client) processNextBatch() error {
 			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : %v SecurityLake - %v\n", c.OutputType, err)
 			// ctx currently not handled in main
 			// https://github.com/falcosecurity/falcosidekick/pull/390#discussion_r1081690326
@@ -245,6 +250,8 @@ func (c *Client) processNextBatch() error {
 			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+				attribute.String("status", Error)).Inc()
 
 			earliest = earliest - 1 // to ensure next batch includes earliest as we read from ReadOffset+1
 			msg := fmt.Errorf("slow batch reader: resetting read offset from %d to %d: %v",
@@ -262,6 +269,8 @@ func (c *Client) processNextBatch() error {
 			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : %v SecurityLake - %v\n", c.OutputType, err)
 			return err
 		}
@@ -274,6 +283,8 @@ func (c *Client) processNextBatch() error {
 			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+				attribute.String("status", Error)).Inc()
 			// we don't update ReadOffset to retry and not skip records
 			return err
 		}
@@ -281,6 +292,8 @@ func (c *Client) processNextBatch() error {
 		go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:ok"})
 		c.Stats.AWSSecurityLake.Add(OK, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": "ok"}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+			attribute.String("status", OK)).Inc()
 
 		// update offset
 		*awslake.ReadOffset = batch[count-1].Metadata.Offset

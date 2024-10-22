@@ -8,6 +8,8 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"net"
 	"strings"
@@ -22,7 +24,8 @@ import (
 )
 
 // NewKafkaClient returns a new output.Client for accessing the Apache Kafka.
-func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	transport := &kafka.Transport{
 		Dial: (&net.Dialer{
@@ -136,6 +139,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 		Config:          config,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 		KafkaProducer:   kafkaWriter,
@@ -187,6 +191,8 @@ func (c *Client) incrKafkaSuccessMetrics(add int) {
 	go c.CountMetric("outputs", int64(add), []string{"output:kafka", "status:ok"})
 	c.Stats.Kafka.Add(OK, int64(add))
 	c.PromStats.Outputs.With(map[string]string{"destination": "kafka", "status": OK}).Add(float64(add))
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "kafka"),
+		attribute.String("status", OK)).Inc()
 }
 
 // incrKafkaErrorMetrics increments the error stats
@@ -194,4 +200,6 @@ func (c *Client) incrKafkaErrorMetrics(add int) {
 	go c.CountMetric(Outputs, int64(add), []string{"output:kafka", "status:error"})
 	c.Stats.Kafka.Add(Error, int64(add))
 	c.PromStats.Outputs.With(map[string]string{"destination": "kafka", "status": Error}).Add(float64(add))
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "kafka"),
+		attribute.String("status", Error)).Inc()
 }
