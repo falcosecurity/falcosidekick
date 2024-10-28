@@ -3,7 +3,7 @@ module github.com/falcosecurity/falcosidekick
 go 1.22.5
 
 require (
-	cloud.google.com/go/functions v1.19.1
+	cloud.google.com/go/functions v1.19.2
 	cloud.google.com/go/pubsub v1.45.1
 	cloud.google.com/go/storage v1.45.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
@@ -42,9 +42,9 @@ require (
 	golang.org/x/text v0.19.0
 	google.golang.org/api v0.203.0
 	google.golang.org/genproto v0.0.0-20241015192408-796eee8c2d53
-	k8s.io/api v0.31.1
-	k8s.io/apimachinery v0.31.1
-	k8s.io/client-go v0.31.1
+	k8s.io/api v0.31.2
+	k8s.io/apimachinery v0.31.2
+	k8s.io/client-go v0.31.2
 	sigs.k8s.io/wg-policy-prototypes v0.0.0-20240327135653-0fc2ddc5d3e3
 )
 
