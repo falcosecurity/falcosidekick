@@ -285,8 +285,10 @@ func (c *Client) buildESPayload(falcopayload types.FalcoPayload) eSPayload {
 
 	if c.Config.Elasticsearch.FlattenFields || c.Config.Elasticsearch.CreateIndexTemplate {
 		for i, j := range payload.OutputFields {
-			payload.OutputFields[strings.ReplaceAll(i, ".", "_")] = j
-			delete(payload.OutputFields, i)
+			if strings.Contains(i, ".") {
+				payload.OutputFields[strings.ReplaceAll(i, ".", "_")] = j
+				delete(payload.OutputFields, i)
+			}
 		}
 	}
 	return payload
