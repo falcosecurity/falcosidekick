@@ -5,10 +5,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    labels:
-      - "area/dependency"
-      - "release-note-none"
-      - "ok-to-test"
     groups:
       gomod:
         update-types:
@@ -18,10 +14,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    labels:
-      - "area/dependency"
-      - "release-note-none"
-      - "ok-to-test"
     groups:
       actions:
         update-types:
