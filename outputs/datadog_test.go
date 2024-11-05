@@ -12,7 +12,7 @@ import (
 )
 
 func TestNewDatadogPayload(t *testing.T) {
-	expectedOutput := `{"title":"Test rule","text":"This is a test from falcosidekick","alert_type":"info","source_type_name":"falco","tags":["proc.name:falcosidekick", "source:syscalls", "hostname:test-host", "example", "test"]}`
+	expectedOutput := `{"title":"Test rule","text":"This is a test from falcosidekick","alert_type":"info","source_type_name":"falco","tags":["proc.name:falcosidekick", "source:syscalls", "source:falco", "hostname:test-host", "example", "test"]}`
 	var f types.FalcoPayload
 	json.Unmarshal([]byte(falcoTestInput), &f)
 	s, _ := json.Marshal(newDatadogPayload(f))
