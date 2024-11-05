@@ -31,7 +31,7 @@ func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 		tags = append(tags, fmt.Sprintf("%v:%v", i, falcopayload.OutputFields[i]))
 
 	}
-	tags = append(tags, "source:"+falcopayload.Source)
+	tags = append(tags, "source:"+falcopayload.Source, "source:falco")
 	if falcopayload.Hostname != "" {
 		tags = append(tags, Hostname+":"+falcopayload.Hostname)
 	}
