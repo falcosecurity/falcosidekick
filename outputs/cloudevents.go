@@ -38,7 +38,7 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 	event.SetType("falco.rule.output.v1")
 	event.SetExtension("priority", falcopayload.Priority.String())
 	event.SetExtension("rule", falcopayload.Rule)
-	event.SetExtension("event_source", falcopayload.Source)
+	event.SetExtension("eventsource", falcopayload.Source)
 
 	if falcopayload.Hostname != "" {
 		event.SetExtension(Hostname, falcopayload.Hostname)

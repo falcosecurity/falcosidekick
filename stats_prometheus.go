@@ -54,11 +54,11 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 		"k8s_pod_name",
 	}
 	for i := range config.Customfields {
-		if !regPromLabels.MatchString(i) {
+		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
 			log.Printf("[ERROR] : Custom field '%v' is not a valid prometheus label", i)
 			continue
 		}
-		labelnames = append(labelnames, i)
+		labelnames = append(labelnames, strings.ReplaceAll(i, ".", "_"))
 	}
 	for _, i := range config.Prometheus.ExtraLabelsList {
 		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {

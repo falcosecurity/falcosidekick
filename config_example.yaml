@@ -78,7 +78,7 @@ datadog:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 alertmanager:
-  # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
+  # hostport: "" # Comma separated list of http://{domain or ip}:{port} that will all receive the payload, if not empty, Alertmanager output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)

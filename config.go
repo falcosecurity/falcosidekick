@@ -88,7 +88,7 @@ var httpOutputDefaults = map[string]map[string]any{
 		"Icon":            "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
 	},
 	"Alertmanager": {
-		"HostPort":                 "",
+		"HostPort":                 []string{},
 		"MinimumPriority":          "",
 		"Endpoint":                 "/api/v1/alerts",
 		"ExpiresAfter":             0,
@@ -435,7 +435,7 @@ func getConfig() *types.Configuration {
 		Quickwit:        types.QuickwitOutputConfig{CustomHeaders: make(map[string]string)},
 		OpenObserve:     types.OpenObserveConfig{CustomHeaders: make(map[string]string)},
 		Webhook:         types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
-		Alertmanager:    types.AlertmanagerOutputConfig{ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[types.PriorityType]string), CustomHeaders: make(map[string]string)},
+		Alertmanager:    types.AlertmanagerOutputConfig{HostPort: make([]string, 0), ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[types.PriorityType]string), CustomHeaders: make(map[string]string)},
 		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
 		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
 		OTLP: types.OTLPOutputConfig{

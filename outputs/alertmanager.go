@@ -4,7 +4,7 @@ package outputs
 
 import (
 	"encoding/json"
-	"go.opentelemetry.io/otel/attribute"
+	"fmt"
 	"log"
 	"net/http"
 	"regexp"
@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -37,6 +39,28 @@ var defaultSeverityMap = map[types.PriorityType]string{
 var (
 	reg = regexp.MustCompile("[^a-zA-Z0-9_]")
 )
+
+func NewAlertManagerClient(hostPorts []string, endpoint string, cfg types.CommonConfig, params types.InitClientArgs) ([]*Client, error) {
+	clients := make([]*Client, 0)
+	if len(hostPorts) == 1 {
+		endpointUrl := fmt.Sprintf("%s%s", hostPorts[0], endpoint)
+		c, err := NewClient("AlertManager", endpointUrl, cfg, params)
+		if err != nil {
+			return nil, err
+		}
+		clients = append(clients, c)
+	} else {
+		for i, j := range hostPorts {
+			endpointUrl := fmt.Sprintf("%s%s", j, endpoint)
+			c, err := NewClient(fmt.Sprintf("AlertManager_%v", i), endpointUrl, cfg, params)
+			if err != nil {
+				return nil, err
+			}
+			clients = append(clients, c)
+		}
+	}
+	return clients, nil
+}
 
 func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Configuration) []alertmanagerPayload {
 	var amPayload alertmanagerPayload

@@ -319,8 +319,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go discordClient.DiscordPost(falcopayload)
 	}
 
-	if config.Alertmanager.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Alertmanager.MinimumPriority) || falcopayload.Rule == testRule) {
-		go alertmanagerClient.AlertmanagerPost(falcopayload)
+	if len(config.Alertmanager.HostPort) != 0 && (falcopayload.Priority >= types.Priority(config.Alertmanager.MinimumPriority) || falcopayload.Rule == testRule) {
+		for _, i := range alertmanagerClients {
+			go i.AlertmanagerPost(falcopayload)
+		}
 	}
 
 	if config.Elasticsearch.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Elasticsearch.MinimumPriority) || falcopayload.Rule == testRule) {
