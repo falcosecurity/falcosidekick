@@ -267,7 +267,7 @@ type ThresholdConfig struct {
 
 type AlertmanagerOutputConfig struct {
 	CommonConfig             `mapstructure:",squash"`
-	HostPort                 string
+	HostPort                 []string
 	MinimumPriority          string
 	Endpoint                 string
 	ExpiresAfter             int

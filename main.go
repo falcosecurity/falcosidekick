@@ -37,7 +37,7 @@ var (
 	datadogClient       *outputs.Client
 	datadogLogsClient   *outputs.Client
 	discordClient       *outputs.Client
-	alertmanagerClient  *outputs.Client
+	alertmanagerClients []*outputs.Client
 	elasticsearchClient *outputs.Client
 	quickwitClient      *outputs.Client
 	influxdbClient      *outputs.Client
@@ -247,12 +247,11 @@ func init() {
 		}
 	}
 
-	if config.Alertmanager.HostPort != "" {
+	if len(config.Alertmanager.HostPort) != 0 {
 		var err error
-		endpointUrl := fmt.Sprintf("%s%s", config.Alertmanager.HostPort, config.Alertmanager.Endpoint)
-		alertmanagerClient, err = outputs.NewClient("AlertManager", endpointUrl, config.Alertmanager.CommonConfig, *initClientArgs)
+		alertmanagerClients, err = outputs.NewAlertManagerClient(config.Alertmanager.HostPort, config.Alertmanager.Endpoint, config.Alertmanager.CommonConfig, *initClientArgs)
 		if err != nil {
-			config.Alertmanager.HostPort = ""
+			config.Alertmanager.HostPort = []string{}
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AlertManager")
 		}
