@@ -19,7 +19,7 @@ require (
 	github.com/emersion/go-smtp v0.21.3
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/googleapis/gax-go/v2 v2.13.0
+	github.com/googleapis/gax-go/v2 v2.14.0
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/nats-io/nats.go v1.37.0
 	github.com/nats-io/stan.go v0.10.4
