@@ -35,6 +35,7 @@ var (
 	teamsClient         *outputs.Client
 	webexClient         *outputs.Client
 	datadogClient       *outputs.Client
+	datadogLogsClient   *outputs.Client
 	discordClient       *outputs.Client
 	alertmanagerClient  *outputs.Client
 	elasticsearchClient *outputs.Client
@@ -222,6 +223,17 @@ func init() {
 			config.Datadog.APIKey = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Datadog")
+		}
+	}
+
+	if config.DatadogLogs.APIKey != "" {
+		var err error
+		endpointUrl := config.DatadogLogs.Host + outputs.DatadogLogsPath
+		datadogLogsClient, err = outputs.NewClient("DatadogLogs", endpointUrl, config.DatadogLogs.CommonConfig, *initClientArgs)
+		if err != nil {
+			config.DatadogLogs.APIKey = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "DatadogLogs")
 		}
 	}
 

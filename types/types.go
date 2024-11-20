@@ -71,6 +71,7 @@ type Configuration struct {
 	Teams              teamsOutputConfig
 	Webex              WebexOutputConfig
 	Datadog            datadogOutputConfig
+	DatadogLogs        datadogLogsOutputConfig
 	Discord            DiscordOutputConfig
 	Alertmanager       AlertmanagerOutputConfig
 	Elasticsearch      ElasticsearchOutputConfig
@@ -241,6 +242,14 @@ type datadogOutputConfig struct {
 	APIKey          string
 	Host            string
 	MinimumPriority string
+}
+
+type datadogLogsOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
+	APIKey          string
+	Host            string
+	MinimumPriority string
+	Service         string
 }
 
 // DiscordOutputConfig .
@@ -822,6 +831,7 @@ type Statistics struct {
 	Rocketchat        *expvar.Map
 	Teams             *expvar.Map
 	Datadog           *expvar.Map
+	DatadogLogs       *expvar.Map
 	Discord           *expvar.Map
 	Alertmanager      *expvar.Map
 	Elasticsearch     *expvar.Map
