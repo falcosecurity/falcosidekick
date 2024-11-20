@@ -311,8 +311,13 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 	if config.Webex.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Webex.MinimumPriority) || falcopayload.Rule == testRule) {
 		go webexClient.WebexPost(falcopayload)
 	}
+
 	if config.Datadog.APIKey != "" && (falcopayload.Priority >= types.Priority(config.Datadog.MinimumPriority) || falcopayload.Rule == testRule) {
 		go datadogClient.DatadogPost(falcopayload)
+	}
+
+	if config.DatadogLogs.APIKey != "" && (falcopayload.Priority >= types.Priority(config.DatadogLogs.MinimumPriority) || falcopayload.Rule == testRule) {
+		go datadogLogsClient.DatadogLogsPost(falcopayload)
 	}
 
 	if config.Discord.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Discord.MinimumPriority) || falcopayload.Rule == testRule) {

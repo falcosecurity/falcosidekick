@@ -82,6 +82,12 @@ var httpOutputDefaults = map[string]map[string]any{
 		"Host":            "https://api.datadoghq.com",
 		"MinimumPriority": "",
 	},
+	"DatadogLogs": {
+		"APIKey":          "",
+		"Host":            "https://http-intake.logs.datadoghq.com/",
+		"MinimumPriority": "",
+		"Service":         "",
+	},
 	"Discord": {
 		"WebhookURL":      "",
 		"MinimumPriority": "",

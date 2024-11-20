@@ -31,6 +31,7 @@ func getInitStats() *types.Statistics {
 		Teams:             getOutputNewMap("teams"),
 		Webex:             getOutputNewMap("webex"),
 		Datadog:           getOutputNewMap("datadog"),
+		DatadogLogs:       getOutputNewMap("datadogLogs"),
 		Discord:           getOutputNewMap("discord"),
 		Alertmanager:      getOutputNewMap("alertmanager"),
 		Elasticsearch:     getOutputNewMap("elasticsearch"),
