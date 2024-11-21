@@ -77,8 +77,8 @@ datadog:
   # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
-datadogLogs:
-  # apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
+datadoglogs:
+  # apikey: "" # Datadog API Key, if not empty, Datadog Logs output is enabled
   # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://http-intake.logs.datadoghq.com/"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # service: "" # The name of the application or service generating the log events.

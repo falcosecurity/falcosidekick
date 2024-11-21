@@ -56,10 +56,10 @@ func (c *Client) DatadogLogsPost(falcopayload types.FalcoPayload) {
 
 	err := c.Post(newDatadogLogsPayload(falcopayload, c.Config), reqOpts...)
 	if err != nil {
-		go c.CountMetric(Outputs, 1, []string{"output:datadogLogs", "status:error"})
+		go c.CountMetric(Outputs, 1, []string{"output:datadoglogs", "status:error"})
 		c.Stats.DatadogLogs.Add(Error, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "datadogLogs", "status": Error}).Inc()
-		c.OTLPMetrics.Outputs.With(attribute.String("destination", "datadogLogs"),
+		c.PromStats.Outputs.With(map[string]string{"destination": "datadoglogs", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "datadoglogs"),
 			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Datadog Logs - %v\n", err)
 		return
@@ -67,7 +67,7 @@ func (c *Client) DatadogLogsPost(falcopayload types.FalcoPayload) {
 
 	go c.CountMetric(Outputs, 1, []string{"output:datadogLogs", "status:ok"})
 	c.Stats.DatadogLogs.Add(OK, 1)
-	c.PromStats.Outputs.With(map[string]string{"destination": "datadogLogs", "status": OK}).Inc()
-	c.OTLPMetrics.Outputs.With(attribute.String("destination", "datadogLogs"),
+	c.PromStats.Outputs.With(map[string]string{"destination": "datadoglogs", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "datadoglogs"),
 		attribute.String("status", OK)).Inc()
 }

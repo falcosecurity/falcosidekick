@@ -16,10 +16,10 @@
 
 | Setting                       | Env var                        | Default value              | Description                                                                                                                       |
 |-------------------------------|--------------------------------| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `datadogLogs.apikey`          | `DATADOG_LOGS_APIKEY`          |                            | Datadog API Key, if not empty, Datadog output is **enabled**                                                                      |
-| `datadogLogs.host`            | `DATADOG_LOGS_HOST`            | `https://http-intake.logs.datadoghq.com/` | Datadog host. Override if you are on the Datadog EU site                                                                          |
-| `datadogLogs.minimumpriority` | `DATADOG_LOGS_MINIMUMPRIORITY` | `""` (= `debug`)           | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
-| `datadogLogs.service`         | `DATADOG_LOGS_SERVICE`         | `""`            | The name of the application or service generating the log events. |
+| `datadoglogs.apikey`          | `DATADOG_LOGS_APIKEY`          |                            | Datadog API Key, if not empty, Datadog Logs output is **enabled**                                                                      |
+| `datadoglogs.host`            | `DATADOG_LOGS_HOST`            | `https://http-intake.logs.datadoghq.com/` | Datadog host. Override if you are on the Datadog EU site                                                                          |
+| `datadoglogs.minimumpriority` | `DATADOG_LOGS_MINIMUMPRIORITY` | `""` (= `debug`)           | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
+| `datadoglogs.service`         | `DATADOG_LOGS_SERVICE`         | `""`            | The name of the application or service generating the log events. |
 
 > [!NOTE]
 The Env var values override the settings from yaml file.
@@ -27,8 +27,8 @@ The Env var values override the settings from yaml file.
 ## Example of config.yaml
 
 ```yaml
-datadogLogs:
-  apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
+datadoglogs:
+  apikey: "" # Datadog API Key, if not empty, Datadog Logs output is enabled
   # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://http-intake.logs.datadoghq.com/"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # service: "" # The name of the application or service generating the log events.
