@@ -33,7 +33,7 @@ func newDatadogLogsPayload(falcopayload types.FalcoPayload, config *types.Config
 	}
 
 	d.Hostname = falcopayload.Hostname
-	d.DDSource = "falco"
+	d.DDSource = strings.ToLower(Falco)
 
 	d.Message = falcopayload.String()
 
