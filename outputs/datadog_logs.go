@@ -65,7 +65,7 @@ func (c *Client) DatadogLogsPost(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	go c.CountMetric(Outputs, 1, []string{"output:datadogLogs", "status:ok"})
+	go c.CountMetric(Outputs, 1, []string{"output:datadoglogs", "status:ok"})
 	c.Stats.DatadogLogs.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "datadoglogs", "status": OK}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "datadoglogs"),
