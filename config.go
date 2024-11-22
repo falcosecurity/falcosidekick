@@ -870,6 +870,7 @@ func getConfig() *types.Configuration {
 	c.Teams.MinimumPriority = checkPriority(c.Teams.MinimumPriority)
 	c.Webex.MinimumPriority = checkPriority(c.Webex.MinimumPriority)
 	c.Datadog.MinimumPriority = checkPriority(c.Datadog.MinimumPriority)
+	c.DatadogLogs.MinimumPriority = checkPriority(c.DatadogLogs.MinimumPriority)
 	c.Alertmanager.MinimumPriority = checkPriority(c.Alertmanager.MinimumPriority)
 	c.Alertmanager.DropEventDefaultPriority = checkPriority(c.Alertmanager.DropEventDefaultPriority)
 	c.Elasticsearch.MinimumPriority = checkPriority(c.Elasticsearch.MinimumPriority)
