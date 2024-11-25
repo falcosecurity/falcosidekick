@@ -46,9 +46,9 @@ require (
 	golang.org/x/text v0.20.0
 	google.golang.org/api v0.209.0
 	google.golang.org/genproto v0.0.0-20241113202542-65e8d215514f
-	k8s.io/api v0.31.2
-	k8s.io/apimachinery v0.31.2
-	k8s.io/client-go v0.31.2
+	k8s.io/api v0.31.3
+	k8s.io/apimachinery v0.31.3
+	k8s.io/client-go v0.31.3
 	sigs.k8s.io/wg-policy-prototypes v0.0.0-20240327135653-0fc2ddc5d3e3
 )
 
