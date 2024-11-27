@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.30.0 - 2024-11-28
+#### New
+- New output: **Webex** ([PR#979](https://github.com/falcosecurity/falcosidekick/pull/979) thanks to [@k0rventen](https://github.com/k0rventen))
+- New output: **OTLP Metrics** ([PR#1012](https://github.com/falcosecurity/falcosidekick/pull/1012) thanks to [@ekoops](https://github.com/ekoops))
+- New output: **Datadog Logs** ([PR#1052](https://github.com/falcosecurity/falcosidekick/pull/1052) thanks to [@yohboy](https://github.com/yohboy))
+
+#### Enhancement
+- Reuse of the http client for 3-4x increase of the throughput ([PR#962](https://github.com/falcosecurity/falcosidekick/pull/962) thanks to [@alekmaus](https://github.com/aleksmaus))
+- Improve outputs throughput handling ([PR#966](https://github.com/falcosecurity/falcosidekick/pull/966) thanks to [@alekmaus](https://github.com/aleksmaus))
+- Batching and gzip compression for the `Elastticsearch` output ([PR#967](https://github.com/falcosecurity/falcosidekick/pull/967) thanks to [@alekmaus](https://github.com/aleksmaus))
+- Use the same convention for the Prometheus metrics than Falco ([PR#995](https://github.com/falcosecurity/falcosidekick/pull/995))
+- Add `APIKey` for `Elasticsearch` output ([PR#980](https://github.com/falcosecurity/falcosidekick/pull/980) thanks to [@alekmaus](https://github.com/aleksmaus))
+- Add `Pipeline` configuration for `Elasticsearch` output ([PR#981](https://github.com/falcosecurity/falcosidekick/pull/981 ) thanks to [@alekmaus](https://github.com/aleksmaus))
+- Add `MessageThreadID` configuration in `Telegram` output ([PR#1008](https://github.com/falcosecurity/falcosidekick/pull/1008) thanks to [@vashian](https://github.com/vashian))
+- Support multi-architecture in build ([PR#1024](https://github.com/falcosecurity/falcosidekick/pull/1024) thanks to [@nickytd](https://github.com/nickytd))
+- Add `falco` as source for the `Datadog Events` ([PR#1043](https://github.com/falcosecurity/falcosidekick/pull/1043) thanks to [@maxd-wttj](https://github.com/maxd-wttj))
+- Support `AlertManager` output in HA mode ([PR#1051](https://github.com/falcosecurity/falcosidekick/pull/1051))
+
+#### Fix
+- Fix `PolicyReports` created in the same namespace than previous event ([PR#978](https://github.com/falcosecurity/falcosidekick/pull/978))
+- Fix missing `customFields/extraFields` in the `Elasticsearch` payload ([PR#1033](https://github.com/falcosecurity/falcosidekick/pull/1033))
+- Fix incorrect key name for `CloudEvent` spec attribute ([PR#1051](https://github.com/falcosecurity/falcosidekick/pull/1051))
+
+> [!WARNING]
+> Breaking change: The Prometheus metrics have different names from this release, it might break the queries for the dashboards and alerts.
+
 ## 2.29.0 - 2024-07-01
 #### New
 - New output: **Dynatrace** ([PR#575](https://github.com/falcosecurity/falcosidekick/pull/575) thanks to [@blu3r4y](https://github.com/blu3r4y))
