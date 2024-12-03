@@ -3,6 +3,10 @@ package otlpmetrics
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+	"strings"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
@@ -11,9 +15,6 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
-	"log"
-	"os"
-	"strings"
 )
 
 const (
@@ -246,5 +247,4 @@ func (c *counterInstrument) Inc() {
 	}
 
 	ruleCounter.Add(context.Background(), 1, metric.WithAttributes(c.attributes...))
-	log.Println("[INFO]  : OTLP Metrics - OK")
 }
