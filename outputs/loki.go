@@ -33,6 +33,13 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	s["source"] = falcopayload.Source
 	s["priority"] = falcopayload.Priority.String()
 
+	if k8sNs, ok := falcopayload.OutputFields["k8s.ns.name"].(string); ok {
+        s["k8s_ns_name"] = k8sNs
+    }
+    if k8sPod, ok := falcopayload.OutputFields["k8s.pod.name"].(string); ok {
+        s["k8s_pod_name"] = k8sPod
+    }
+
 	for i, j := range falcopayload.OutputFields {
 		switch v := j.(type) {
 		case string:
