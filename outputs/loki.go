@@ -28,7 +28,7 @@ type lokiValue = []string
 const LokiContentType = "application/json"
 
 func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration) lokiPayload {
-	s := make(map[string]string, 3+len(falcopayload.OutputFields)+len(config.Loki.ExtraLabelsList)+len(falcopayload.Tags))
+	s := make(map[string]string)
 	s["rule"] = falcopayload.Rule
 	s["source"] = falcopayload.Source
 	s["priority"] = falcopayload.Priority.String()
