@@ -75,10 +75,17 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		s["tags"] = strings.Join(falcopayload.Tags, ",")
 	}
 
+	var v string
+	if config.Loki.Format == "json" {
+		v = falcopayload.String()
+	} else {
+		v = falcopayload.Output
+	}
+
 	return lokiPayload{Streams: []lokiStream{
 		{
 			Stream: s,
-			Values: []lokiValue{[]string{fmt.Sprintf("%v", falcopayload.Time.UnixNano()), falcopayload.Output}},
+			Values: []lokiValue{[]string{fmt.Sprintf("%v", falcopayload.Time.UnixNano()), v}},
 		},
 	}}
 }

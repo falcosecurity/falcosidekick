@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
 
@@ -57,21 +56,21 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 	}
 	for i := range config.Customfields {
 		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
-			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Custom field '%v' is not a valid prometheus label", i))
+			utils.Log(utils.ErrorLvl, "Prometheus", fmt.Sprintf("Custom field '%v' is not a valid prometheus label", i))
 			continue
 		}
 		labelnames = append(labelnames, strings.ReplaceAll(i, ".", "_"))
 	}
 	for i := range config.Templatedfields {
 		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
-			log.Printf("[ERROR] : Templated field '%v' is not a valid prometheus label", i)
+			utils.Log(utils.ErrorLvl, "Prometheus", fmt.Sprintf("Templated field '%v' is not a valid prometheus label", i))
 			continue
 		}
 		labelnames = append(labelnames, strings.ReplaceAll(i, ".", "_"))
 	}
 	for _, i := range config.Prometheus.ExtraLabelsList {
 		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
-			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Extra field '%v' is not a valid prometheus label", i))
+			utils.Log(utils.ErrorLvl, "Prometheus", fmt.Sprintf("Extra field '%v' is not a valid prometheus label", i))
 			continue
 		}
 		labelnames = append(labelnames, strings.ReplaceAll(i, ".", "_"))

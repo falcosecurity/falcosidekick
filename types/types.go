@@ -343,6 +343,7 @@ type LokiOutputConfig struct {
 	APIKey          string
 	MinimumPriority string
 	Tenant          string
+	Format          string
 	Endpoint        string
 	ExtraLabels     string
 	ExtraLabelsList []string

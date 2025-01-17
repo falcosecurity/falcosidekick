@@ -145,6 +145,7 @@ var httpOutputDefaults = map[string]map[string]any{
 		"APIKey":          "",
 		"MinimumPriority": "",
 		"Tenant":          "",
+		"Format":          "text",
 		"Endpoint":        "/loki/api/v1/push",
 		"ExtraLabels":     "",
 	},
