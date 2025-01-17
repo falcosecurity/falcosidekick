@@ -48,17 +48,17 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		case string:
 			for k := range config.Customfields {
 				if i == k {
-					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
+					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", "_"), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 			for k := range config.Templatedfields {
 				if i == k {
-					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
+					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", "_"), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 			for _, k := range config.Loki.ExtraLabelsList {
 				if i == k {
-					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
+					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", "_"), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 		default:
