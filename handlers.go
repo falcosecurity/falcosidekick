@@ -186,6 +186,11 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 			promLabels[key] = value
 		}
 	}
+	for key := range config.Templatedfields {
+		if regPromLabels.MatchString(key) {
+			promLabels[key] = fmt.Sprintf("%v", falcopayload.OutputFields[key])
+		}
+	}
 	for _, i := range config.Prometheus.ExtraLabelsList {
 		promLabels[strings.ReplaceAll(i, ".", "_")] = ""
 		for key, value := range falcopayload.OutputFields {
