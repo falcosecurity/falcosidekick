@@ -6,9 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"expvar"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"text/template"
 	"time"
+
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/embano1/memlog"
@@ -365,6 +366,7 @@ type prometheusOutputConfig struct {
 type natsOutputConfig struct {
 	CommonConfig    `mapstructure:",squash"`
 	HostPort        string
+	SubjectTemplate string
 	MinimumPriority string
 }
 
@@ -373,6 +375,7 @@ type stanOutputConfig struct {
 	HostPort        string
 	ClusterID       string
 	ClientID        string
+	SubjectTemplate string
 	MinimumPriority string
 }
 

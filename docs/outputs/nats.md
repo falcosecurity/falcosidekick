@@ -8,18 +8,23 @@
 - [NATS](#nats)
   - [Table of content](#table-of-content)
   - [Configuration](#configuration)
+- [subjecttemplate: "falco.." # template for the subject, tokens  and  will be automatically replaced (default: falco..)](#subjecttemplate-falco--template-for-the-subject-tokens--and--will-be-automatically-replaced-default-falco)
   - [Example of config.yaml](#example-of-configyaml)
   - [Additional info](#additional-info)
   - [Screenshots](#screenshots)
 
 ## Configuration
 
-| Setting                | Env var                | Default value    | Description                                                                                                                         |
-| ---------------------- | ---------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `nats.hostport`        | `NATS_HOSTPORT`        |                  | nats://{domain or ip}:{port}, if not empty, NATS output is **enabled**                                                              |
-| `nats.mutualtls`       | `NATS_MUTUALTLS`       | `false`          | Authenticate to the output with TLS, if true, checkcert flag will be ignored (server cert will always be checked)                   |
-| `nats.checkcert`       | `NATS_CHECKCERT`       | `true`           | Check if ssl certificate of the output is valid                                                                                     |
-| `nats.minimumpriority` | `NATS_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
+  # subjecttemplate: "falco.<priority>.<rule>" # template for the subject, tokens <priority> and <rule> will be automatically replaced (default: falco.<priority>.<rule>)
+
+
+|        Setting         |        Env var         |       Default value       |                                                             Description                                                             |
+| ---------------------- | ---------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `nats.hostport`        | `NATS_HOSTPORT`        |                           | nats://{domain or ip}:{port}, if not empty, NATS output is **enabled**                                                              |
+| `nats.subjecttemplate` | `NATS_SUBJECTTEMPLATE` | `falco.<priority>.<rule>` | Template for the subject, tokens <priority> and <rule> will be automatically replaced                                               |
+| `nats.mutualtls`       | `NATS_MUTUALTLS`       | `false`                   | Authenticate to the output with TLS, if true, checkcert flag will be ignored (server cert will always be checked)                   |
+| `nats.checkcert`       | `NATS_CHECKCERT`       | `true`                    | Check if ssl certificate of the output is valid                                                                                     |
+| `nats.minimumpriority` | `NATS_MINIMUMPRIORITY` | `""` (= `debug`)          | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
 > [!NOTE]
 The Env var values override the settings from yaml file.
