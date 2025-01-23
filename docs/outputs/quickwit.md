@@ -15,7 +15,7 @@
 
 | Setting                         | Env var                         | Default value    | Description                                                                                                                            |
 | ------------------------------- | ------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `quickwit.hosport`              | `QUICKWIT_HOSTPORT`             |                  | http://{domain or ip}:{port}, if not empty, Quickwit output is **enabled**                                                             |
+| `quickwit.hostport`              | `QUICKWIT_HOSTPORT`             |                  | http://{domain or ip}:{port}, if not empty, Quickwit output is **enabled**                                                             |
 | `quickwit.apiendpoint`          | `QUICKWIT_APIENDPOINT`          | `api/v1`        | API endpoint (containing the API version, overideable in case of quickwit behind a reverse proxy with URL rewriting)                   |
 | `quickwit.index`                | `QUICKWIT_INDEX`                | `falco`          | Index                                                                                                                                  |
 | `quickwit.version`              | `QUICKWIT_VERSION`              | `0.7`            | Version of quickwit                                                                                                                    |
@@ -25,7 +25,7 @@
 | `quickwit.checkcert`            | `QUICKWIT_CHECKCERT`            | `true`           | Check if ssl certificate of the output is valid                                                                                        |
 | `quickwit.minimumpriority`      | `QUICKWIT_MINIMUMPRIORITY`      | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

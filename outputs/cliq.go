@@ -1,26 +1,13 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
 import (
 	"bytes"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -179,14 +166,15 @@ func newCliqPayload(falcopayload types.FalcoPayload, config *types.Configuration
 func (c *Client) CliqPost(falcopayload types.FalcoPayload) {
 	c.Stats.Cliq.Add(Total, 1)
 
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	c.AddHeader(ContentTypeHeaderKey, "application/json")
-	err := c.Post(newCliqPayload(falcopayload, c.Config))
+	err := c.Post(newCliqPayload(falcopayload, c.Config), func(req *http.Request) {
+		req.Header.Set(ContentTypeHeaderKey, "application/json")
+	})
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:cliq", "status:error"})
 		c.Stats.Cliq.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "cliq", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "cliq"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Cliq - %v\n", err)
 		return
 	}
@@ -195,4 +183,5 @@ func (c *Client) CliqPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:cliq", "status:ok"})
 	c.Stats.Cliq.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "cliq", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "cliq"), attribute.String("status", OK)).Inc()
 }

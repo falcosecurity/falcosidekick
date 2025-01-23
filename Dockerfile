@@ -1,7 +1,7 @@
-ARG BASE_IMAGE=alpine:3.17
+ARG BASE_IMAGE=alpine:3.19
 # Final Docker image
 FROM ${BASE_IMAGE} AS final-stage
-LABEL MAINTAINER "Thomas Labarussias <issif+falcosidekick@gadz.org>"
+LABEL MAINTAINER="Thomas Labarussias <issif+falcosidekick@gadz.org>"
 
 RUN apk add --update --no-cache ca-certificates gcompat
 

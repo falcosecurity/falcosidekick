@@ -1,19 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
@@ -22,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"log"
 	"net/http"
@@ -34,11 +21,15 @@ import (
 	"github.com/google/uuid"
 )
 
+const Falcosidekick_ string = "falcosidekick_"
+const SourcePath string = "/source/"
+const APIv1Path string = "api/v1/org/"
+
 func isSourcePresent(config *types.Configuration) (bool, error) {
 
 	client := &http.Client{}
 
-	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIv1Path+config.Spyderbat.OrgUID+SourcePath)
 	if err != nil {
 		return false, err
 	}
@@ -46,7 +37,7 @@ func isSourcePresent(config *types.Configuration) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	req.Header.Add("Authorization", "Bearer "+config.Spyderbat.APIKey)
+	req.Header.Add("Authorization", Bearer+" "+config.Spyderbat.APIKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -65,7 +56,7 @@ func isSourcePresent(config *types.Configuration) (bool, error) {
 	if err := json.Unmarshal(body, &sources); err != nil {
 		return false, err
 	}
-	uid := "falcosidekick_" + config.Spyderbat.OrgUID
+	uid := Falcosidekick_ + config.Spyderbat.OrgUID
 	for _, source := range sources {
 		if id, ok := source["uid"]; ok && id.(string) == uid {
 			return true, nil
@@ -85,7 +76,7 @@ func makeSource(config *types.Configuration) error {
 	data := SourceBody{
 		Name:        config.Spyderbat.Source,
 		Description: config.Spyderbat.SourceDescription,
-		UID:         "falcosidekick_" + config.Spyderbat.OrgUID,
+		UID:         Falcosidekick_ + config.Spyderbat.OrgUID,
 	}
 	body := new(bytes.Buffer)
 	if err := json.NewEncoder(body).Encode(data); err != nil {
@@ -94,7 +85,7 @@ func makeSource(config *types.Configuration) error {
 
 	client := &http.Client{}
 
-	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/")
+	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIv1Path+config.Spyderbat.OrgUID+SourcePath)
 	if err != nil {
 		return err
 	}
@@ -102,7 +93,7 @@ func makeSource(config *types.Configuration) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Authorization", "Bearer "+config.Spyderbat.APIKey)
+	req.Header.Add("Authorization", Bearer+" "+config.Spyderbat.APIKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -186,7 +177,7 @@ func newSpyderbatPayload(falcopayload types.FalcoPayload) (spyderbatPayload, err
 		MonotonicTime: time.Now().Nanosecond(),
 		OrcTime:       nowTime,
 		Time:          eventTime,
-		PID:           int32(pid),
+		PID:           int32(pid), //nolint:gosec // disable G115
 		Level:         level,
 		Message:       message,
 		Arguments:     arguments,
@@ -195,7 +186,7 @@ func newSpyderbatPayload(falcopayload types.FalcoPayload) (spyderbatPayload, err
 }
 
 func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	hasSource, err := isSourcePresent(config)
 	if err != nil {
@@ -211,8 +202,8 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 		}
 	}
 
-	source := "falcosidekick_" + config.Spyderbat.OrgUID
-	data_url, err := url.JoinPath(config.Spyderbat.APIUrl, "api/v1/org/"+config.Spyderbat.OrgUID+"/source/"+source+"/data/sb-agent")
+	source := Falcosidekick_ + config.Spyderbat.OrgUID
+	data_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIv1Path+config.Spyderbat.OrgUID+SourcePath+source+"/data/sb-agent")
 	if err != nil {
 		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
 		return nil, ErrClientCreation
@@ -223,35 +214,35 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 		return nil, ErrClientCreation
 	}
 	return &Client{
-		OutputType:       "Spyderbat",
-		EndpointURL:      endpointURL,
-		MutualTLSEnabled: false,
-		CheckCert:        true,
-		ContentType:      "application/ndjson",
-		Config:           config,
-		Stats:            stats,
-		PromStats:        promStats,
-		StatsdClient:     statsdClient,
-		DogstatsdClient:  dogstatsdClient,
+		OutputType:      "Spyderbat",
+		EndpointURL:     endpointURL,
+		cfg:             types.CommonConfig{MutualTLS: false, CheckCert: true, MaxConcurrentRequests: 1},
+		ContentType:     "application/ndjson",
+		Config:          config,
+		Stats:           stats,
+		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
+		StatsdClient:    statsdClient,
+		DogstatsdClient: dogstatsdClient,
 	}, nil
 }
 
 func (c *Client) SpyderbatPost(falcopayload types.FalcoPayload) {
 	c.Stats.Spyderbat.Add(Total, 1)
 
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	c.AddHeader("Authorization", "Bearer "+c.Config.Spyderbat.APIKey)
-	c.AddHeader("Content-Encoding", "gzip")
-
 	payload, err := newSpyderbatPayload(falcopayload)
 	if err == nil {
-		err = c.Post(payload)
+		err = c.Post(payload, func(req *http.Request) {
+			req.Header.Set("Authorization", "Bearer "+c.Config.Spyderbat.APIKey)
+			req.Header.Set("Content-Encoding", "gzip")
+		})
 	}
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:spyderbat", "status:error"})
 		c.Stats.Spyderbat.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "spyderbat", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "spyderbat"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
 		return
 	}
@@ -259,4 +250,6 @@ func (c *Client) SpyderbatPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:spyderbat", "status:ok"})
 	c.Stats.Spyderbat.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "spyderbat", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "spyderbat"),
+		attribute.String("status", OK)).Inc()
 }

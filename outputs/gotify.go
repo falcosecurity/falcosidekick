@@ -1,26 +1,13 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
 import (
 	"bytes"
 	"encoding/json"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
+	"net/http"
 	"strings"
 	textTemplate "text/template"
 
@@ -108,13 +95,11 @@ func newGotifyPayload(falcopayload types.FalcoPayload, config *types.Configurati
 func (c *Client) GotifyPost(falcopayload types.FalcoPayload) {
 	c.Stats.Gotify.Add(Total, 1)
 
-	if c.Config.Gotify.Token != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.AddHeader("X-Gotify-Key", c.Config.Gotify.Token)
-	}
-
-	err := c.Post(newGotifyPayload(falcopayload, c.Config))
+	err := c.Post(newGotifyPayload(falcopayload, c.Config), func(req *http.Request) {
+		if c.Config.Gotify.Token != "" {
+			req.Header.Set("X-Gotify-Key", c.Config.Gotify.Token)
+		}
+	})
 	if err != nil {
 		c.setGotifyErrorMetrics()
 		log.Printf("[ERROR] : Gotify - %v\n", err)
@@ -125,6 +110,7 @@ func (c *Client) GotifyPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:gotify", "status:ok"})
 	c.Stats.Gotify.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "gotify", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "gotify"), attribute.String("status", OK)).Inc()
 }
 
 // setGotifyErrorMetrics set the error stats
@@ -132,4 +118,6 @@ func (c *Client) setGotifyErrorMetrics() {
 	go c.CountMetric(Outputs, 1, []string{"output:gotify", "status:error"})
 	c.Stats.Gotify.Add(Error, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "gotify", "status": Error}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "gotify"),
+		attribute.String("status", Error)).Inc()
 }

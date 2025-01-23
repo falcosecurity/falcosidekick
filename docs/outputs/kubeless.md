@@ -23,7 +23,7 @@
 | `kubeless.kubeconfig`      | `KUBELESS_KUBECONFIG`      | `true`           | Kubeconfig file to use (only if falcosidekick is running outside the cluster)                                                       |
 | `kubeless.minimumpriority` | `KUBELESS_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
@@ -40,7 +40,7 @@ kubeless:
 
 ## Additional info
 
-> **Warning**
+> [!WARNING]
 `Kubeless` is no more maintained, consider to use a different output.
 
 ## Screenshots

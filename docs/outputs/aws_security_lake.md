@@ -30,7 +30,7 @@
 | `aws.securitylake.batchsize`       | `AWS_SECURITYLAKE_BATCHSIZE`       | `1000`           | Max number of events by parquet file                                                                                                |
 | `aws.securitylake.minimumpriority` | `AWS_SECURITYLAKE_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
@@ -55,7 +55,7 @@ aws:
 
 ## Additional info
 
-> **Note**
+> [!NOTE]
 When using this AWS output you will need to set the AWS keys or role with some permissions.
 
 ## Screenshots

@@ -1,19 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
@@ -22,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"time"
 
@@ -38,7 +25,8 @@ import (
 )
 
 // NewYandexClient returns a new output.Client for accessing the Yandex API.
-func NewYandexClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewYandexClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	resolverFn := func(service, region string, optFns ...func(*endpoints.Options)) (endpoints.ResolvedEndpoint, error) {
 		switch service {
 		case endpoints.S3ServiceID:
@@ -73,6 +61,7 @@ func NewYandexClient(config *types.Configuration, stats *types.Statistics, promS
 		AWSSession:      sess,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -95,6 +84,8 @@ func (c *Client) UploadYandexS3(falcopayload types.FalcoPayload) {
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:yandexs3", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v S3 - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -103,6 +94,8 @@ func (c *Client) UploadYandexS3(falcopayload types.FalcoPayload) {
 
 	go c.CountMetric("outputs", 1, []string{"output:yandexs3", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": "ok"}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
+		attribute.String("status", OK)).Inc()
 }
 
 // UploadYandexDataStreams uploads payload to Yandex Data Streams
@@ -120,6 +113,8 @@ func (c *Client) UploadYandexDataStreams(falcoPayLoad types.FalcoPayload) {
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:yandexdatastreams", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "yandexdatastreams", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v Data Streams - %v\n", c.OutputType, err.Error())
 		return
 	}
@@ -128,4 +123,6 @@ func (c *Client) UploadYandexDataStreams(falcoPayLoad types.FalcoPayload) {
 	go c.CountMetric("outputs", 1, []string{"output:yandexdatastreams", "status:ok"})
 	c.Stats.YandexDataStreams.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "yandexdatastreams", "status": "ok"}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
+		attribute.String("status", OK)).Inc()
 }

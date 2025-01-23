@@ -14,13 +14,14 @@
 
 ## Configuration
 
-| Setting | Env var | Default value | Description |
-| ------- | ------- | ------------- | ----------- |
-|         |         |               |             |
-|         |         |               |             |
-| `dynatrace.minimumpriority` | `DYNATRACE_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
+|           Setting           |           Env var           |  Default value   |                                                                                           Description                                                                                           |
+| --------------------------- | --------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dynatrace.api_token`       | `DYNATRACE_APITOKEN`        |                  | Dynatrace API token with the "logs.ingest" scope, more info: https://dt-url.net/8543sda, if not empty, Dynatrace output is enabled                                                              |
+| `dynatrace.apiurl`          | `DYNATRACE_APIURL`          |                  | Dynatrace API url, use https://ENVIRONMENTID.live.dynatrace.com/api for Dynatrace SaaS and https://YOURDOMAIN/e/ENVIRONMENTID/api for Dynatrace Managed, more info : https://dt-url.net/ej43qge |
+| `dynatrace.minimumpriority` | `DYNATRACE_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""`                                                             |
+| `dynatrace.checkcert`       | `DYNATRACE_CHECKCERT`       | `true`           | Check if ssl certificate of the output is valid                                                                                                                                                 |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

@@ -20,7 +20,7 @@
 | `datadog.host`            | `DATADOG_HOST`            | `https://api.datadoghq.com` | Datadog host. Override if you are on the Datadog EU site                                                                            |
 | `datadog.minimumpriority` | `DATADOG_MINIMUMPRIORITY` | `""` (= `debug`)            | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml
@@ -38,4 +38,4 @@ Filter the events in the UI with `sources: falco`.
 
 ## Screenshots
 
-![datadog example](mages/datadog.png)
+![datadog example](images/datadog.png)

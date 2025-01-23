@@ -1,25 +1,12 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
 import (
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -63,12 +50,12 @@ func (c *Client) checkQuickwitIndexAlreadyExists(args types.InitClientArgs) bool
 	config := args.Config.Quickwit
 
 	endpointUrl := fmt.Sprintf("%s/%s/indexes/%s/describe", config.HostPort, config.ApiEndpoint, config.Index)
-	quickwitCheckClient, err := NewClient("QuickwitCheckAlreadyExists", endpointUrl, config.MutualTLS, config.CheckCert, args)
+	quickwitCheckClient, err := NewClient("QuickwitCheckAlreadyExists", endpointUrl, config.CommonConfig, args)
 	if err != nil {
 		return false
 	}
 
-	if nil != quickwitCheckClient.sendRequest("GET", "") {
+	if nil != quickwitCheckClient.Get() {
 		return false
 	}
 
@@ -83,7 +70,7 @@ func (c *Client) AutoCreateQuickwitIndex(args types.InitClientArgs) error {
 	}
 
 	endpointUrl := fmt.Sprintf("%s/%s/indexes", config.HostPort, config.ApiEndpoint)
-	quickwitInitClient, err := NewClient("QuickwitInit", endpointUrl, config.MutualTLS, config.CheckCert, args)
+	quickwitInitClient, err := NewClient("QuickwitInit", endpointUrl, config.CommonConfig, args)
 	if err != nil {
 		return err
 	}
@@ -173,24 +160,22 @@ func (c *Client) AutoCreateQuickwitIndex(args types.InitClientArgs) error {
 func (c *Client) QuickwitPost(falcopayload types.FalcoPayload) {
 	c.Stats.Quickwit.Add(Total, 1)
 
-	if len(c.Config.Quickwit.CustomHeaders) != 0 {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		for i, j := range c.Config.Quickwit.CustomHeaders {
-			c.AddHeader(i, j)
-		}
-	}
-
 	if c.Config.Debug {
 		log.Printf("[DEBUG] : Quickwit - ingesting payload: %v\n", falcopayload)
 	}
 
-	err := c.Post(falcopayload)
+	err := c.Post(falcopayload, func(req *http.Request) {
+		for i, j := range c.Config.Quickwit.CustomHeaders {
+			req.Header.Set(i, j)
+		}
+	})
 
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:quickwit", "status:error"})
 		c.Stats.Quickwit.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "quickwit", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "quickwit"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Quickwit - %v\n", err.Error())
 		return
 	}
@@ -199,4 +184,6 @@ func (c *Client) QuickwitPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:quickwit", "status:ok"})
 	c.Stats.Quickwit.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "quickwit", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "quickwit"),
+		attribute.String("status", OK)).Inc()
 }

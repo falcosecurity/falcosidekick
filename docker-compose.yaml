@@ -58,3 +58,15 @@ services:
     ports:
       - "9093:9093"
     profiles: [alertmanager]
+
+  minio:
+    image: quay.io/minio/minio
+    environment:
+      - MINIO_ROOT_USER=root
+      - MINIO_ROOT_PASSWORD=super-secret
+      - MINIO_DOMAIN=minio.localhost
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    profiles: [minio]

@@ -20,7 +20,7 @@
 | `dogstastd.namespace` | `DOGSTASTD_NAMESPACE` | `falcosidekick.` | A prefix for all metrics                                                                                |
 | `dogstastd.tags`      | `DOGSTASTD_TAGS`      |                  | Comma separeted list of key:value to add as tags to the metrics                                         |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

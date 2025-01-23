@@ -18,7 +18,7 @@
 | ----------- | ----------- | ------------- | ---------------------------------------------------- |
 | `webui.url` | `WEBUI_URL` |               | WebUI URL, if not empty, WebUI output is **enabled** |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

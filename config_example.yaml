@@ -8,6 +8,10 @@ customfields: # custom fields are added to falco events and metrics, if the valu
 templatedfields: # templated fields are added to falco events and metrics, it uses Go template + output_fields values
   # Dkey: '{{ or (index . "k8s.ns.labels.foo") "bar" }}'
 # bracketreplacer: "_" # if not empty, the brackets in keys of Output Fields are replaced
+customtags: # custom tags are added to the falco events, if the value starts with % the relative env var is used
+  - tagA
+  - tagB
+outputFieldFormat: "<timestamp>: <priority> <output> <custom_fields> <templated_fields>" # if not empty, allow to change the format of the output field. (default: "<timestamp>: <priority> <output>")
 mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls for outputs, will be deprecated in the future (default: "/etc/certs")
 mutualtlsclient: # takes priority over mutualtlsfilespath if not emtpy
   certfile: "/etc/certs/client/client.crt" # client certification file
@@ -64,13 +68,23 @@ teams:
   outputformat: "all" # all (default), text, facts
   minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
+webex:
+  # webhookurl: "" # Webex WebhookURL, if not empty, Teams Webex is enabled
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
 datadog:
   # apikey: "" # Datadog API Key, if not empty, Datadog output is enabled
   # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://api.datadoghq.com"
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
+datadoglogs:
+  # apikey: "" # Datadog API Key, if not empty, Datadog Logs output is enabled
+  # host: "" # Datadog host. Override if you are on the Datadog EU site. Defaults to american site with "https://http-intake.logs.datadoghq.com/"
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  # service: "" # The name of the application or service generating the log events.
+
 alertmanager:
-  # hostport: "" # http://{domain or ip}:{port}, if not empty, Alertmanager output is enabled
+  # hostport: "" # Comma separated list of http://{domain or ip}:{port} that will all receive the payload, if not empty, Alertmanager output is enabled
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
@@ -81,19 +95,33 @@ alertmanager:
   # customseveritymap: "" # comma separated list of tuple composed of a ':' separated Falco priority and Alertmanager severity that is used to override the severity label associated to the priority level of falco event. Example: debug:value_1,critical:value2. Default mapping: emergency:critical,alert:critical,critical:critical,error:warning,warning:warning,notice:information,informational:information,debug:information. (default: "")
   # dropeventdefaultpriority: "" # default priority of dropped events, values are emergency|alert|critical|error|warning|notice|informational|debug (default: "critical")
   # dropeventthresholds: # comma separated list of priority re-evaluation thresholds of dropped events composed of a ':' separated integer threshold and string priority. Example: `10000:critical, 100:warning, 1:informational` (default: `"10000:critical, 1000:critical, 100:critical, 10:warning, 1:warning"`)
+  # customHeaders: # Custom headers to add in POST, useful for Authentication
+  #   key: value
 
 elasticsearch:
   # hostport: "" # http://{domain or ip}:{port}, if not empty, Elasticsearch output is enabled
   # index: "falco" # index (default: falco)
   # type: "_doc"
+  # pipeline: "" # optional ingest pipeline name
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # suffix: "daily" # date suffix for index rotation : daily (default), monthly, annually, none
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # apikey: "" # use this APIKey to authenticate to Elasticsearch if the APIKey is not empty (default: "")
   # username: "" # use this username to authenticate to Elasticsearch if the username is not empty (default: "")
   # password: "" # use this password to authenticate to Elasticsearch if the password is not empty (default: "")
+  # flattenfields: false # replace . by _ to avoid mapping conflicts, force to true if createindextemplate==true (default: false)
+  # createindextemplate: false # create an index template (default: false)
+  # numberofshards: 3 # number of shards set by the index template (default: 3)
+  # numberofreplicas: 3 # number of replicas set by the index template (default: 3)
   # customHeaders: # Custom headers to add in POST, useful for Authentication
   #   key: value
+  # enablecompression: false # if true enables gzip compression for http requests (default: false)
+  # batching: # batching configuration, improves throughput dramatically utilizing _bulk Elasticsearch API
+  #   enabled: true # if true enables batching
+  #   batchsize: 5242880 # batch size in bytes (default: 5 MB)
+  #   flushinterval: 1s # batch fush interval (default: 1s)
+  # maxconcurrentrequests: 1 # max number of concurrent http requests (default: 1)
 
 quickwit:
   # hostport: "" # http(s)://{domain or ip}:{port}, if not empty, Quickwit output is enabled
@@ -170,8 +198,10 @@ aws:
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   s3:
     # bucket: "falcosidekick" # AWS S3, bucket name
-    # prefix : "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
+    # prefix: "" # name of prefix, keys will have format: s3://<bucket>/<prefix>/YYYY-MM-DD/YYYY-MM-DDTHH:mm:ss.s+01:00.json
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # endpoint: "" # endpoint URL that overrides the default generated endpoint, use this for S3 compatible APIs
+    # objectcannedacl: "bucket-owner-full-control" # Canned ACL (x-amz-acl) to use when creating the object
   securitylake.:
     # bucket: "" # Bucket for AWS SecurityLake data, if not empty, AWS SecurityLake output is enabled
     # region: "" # Bucket Region  (mandatory)
@@ -384,7 +414,7 @@ fission:
 policyreport:
   enabled: false # if true policyreport output is enabled
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
-  failthreshold: 4 # events with priority above this threshold are mapped to fail in PolicyReport Summary and lower that those are mapped to warn (default=4)
+  falconamespace: "" # Set the namespace where Falco is running (only if falcosidekick is running outside the cluster)
   maxevents: 1000 # the max number of events per report(default: 1000)
   prunebypriority: false # if true; the events with lowest severity are pruned first, in FIFO order (default: false)
 
@@ -518,3 +548,20 @@ otlp:
       # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
     # checkcert: true # Set if you want to skip TLS certificate validation (default: true)
+
+  metrics:
+    # endpoint: "" # OTLP endpoint, typically in the form http{s}://{domain or ip}:4318/v1/metrics
+    # protocol: "" # OTLP transport protocol to be used for metrics data; it can be "grpc" or "http/protobuf" (default: "grpc")
+    # timeout: "" # OTLP timeout for outgoing metrics in milliseconds (default: "" which uses SDK default: 10000)
+    # headers: "" # List of headers to apply to all outgoing metrics in the form of "some-key=some-value,other-key=other-value" (default: "")
+    # extraenvvars: # Extra env vars (override the other settings) (default: "")
+      # OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: 10000
+      # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
+    # minimumpriority: "" # Minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "")
+    # checkcert: true # Set to false if you want to skip TLS certificate validation (only with https) (default: true)
+    # extraattributes: "" # Comma-separated list of fields to use as labels additionally to source, priority, rule, hostname, tags, k8s_ns_name, k8s_pod_name and custom_fields
+
+talon:
+  # address: "" # Falco talon address, if not empty, Falco Talon output is enabled
+  # checkcert: false # check if ssl certificate of the output is valid (default: true)
+  # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)

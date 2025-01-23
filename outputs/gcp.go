@@ -1,19 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
@@ -23,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"time"
 
@@ -40,7 +27,8 @@ import (
 )
 
 // NewGCPClient returns a new output.Client for accessing the GCP API.
-func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	base64decodedCredentialsData, err := base64.StdEncoding.DecodeString(config.GCP.Credentials)
 	if err != nil {
 		log.Printf("[ERROR] : GCP - %v\n", "Error while base64-decoding GCP Credentials")
@@ -117,6 +105,7 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 		GCPCloudFunctionsClient: cloudFunctionsClient,
 		Stats:                   stats,
 		PromStats:               promStats,
+		OTLPMetrics:             otlpMetrics,
 		StatsdClient:            statsdClient,
 		DogstatsdClient:         dogstatsdClient,
 	}, nil
@@ -139,7 +128,8 @@ func (c *Client) GCPCallCloudFunction(falcopayload types.FalcoPayload) {
 		c.Stats.GCPPubSub.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcpcloudfunctions", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcpcloudfunctions", "status": Error}).Inc()
-
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpcloudfunctions"),
+			attribute.String("status", Error)).Inc()
 		return
 	}
 
@@ -166,7 +156,8 @@ func (c *Client) GCPPublishTopic(falcopayload types.FalcoPayload) {
 		c.Stats.GCPPubSub.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcppubsub", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcppubsub", "status": Error}).Inc()
-
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcppubsub"),
+			attribute.String("status", Error)).Inc()
 		return
 	}
 
@@ -174,6 +165,8 @@ func (c *Client) GCPPublishTopic(falcopayload types.FalcoPayload) {
 	c.Stats.GCPPubSub.Add(OK, 1)
 	go c.CountMetric("outputs", 1, []string{"output:gcppubsub", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "gcppubsub", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcppubsub"),
+		attribute.String("status", OK)).Inc()
 }
 
 // UploadGCS upload payload to
@@ -190,13 +183,32 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 
 	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format(time.RFC3339Nano))
 	bucketWriter := c.GCSStorageClient.Bucket(c.Config.GCP.Storage.Bucket).Object(key).NewWriter(context.Background())
-	defer bucketWriter.Close()
-	_, err := bucketWriter.Write(payload)
+	n, err := bucketWriter.Write(payload)
 	if err != nil {
 		log.Printf("[ERROR] : GCPStorage - %v - %v\n", "Error while Uploading message", err.Error())
 		c.Stats.GCPStorage.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpstorage"),
+			attribute.String("status", Error)).Inc()
+		return
+	}
+	if n == 0 {
+		log.Printf("[ERROR] : GCPStorage - %v\n", "Empty payload uploaded")
+		c.Stats.GCPStorage.Add(Error, 1)
+		go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpstorage"),
+			attribute.String("status", Error)).Inc()
+		return
+	}
+	if err := bucketWriter.Close(); err != nil {
+		log.Printf("[ERROR] : GCPStorage - %v - %v\n", "Error while closing the writer", err.Error())
+		c.Stats.GCPStorage.Add(Error, 1)
+		go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpstorage"),
+			attribute.String("status", Error)).Inc()
 		return
 	}
 
@@ -204,4 +216,6 @@ func (c *Client) UploadGCS(falcopayload types.FalcoPayload) {
 	c.Stats.GCPStorage.Add(OK, 1)
 	go c.CountMetric("outputs", 1, []string{"output:gcpstorage", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "gcpstorage", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpstorage"),
+		attribute.String("status", OK)).Inc()
 }

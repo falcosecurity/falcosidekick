@@ -1,24 +1,11 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
 import (
 	"crypto/tls"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -30,7 +17,7 @@ import (
 
 // NewMQTTClient returns a new output.Client for accessing Kubernetes.
 func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
 	options := mqtt.NewClientOptions()
 	options.AddBroker(config.MQTT.Broker)
@@ -40,9 +27,8 @@ func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promSta
 		options.Password = config.MQTT.Password
 	}
 	if !config.MQTT.CheckCert {
-		// #nosec G402 This is only set as a result of explicit configuration
 		options.TLSConfig = &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
 		}
 	}
 	options.OnConnectionLost = func(client mqtt.Client, err error) {
@@ -57,6 +43,7 @@ func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promSta
 		MQTTClient:      client,
 		Stats:           stats,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 		DogstatsdClient: dogstatsdClient,
 	}, nil
@@ -72,6 +59,8 @@ func (c *Client) MQTTPublish(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:mqtt", "status:error"})
 		c.Stats.MQTT.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "mqtt", "status": err.Error()}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "mqtt"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %s - %v\n", MQTT, err.Error())
 		return
 	}
@@ -80,6 +69,8 @@ func (c *Client) MQTTPublish(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:mqtt", "status:error"})
 		c.Stats.MQTT.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "mqtt", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "mqtt"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %s - %v\n", MQTT, err.Error())
 		return
 	}
@@ -88,4 +79,5 @@ func (c *Client) MQTTPublish(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:mqtt", "status:ok"})
 	c.Stats.MQTT.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "mqtt", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "mqtt"), attribute.String("status", OK)).Inc()
 }

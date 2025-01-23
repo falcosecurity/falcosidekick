@@ -1,19 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package main
 
@@ -21,20 +6,29 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"log"
 	"net/http"
+	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/google/uuid"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
-const testRule string = "Test rule"
+const (
+	testRule string = "Test rule"
+	syscalls string = "syscalls"
+	syscall  string = "syscall"
+)
 
-// mainHandler is Falco Sidekick main handler (default).
+// mainHandler is Falcosidekick main handler (default).
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	stats.Requests.Add("total", 1)
 	nullClient.CountMetric("total", 1, []string{})
@@ -43,6 +37,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Please send a valid request body", http.StatusBadRequest)
 		stats.Requests.Add("rejected", 1)
 		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
+		otlpMetrics.Inputs.With(attribute.String("source", "requests"),
+			attribute.String("status", "rejected")).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:nobody"})
 
 		return
@@ -52,6 +48,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Please send with post http method", http.StatusBadRequest)
 		stats.Requests.Add("rejected", 1)
 		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
+		otlpMetrics.Inputs.With(attribute.String("source", "requests"),
+			attribute.String("status", "rejected")).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:nobody"})
 
 		return
@@ -62,6 +60,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Please send a valid request body", http.StatusBadRequest)
 		stats.Requests.Add("rejected", 1)
 		promStats.Inputs.With(map[string]string{"source": "requests", "status": "rejected"}).Inc()
+		otlpMetrics.Inputs.With(attribute.String("source", "requests"),
+			attribute.String("status", "rejected")).Inc()
 		nullClient.CountMetric("inputs.requests.rejected", 1, []string{"error:invalidjson"})
 
 		return
@@ -70,6 +70,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 	nullClient.CountMetric("inputs.requests.accepted", 1, []string{})
 	stats.Requests.Add("accepted", 1)
 	promStats.Inputs.With(map[string]string{"source": "requests", "status": "accepted"}).Inc()
+	otlpMetrics.Inputs.With(attribute.String("source", "requests"),
+		attribute.String("status", "accepted")).Inc()
 	forwardEvent(falcopayload)
 }
 
@@ -103,21 +105,25 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		return types.FalcoPayload{}, err
 	}
 
+	var customFields string
 	if len(config.Customfields) > 0 {
 		if falcopayload.OutputFields == nil {
 			falcopayload.OutputFields = make(map[string]interface{})
 		}
 		for key, value := range config.Customfields {
+			customFields += key + "=" + value + " "
 			falcopayload.OutputFields[key] = value
 		}
 	}
+
+	falcopayload.Tags = append(falcopayload.Tags, config.Customtags...)
 
 	if falcopayload.Rule == "Test rule" {
 		falcopayload.Source = "internal"
 	}
 
 	if falcopayload.Source == "" {
-		falcopayload.Source = "syscalls"
+		falcopayload.Source = syscalls
 	}
 
 	falcopayload.UUID = uuid.New().String()
@@ -134,6 +140,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
+	var templatedFields string
 	if len(config.Templatedfields) > 0 {
 		if falcopayload.OutputFields == nil {
 			falcopayload.OutputFields = make(map[string]interface{})
@@ -148,13 +155,25 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 			if err := tmpl.Execute(v, falcopayload.OutputFields); err != nil {
 				log.Printf("[ERROR] : Parsing error for templated field '%v': %v\n", key, err)
 			}
+			templatedFields += key + "=" + v.String() + " "
 			falcopayload.OutputFields[key] = v.String()
 		}
 	}
 
+	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
+	}
+
 	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + falcopayload.Priority.String()})
 	stats.Falco.Add(strings.ToLower(falcopayload.Priority.String()), 1)
-	promLabels := map[string]string{"rule": falcopayload.Rule, "priority": falcopayload.Priority.String(), "source": falcopayload.Source, "k8s_ns_name": kn, "k8s_pod_name": kp}
+	promLabels := map[string]string{
+		"rule":         falcopayload.Rule,
+		"priority_raw": strings.ToLower(falcopayload.Priority.String()),
+		"priority":     strconv.Itoa(int(falcopayload.Priority)),
+		"source":       falcopayload.Source,
+		"k8s_ns_name":  kn,
+		"k8s_pod_name": kp,
+	}
 	if falcopayload.Hostname != "" {
 		promLabels["hostname"] = falcopayload.Hostname
 	} else {
@@ -181,6 +200,43 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 	promStats.Falco.With(promLabels).Inc()
 
+	// Falco OTLP metric
+	hostname := falcopayload.Hostname
+	if hostname == "" {
+		hostname = "unknown"
+	}
+	attrs := []attribute.KeyValue{
+		attribute.String("source", falcopayload.Source),
+		attribute.String("priority", falcopayload.Priority.String()),
+		attribute.String("rule", falcopayload.Rule),
+		attribute.String("hostname", hostname),
+		attribute.StringSlice("tags", falcopayload.Tags),
+	}
+
+	for key, value := range config.Customfields {
+		if regOTLPMetricsAttributes.MatchString(key) {
+			attrs = append(attrs, attribute.String(key, value))
+		}
+	}
+	for _, attr := range config.OTLP.Metrics.ExtraAttributesList {
+		attrName := strings.ReplaceAll(attr, ".", "_")
+		attrValue := ""
+		for key, val := range falcopayload.OutputFields {
+			if key != attr {
+				continue
+			}
+			if keyName := strings.ReplaceAll(key, ".", "_"); !regOTLPMetricsAttributes.MatchString(keyName) {
+				continue
+			}
+			// Notice: Don't remove the _ for the second return value, otherwise will panic if it can convert the value
+			// to string
+			attrValue, _ = val.(string)
+			break
+		}
+		attrs = append(attrs, attribute.String(attrName, attrValue))
+	}
+	otlpMetrics.Falco.With(attrs...).Inc()
+
 	if config.BracketReplacer != "" {
 		for i, j := range falcopayload.OutputFields {
 			if strings.Contains(i, "[") {
@@ -190,9 +246,42 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 
+	if config.OutputFieldFormat != "" && regOutputFormat.MatchString(falcopayload.Output) {
+		outputElements := strings.Split(falcopayload.Output, " ")
+		if len(outputElements) >= 3 {
+			t := strings.TrimSuffix(outputElements[0], ":")
+			p := cases.Title(language.English).String(falcopayload.Priority.String())
+			o := strings.Join(outputElements[2:], " ")
+			n := config.OutputFieldFormat
+			n = strings.ReplaceAll(n, "<timestamp>", t)
+			n = strings.ReplaceAll(n, "<priority>", p)
+			n = strings.ReplaceAll(n, "<output>", o)
+			n = strings.ReplaceAll(n, "<custom_fields>", strings.TrimSuffix(customFields, " "))
+			n = strings.ReplaceAll(n, "<templated_fields>", strings.TrimSuffix(templatedFields, " "))
+			n = strings.ReplaceAll(n, "<tags>", strings.Join(falcopayload.Tags, ","))
+			n = strings.TrimSuffix(n, " ")
+			n = strings.TrimSuffix(n, "( )")
+			n = strings.TrimSuffix(n, "()")
+			n = strings.TrimSuffix(n, " ")
+			falcopayload.Output = n
+		}
+	}
+
+	if len(falcopayload.String()) > 4096 {
+		for i, j := range falcopayload.OutputFields {
+			switch l := j.(type) {
+			case string:
+				if len(l) > 512 {
+					k := j.(string)[:507] + "[...]"
+					falcopayload.Output = strings.ReplaceAll(falcopayload.Output, j.(string), k)
+					falcopayload.OutputFields[i] = k
+				}
+			}
+		}
+	}
+
 	if config.Debug {
-		body, _ := json.Marshal(falcopayload)
-		log.Printf("[DEBUG] : Falco's payload : %v\n", string(body))
+		log.Printf("[DEBUG] : Falco's payload : %v\n", falcopayload.String())
 	}
 
 	return falcopayload, nil
@@ -219,16 +308,26 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go teamsClient.TeamsPost(falcopayload)
 	}
 
+	if config.Webex.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Webex.MinimumPriority) || falcopayload.Rule == testRule) {
+		go webexClient.WebexPost(falcopayload)
+	}
+
 	if config.Datadog.APIKey != "" && (falcopayload.Priority >= types.Priority(config.Datadog.MinimumPriority) || falcopayload.Rule == testRule) {
 		go datadogClient.DatadogPost(falcopayload)
+	}
+
+	if config.DatadogLogs.APIKey != "" && (falcopayload.Priority >= types.Priority(config.DatadogLogs.MinimumPriority) || falcopayload.Rule == testRule) {
+		go datadogLogsClient.DatadogLogsPost(falcopayload)
 	}
 
 	if config.Discord.WebhookURL != "" && (falcopayload.Priority >= types.Priority(config.Discord.MinimumPriority) || falcopayload.Rule == testRule) {
 		go discordClient.DiscordPost(falcopayload)
 	}
 
-	if config.Alertmanager.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Alertmanager.MinimumPriority) || falcopayload.Rule == testRule) {
-		go alertmanagerClient.AlertmanagerPost(falcopayload)
+	if len(config.Alertmanager.HostPort) != 0 && (falcopayload.Priority >= types.Priority(config.Alertmanager.MinimumPriority) || falcopayload.Rule == testRule) {
+		for _, i := range alertmanagerClients {
+			go i.AlertmanagerPost(falcopayload)
+		}
 	}
 
 	if config.Elasticsearch.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Elasticsearch.MinimumPriority) || falcopayload.Rule == testRule) {
@@ -379,7 +478,9 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go fissionClient.FissionCall(falcopayload)
 	}
 	if config.PolicyReport.Enabled && (falcopayload.Priority >= types.Priority(config.PolicyReport.MinimumPriority)) {
-		go policyReportClient.UpdateOrCreatePolicyReport(falcopayload)
+		if falcopayload.Source == syscalls || falcopayload.Source == syscall || falcopayload.Source == "k8saudit" {
+			go policyReportClient.UpdateOrCreatePolicyReport(falcopayload)
+		}
 	}
 
 	if config.Yandex.S3.Bucket != "" && (falcopayload.Priority >= types.Priority(config.Yandex.S3.MinimumPriority) || falcopayload.Rule == testRule) {
@@ -434,7 +535,11 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go dynatraceClient.DynatracePost(falcopayload)
 	}
 
-	if config.OTLP.Traces.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.OTLP.Traces.MinimumPriority)) && (falcopayload.Source == "syscall" || falcopayload.Source == "syscalls") {
-		go otlpClient.OTLPTracesPost(falcopayload)
+	if config.OTLP.Traces.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.OTLP.Traces.MinimumPriority)) && (falcopayload.Source == syscall || falcopayload.Source == syscalls) {
+		go otlpTracesClient.OTLPTracesPost(falcopayload)
+	}
+
+	if config.Talon.Address != "" && (falcopayload.Priority >= types.Priority(config.Talon.MinimumPriority) || falcopayload.Rule == testRule) {
+		go talonClient.TalonPost(falcopayload)
 	}
 }

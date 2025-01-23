@@ -1,19 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
@@ -30,7 +15,7 @@ import (
 const defaultThresholds = `[{"priority":"critical", "value":10000}, {"priority":"critical", "value":1000}, {"priority":"critical", "value":100} ,{"priority":"warning", "value":10}, {"priority":"warning", "value":1}]`
 
 func TestNewAlertmanagerPayloadO(t *testing.T) {
-	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","priority":"Debug","severity": "information","proc_tty":"1234","eventsource":"syscalls","hostname":"test-host","rule":"Test rule","source":"falco","tags":"test,example"},"annotations":{"info":"This is a test from falcosidekick","description":"This is a test from falcosidekick","summary":"Test rule"}}]`
+	expectedOutput := `[{"labels":{"proc_name":"falcosidekick","priority":"Debug","severity": "information","proc_tty":"1234","eventsource":"syscalls","hostname":"test-host","rule":"Test rule","source":"falco","tags":"example,test"},"annotations":{"info":"This is a test from falcosidekick","description":"This is a test from falcosidekick","summary":"Test rule"}}]`
 	var f types.FalcoPayload
 	d := json.NewDecoder(strings.NewReader(falcoTestInput))
 	d.UseNumber()
@@ -74,4 +59,75 @@ func TestNewAlertmanagerPayloadDropEvent(t *testing.T) {
 	require.Nil(t, json.Unmarshal(s, &o2))
 
 	require.Equal(t, o1, o2)
+}
+
+func TestNewAlertmanagerPayloadBadLabels(t *testing.T) {
+	input := `{"hostname":"host","output":"Falco internal: syscall event drop. 815508 system calls dropped in last second.","output_fields":{"ebpf/enabled":"1","n drops/buffer?clone{fork]enter":"0","n_drops_buffer_clone_fork_exit":"0"},"priority":"Debug","rule":"Falco internal: syscall event drop","time":"2023-03-03T03:03:03.000000003Z"}`
+	expectedOutput := `[{"labels":{"ebpf_enabled":"1","eventsource":"","hostname":"host","n_drops_buffer_clone_fork_enter":"0","n_drops_buffer_clone_fork_exit":"0","priority":"Warning","rule":"Falco internal: syscall event drop","severity":"warning","source":"falco"},"annotations":{"description":"Falco internal: syscall event drop. 815508 system calls dropped in last second.","info":"Falco internal: syscall event drop. 815508 system calls dropped in last second.","summary":"Falco internal: syscall event drop"},"endsAt":"0001-01-01T00:00:00Z"}]`
+	var f types.FalcoPayload
+	d := json.NewDecoder(strings.NewReader(input))
+	d.UseNumber()
+	err := d.Decode(&f) //have to decode it the way newFalcoPayload does
+	require.Nil(t, err)
+
+	config := &types.Configuration{
+		Alertmanager: types.AlertmanagerOutputConfig{DropEventDefaultPriority: Critical},
+	}
+	json.Unmarshal([]byte(defaultThresholds), &config.Alertmanager.DropEventThresholdsList)
+
+	s, err := json.Marshal(newAlertmanagerPayload(f, config))
+	require.Nil(t, err)
+
+	var o1, o2 []alertmanagerPayload
+	require.Nil(t, json.Unmarshal([]byte(expectedOutput), &o1))
+	require.Nil(t, json.Unmarshal(s, &o2))
+
+	require.Equal(t, o1, o2)
+}
+
+func Test_alertmanagerSafeLabel(t *testing.T) {
+	tests := []struct {
+		label string
+		want  string
+	}{
+		{
+			label: "host",
+			want:  "host",
+		},
+		{
+			label: "host_name",
+			want:  "host_name",
+		},
+		{
+			label: "host{name}",
+			want:  "host_name",
+		},
+		{
+			label: "host[name]",
+			want:  "host_name",
+		},
+		{
+			label: "{host}[name]",
+			want:  "host_name",
+		},
+		{
+			label: "host[name]other",
+			want:  "host_name_other",
+		},
+		{
+			label: "host(name)",
+			want:  "host_name",
+		},
+		{
+			label: "json.value[/user/extra/sessionName]",
+			want:  "json_value_user_extra_sessionName",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.label, func(t *testing.T) {
+			if got := alertmanagerSafeLabel(tt.label); got != tt.want {
+				t.Errorf("alertmanagerSafeLabel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

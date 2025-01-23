@@ -1,25 +1,13 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
 import (
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
+	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -40,10 +28,17 @@ type lokiValue = []string
 const LokiContentType = "application/json"
 
 func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration) lokiPayload {
-	s := make(map[string]string, 3+len(falcopayload.OutputFields)+len(config.Loki.ExtraLabelsList)+len(falcopayload.Tags))
+	s := make(map[string]string)
 	s["rule"] = falcopayload.Rule
 	s["source"] = falcopayload.Source
 	s["priority"] = falcopayload.Priority.String()
+
+	if k8sNs, ok := falcopayload.OutputFields["k8s.ns.name"].(string); ok {
+		s["k8s_ns_name"] = k8sNs
+	}
+	if k8sPod, ok := falcopayload.OutputFields["k8s.pod.name"].(string); ok {
+		s["k8s_pod_name"] = k8sPod
+	}
 
 	for i, j := range falcopayload.OutputFields {
 		switch v := j.(type) {
@@ -68,6 +63,7 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	}
 
 	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 		s["tags"] = strings.Join(falcopayload.Tags, ",")
 	}
 
@@ -79,27 +75,21 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	}}
 }
 
-func (c *Client) configureTenant() {
-	if c.Config.Loki.Tenant != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.AddHeader("X-Scope-OrgID", c.Config.Loki.Tenant)
+func lokiConfigureTenant(cfg *types.Configuration, req *http.Request) {
+	if cfg.Loki.Tenant != "" {
+		req.Header.Set("X-Scope-OrgID", cfg.Loki.Tenant)
 	}
 }
 
-func (c *Client) configureAuth() {
-	if c.Config.Loki.User != "" && c.Config.Loki.APIKey != "" {
-		c.httpClientLock.Lock()
-		defer c.httpClientLock.Unlock()
-		c.BasicAuth(c.Config.Loki.User, c.Config.Loki.APIKey)
+func lokiConfigureAuth(cfg *types.Configuration, req *http.Request) {
+	if cfg.Loki.User != "" && cfg.Loki.APIKey != "" {
+		req.SetBasicAuth(cfg.Loki.User, cfg.Loki.APIKey)
 	}
 }
 
-func (c *Client) configureCustomHeaders() {
-	c.httpClientLock.Lock()
-	defer c.httpClientLock.Unlock()
-	for i, j := range c.Config.Loki.CustomHeaders {
-		c.AddHeader(i, j)
+func lokiConfigureCustomHeaders(cfg *types.Configuration, req *http.Request) {
+	for i, j := range cfg.Loki.CustomHeaders {
+		req.Header.Set(i, j)
 	}
 }
 
@@ -108,15 +98,18 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	c.Stats.Loki.Add(Total, 1)
 	c.ContentType = LokiContentType
 
-	c.configureTenant()
-	c.configureAuth()
-	c.configureCustomHeaders()
+	err := c.Post(newLokiPayload(falcopayload, c.Config), func(req *http.Request) {
+		lokiConfigureTenant(c.Config, req)
+		lokiConfigureAuth(c.Config, req)
+		lokiConfigureCustomHeaders(c.Config, req)
+	})
 
-	err := c.Post(newLokiPayload(falcopayload, c.Config))
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:loki", "status:error"})
 		c.Stats.Loki.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "loki"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Loki - %v\n", err)
 		return
 	}
@@ -124,4 +117,6 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:loki", "status:ok"})
 	c.Stats.Loki.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "loki"),
+		attribute.String("status", OK)).Inc()
 }

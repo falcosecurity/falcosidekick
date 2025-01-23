@@ -20,7 +20,7 @@
 | `opsgenie.region`          | `OPSGENIE_REGION`          | `us`             | Region of your domain (`us`, `eu`)                                                                                                  |
 | `opsgenie.minimumpriority` | `OPSGENIE_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

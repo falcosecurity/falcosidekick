@@ -2,7 +2,6 @@
 SHELL=/bin/bash -o pipefail
 
 .DEFAULT_GOAL:=help
-
 GOPATH  := $(shell go env GOPATH)
 GOARCH  := $(shell go env GOARCH)
 GOOS    := $(shell go env GOOS)
@@ -41,7 +40,7 @@ TOOLS_BIN_DIR := $(abspath $(TOOLS_DIR)/bin)
 GO_INSTALL = ./hack/go_install.sh
 
 # Binaries.
-GOLANGCI_LINT_VER := v1.52.2
+GOLANGCI_LINT_VER := v1.57.2
 GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER)
 
@@ -55,15 +54,15 @@ IMAGE_TAG := falcosecurity/falcosidekick:latest
 .PHONY: falcosidekick
 falcosidekick:
 	$(GO) mod download
-	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o $@ .
+	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO) build -trimpath -ldflags "$(LDFLAGS)" -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o $@ .
 
-.PHONY: falcosidekick-linux-amd64
-falcosidekick-linux-amd64:
+.PHONY: falcosidekick-linux
+falcosidekick-linux:
 	$(GO) mod download
-	GOOS=linux GOARCH=amd64 $(GO) build -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o falcosidekick .
+	GOOS=linux GOARCH=$(GOARCH) $(GO) build -ldflags "$(LDFLAGS)" -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o falcosidekick .
 
 .PHONY: build-image
-build-image: falcosidekick-linux-amd64
+build-image: falcosidekick-linux
 	$(DOCKER) build -t $(IMAGE_TAG) .
 
 .PHONY: push-image
@@ -100,7 +99,7 @@ lint-full: $(GOLANGCI_LINT) ## Run slower linters to detect possible issues
 
 .PHONY: goreleaser-snapshot
 goreleaser-snapshot: ## Release snapshot using goreleaser
-	LDFLAGS="$(LDFLAGS)" goreleaser --snapshot --skip-sign --clean
+	LDFLAGS="$(LDFLAGS)" goreleaser --snapshot --skip=sign --clean
 
 ## --------------------------------------
 ## Tooling Binaries

@@ -1,24 +1,12 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
 import (
+	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
+	"sort"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
@@ -38,21 +26,19 @@ type datadogPayload struct {
 
 func newDatadogPayload(falcopayload types.FalcoPayload) datadogPayload {
 	var d datadogPayload
-	var tags []string
+	tags := make([]string, 0)
 
-	for i, j := range falcopayload.OutputFields {
-		switch v := j.(type) {
-		case string:
-			tags = append(tags, i+":"+v)
-		default:
-			continue
-		}
+	for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
+		tags = append(tags, fmt.Sprintf("%v:%v", i, falcopayload.OutputFields[i]))
+
 	}
-	tags = append(tags, "source:"+falcopayload.Source)
+	tags = append(tags, "source:"+falcopayload.Source, "source:falco")
 	if falcopayload.Hostname != "" {
 		tags = append(tags, Hostname+":"+falcopayload.Hostname)
 	}
+
 	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 		tags = append(tags, falcopayload.Tags...)
 	}
 	d.Tags = tags
@@ -84,6 +70,8 @@ func (c *Client) DatadogPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:datadog", "status:error"})
 		c.Stats.Datadog.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "datadog"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Datadog - %v\n", err)
 		return
 	}
@@ -91,4 +79,6 @@ func (c *Client) DatadogPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:datadog", "status:ok"})
 	c.Stats.Datadog.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "datadog"),
+		attribute.String("status", OK)).Inc()
 }

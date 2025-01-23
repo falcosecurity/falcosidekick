@@ -1,25 +1,12 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
 import (
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/types"
@@ -78,23 +65,19 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 	embedFields := make([]discordEmbedFieldPayload, 0)
 	var embedField discordEmbedFieldPayload
 
-	for i, j := range falcopayload.OutputFields {
-		switch v := j.(type) {
-		case string:
-			embedField = discordEmbedFieldPayload{i, fmt.Sprintf("```%s```", v), true}
-		default:
-			continue
-		}
-		embedFields = append(embedFields, embedField)
-	}
-
 	embedFields = append(embedFields, discordEmbedFieldPayload{Rule, falcopayload.Rule, true})
 	embedFields = append(embedFields, discordEmbedFieldPayload{Priority, falcopayload.Priority.String(), true})
 	embedFields = append(embedFields, discordEmbedFieldPayload{Source, falcopayload.Source, true})
 	if falcopayload.Hostname != "" {
 		embedFields = append(embedFields, discordEmbedFieldPayload{Hostname, falcopayload.Hostname, true})
 	}
+
+	for _, i := range getSortedStringKeys(falcopayload.OutputFields) {
+		embedField = discordEmbedFieldPayload{i, fmt.Sprintf("```%v```", falcopayload.OutputFields[i]), true}
+		embedFields = append(embedFields, embedField)
+	}
 	if len(falcopayload.Tags) != 0 {
+		sort.Strings(falcopayload.Tags)
 		embedFields = append(embedFields, discordEmbedFieldPayload{Tags, strings.Join(falcopayload.Tags, ", "), true})
 	}
 	embedFields = append(embedFields, discordEmbedFieldPayload{Time, falcopayload.Time.String(), true})
@@ -123,6 +106,8 @@ func (c *Client) DiscordPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:discord", "status:error"})
 		c.Stats.Discord.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "discord"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : Discord - %v\n", err)
 		return
 	}
@@ -131,4 +116,6 @@ func (c *Client) DiscordPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:discord", "status:ok"})
 	c.Stats.Discord.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "discord", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "discord"),
+		attribute.String("status", OK)).Inc()
 }

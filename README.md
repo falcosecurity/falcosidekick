@@ -8,7 +8,6 @@
 ![last commit](https://flat.badgen.net/github/last-commit/falcosecurity/falcosidekick)
 ![licence](https://flat.badgen.net/badge/license/MIT/blue)
 ![docker pulls](https://flat.badgen.net/docker/pulls/falcosecurity/falcosidekick?icon=docker)
-[![falcosidekick](https://circleci.com/gh/falcosecurity/falcosidekick.svg?style=shield)](https://circleci.com/gh/falcosecurity/falcosidekick)
 
 ## Description
 
@@ -39,6 +38,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
     - [Workflow](#workflow)
     - [Traces](#traces)
     - [Other](#other)
+    - [Response engine](#response-engine)
   - [Installation](#installation)
     - [Localhost](#localhost)
       - [With docker](#with-docker)
@@ -69,7 +69,7 @@ It works as a single endpoint for as many as you want `Falco` instances :
 
 `Falcosidekick` manages a large variety of outputs with different purposes.
 
-> **Note**
+> [!NOTE]
 Follow the links to get the configuration of each output.
 
 ### Chat
@@ -78,6 +78,7 @@ Follow the links to get the configuration of each output.
 - [**Rocketchat**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/rocketchat.md)
 - [**Mattermost**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/mattermost.md)
 - [**Teams**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/teams.md)
+- [**Webex**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/webex.md)
 - [**Discord**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/discord.md)
 - [**Google Chat**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/googlechat.md)
 - [**Zoho Cliq**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/cliq.md)
@@ -94,6 +95,7 @@ Follow the links to get the configuration of each output.
 - [**Spyderbat**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/spyderbat.md)
 - [**TimescaleDB**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/timescaledb.md)
 - [**Dynatrace**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/dynatrace.md)
+- [**OTEL Metrics**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/otlp_metrics.md) (for both events and monitoring of `falcosidekick`)
 
 ### Alerting
 
@@ -113,6 +115,7 @@ Follow the links to get the configuration of each output.
 - [**OpenObserve**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/openobserve.md)
 - [**SumoLogic**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/sumologic.md)
 - [**Quickwit**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/quickwit.md)
+- [**Datadog Logs**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/datadog_logs.md)
 
 ### Object Storage
 
@@ -173,9 +176,11 @@ Follow the links to get the configuration of each output.
 
 - [**OTEL Traces**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/otlp_traces.md)
 
-
 ### Other
-- [**Policy Report**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/policy-reporter.md)
+- [**Policy Report**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/policy_report.md)
+
+### Response engine
+- [**Falco Talon**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/talon.md)
 
 ## Installation
 
@@ -219,7 +224,10 @@ docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX falco
   Type=simple
   Restart=always
   RestartSec=1
-  ExecStart=/usr/local/bin/falcosidekick -c /etc/falcosidekick/config.yaml 
+  ExecStart=/usr/local/bin/falcosidekick -c /etc/falcosidekick/config.yaml
+
+  [Install]
+  WantedBy=default.target
   ```
 
 * Reload `systemd` and start `Falcosidekick`:
@@ -239,7 +247,7 @@ docker run -d -p 2801:2801 -e SLACK_WEBHOOKURL=XXXX -e DATADOG_APIKEY=XXXX falco
 #### With Helm
 
 See
-[https://github.com/falcosecurity/charts/blob/master/falcosidekick/README.md](https://github.com/falcosecurity/charts/blob/master/falcosidekick/README.md)
+[https://github.com/falcosecurity/charts/blob/master/charts/falcosidekick/README.md](https://github.com/falcosecurity/charts/blob/master/charts/falcosidekick/README.md)
 
 ```bash
 helm repo add falcosecurity https://falcosecurity.github.io/charts
@@ -248,7 +256,7 @@ helm repo update
 helm install falcosidekick --set config.debug=true falcosecurity/falcosidekick
 ```
 
-> **Note**
+> [!NOTE]
 You can also deploy `falcosidekick` as a dependency of the `falco` chart, the settings for the communication between falco and `falcosidekick` are automatically set. Just prefix all `falcosidekick` settings with `falcosidekick.`:
 ```bash
 helm repo add falcosecurity https://falcosecurity.github.io/charts
@@ -323,7 +331,11 @@ customfields: # custom fields are added to falco events, if the value starts wit
   # Ckey: "CValue"
 templatedfields: # templated fields are added to falco events and metrics, it uses Go template + output_fields values
   # Dkey: '{{ or (index . "k8s.ns.labels.foo") "bar" }}'
+customtags: # custom tags are added to the falco events, if the value starts with % the relative env var is used
+  # - tagA
+  # - tagB
 # bracketreplacer: "_" # if not empty, replace the brackets in keys of Output Fields
+outputFieldFormat: "<timestamp>: <priority> <output> <custom_fields> <templated_fields>" # if not empty, allow to change the format of the output field. (default: "<timestamp>: <priority> <output>")
 mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls for outputs, will be deprecated in the future (default: "/etc/certs")
 mutualtlsclient: # takes priority over mutualtlsfilespath if not emtpy
   certfile: "/etc/certs/client/client.crt" # client certification file
@@ -344,7 +356,7 @@ tlsserver:
     # - "/healthz"
 ```
 
-> **Note**
+> [!NOTE]
 For the confiuration of the outputs, see the [docs](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/).
 
 ## Usage

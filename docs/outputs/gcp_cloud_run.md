@@ -21,7 +21,7 @@
 | `gcp.cloudrun.jwt`             | `GCP_CLOUDRUN_JWT`             |                  | Appropriate JWT to invoke the Cloud Function                                                                                        |
 | `gcp.cloudrun.minimumpriority` | `GCP_CLOUDRUN_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
-> **Note**
+> [!NOTE]
 The Env var values override the settings from yaml file.
 
 ## Example of config.yaml

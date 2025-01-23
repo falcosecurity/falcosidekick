@@ -1,16 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
@@ -19,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"hash/fnv"
 	"log"
 	"time"
@@ -33,15 +22,17 @@ import (
 // Unit-testing helper
 var getTracerProvider = otel.GetTracerProvider
 
-func NewOtlpTracesClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+func NewOtlpTracesClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	initClientArgs := &types.InitClientArgs{
 		Config:          config,
 		Stats:           stats,
 		DogstatsdClient: dogstatsdClient,
 		PromStats:       promStats,
+		OTLPMetrics:     otlpMetrics,
 		StatsdClient:    statsdClient,
 	}
-	otlpClient, err := NewClient("OTLPTraces", config.OTLP.Traces.Endpoint, false, false, *initClientArgs)
+	otlpClient, err := NewClient("OTLPTraces", config.OTLP.Traces.Endpoint, types.CommonConfig{}, *initClientArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +96,8 @@ func (c *Client) OTLPTracesPost(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:otlptraces", "status:error"})
 		c.Stats.OTLPTraces.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "otlptraces", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "otlptraces"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : OLTP Traces - Error generating trace: %v\n", err)
 		return
 	}
@@ -112,6 +105,8 @@ func (c *Client) OTLPTracesPost(falcopayload types.FalcoPayload) {
 	go c.CountMetric(Outputs, 1, []string{"output:otlptraces", "status:ok"})
 	c.Stats.OTLPTraces.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "otlptraces", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "otlptraces"),
+		attribute.String("status", OK)).Inc()
 	log.Println("[INFO]  : OLTP Traces - OK")
 }
 

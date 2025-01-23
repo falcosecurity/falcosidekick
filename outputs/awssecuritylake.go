@@ -1,19 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package outputs
 
@@ -22,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"io"
 	"log"
 	"time"
@@ -218,6 +204,8 @@ func (c *Client) EnqueueSecurityLake(falcopayload types.FalcoPayload) {
 		go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 		c.Stats.AWSSecurityLake.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+			attribute.String("status", Error)).Inc()
 		log.Printf("[ERROR] : %v SecurityLake - %v\n", c.OutputType, err)
 		return
 	}
@@ -232,7 +220,7 @@ func (c *Client) StartSecurityLakeWorker() {
 			continue
 		}
 
-		time.Sleep(time.Duration(c.Config.AWS.SecurityLake.Interval) * time.Minute)
+		time.Sleep(time.Duration(c.Config.AWS.SecurityLake.Interval) * time.Minute) //nolint:gosec // disable G115
 	}
 }
 
@@ -248,6 +236,8 @@ func (c *Client) processNextBatch() error {
 			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : %v SecurityLake - %v\n", c.OutputType, err)
 			// ctx currently not handled in main
 			// https://github.com/falcosecurity/falcosidekick/pull/390#discussion_r1081690326
@@ -260,6 +250,8 @@ func (c *Client) processNextBatch() error {
 			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+				attribute.String("status", Error)).Inc()
 
 			earliest = earliest - 1 // to ensure next batch includes earliest as we read from ReadOffset+1
 			msg := fmt.Errorf("slow batch reader: resetting read offset from %d to %d: %v",
@@ -277,6 +269,8 @@ func (c *Client) processNextBatch() error {
 			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+				attribute.String("status", Error)).Inc()
 			log.Printf("[ERROR] : %v SecurityLake - %v\n", c.OutputType, err)
 			return err
 		}
@@ -289,6 +283,8 @@ func (c *Client) processNextBatch() error {
 			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
 			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+				attribute.String("status", Error)).Inc()
 			// we don't update ReadOffset to retry and not skip records
 			return err
 		}
@@ -296,6 +292,8 @@ func (c *Client) processNextBatch() error {
 		go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:ok"})
 		c.Stats.AWSSecurityLake.Add(OK, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": "ok"}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+			attribute.String("status", OK)).Inc()
 
 		// update offset
 		*awslake.ReadOffset = batch[count-1].Metadata.Offset

@@ -1,19 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
-/*
-Copyright (C) 2023 The Falco Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+// SPDX-License-Identifier: MIT OR Apache-2.0
 
 package main
 
@@ -28,6 +13,8 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
+const metricPrefix string = "falcosecurity_falcosidekick_"
+
 func getInitPromStats(config *types.Configuration) *types.PromStatistics {
 	promStats = &types.PromStatistics{
 		Falco:   getFalcoNewCounterVec(config),
@@ -40,7 +27,7 @@ func getInitPromStats(config *types.Configuration) *types.PromStatistics {
 func getInputNewCounterVec() *prometheus.CounterVec {
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "falcosidekick_inputs",
+			Name: metricPrefix + "inputs_total",
 		},
 		[]string{"source", "status"},
 	)
@@ -49,7 +36,7 @@ func getInputNewCounterVec() *prometheus.CounterVec {
 func getOutputNewCounterVec() *prometheus.CounterVec {
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "falcosidekick_outputs",
+			Name: metricPrefix + "outputs_total",
 		},
 		[]string{"destination", "status"},
 	)
@@ -61,16 +48,17 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 		"hostname",
 		"rule",
 		"priority",
+		"priority_raw",
 		"source",
 		"k8s_ns_name",
 		"k8s_pod_name",
 	}
 	for i := range config.Customfields {
-		if !regPromLabels.MatchString(i) {
+		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
 			log.Printf("[ERROR] : Custom field '%v' is not a valid prometheus label", i)
 			continue
 		}
-		labelnames = append(labelnames, i)
+		labelnames = append(labelnames, strings.ReplaceAll(i, ".", "_"))
 	}
 	for _, i := range config.Prometheus.ExtraLabelsList {
 		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
@@ -81,7 +69,7 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 	}
 	return promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "falco_events",
+			Name: metricPrefix + "falco_events_total",
 		},
 		labelnames,
 	)
