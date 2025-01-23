@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"log"
 	"net"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/spf13/viper"
@@ -156,14 +157,14 @@ var httpOutputDefaults = map[string]map[string]any{
 		"Name":            "",
 	},
 	"STAN": {
-		"HostPort":  "",
-		"ClusterID": "",
-		"ClientID":  "",
+		"HostPort":        "",
+		"ClusterID":       "",
+		"ClientID":        "",
+		"SubjectTemplate": "falco.<priority>.<rule>",
 	},
 	"NATS": {
-		"HostPort":  "",
-		"ClusterID": "",
-		"ClientID":  "",
+		"HostPort":        "",
+		"SubjectTemplate": "falco.<priority>.<rule>",
 	},
 	"Opsgenie": {
 		"Region":          "us",
@@ -589,8 +590,6 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.Metrics.CheckCert", true)
 	v.SetDefault("OTLP.Metrics.ExtraAttributes", "")
 
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	v.AutomaticEnv()
 	if *configFile != "" {
 		d, f := path.Split(*configFile)
 		if d == "" {
@@ -603,6 +602,8 @@ func getConfig() *types.Configuration {
 			log.Printf("[ERROR] : Error when reading config file : %v\n", err)
 		}
 	}
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
 
 	v.GetStringSlice("TLSServer.NoTLSPaths")
 	v.GetStringSlice("Customtags")

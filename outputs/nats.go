@@ -4,21 +4,32 @@ package outputs
 
 import (
 	"encoding/json"
-	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"regexp"
 	"strings"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	nats "github.com/nats-io/nats.go"
 
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-var slugRegularExpression = regexp.MustCompile("[^a-z0-9]+")
+var slugRegExp = regexp.MustCompile("[^a-z0-9]+")
+
+const defaultNatsSubjects = "falco.<priority>.<rule>"
 
 // NatsPublish publishes event to NATS
 func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 	c.Stats.Nats.Add(Total, 1)
+
+	subject := c.Config.Nats.SubjectTemplate
+	if len(subject) == 0 {
+		subject = defaultNatsSubjects
+	}
+
+	subject = strings.ReplaceAll(subject, "<priority>", strings.ToLower(falcopayload.Priority.String()))
+	subject = strings.ReplaceAll(subject, "<rule>", strings.Trim(slugRegExp.ReplaceAllString(strings.ToLower(falcopayload.Rule), "_"), "_"))
 
 	nc, err := nats.Connect(c.EndpointURL.String())
 	if err != nil {
@@ -29,7 +40,6 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 	defer nc.Flush()
 	defer nc.Close()
 
-	r := strings.Trim(slugRegularExpression.ReplaceAllString(strings.ToLower(falcopayload.Rule), "_"), "_")
 	j, err := json.Marshal(falcopayload)
 	if err != nil {
 		c.setStanErrorMetrics()
@@ -37,7 +47,7 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	err = nc.Publish("falco."+strings.ToLower(falcopayload.Priority.String())+"."+r, j)
+	err = nc.Publish(subject, j)
 	if err != nil {
 		c.setNatsErrorMetrics()
 		log.Printf("[ERROR] : NATS - %v\n", err)

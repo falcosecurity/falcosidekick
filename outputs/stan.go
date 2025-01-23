@@ -4,9 +4,10 @@ package outputs
 
 import (
 	"encoding/json"
-	"go.opentelemetry.io/otel/attribute"
 	"log"
 	"strings"
+
+	"go.opentelemetry.io/otel/attribute"
 
 	stan "github.com/nats-io/stan.go"
 
@@ -17,6 +18,14 @@ import (
 func (c *Client) StanPublish(falcopayload types.FalcoPayload) {
 	c.Stats.Stan.Add(Total, 1)
 
+	subject := c.Config.Stan.SubjectTemplate
+	if len(subject) == 0 {
+		subject = defaultNatsSubjects
+	}
+
+	subject = strings.ReplaceAll(subject, "<priority>", strings.ToLower(falcopayload.Priority.String()))
+	subject = strings.ReplaceAll(subject, "<rule>", strings.Trim(slugRegExp.ReplaceAllString(strings.ToLower(falcopayload.Rule), "_"), "_"))
+
 	nc, err := stan.Connect(c.Config.Stan.ClusterID, c.Config.Stan.ClientID, stan.NatsURL(c.EndpointURL.String()))
 	if err != nil {
 		c.setStanErrorMetrics()
@@ -25,7 +34,6 @@ func (c *Client) StanPublish(falcopayload types.FalcoPayload) {
 	}
 	defer nc.Close()
 
-	r := strings.Trim(slugRegularExpression.ReplaceAllString(strings.ToLower(falcopayload.Rule), "_"), "_")
 	j, err := json.Marshal(falcopayload)
 	if err != nil {
 		c.setStanErrorMetrics()
@@ -33,7 +41,7 @@ func (c *Client) StanPublish(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	err = nc.Publish("falco."+strings.ToLower(falcopayload.Priority.String())+"."+r, j)
+	err = nc.Publish(subject, j)
 	if err != nil {
 		c.setStanErrorMetrics()
 		log.Printf("[ERROR] : STAN - %v\n", err)
