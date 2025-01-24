@@ -4,14 +4,13 @@ package outputs
 
 import (
 	"encoding/json"
-	"log"
 	"regexp"
 	"strings"
 
+	nats "github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel/attribute"
 
-	nats "github.com/nats-io/nats.go"
-
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -34,7 +33,7 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 	nc, err := nats.Connect(c.EndpointURL.String())
 	if err != nil {
 		c.setNatsErrorMetrics()
-		log.Printf("[ERROR] : NATS - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 	defer nc.Flush()
@@ -42,15 +41,15 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 
 	j, err := json.Marshal(falcopayload)
 	if err != nil {
-		c.setStanErrorMetrics()
-		log.Printf("[ERROR] : STAN - %v\n", err.Error())
+		c.setNatsErrorMetrics()
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
 	err = nc.Publish(subject, j)
 	if err != nil {
 		c.setNatsErrorMetrics()
-		log.Printf("[ERROR] : NATS - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
@@ -58,7 +57,7 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 	c.Stats.Nats.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "nats", "status": OK}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "nats"), attribute.String("status", OK)).Inc()
-	log.Printf("[INFO]  : NATS - Publish OK\n")
+	utils.Log(utils.InfoLvl, c.OutputType, "Publish OK")
 }
 
 // setNatsErrorMetrics set the error stats

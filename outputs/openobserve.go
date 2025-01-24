@@ -3,10 +3,11 @@
 package outputs
 
 import (
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -25,7 +26,7 @@ func (c *Client) OpenObservePost(falcopayload types.FalcoPayload) {
 	})
 	if err != nil {
 		c.setOpenObserveErrorMetrics()
-		log.Printf("[ERROR] : OpenObserve - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

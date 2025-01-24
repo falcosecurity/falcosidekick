@@ -6,17 +6,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -86,10 +86,10 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "Fission", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "Fission"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : %s - %v\n", Fission, err.Error())
+			utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 			return
 		}
-		log.Printf("[INFO]  : %s - Function Response : %v\n", Fission, string(rawbody))
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Function Response : %v", string(rawbody)))
 	} else {
 		c.ContentType = FissionContentType
 
@@ -102,11 +102,11 @@ func (c *Client) FissionCall(falcopayload types.FalcoPayload) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "Fission", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "Fission"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : %s - %v\n", Fission, err.Error())
+			utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 			return
 		}
 	}
-	log.Printf("[INFO]  : %s - Call Function \"%v\" OK\n", Fission, c.Config.Fission.Function)
+	utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Call Function \"%v\" OK", c.Config.Fission.Function))
 	go c.CountMetric(Outputs, 1, []string{"output:Fission", "status:ok"})
 	c.Stats.Fission.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "Fission", "status": OK}).Inc()

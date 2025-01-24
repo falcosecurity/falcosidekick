@@ -5,7 +5,6 @@ package outputs
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"sort"
@@ -15,6 +14,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -168,7 +168,7 @@ func (c *Client) AlertmanagerPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "alertmanager", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "alertmanager"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : AlertManager - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

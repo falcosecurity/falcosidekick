@@ -6,15 +6,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+
 	"github.com/falcosecurity/falcosidekick/internal/pkg/batcher"
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -49,7 +50,7 @@ func NewElasticsearchClient(params types.InitClientArgs) (*Client, error) {
 	}
 
 	if esCfg.Batching.Enabled {
-		log.Printf("[INFO]  : %v - Batching enabled: %v max bytes, %v interval\n", c.OutputType, esCfg.Batching.BatchSize, esCfg.Batching.FlushInterval)
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Batching enabled: %v max bytes, %v interval", esCfg.Batching.BatchSize, esCfg.Batching.FlushInterval))
 		callbackFn := func(falcoPayloads []types.FalcoPayload, data []byte) {
 			go c.elasticsearchPost("", data, falcoPayloads...)
 		}
@@ -62,7 +63,7 @@ func NewElasticsearchClient(params types.InitClientArgs) (*Client, error) {
 	}
 	if esCfg.EnableCompression {
 		c.EnableCompression = true
-		log.Printf("[INFO]  : %v - Compression enabled\n", c.OutputType)
+		utils.Log(utils.InfoLvl, c.OutputType, "Compression enabled")
 	}
 
 	return c, nil
@@ -76,7 +77,7 @@ func (c *Client) ElasticsearchPost(falcopayload types.FalcoPayload) {
 
 	payload, err := c.marshalESPayload(falcopayload)
 	if err != nil {
-		log.Printf("[ERROR] : %v - Failed to marshal payload: %v\n", c.OutputType, err)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Failed to marshal payload: %v", err))
 	}
 
 	c.elasticsearchPost(c.getIndex(), payload, falcopayload)
@@ -99,7 +100,7 @@ func (c *Client) elasticsearchPost(index string, payload []byte, falcoPayloads .
 	endpointURL, err := url.Parse(eURL)
 	if err != nil {
 		c.setElasticSearchErrorMetrics(sz)
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
@@ -157,7 +158,7 @@ func (c *Client) elasticsearchPost(index string, payload []byte, falcoPayloads .
 				return
 			}
 			if len(resp.Items) != len(falcoPayloads) {
-				log.Printf("[ERROR] : %v - mismatched %v responses with %v request payloads\n", c.OutputType, len(resp.Items), len(falcoPayloads))
+				utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("mismatched %v responses with %v request payloads", len(resp.Items), len(falcoPayloads)))
 				c.setElasticSearchErrorMetrics(sz)
 				return
 			}
@@ -207,7 +208,7 @@ func (c *Client) elasticsearchPost(index string, payload []byte, falcoPayloads .
 						delete(payload.OutputFields, i)
 					}
 				}
-				log.Printf("[INFO]  : %v - %v\n", c.OutputType, "attempt to POST again the payload without the wrong field")
+				utils.Log(utils.InfoLvl, c.OutputType, "attempt to POST again the payload without the wrong field")
 				err = c.Post(payload, reqOpts...)
 				if err != nil {
 					c.setElasticSearchErrorMetrics(sz)
@@ -229,11 +230,11 @@ func (c *Client) ElasticsearchCreateIndexTemplate(config types.ElasticsearchOutp
 	d := c
 	indexExists, err := c.isIndexTemplateExist(config)
 	if err != nil {
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return err
 	}
 	if indexExists {
-		log.Printf("[INFO]  : %v - %v\n", c.OutputType, "Index template already exists")
+		utils.Log(utils.InfoLvl, c.OutputType, "Index template already exists")
 		return nil
 	}
 
@@ -247,16 +248,16 @@ func (c *Client) ElasticsearchCreateIndexTemplate(config types.ElasticsearchOutp
 	m = strings.ReplaceAll(m, "${REPLICAS}", fmt.Sprintf("%v", config.NumberOfReplicas))
 	j := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(m), &j); err != nil {
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return err
 	}
 	// create the index template by PUT
-	if d.Put(j) != nil {
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err)
+	if err := d.Put(j); err != nil {
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return err
 	}
 
-	log.Printf("[INFO]  : %v - %v\n", c.OutputType, "Index template created")
+	utils.Log(utils.InfoLvl, c.OutputType, "Index template created")
 	return nil
 }
 

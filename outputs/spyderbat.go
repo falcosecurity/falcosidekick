@@ -7,18 +7,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 const Falcosidekick_ string = "falcosidekick_"
@@ -190,13 +191,13 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 
 	hasSource, err := isSourcePresent(config)
 	if err != nil {
-		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, "Spyderbat", err.Error())
 		return nil, ErrClientCreation
 	}
 	if !hasSource {
 		if err := makeSource(config); err != nil {
 			if hasSource, err2 := isSourcePresent(config); err2 != nil || !hasSource {
-				log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
+				utils.Log(utils.ErrorLvl, "Spyderbat", err.Error())
 				return nil, ErrClientCreation
 			}
 		}
@@ -205,12 +206,12 @@ func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, pr
 	source := Falcosidekick_ + config.Spyderbat.OrgUID
 	data_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIv1Path+config.Spyderbat.OrgUID+SourcePath+source+"/data/sb-agent")
 	if err != nil {
-		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, "Spyderbat", err.Error())
 		return nil, ErrClientCreation
 	}
 	endpointURL, err := url.Parse(data_url)
 	if err != nil {
-		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, "Spyderbat", err.Error())
 		return nil, ErrClientCreation
 	}
 	return &Client{
@@ -243,7 +244,7 @@ func (c *Client) SpyderbatPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "spyderbat", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "spyderbat"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Spyderbat - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

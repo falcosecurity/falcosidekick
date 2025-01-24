@@ -7,20 +7,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -50,10 +50,10 @@ func NewYandexClient(config *types.Configuration, stats *types.Statistics, promS
 		EndpointResolver: endpoints.ResolverFunc(resolverFn),
 	})
 	if err != nil {
-		log.Printf("[ERROR] : Yandex - %v\n", "Error while creating Yandex Session")
+		utils.Log(utils.ErrorLvl, "Yandex", "Error while creating Yandex Session")
 		return nil, errors.New("error while creating Yandex Session")
 	}
-	log.Printf("[INFO] : Yandex Session has been configured successfully")
+	utils.Log(utils.InfoLvl, "Yandex", "Session has been configured successfully")
 
 	return &Client{
 		OutputType:      "Yandex",
@@ -86,11 +86,11 @@ func (c *Client) UploadYandexS3(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : %v S3 - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType+" S3", err.Error())
 		return
 	}
 
-	log.Printf("[INFO]  : %v S3 - Upload payload OK\n", c.OutputType)
+	utils.Log(utils.InfoLvl, c.OutputType+" S3", "Upload payload OK")
 
 	go c.CountMetric("outputs", 1, []string{"output:yandexs3", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": "ok"}).Inc()
@@ -115,11 +115,11 @@ func (c *Client) UploadYandexDataStreams(falcoPayLoad types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "yandexdatastreams", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : %v Data Streams - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType+" Data Streams", err.Error())
 		return
 	}
 
-	log.Printf("[INFO] : %v Data Streams - Put Record OK (%v)\n", c.OutputType, resp.SequenceNumber)
+	utils.Log(utils.InfoLvl, c.OutputType+"Data Streams", fmt.Sprintf("Put Record OK (%v)", resp.SequenceNumber))
 	go c.CountMetric("outputs", 1, []string{"output:yandexdatastreams", "status:ok"})
 	c.Stats.YandexDataStreams.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "yandexdatastreams", "status": "ok"}).Inc()

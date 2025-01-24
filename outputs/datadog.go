@@ -4,10 +4,11 @@ package outputs
 
 import (
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"sort"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -72,7 +73,7 @@ func (c *Client) DatadogPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "datadog", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "datadog"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Datadog - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

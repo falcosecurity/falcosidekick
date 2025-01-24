@@ -4,14 +4,15 @@ package outputs
 
 import (
 	"crypto/tls"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
+	"fmt"
 
 	"github.com/DataDog/datadog-go/statsd"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -32,7 +33,7 @@ func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promSta
 		}
 	}
 	options.OnConnectionLost = func(client mqtt.Client, err error) {
-		log.Printf("[ERROR] : MQTT - Connection lost: %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, "MQTT", fmt.Sprintf("Connection lost: %v", err))
 	}
 
 	client := mqtt.NewClient(options)
@@ -61,7 +62,7 @@ func (c *Client) MQTTPublish(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "mqtt", "status": err.Error()}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "mqtt"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : %s - %v\n", MQTT, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 	defer c.MQTTClient.Disconnect(100)
@@ -71,11 +72,11 @@ func (c *Client) MQTTPublish(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "mqtt", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "mqtt"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : %s - %v\n", MQTT, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
-	log.Printf("[INFO]  : %s - Message published\n", MQTT)
+	utils.Log(utils.InfoLvl, c.OutputType, "Message published")
 	go c.CountMetric(Outputs, 1, []string{"output:mqtt", "status:ok"})
 	c.Stats.MQTT.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "mqtt", "status": OK}).Inc()

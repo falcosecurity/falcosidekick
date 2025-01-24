@@ -5,10 +5,11 @@ package outputs
 import (
 	"bytes"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -79,7 +80,7 @@ func newCliqPayload(falcopayload types.FalcoPayload, config *types.Configuration
 	if config.Cliq.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
 		if err := config.Cliq.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
-			log.Printf("[ERROR] : Cliq - Error expanding Cliq message %v", err)
+			utils.Log(utils.ErrorLvl, "Cliq", fmt.Sprintf("Error expanding Cliq message: %v", err))
 		} else {
 			payload.Text = buf.String()
 
@@ -175,7 +176,7 @@ func (c *Client) CliqPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "cliq", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "cliq"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Cliq - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

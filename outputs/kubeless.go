@@ -6,17 +6,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -87,10 +87,10 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "kubeless", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "kubeless"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : Kubeless - %v\n", err)
+			utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 			return
 		}
-		log.Printf("[INFO]  : Kubeless - Function Response : %v\n", string(rawbody))
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Function Response : %v", string(rawbody)))
 	} else {
 		c.ContentType = KubelessContentType
 
@@ -105,11 +105,11 @@ func (c *Client) KubelessCall(falcopayload types.FalcoPayload) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "kubeless", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "kubeless"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : Kubeless - %v\n", err)
+			utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 			return
 		}
 	}
-	log.Printf("[INFO]  : Kubeless - Call Function \"%v\" OK\n", c.Config.Kubeless.Function)
+	utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Call Function \"%v\" OK", c.Config.Kubeless.Function))
 	go c.CountMetric(Outputs, 1, []string{"output:kubeless", "status:ok"})
 	c.Stats.Kubeless.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "kubeless", "status": OK}).Inc()

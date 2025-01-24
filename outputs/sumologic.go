@@ -3,11 +3,12 @@
 package outputs
 
 import (
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 	"net/url"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -18,7 +19,7 @@ func (c *Client) SumoLogicPost(falcopayload types.FalcoPayload) {
 	endpointURL, err := url.Parse(c.Config.SumoLogic.ReceiverURL)
 	if err != nil {
 		c.setSumoLogicErrorMetrics()
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
@@ -43,7 +44,7 @@ func (c *Client) SumoLogicPost(falcopayload types.FalcoPayload) {
 
 	if err != nil {
 		c.setSumoLogicErrorMetrics()
-		log.Printf("[ERROR] : %x - %v\n", c.OutputType, err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
