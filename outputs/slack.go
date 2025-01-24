@@ -4,11 +4,13 @@ package outputs
 
 import (
 	"bytes"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
+	"fmt"
 	"sort"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -104,7 +106,7 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	if config.Slack.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
 		if err := config.Slack.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
-			log.Printf("[ERROR] : Slack - Error expanding Slack message %v", err)
+			utils.Log(utils.ErrorLvl, "Slack", fmt.Sprintf("Error expanding Slack message: %v", err))
 		} else {
 			messageText = buf.String()
 		}
@@ -157,7 +159,7 @@ func (c *Client) SlackPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "slack", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "slack"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Slack - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

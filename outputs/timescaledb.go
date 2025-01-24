@@ -5,14 +5,15 @@ package outputs
 import (
 	"context"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type timescaledbPayload struct {
@@ -34,7 +35,7 @@ func NewTimescaleDBClient(config *types.Configuration, stats *types.Statistics, 
 	)
 	connPool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
-		log.Printf("[ERROR] : TimescaleDB - %v\n", err)
+		utils.Log(utils.ErrorLvl, "TimescaleDB", err.Error())
 		return nil, ErrClientCreation
 	}
 
@@ -125,7 +126,7 @@ func (c *Client) TimescaleDBPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "timescaledb", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "timescaledb"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : TimescaleDB - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
@@ -136,6 +137,6 @@ func (c *Client) TimescaleDBPost(falcopayload types.FalcoPayload) {
 		attribute.String("status", OK)).Inc()
 
 	if c.Config.Debug {
-		log.Printf("[DEBUG] : TimescaleDB payload : %v\n", tsdbPayload)
+		utils.Log(utils.DebugLvl, c.OutputType, fmt.Sprintf("payload : %v", tsdbPayload))
 	}
 }

@@ -5,17 +5,18 @@ package outputs
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
-	"github.com/falcosecurity/falcosidekick/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	otelresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 const (
@@ -84,7 +85,7 @@ func otlpInit(config *types.Configuration) (func(), error) {
 	}
 	shutDownCallback := func() {
 		if err := shutdown(ctx); err != nil {
-			log.Printf("[ERROR] : OLTP Traces - Error: %v\n", err)
+			utils.Log(utils.ErrorLvl, "OLTP", err.Error())
 
 		}
 	}

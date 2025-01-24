@@ -9,11 +9,11 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/embano1/memlog"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 )
 
 // FalcoPayload is a struct to map falco event json

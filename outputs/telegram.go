@@ -5,11 +5,12 @@ package outputs
 import (
 	"bytes"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"strings"
 	textTemplate "text/template"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -70,7 +71,7 @@ func newTelegramPayload(falcopayload types.FalcoPayload, config *types.Configura
 	ttmpl, _ := textTemplate.New("telegram").Funcs(funcs).Parse(telegramMarkdownV2Tmpl)
 	err := ttmpl.Execute(&textBuffer, falcopayload)
 	if err != nil {
-		log.Printf("[ERROR] : Telegram - %v\n", err)
+		utils.Log(utils.ErrorLvl, "Telegram", err.Error())
 		return payload
 	}
 	payload.Text = textBuffer.String()
@@ -89,7 +90,7 @@ func (c *Client) TelegramPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "telegram", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "telegram"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Telegram - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"path"
@@ -16,11 +15,11 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-
 	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/spf13/viper"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -425,7 +424,7 @@ func init() {
 
 		// Merge http outputs defaults with other outputs defaults
 		if _, ok := outputDefaults[name]; ok {
-			panic(fmt.Sprintf("key %v already set in the output defaults", name))
+			utils.Log(utils.FatalLvl, "", fmt.Sprintf("key %v already set in the output defaults", name))
 		}
 		outputDefaults[name] = dst
 	}
@@ -599,7 +598,7 @@ func getConfig() *types.Configuration {
 		v.AddConfigPath(d)
 		err := v.ReadInConfig()
 		if err != nil {
-			log.Printf("[ERROR] : Error when reading config file : %v\n", err)
+			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Error when reading config file : %v", err))
 		}
 	}
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -622,7 +621,7 @@ func getConfig() *types.Configuration {
 	c.Elasticsearch.CustomHeaders = v.GetStringMapString("Elasticsearch.CustomHeaders")
 
 	if err := v.Unmarshal(c); err != nil {
-		log.Printf("[ERROR] : Error unmarshalling config : %s", err)
+		utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Error unmarshalling config : %s", err))
 	}
 
 	if value, present := os.LookupEnv("TLSSERVER_NOTLSPATHS"); present {
@@ -642,7 +641,7 @@ func getConfig() *types.Configuration {
 					if s := os.Getenv(tagkeys[1][1:]); s != "" {
 						c.Customfields[tagkeys[0]] = s
 					} else {
-						log.Printf("[ERROR] : Can't find env var %v for custom fields", tagkeys[1][1:])
+						utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Can't find env var %v for custom fields", tagkeys[1][1:]))
 					}
 				} else {
 					c.Customfields[tagkeys[0]] = tagkeys[1]
@@ -657,7 +656,7 @@ func getConfig() *types.Configuration {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
 				if _, err := template.New("").Parse(tagkeys[1]); err != nil {
-					log.Printf("[ERROR] : Error parsing templated fields %v : %s", tagkeys[0], err)
+					utils.Log(utils.ErrorPrefix, "", fmt.Sprintf("Error parsing templated fields %v : %s", tagkeys[0], err))
 				} else {
 					c.Templatedfields[tagkeys[0]] = tagkeys[1]
 				}
@@ -693,7 +692,7 @@ func getConfig() *types.Configuration {
 			labelName, labelValue, found := strings.Cut(labelData, ":")
 			labelName, labelValue = strings.TrimSpace(labelName), strings.TrimSpace(labelValue)
 			if !promKVNameRegex.MatchString(labelName) {
-				log.Printf("[ERROR] : AlertManager - Extra label name '%v' is not valid", labelName)
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Extra label name '%v' is not valid", labelName))
 			} else if found {
 				c.Alertmanager.ExtraLabels[labelName] = labelValue
 			} else {
@@ -708,7 +707,7 @@ func getConfig() *types.Configuration {
 			annotationName, annotationValue, found := strings.Cut(annotationData, ":")
 			annotationName, annotationValue = strings.TrimSpace(annotationName), strings.TrimSpace(annotationValue)
 			if !promKVNameRegex.MatchString(annotationName) {
-				log.Printf("[ERROR] : AlertManager - Extra annotation name '%v' is not valid", annotationName)
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Extra annotation name '%v' is not valid", annotationName))
 			} else if found {
 				c.Alertmanager.ExtraAnnotations[annotationName] = annotationValue
 			} else {
@@ -723,12 +722,12 @@ func getConfig() *types.Configuration {
 			priorityString, severityValue, found := strings.Cut(severitymatch, ":")
 			priority := types.Priority(priorityString)
 			if priority == types.Default {
-				log.Printf("[ERROR] : AlertManager - Priority '%v' is not a valid falco priority level", priorityString)
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Priority '%v' is not a valid falco priority level", priorityString))
 				continue
 			} else if found {
 				c.Alertmanager.CustomSeverityMap[priority] = strings.TrimSpace(severityValue)
 			} else {
-				log.Printf("[ERROR] : AlertManager - No severity given to '%v' (tuple extracted: '%v')", priorityString, severitymatch)
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("No severity given to '%v' (tuple extracted: '%v')", priorityString, severitymatch))
 			}
 		}
 	}
@@ -763,7 +762,7 @@ func getConfig() *types.Configuration {
 			envName, envValue, found := strings.Cut(extraEnvVarData, ":")
 			envName, envValue = strings.TrimSpace(envName), strings.TrimSpace(envValue)
 			if !promKVNameRegex.MatchString(envName) {
-				log.Printf("[ERROR] : OTLPTraces - Extra Env Var name '%v' is not valid", envName)
+				utils.Log(utils.ErrorLvl, "OTLP Traces", fmt.Sprintf("Extra Env Var name '%v' is not valid", envName))
 			} else if found {
 				c.OTLP.Traces.ExtraEnvVars[envName] = envValue
 			} else {
@@ -778,7 +777,7 @@ func getConfig() *types.Configuration {
 			envName, envValue, found := strings.Cut(extraEnvVarData, ":")
 			envName, envValue = strings.TrimSpace(envName), strings.TrimSpace(envValue)
 			if !promKVNameRegex.MatchString(envName) {
-				log.Printf("[ERROR] : OTLPMetrics - Extra Env Var name '%v' is not valid", envName)
+				utils.Log(utils.ErrorLvl, "OTLP Metrics", fmt.Sprintf("Extra Env Var name '%v' is not valid", envName))
 			} else if found {
 				c.OTLP.Metrics.ExtraEnvVars[envName] = envValue
 			} else {
@@ -795,15 +794,15 @@ func getConfig() *types.Configuration {
 	}
 
 	if c.ListenPort == 0 || c.ListenPort > 65536 {
-		log.Fatalf("[ERROR] : Bad listening port number\n")
+		utils.Log(utils.FatalLvl, "", "Bad listening port number")
 	}
 
 	if c.TLSServer.NoTLSPort == 0 || c.TLSServer.NoTLSPort > 65536 {
-		log.Fatalf("[ERROR] : Bad noTLS server port number\n")
+		utils.Log(utils.FatalLvl, "", "Bad noTLS server port number")
 	}
 
 	if ip := net.ParseIP(c.ListenAddress); c.ListenAddress != "" && ip == nil {
-		log.Fatalf("[ERROR] : Failed to parse ListenAddress")
+		utils.Log(utils.FatalLvl, "", "Failed to parse ListenAddress")
 	}
 
 	if c.Loki.ExtraLabels != "" {
@@ -840,17 +839,17 @@ func getConfig() *types.Configuration {
 		for _, threshold := range thresholds {
 			values := strings.SplitN(threshold, ":", 2)
 			if len(values) != 2 {
-				log.Printf("[ERROR] : AlertManager - Fail to parse threshold - No priority given for threshold %v", threshold)
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Fail to parse threshold - No priority given for threshold %v", threshold))
 				continue
 			}
 			valueString := strings.TrimSpace(values[0])
 			valueInt, err := strconv.ParseInt(valueString, 10, 64)
 			if len(values) != 2 || err != nil {
-				log.Printf("[ERROR] : AlertManager - Fail to parse threshold - Atoi fail %v", threshold)
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Fail to parse threshold - Atoi fail %v", threshold))
 				continue
 			}
 			if p := strings.TrimSpace(values[1]); p == "" {
-				log.Printf("[ERROR] : AlertManager - Priority '%v' is not a valid falco priority level", p)
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Priority '%v' is not a valid falco priority level", p))
 				continue
 			}
 			priority := types.Priority(strings.TrimSpace(values[1]))
@@ -949,7 +948,7 @@ func getMessageFormatTemplate(output, temp string) *template.Template {
 		var err error
 		t, err := template.New(output).Parse(temp)
 		if err != nil {
-			log.Fatalf("[ERROR] : Error compiling %v message template : %v\n", output, err)
+			utils.Log(utils.FatalLvl, output, fmt.Sprintf("Error compiling message template : %v", err))
 		}
 		return t
 	}

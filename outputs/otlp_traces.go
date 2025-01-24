@@ -7,16 +7,17 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"hash/fnv"
-	"log"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // Unit-testing helper
@@ -38,10 +39,10 @@ func NewOtlpTracesClient(config *types.Configuration, stats *types.Statistics, p
 	}
 	shutDownFunc, err := otlpInit(config)
 	if err != nil {
-		log.Printf("[ERROR] : OLTP Traces - Error client creation: %v\n", err)
+		utils.Log(utils.ErrorLvl, "OLTP Traces", fmt.Sprintf("Error client creation: %v", err))
 		return nil, err
 	}
-	log.Printf("[INFO]  : OTLP Traces - %+v\n", config.OTLP.Traces)
+	utils.Log(utils.InfoLvl, "OTLP Traces", "Client created")
 	otlpClient.ShutDownFunc = shutDownFunc
 	return otlpClient, nil
 }
@@ -79,7 +80,7 @@ func (c *Client) newTrace(falcopayload types.FalcoPayload) (*trace.Span, error) 
 	span.End(trace.WithTimestamp(endTime))
 
 	if c.Config.Debug {
-		log.Printf("[DEBUG] : OTLP Traces - payload generated successfully for traceid=%s", span.SpanContext().TraceID())
+		utils.Log(utils.DebugLvl, c.OutputType, fmt.Sprintf("Payload generated successfully for traceid=%s", span.SpanContext().TraceID()))
 	}
 
 	return &span, nil
@@ -98,7 +99,7 @@ func (c *Client) OTLPTracesPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "otlptraces", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "otlptraces"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : OLTP Traces - Error generating trace: %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Error generating trace: %v", err))
 		return
 	}
 	// Setting the success status
@@ -107,7 +108,7 @@ func (c *Client) OTLPTracesPost(falcopayload types.FalcoPayload) {
 	c.PromStats.Outputs.With(map[string]string{"destination": "otlptraces", "status": OK}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "otlptraces"),
 		attribute.String("status", OK)).Inc()
-	log.Println("[INFO]  : OLTP Traces - OK")
+	utils.Log(utils.InfoLvl, c.OutputType, "OK")
 }
 
 func generateTraceID(falcopayload types.FalcoPayload) (trace.TraceID, error) {

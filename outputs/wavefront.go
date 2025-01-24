@@ -4,15 +4,15 @@ package outputs
 
 import (
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
-
 	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewWavefrontClient returns a new output.Client for accessing the Wavefront API.
@@ -101,7 +101,7 @@ func (c *Client) WavefrontPost(falcopayload types.FalcoPayload) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "wavefront", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "wavefront"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : Wavefront - Unable to send event %s: %s\n", falcopayload.Rule, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Unable to send event %s: %s", falcopayload.Rule, err))
 			return
 		}
 		if err := sender.Flush(); err != nil {
@@ -109,13 +109,13 @@ func (c *Client) WavefrontPost(falcopayload types.FalcoPayload) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "wavefront", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "wavefront"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : Wavefront - Unable to flush event %s: %s\n", falcopayload.Rule, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Unable to flush event %s: %s", falcopayload.Rule, err))
 			return
 		}
 		c.Stats.Wavefront.Add(OK, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "wavefront", "status": OK}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "wavefront"),
 			attribute.String("status", OK)).Inc()
-		log.Printf("[INFO]  : Wavefront - Send Event OK %s\n", falcopayload.Rule)
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Send Event %v OK", falcopayload.Rule))
 	}
 }

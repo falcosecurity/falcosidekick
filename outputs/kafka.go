@@ -8,9 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net"
 	"strings"
 	"time"
@@ -19,7 +16,10 @@ import (
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
+	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -39,7 +39,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 		caCertPool, err := x509.SystemCertPool()
 
 		if err != nil {
-			log.Printf("[ERROR] : Kafka - failed to initialize root CAs: %v", err)
+			utils.Log(utils.ErrorLvl, "Kafka", fmt.Sprintf("failed to initialize root CAs: %v", err))
 		}
 
 		transport.TLS = &tls.Config{
@@ -76,7 +76,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 		}
 	}
 	if err != nil {
-		log.Printf("[ERROR] : Kafka - %v\n", err)
+		utils.Log(utils.ErrorLvl, "Kafka", err.Error())
 		return nil, err
 	}
 
@@ -102,7 +102,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 	case "round_robin":
 		kafkaWriter.Balancer = &kafka.RoundRobin{}
 	default:
-		log.Printf("[ERROR] : Kafka - unsupported balancer %q\n", config.Kafka.Balancer)
+		utils.Log(utils.ErrorLvl, "Kafka", fmt.Sprintf("unsupported balancer %q", config.Kafka.Balancer))
 		return nil, fmt.Errorf("unsupported balancer %q", config.Kafka.Balancer)
 	}
 
@@ -118,7 +118,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 	case "NONE":
 		// leave as default, none
 	default:
-		log.Printf("[ERROR] : Kafka - unsupported compression %q\n", config.Kafka.Compression)
+		utils.Log(utils.ErrorLvl, "Kafka", fmt.Sprintf("unsupported compression %q", config.Kafka.Compression))
 		return nil, fmt.Errorf("unsupported compression %q", config.Kafka.Compression)
 	}
 
@@ -130,7 +130,7 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 	case "NONE":
 		kafkaWriter.RequiredAcks = kafka.RequireNone
 	default:
-		log.Printf("[ERROR] : Kafka - unsupported required ACKs %q\n", config.Kafka.RequiredACKs)
+		utils.Log(utils.ErrorLvl, "Kafka", fmt.Sprintf("unsupported required ACKs %q", config.Kafka.RequiredACKs))
 		return nil, fmt.Errorf("unsupported required ACKs %q", config.Kafka.RequiredACKs)
 	}
 
@@ -155,7 +155,7 @@ func (c *Client) KafkaProduce(falcopayload types.FalcoPayload) {
 	falcoMsg, err := json.Marshal(falcopayload)
 	if err != nil {
 		c.incrKafkaErrorMetrics(1)
-		log.Printf("[ERROR] : Kafka - %v - %v\n", "failed to marshalling message", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("failed to marshalling message: %v", err))
 		return
 	}
 
@@ -167,11 +167,11 @@ func (c *Client) KafkaProduce(falcopayload types.FalcoPayload) {
 	err = c.KafkaProducer.WriteMessages(context.Background(), kafkaMsg)
 	if err != nil {
 		c.incrKafkaErrorMetrics(1)
-		log.Printf("[ERROR] : Kafka - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	} else {
 		c.incrKafkaSuccessMetrics(1)
-		log.Printf("[INFO]  : Kafka - Publish OK\n")
+		utils.Log(utils.InfoLvl, c.OutputType, "Publish OK")
 	}
 }
 
@@ -179,10 +179,10 @@ func (c *Client) KafkaProduce(falcopayload types.FalcoPayload) {
 func (c *Client) handleKafkaCompletion(messages []kafka.Message, err error) {
 	if err != nil {
 		c.incrKafkaErrorMetrics(len(messages))
-		log.Printf("[ERROR] : Kafka (%d) - %v\n", len(messages), err)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("(%d)  %v", len(messages), err))
 	} else {
 		c.incrKafkaSuccessMetrics(len(messages))
-		log.Printf("[INFO]  : Kafka (%d) - Publish OK\n", len(messages))
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("(%d) - Publish OK", len(messages)))
 	}
 }
 

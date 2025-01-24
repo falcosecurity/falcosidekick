@@ -5,13 +5,15 @@ package outputs
 import (
 	"encoding/json"
 	"errors"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
+	"fmt"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 // NewRabbitmqClient returns a new output.Client for accessing the RabbitmMQ API.
@@ -22,12 +24,12 @@ func NewRabbitmqClient(config *types.Configuration, stats *types.Statistics, pro
 	if config.Rabbitmq.URL != "" && config.Rabbitmq.Queue != "" {
 		conn, err := amqp.Dial(config.Rabbitmq.URL)
 		if err != nil {
-			log.Printf("[ERROR] : Rabbitmq - %v\n", "Error while connecting rabbitmq")
+			utils.Log(utils.ErrorLvl, "Rabbitmq", "Error while connecting rabbitmq")
 			return nil, errors.New("error while connecting Rabbitmq")
 		}
 		ch, err := conn.Channel()
 		if err != nil {
-			log.Printf("[ERROR] : Rabbitmq Channel - %v\n", "Error while creating rabbitmq channel")
+			utils.Log(utils.ErrorLvl, "Rabbitmq", "Error while creating rabbitmq channel")
 			return nil, errors.New("error while creating rabbitmq channel")
 		}
 		channel = ch
@@ -57,7 +59,7 @@ func (c *Client) Publish(falcopayload types.FalcoPayload) {
 	})
 
 	if err != nil {
-		log.Printf("[ERROR] : RabbitMQ - %v - %v\n", "Error while publishing message", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Error while publishing message: %v", err))
 		c.Stats.Rabbitmq.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:rabbitmq", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "rabbitmq", "status": Error}).Inc()
@@ -67,7 +69,7 @@ func (c *Client) Publish(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	log.Printf("[INFO]  : RabbitMQ - Send to message OK \n")
+	utils.Log(utils.InfoLvl, c.OutputType, "Message published OK")
 	c.Stats.Rabbitmq.Add(OK, 1)
 	go c.CountMetric("outputs", 1, []string{"output:rabbitmq", "status:ok"})
 	c.PromStats.Outputs.With(map[string]string{"destination": "rabbitmq", "status": OK}).Inc()

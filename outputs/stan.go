@@ -4,13 +4,12 @@ package outputs
 
 import (
 	"encoding/json"
-	"log"
 	"strings"
 
+	stan "github.com/nats-io/stan.go"
 	"go.opentelemetry.io/otel/attribute"
 
-	stan "github.com/nats-io/stan.go"
-
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -29,7 +28,7 @@ func (c *Client) StanPublish(falcopayload types.FalcoPayload) {
 	nc, err := stan.Connect(c.Config.Stan.ClusterID, c.Config.Stan.ClientID, stan.NatsURL(c.EndpointURL.String()))
 	if err != nil {
 		c.setStanErrorMetrics()
-		log.Printf("[ERROR] : STAN - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 	defer nc.Close()
@@ -37,14 +36,14 @@ func (c *Client) StanPublish(falcopayload types.FalcoPayload) {
 	j, err := json.Marshal(falcopayload)
 	if err != nil {
 		c.setStanErrorMetrics()
-		log.Printf("[ERROR] : STAN - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
 	err = nc.Publish(subject, j)
 	if err != nil {
 		c.setStanErrorMetrics()
-		log.Printf("[ERROR] : STAN - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
@@ -53,7 +52,7 @@ func (c *Client) StanPublish(falcopayload types.FalcoPayload) {
 	c.Stats.Stan.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "stan", "status": OK}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "stan"), attribute.String("status", OK)).Inc()
-	log.Printf("[INFO]  : STAN - Publish OK\n")
+	utils.Log(utils.InfoLvl, c.OutputType, "Publish OK")
 }
 
 // setStanErrorMetrics set the error stats

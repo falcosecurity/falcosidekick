@@ -4,14 +4,17 @@ package outputs
 
 import (
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
+
+const LokiOut string = "Loki"
 
 type lokiPayload struct {
 	Streams []lokiStream `json:"streams"`
@@ -110,7 +113,7 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "loki"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Loki - %v\n", err)
+		utils.Log(utils.ErrorLvl, LokiOut, err.Error())
 		return
 	}
 

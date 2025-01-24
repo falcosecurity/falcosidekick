@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/falcosecurity/falcosidekick/types"
-
 	"github.com/stretchr/testify/require"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func TestNewDynatracePayload(t *testing.T) {

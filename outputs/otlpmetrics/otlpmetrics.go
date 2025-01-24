@@ -3,7 +3,6 @@ package otlpmetrics
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -15,6 +14,8 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 )
 
 const (
@@ -126,7 +127,7 @@ func setEnv(envVar, value string) (func(), error) {
 	}
 	return func() {
 		if err := os.Setenv(envVar, ""); err != nil {
-			log.Printf("[ERROR] : OTLP Metrics - Error unsetting env variable %q: %v\n", envVar, err)
+			utils.Log(utils.ErrorLvl, "OTLP Metrics", fmt.Sprintf("Error unsetting env variable %q: %v", envVar, err))
 		}
 	}, nil
 }
@@ -173,7 +174,7 @@ func initMeterProvider(ctx context.Context, config *Config) (func(context.Contex
 
 func createGRPCExporter(ctx context.Context, config *Config) (sdkmetric.Exporter, error) {
 	var options []otlpmetricgrpc.Option
-	if config.CheckCert == false {
+	if !config.CheckCert {
 		options = append(options, otlpmetricgrpc.WithInsecure())
 	}
 
@@ -182,7 +183,7 @@ func createGRPCExporter(ctx context.Context, config *Config) (sdkmetric.Exporter
 
 func createHTTPExporter(ctx context.Context, config *Config) (sdkmetric.Exporter, error) {
 	var options []otlpmetrichttp.Option
-	if config.CheckCert == false {
+	if !config.CheckCert {
 		options = append(options, otlpmetrichttp.WithInsecure())
 	}
 	return otlpmetrichttp.New(ctx, options...)
@@ -242,7 +243,7 @@ func (c *counterInstrument) Inc() {
 	meter := otel.Meter(meterName)
 	ruleCounter, err := meter.Int64Counter(c.name, metric.WithDescription(c.description))
 	if err != nil {
-		log.Printf("[ERROR] : OTLP Metrics - Error generating metric: %v\n", err)
+		utils.Log(utils.ErrorLvl, "OTLP Metrics", fmt.Sprintf("Error generating metric: %v", err))
 		return
 	}
 

@@ -3,13 +3,14 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -55,14 +56,14 @@ func getFalcoNewCounterVec(config *types.Configuration) *prometheus.CounterVec {
 	}
 	for i := range config.Customfields {
 		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
-			log.Printf("[ERROR] : Custom field '%v' is not a valid prometheus label", i)
+			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Custom field '%v' is not a valid prometheus label", i))
 			continue
 		}
 		labelnames = append(labelnames, strings.ReplaceAll(i, ".", "_"))
 	}
 	for _, i := range config.Prometheus.ExtraLabelsList {
 		if !regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
-			log.Printf("[ERROR] : Extra field '%v' is not a valid prometheus label", i)
+			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Extra field '%v' is not a valid prometheus label", i))
 			continue
 		}
 		labelnames = append(labelnames, strings.ReplaceAll(i, ".", "_"))

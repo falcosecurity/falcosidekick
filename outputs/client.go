@@ -11,10 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"github.com/segmentio/kafka-go"
 	"io"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -23,25 +20,25 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/sync/semaphore"
-	crdClient "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/generated/v1alpha2/clientset/versioned"
-
 	gcpfunctions "cloud.google.com/go/functions/apiv1"
-	amqp "github.com/rabbitmq/amqp091-go"
-	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
-
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws/session"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"k8s.io/client-go/kubernetes"
-
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	timescaledb "github.com/jackc/pgx/v5/pgxpool"
+	amqp "github.com/rabbitmq/amqp091-go"
 	redis "github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
+	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
+	"golang.org/x/sync/semaphore"
+	"k8s.io/client-go/kubernetes"
+	crdClient "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/generated/v1alpha2/clientset/versioned"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/batcher"
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -151,16 +148,16 @@ type Client struct {
 func NewClient(outputType string, defaultEndpointURL string, cfg types.CommonConfig, params types.InitClientArgs) (*Client, error) {
 	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
 	if !reg.MatchString(defaultEndpointURL) {
-		log.Printf("[ERROR] : %v - %v\n", outputType, "Bad Endpoint")
+		utils.Log(utils.ErrorLvl, outputType, "Bad Endpoint")
 		return nil, ErrClientCreation
 	}
 	if _, err := url.ParseRequestURI(defaultEndpointURL); err != nil {
-		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
+		utils.Log(utils.ErrorLvl, outputType, err.Error())
 		return nil, ErrClientCreation
 	}
 	endpointURL, err := url.Parse(defaultEndpointURL)
 	if err != nil {
-		log.Printf("[ERROR] : %v - %v\n", outputType, err.Error())
+		utils.Log(utils.ErrorLvl, outputType, err.Error())
 		return nil, ErrClientCreation
 	}
 	return &Client{
@@ -211,7 +208,7 @@ func (c *Client) getInlinedBodyAsString(resp *http.Response) string {
 	if contentEncoding == "gzip" {
 		dec, err := decompressData(body)
 		if err != nil {
-			log.Printf("[INFO] : %v - Failed to decompress response: %v", c.OutputType, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Failed to decompress response: %v", err))
 			return ""
 		}
 		body = dec
@@ -267,10 +264,10 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 	c.initOnce.Do(func() {
 		if c.cfg.MaxConcurrentRequests == 0 {
 			c.sem = semaphore.NewWeighted(math.MaxInt64)
-			log.Printf("[INFO]  : %v - Max concurrent requests: unlimited", c.OutputType)
+			utils.Log(utils.InfoLvl, c.OutputType, "Max concurrent requests: unlimited")
 		} else {
 			c.sem = semaphore.NewWeighted(int64(c.cfg.MaxConcurrentRequests))
-			log.Printf("[INFO]  : %v - Max concurrent requests: %v", c.OutputType, c.cfg.MaxConcurrentRequests)
+			utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Max concurrent requests: %v", c.cfg.MaxConcurrentRequests))
 		}
 	})
 
@@ -278,7 +275,7 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 	defer func(c *Client) {
 		if err := recover(); err != nil {
 			go c.CountMetric("outputs", 1, []string{"output:" + strings.ToLower(c.OutputType), "status:connectionrefused"})
-			log.Printf("[ERROR] : %v - %s", c.OutputType, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprint(err))
 		}
 	}(c)
 
@@ -288,18 +285,18 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 	case influxdbPayload:
 		fmt.Fprintf(body, "%v", payload)
 		if c.Config.Debug {
-			log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
+			utils.Log(utils.DebugLvl, c.OutputType, fmt.Sprintf("payload : %v", body))
 		}
 	case spyderbatPayload:
 		zipper := gzip.NewWriter(body)
 		if err := json.NewEncoder(zipper).Encode(payload); err != nil {
-			log.Printf("[ERROR] : %v - %s", c.OutputType, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		}
 		zipper.Close()
 		if c.Config.Debug {
 			debugBody := new(bytes.Buffer)
 			if err := json.NewEncoder(debugBody).Encode(payload); err == nil {
-				log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, debugBody)
+				utils.Log(utils.DebugLvl, c.OutputType, fmt.Sprintf("payload : %v", body))
 			}
 		}
 	case io.Reader:
@@ -308,17 +305,17 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 		reader = bytes.NewBuffer(v)
 	default:
 		if err := json.NewEncoder(body).Encode(payload); err != nil {
-			log.Printf("[ERROR] : %v - %s", c.OutputType, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		}
 		if c.Config.Debug {
-			log.Printf("[DEBUG] : %v payload : %v\n", c.OutputType, body)
+			utils.Log(utils.DebugLvl, c.OutputType, fmt.Sprintf("payload : %v", body))
 		}
 	}
 
 	if c.EnableCompression {
 		data, err := compressData(reader)
 		if err != nil {
-			log.Printf("[ERROR] : %v - Failed to compress data: %v\n", c.OutputType, err.Error())
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Failed to compress data: %v", err))
 			return err
 		}
 		reader = bytes.NewBuffer(data)
@@ -334,7 +331,7 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 		req, err = http.NewRequest(method, c.EndpointURL.String(), reader)
 	}
 	if err != nil {
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return err
 	}
 
@@ -358,14 +355,14 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 	ctx := context.Background()
 	err = c.sem.Acquire(ctx, 1)
 	if err != nil {
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return err
 	}
 	defer c.sem.Release(1)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		go c.CountMetric("outputs", 1, []string{"output:" + strings.ToLower(c.OutputType), "status:connectionrefused"})
 		return err
 	}
@@ -376,7 +373,7 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
-		log.Printf("[INFO]  : %v - %v OK (%v)\n", c.OutputType, method, resp.StatusCode)
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v OK (%v)", method, resp.StatusCode))
 		ot := c.OutputType
 		logResponse := ot == Kubeless || ot == Openfaas || ot == Fission
 		if responseBody != nil || logResponse {
@@ -388,42 +385,42 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 				*responseBody = s
 			}
 			if logResponse {
-				log.Printf("[INFO]  : %v - Function Response : %s\n", ot, s)
+				utils.Log(utils.InfoLvl, ot, fmt.Sprintf("Function Response : %s", s))
 			}
 		}
 		return nil
 	case http.StatusBadRequest: //400
 		msg := c.getInlinedBodyAsString(resp)
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrHeaderMissing, resp.StatusCode, msg)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrHeaderMissing, resp.StatusCode, msg))
 		if msg != "" {
 			return errors.New(msg)
 		}
 		return ErrHeaderMissing
 	case http.StatusUnauthorized: //401
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrClientAuthenticationError, resp.StatusCode, c.getInlinedBodyAsString(resp))
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrClientAuthenticationError, resp.StatusCode, c.getInlinedBodyAsString(resp)))
 		return ErrClientAuthenticationError
 	case http.StatusForbidden: //403
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrForbidden, resp.StatusCode, c.getInlinedBodyAsString(resp))
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrForbidden, resp.StatusCode, c.getInlinedBodyAsString(resp)))
 		return ErrForbidden
 	case http.StatusNotFound: //404
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrNotFound, resp.StatusCode, c.getInlinedBodyAsString(resp))
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrNotFound, resp.StatusCode, c.getInlinedBodyAsString(resp)))
 		return ErrNotFound
 	case http.StatusUnprocessableEntity: //422
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrUnprocessableEntityError, resp.StatusCode, c.getInlinedBodyAsString(resp))
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrUnprocessableEntityError, resp.StatusCode, c.getInlinedBodyAsString(resp)))
 		return ErrUnprocessableEntityError
 	case http.StatusTooManyRequests: //429
-		log.Printf("[ERROR] : %v - %v (%v): %s\n", c.OutputType, ErrTooManyRequest, resp.StatusCode, c.getInlinedBodyAsString(resp))
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrTooManyRequest, resp.StatusCode, c.getInlinedBodyAsString(resp)))
 		return ErrTooManyRequest
 	case http.StatusInternalServerError: //500
-		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v)", ErrTooManyRequest, resp.StatusCode))
 		return ErrInternalServer
 	case http.StatusBadGateway: //502
 		msg := c.getInlinedBodyAsString(resp)
 		fmt.Println(msg)
-		log.Printf("[ERROR] : %v - %v (%v)\n", c.OutputType, ErrTooManyRequest, resp.StatusCode)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v)", ErrTooManyRequest, resp.StatusCode))
 		return ErrBadGateway
 	default:
-		log.Printf("[ERROR] : %v - unexpected Response  (%v)\n", c.OutputType, resp.StatusCode)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("unexpected Response (%v)", resp.StatusCode))
 		return errors.New(resp.Status)
 	}
 }
@@ -444,7 +441,7 @@ func (c *Client) httpClient() *http.Client {
 		Transport: customTransport,
 	}
 	if err != nil {
-		log.Printf("[ERROR] : %v - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 	} else {
 		c.httpcli = client // cache the client instance for future http calls
 	}
