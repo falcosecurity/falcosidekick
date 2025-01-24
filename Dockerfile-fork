@@ -13,5 +13,5 @@ WORKDIR /
 #############      machine-controller-manager               #############
 FROM base AS machine-controller-manager
 
-COPY --from=builder /go/src/github.com/falcosecurity/falcosidekick /falcosidekick
+COPY --from=builder /go/src/github.com/falcosecurity/falcosidekick/falcosidekick .
 ENTRYPOINT ["./falcosidekick"]
