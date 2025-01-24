@@ -7,11 +7,12 @@ COPY . .
 RUN make falcosidekick
 
 #############      base                                     #############
-FROM gcr.io/distroless/static-debian11:nonroot as base
+# FROM gcr.io/distroless/static-debian12:nonroot as base
+FROM debian:latest as base
+FROM base AS falcosidekick-fork
+
 WORKDIR /
 
-#############      machine-controller-manager               #############
-FROM base AS machine-controller-manager
+COPY --from=builder /go/src/github.com/falcosecurity/falcosidekick/falcosidekick /falcosidekick
+ENTRYPOINT ["/falcosidekick"]
 
-COPY --from=builder /go/src/github.com/falcosecurity/falcosidekick/falcosidekick .
-ENTRYPOINT ["./falcosidekick"]
