@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"log"
 	"net"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/spf13/viper"
@@ -660,6 +661,16 @@ func getConfig() *types.Configuration {
 				} else {
 					c.Templatedfields[tagkeys[0]] = tagkeys[1]
 				}
+			}
+		}
+	}
+
+	if value, present := os.LookupEnv("LOKI_CUSTOMHEADERS"); present {
+		customheaders := strings.Split(value, ",")
+		for _, label := range customheaders {
+			tagkeys := strings.Split(label, ":")
+			if len(tagkeys) == 2 {
+				c.Loki.CustomHeaders[tagkeys[0]] = tagkeys[1]
 			}
 		}
 	}
