@@ -2,7 +2,7 @@
 
 package utils
 
-import "fmt"
+import "log"
 
 const (
 	InfoLvl       string = "info"
@@ -30,8 +30,8 @@ func Log(level, output, msg string) {
 		prefix = WarningPrefix
 	}
 	if output != "" {
-		fmt.Printf("%v : %v - %v", prefix, output, msg)
+		log.Printf("%v : %v - %v", prefix, output, msg)
 	} else {
-		fmt.Printf("%v : %v", prefix, msg)
+		log.Printf("%v : %v", prefix, msg)
 	}
 }
