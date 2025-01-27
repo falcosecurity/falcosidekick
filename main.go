@@ -853,7 +853,7 @@ func init() {
 		}
 	}
 
-	utils.Log(utils.InfoLvl, "", fmt.Sprintf("Falco Sidekick version: %s", GetVersionInfo().GitVersion))
+	utils.Log(utils.InfoLvl, "", fmt.Sprintf("Falcosidekick version: %s", GetVersionInfo().GitVersion))
 	utils.Log(utils.InfoLvl, "", fmt.Sprintf("Enabled Outputs: %s", outputs.EnabledOutputs))
 
 }

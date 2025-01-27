@@ -41,7 +41,7 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		fact     teamsFact
 	)
 
-	section.ActivityTitle = "Falco Sidekick"
+	section.ActivityTitle = "Falcosidekick"
 	section.ActivitySubTitle = falcopayload.Time.String()
 
 	if config.Teams.OutputFormat == All || config.Teams.OutputFormat == Text || config.Teams.OutputFormat == "" {

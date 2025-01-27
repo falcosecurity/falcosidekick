@@ -18,7 +18,7 @@ func TestNewTeamsPayload(t *testing.T) {
 		ThemeColor: "ccfff2",
 		Sections: []teamsSection{
 			{
-				ActivityTitle:    "Falco Sidekick",
+				ActivityTitle:    "Falcosidekick",
 				ActivitySubTitle: "2001-01-01 01:10:00 +0000 UTC",
 				ActivityImage:    "",
 				Text:             "This is a test from falcosidekick",
