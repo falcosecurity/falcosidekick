@@ -11,6 +11,9 @@
   - [Example of config.yaml](#example-of-configyaml)
   - [Additional info](#additional-info)
   - [Running a whole stack with docker-compose](#running-a-whole-stack-with-docker-compose)
+    - [Requirements](#requirements)
+    - [Configuration files](#configuration-files)
+    - [Run it](#run-it)
 
 ## Configuration
 
@@ -88,7 +91,7 @@ services:
       "/usr/bin/falco" ,
       "-o", "json_output=true",
       "-o", "http_output.enabled=true",
-      "-o", "http_output.url=http://sidekick:2801", # Set the HTTP output url to Falco sidekick endpoint
+      "-o", "http_output.url=http://sidekick:2801", # Set the HTTP output url to Falcosidekick endpoint
       "-o", "http_output.insecure=true"
     ]
 
