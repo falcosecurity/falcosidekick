@@ -540,7 +540,7 @@ sumologic:
 
 otlp:
   traces:
-    # endpoint: "" # OTLP endpoint in the form of http://{domain or ip}:4318/v1/traces
+    # endpoint: "" # OTLP endpoint in the form of http(s)://{domain or ip}:4318(/v1/traces), if not empty, OTLP Traces output is enabled
     # protocol: "" # OTLP protocol http/json, http/protobuf, grpc (default: "" which uses SDK default: http/json)
     # timeout: "" # OTLP timeout: timeout value in milliseconds (default: "" which uses SDK default: 10000)
     # headers: "" # OTLP headers: list of headers to apply to all outgoing traces in the form of "some-key=some-value,other-key=other-value" (default: "")
@@ -551,9 +551,18 @@ otlp:
       # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
     # checkcert: true # Set if you want to skip TLS certificate validation (default: true)
-
+  logs:
+    # endpoint: "" # OTLP endpoint in the form of http(s)://{domain or ip}:4318(/v1/logs), if not empty, OTLP Traces output is enabled
+    # protocol: "" # OTLP protocol http/json, http/protobuf, grpc (default: "" which uses SDK default: http/json)
+    # timeout: "" # OTLP timeout: timeout value in milliseconds (default: "" which uses SDK default: 10000)
+    # headers: "" # OTLP headers: list of headers to apply to all outgoing traces in the form of "some-key=some-value,other-key=other-value" (default: "")
+    # extraenvvars: # Extra env vars (override the other settings)
+      # OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: 10000
+      # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
+    # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+    # checkcert: true # Set if you want to skip TLS certificate validation (default: true)
   metrics:
-    # endpoint: "" # OTLP endpoint, typically in the form http{s}://{domain or ip}:4318/v1/metrics
+    # endpoint: "" # OTLP endpoint, typically in the form http(s)://{domain or ip}:4318(/v1/metrics), if not empty, OTLP Metrics output is enabled
     # protocol: "" # OTLP transport protocol to be used for metrics data; it can be "grpc" or "http/protobuf" (default: "grpc")
     # timeout: "" # OTLP timeout for outgoing metrics in milliseconds (default: "" which uses SDK default: 10000)
     # headers: "" # List of headers to apply to all outgoing metrics in the form of "some-key=some-value,other-key=other-value" (default: "")

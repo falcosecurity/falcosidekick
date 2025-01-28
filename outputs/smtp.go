@@ -18,7 +18,7 @@ import (
 	smtp "github.com/emersion/go-smtp"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 

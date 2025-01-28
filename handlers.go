@@ -545,6 +545,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go otlpTracesClient.OTLPTracesPost(falcopayload)
 	}
 
+	if config.OTLP.Logs.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.OTLP.Logs.MinimumPriority)) {
+		go otlpLogsClient.OTLPLogsPost(falcopayload)
+	}
+
 	if config.Talon.Address != "" && (falcopayload.Priority >= types.Priority(config.Talon.MinimumPriority) || falcopayload.Rule == testRule) {
 		go talonClient.TalonPost(falcopayload)
 	}

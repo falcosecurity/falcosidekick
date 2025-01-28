@@ -19,7 +19,7 @@ import (
 	crd "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/generated/v1alpha2/clientset/versioned"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
