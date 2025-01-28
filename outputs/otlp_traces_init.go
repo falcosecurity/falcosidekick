@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	otelresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -32,18 +32,25 @@ func newResource() *otelresource.Resource {
 	)
 }
 
-func installExportPipeline(config *types.Configuration, ctx context.Context) (func(context.Context) error, error) {
-	var client otlptrace.Client
-	switch config.OTLP.Traces.CheckCert {
-	case true:
-		client = otlptracehttp.NewClient()
-	case false:
-		client = otlptracehttp.NewClient(otlptracehttp.WithInsecure())
+func installTracesExportPipeline(config *types.Configuration, ctx context.Context) (func(context.Context) error, error) {
+	var exporter sdktrace.SpanExporter
+	var err error
+	switch config.OTLP.Traces.Protocol {
+	case GRPC:
+		opts := []otlptracegrpc.Option{}
+		if !config.OTLP.Traces.CheckCert {
+			opts = append(opts, otlptracegrpc.WithInsecure())
+		}
+		exporter, err = otlptracegrpc.New(ctx, opts...)
+	default:
+		opts := []otlptracehttp.Option{}
+		if !config.OTLP.Traces.CheckCert {
+			opts = append(opts, otlptracehttp.WithInsecure())
+		}
+		exporter, err = otlptracehttp.New(ctx, opts...)
 	}
-
-	exporter, err := otlptrace.New(ctx, client)
 	if err != nil {
-		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
+		return nil, fmt.Errorf("failed to create Traces exporter: %v", err)
 	}
 
 	withBatcher := sdktrace.WithBatcher(exporter)
@@ -59,7 +66,7 @@ func installExportPipeline(config *types.Configuration, ctx context.Context) (fu
 	return tracerProvider.Shutdown, nil
 }
 
-func otlpInit(config *types.Configuration) (func(), error) {
+func OTLPTracesInit(client *Client, config *types.Configuration, ctx context.Context) (func(), error) {
 	// As config.OTLP.Traces fields may have been set by our own config (e.g. YAML),
 	// we need to set SDK environment variables accordingly.
 	os.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", strings.TrimSpace(config.OTLP.Traces.Endpoint))
@@ -77,15 +84,14 @@ func otlpInit(config *types.Configuration) (func(), error) {
 			os.Setenv(i, j)
 		}
 	}
-	ctx := context.Background()
 	// Registers a tracer Provider globally.
-	shutdown, err := installExportPipeline(config, ctx)
+	shutdown, err := installTracesExportPipeline(config, ctx)
 	if err != nil {
 		return nil, err
 	}
 	shutDownCallback := func() {
 		if err := shutdown(ctx); err != nil {
-			utils.Log(utils.ErrorLvl, "OLTP", err.Error())
+			utils.Log(utils.ErrorLvl, "OTLP Traces", err.Error())
 
 		}
 	}

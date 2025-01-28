@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net/http"
 	"net/url"
@@ -38,7 +39,7 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/batcher"
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -93,6 +94,9 @@ const MutualTLSCacertFilename = "/ca.crt"
 const HttpPost = "POST"
 const HttpPut = "PUT"
 
+// Protocol
+const GRPC = "grpc"
+
 // Client communicates with the different API.
 type Client struct {
 	OutputType string
@@ -122,6 +126,7 @@ type Client struct {
 	MQTTClient        mqtt.Client
 	TimescaleDBClient *timescaledb.Pool
 	RedisClient       *redis.Client
+	OTLPLogsLogger    *slog.Logger
 
 	// Enable gzip compression
 	EnableCompression bool

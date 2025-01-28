@@ -13,7 +13,7 @@ import (
 	"github.com/embano1/memlog"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 )
 
 // FalcoPayload is a struct to map falco event json
@@ -811,10 +811,23 @@ type OTLPTraces struct {
 	MinimumPriority string
 }
 
+// OTLPLogs represents config parameters for OTLP Traces
+type OTLPLogs struct {
+	Endpoint        string
+	Protocol        string
+	Timeout         int64
+	Synced          bool
+	Headers         string
+	ExtraEnvVars    map[string]string
+	CheckCert       bool
+	MinimumPriority string
+}
+
 // OTLPOutputConfig represents config parameters for OTLP
 type OTLPOutputConfig struct {
 	Traces  OTLPTraces
 	Metrics otlpmetrics.Config
+	Logs    OTLPLogs
 }
 
 // TalonOutputConfig represents parameters for Talon
@@ -895,6 +908,7 @@ type Statistics struct {
 	Dynatrace         *expvar.Map
 	OTLPTraces        *expvar.Map
 	OTLPMetrics       *expvar.Map
+	OTLPLogs          *expvar.Map
 	Talon             *expvar.Map
 }
 

@@ -19,7 +19,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -447,6 +447,7 @@ func getConfig() *types.Configuration {
 		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
 		OTLP: types.OTLPOutputConfig{
 			Traces:  types.OTLPTraces{ExtraEnvVars: make(map[string]string)},
+			Logs:    types.OTLPLogs{ExtraEnvVars: make(map[string]string)},
 			Metrics: otlpmetrics.Config{ExtraEnvVars: make(map[string]string)},
 		},
 	}
@@ -566,7 +567,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Yandex.DataStreams.MinimumPriority", "")
 
 	v.SetDefault("OTLP.Traces.Endpoint", "")
-	v.SetDefault("OTLP.Traces.Protocol", "http/json")
+	v.SetDefault("OTLP.Traces.Protocol", "http/protobuf")
 	// NOTE: we don't need to parse the OTLP.Traces.Headers field, as use it to
 	// set OTEL_EXPORTER_OTLP_TRACES_HEADERS (at otlp_traces_init.go), which is then
 	// parsed by the OTLP SDK libs, see
@@ -580,8 +581,19 @@ func getConfig() *types.Configuration {
 	// it to 1000ms by default, override-able via OTLP_DURATION environment variable.
 	v.SetDefault("OTLP.Traces.Duration", 1000)
 
+	v.SetDefault("OTLP.Logs.Endpoint", "")
+	v.SetDefault("OTLP.Logs.Protocol", "http/protobuf")
+	// NOTE: we don't need to parse the OTLP.Logs.Headers field, as use it to
+	// set OTEL_EXPORTER_OTLP_TRACES_HEADERS (at otlp_traces_init.go), which is then
+	// parsed by the OTLP SDK libs, see
+	// https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#otel_exporter_otlp_logs_headers
+	v.SetDefault("OTLP.Logs.Headers", "")
+	v.SetDefault("OTLP.Logs.Timeout", 10000)
+	v.SetDefault("OTLP.Logs.MinimumPriority", "")
+	v.SetDefault("OTLP.Logs.CheckCert", true)
+
 	v.SetDefault("OTLP.Metrics.Endpoint", "")
-	v.SetDefault("OTLP.Metrics.Protocol", "grpc")
+	v.SetDefault("OTLP.Metrics.Protocol", "http/protobuf")
 	// NOTE: we don't need to parse the OTLP.Metrics.Headers field, as use it to set OTEL_EXPORTER_OTLP_METRICS_HEADERS
 	// (at outputs/otlpmetrics/otlpmetrics.go), which is then parsed by the OTLP SDK libs.
 	v.SetDefault("OTLP.Metrics.Headers", "")
