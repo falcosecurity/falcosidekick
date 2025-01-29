@@ -665,6 +665,16 @@ func getConfig() *types.Configuration {
 		}
 	}
 
+	if value, present := os.LookupEnv("LOKI_CUSTOMHEADERS"); present {
+		customheaders := strings.Split(value, ",")
+		for _, label := range customheaders {
+			tagkeys := strings.Split(label, ":")
+			if len(tagkeys) == 2 {
+				c.Loki.CustomHeaders[tagkeys[0]] = tagkeys[1]
+			}
+		}
+	}
+
 	if value, present := os.LookupEnv("WEBHOOK_CUSTOMHEADERS"); present {
 		customheaders := strings.Split(value, ",")
 		for _, label := range customheaders {
