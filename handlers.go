@@ -187,7 +187,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		}
 	}
 	for key := range config.Templatedfields {
-		if regPromLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
+		if regPromLabels.MatchString(strings.ReplaceAll(key, ".", "_")) {
 			promLabels[key] = fmt.Sprintf("%v", falcopayload.OutputFields[key])
 		}
 	}
