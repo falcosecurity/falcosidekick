@@ -21,7 +21,7 @@ import (
 	gcpfunctionspb "google.golang.org/genproto/googleapis/cloud/functions/v1"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 

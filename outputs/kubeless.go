@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 

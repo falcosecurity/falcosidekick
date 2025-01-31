@@ -20,7 +20,7 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/outputs"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -80,6 +80,7 @@ var (
 	openObserveClient   *outputs.Client
 	dynatraceClient     *outputs.Client
 	otlpTracesClient    *outputs.Client
+	otlpLogsClient      *outputs.Client
 	talonClient         *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
@@ -96,6 +97,8 @@ var (
 )
 
 func init() {
+	utils.Log(utils.InfoLvl, "", fmt.Sprintf("Falcosidekick version: %s", GetVersionInfo().GitVersion))
+
 	// detect unit testing and skip init.
 	// see: https://github.com/alecthomas/kingpin/issues/187
 	testing := (strings.HasSuffix(os.Args[0], ".test") ||
@@ -828,10 +831,22 @@ func init() {
 		}
 	}
 
-	if cfg := config.OTLP.Metrics; cfg.Endpoint != "" {
-		shutDownFunc, err := otlpmetrics.InitProvider(context.Background(), &cfg)
+	if config.OTLP.Logs.Endpoint != "" {
+		var err error
+		otlpLogsClient, err = outputs.NewOtlpLogsClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
-			cfg.Endpoint = ""
+			config.OTLP.Logs.Endpoint = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPLogs")
+			shutDownFuncs = append(shutDownFuncs, otlpLogsClient.ShutDownFunc)
+		}
+	}
+
+	if config.OTLP.Metrics.Endpoint != "" {
+		shutDownFunc, err := otlpmetrics.InitProvider(context.Background(), &config.OTLP.Metrics)
+		if err != nil {
+			fmt.Println(err)
+			config.OTLP.Logs.Endpoint = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPMetrics")
 			fn := func() {
@@ -853,9 +868,7 @@ func init() {
 		}
 	}
 
-	utils.Log(utils.InfoLvl, "", fmt.Sprintf("Falcosidekick version: %s", GetVersionInfo().GitVersion))
 	utils.Log(utils.InfoLvl, "", fmt.Sprintf("Enabled Outputs: %s", outputs.EnabledOutputs))
-
 }
 
 func main() {

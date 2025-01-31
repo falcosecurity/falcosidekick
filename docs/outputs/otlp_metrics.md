@@ -17,41 +17,49 @@
 
 ## Configuration
 
-| Setting                        | Env var                        | Default value      | Description                                                                                                                                         |
-|--------------------------------|--------------------------------|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `otlp.metrics.endpoint`        | `OTLP_METRICS_ENDPOINT`        |                    | OTLP endpoint, typically in the form http{s}://{domain or ip}:4318/v1/metrics                                                                       |
-| `otlp.metrics.protocol`        | `OTLP_METRICS_PROTOCOL`        | `grpc`             | OTLP transport protocol to be used for metrics data; it can be `"grpc"` or `"http/protobuf"`                                                        |
-| `otlp.metrics.timeout`         | `OTLP_METRICS_TIMEOUT`         | `10000` (from SDK) | OTLP timeout for outgoing metrics in milliseconds                                                                                                   |
-| `otlp.metrics.headers`         | `OTLP_METRICS_HEADERS`         | `""`               | List of headers to apply to all outgoing metrics in the form of `some-key=some-value,other-key=other-value`                                         |
-| `otlp.metrics.extraenvvars`    | `OTLP_METRICS_EXTRAENVVARS`    | `""`               | Extra env vars (override the other settings)                                                                                                        |
-| `otlp.metrics.minimumpriority` | `OTLP_METRICS_MINIMUMPRIORITY` | `""` (=`debug`)    | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""`                 |
-| `otlp.metrics.checkcert`       | `OTLP_METRICS_CHECKCERT`       | `true`             | Set to false if you want to skip TLS certificate validation (only with https)                                                                       |
-| `otlp.metrics.extraattributes` | `OTLP_METRICS_EXTRAATTRIBUTES` | `""`               | Comma-separated list of fields to use as labels additionally to source, priority, rule, hostname, tags, k8s_ns_name, k8s_pod_name and custom_fields |
+|            Setting             |            Env var             |       Default value        |                                                                     Description                                                                     |
+| ------------------------------ | ------------------------------ | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `otlp.metrics.endpoint`        | `OTLP_METRICS_ENDPOINT`        |                            | OTLP endpoint, typically in the form http(s)://{domain or ip}:4318(/v1/metrics)                                                                     |
+| `otlp.metrics.protocol`        | `OTLP_METRICS_PROTOCOL`        | `http/protobuf` (from SDK) | OTLP Protocol: `http/protobuf`, `grpc`                                                                                                              |
+| `otlp.metrics.timeout`         | `OTLP_METRICS_TIMEOUT`         | `10000` (from SDK)         | OTLP timeout for outgoing metrics in milliseconds                                                                                                   |
+| `otlp.metrics.headers`         | `OTLP_METRICS_HEADERS`         | `""`                       | List of headers to apply to all outgoing metrics in the form of `some-key=some-value,other-key=other-value`                                         |
+| `otlp.metrics.extraenvvars`    | `OTLP_METRICS_EXTRAENVVARS`    | `""`                       | Extra env vars (override the other settings)                                                                                                        |
+| `otlp.metrics.minimumpriority` | `OTLP_METRICS_MINIMUMPRIORITY` | `""` (=`debug`)            | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""`                 |
+| `otlp.metrics.checkcert`       | `OTLP_METRICS_CHECKCERT`       | `true`                     | Set to false if you want to skip TLS certificate validation (only with https)                                                                       |
+| `otlp.metrics.extraattributes` | `OTLP_METRICS_EXTRAATTRIBUTES` | `""`                       | Comma-separated list of fields to use as labels additionally to source, priority, rule, hostname, tags, k8s_ns_name, k8s_pod_name and custom_fields |
 
 > [!NOTE]
-For the extra Env Vars values see [standard `OTEL_*` environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/):
+For the extra Env Vars values see [standard `OTEL_*` environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)
+
+> [!WARNING]
+If you use `grpc`, the endpoint format must be `http(s)://{domain or ip}:4318`
+If you use `http/protobuf`, the endpoint format must be `http(s)://{domain or ip}:4318/v1/traces`
 
 ## Example of config.yaml
 
 ```yaml
 otlp:
   metrics:
-  # endpoint: "" # OTLP endpoint, typically in the form http{s}://{domain or ip}:4318/v1/metrics
-  # protocol: "" # OTLP transport protocol to be used for metrics data; it can be "grpc" or "http/protobuf" (default: "grpc")
-  # timeout: "" # OTLP timeout for outgoing metrics in milliseconds (default: "" which uses SDK default: 10000)
-  # headers: "" # List of headers to apply to all outgoing metrics in the form of "some-key=some-value,other-key=other-value" (default: "")
-  # extraenvvars: # Extra env vars (override the other settings) (default: "")
-  # OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: 10000
-  # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
-  # minimumpriority: "" # Minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "")
-  # checkcert: true # Set to false if you want to skip TLS certificate validation (only with https) (default: true)
-  # extraattributes: "" # Comma-separated list of fields to use as labels additionally to source, priority, rule, hostname, tags, k8s_ns_name, k8s_pod_name and custom_fields
+    # endpoint: "" # OTLP endpoint, typically in the form http(s)://{domain or ip}:4318(/v1/metrics), if not empty, OTLP Metrics output is enabled
+    # protocol: "" # OTLP protocol: http/protobuf, grpc (default: "" which uses SDK default: "http/protobuf")
+    # timeout: "" # OTLP timeout for outgoing metrics in milliseconds (default: "" which uses SDK default: 10000)
+    # headers: "" # List of headers to apply to all outgoing metrics in the form of "some-key=some-value,other-key=other-value" (default: "")
+    # extraenvvars: # Extra env vars (override the other settings) (default: "")
+      # OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: 10000
+      # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
+    # minimumpriority: "" # Minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "")
+    # checkcert: true # Set to false if you want to skip TLS certificate validation (only with https) (default: true)
+    # extraattributes: "" # Comma-separated list of fields to use as labels additionally to source, priority, rule, hostname, tags, k8s_ns_name, k8s_pod_name and custom_fields
 ```
 
 ## Additional info
 
 > [!NOTE]
 This output is used to collect metrics about Falco events and Falcosidekick inputs and outputs in OTLP metrics format.
+
+> [!WARNING]
+Because of the way the OTEL SDK is structured, the OTLP outputs don't appear in the metrics (Prometheus, Statsd, ...) 
+and the error logs just specify `OTEL` as output.
 
 ## Running a whole stack with docker-compose
 

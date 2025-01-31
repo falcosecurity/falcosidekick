@@ -10,7 +10,7 @@ env:
   - COSIGN_YES=true
 
 snapshot:
-  name_template: 'latest'
+  version_template: 'latest'
 
 checksum:
   name_template: 'checksums.txt'

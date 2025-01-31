@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -21,14 +21,14 @@ func newOTLPMetrics(config *types.Configuration) *otlpmetrics.OTLPMetrics {
 
 func newOTLPInputsCounter() otlpmetrics.Counter {
 	supportedAttributes := []string{"source", "status"}
-	name := "falcosidekick_inputs"
+	name := "falcosecurity_falcosidekick_inputs"
 	description := "Number of times an input is received"
 	counter := otlpmetrics.NewCounter(name, description, supportedAttributes)
 	return counter
 }
 
 func newOTLPOutputsCounter() otlpmetrics.Counter {
-	name := "falcosidekick_outputs"
+	name := "falcosecurity_falcosidekick_outputs"
 	description := "Number of times an output is generated"
 	supportedAttributes := []string{"destination", "status"}
 	counter := otlpmetrics.NewCounter(name, description, supportedAttributes)

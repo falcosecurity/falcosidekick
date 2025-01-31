@@ -11,31 +11,38 @@
   - [Example of config.yaml](#example-of-configyaml)
   - [Additional info](#additional-info)
   - [Running a whole stack with docker-compose](#running-a-whole-stack-with-docker-compose)
+    - [Requirements](#requirements)
+    - [Configuration files](#configuration-files)
+    - [Run it](#run-it)
 
 ## Configuration
 
-|            Setting            |            Env var            |   Default value    |                                                             Description                                                             |
-| ----------------------------- | ----------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `otlp.traces.endpoint`        | `OTLP_TRACES_ENDPOINT`        |                    | OTLP endpoint in the form of http://{domain or ip}:4318/v1/traces                                                                   |
-| `otlp.traces.protocol`        | `OTLP_TRACES_PROTOCOL`        | `http` (from SDK)  | OTLP Protocol                                                                                                                       |
-| `otlp.traces.timeout`         | `OTLP_TRACES_TIMEOUT`         | `10000` (from SDK) | Timeout value in milliseconds                                                                                                       |
-| `otlp.traces.headers`         | `OTLP_TRACES_HEADERS`         |                    | List of headers to apply to all outgoing traces in the form of "some-key=some-value,other-key=other-value"                          |
-| `otlp.traces.synced`          | `OTLP_TRACES_SYNCED`          | `false`            | Set to `true` if you want traces to be sent synchronously                                                                           |
-| `otlp.traces.minimumpriority` | `OTLP_TRACES_MINIMUMPRIORITY` | `""` (=`debug`)    | minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
-| `otlp.traces.checkcert`       | `OTLP_TRACES_CHECKCERT`       | `false`            | Set if you want to skip TLS certificate validation                                                                                  |
-| `otlp.traces.duration`        | `OTLP_TRACES_DURATION`        | `1000`             | Artificial span duration in milliseconds (as Falco doesn't provide an ending timestamp)                                             |
-| `otlp.traces.extraenvvars`    | `OTLP_TRACES_EXTRAENVVARS`    |                    | Extra env vars (override the other settings)                                                                                        |
+|            Setting            |            Env var            |       Default value        |                                                             Description                                                             |
+| ----------------------------- | ----------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `otlp.traces.endpoint`        | `OTLP_TRACES_ENDPOINT`        |                            | OTLP endpoint in the form of http(s)://{domain or ip}:4318(/v1/traces)                                                              |
+| `otlp.traces.protocol`        | `OTLP_TRACES_PROTOCOL`        | `http/protobuf` (from SDK) | OTLP Protocol: `http/protobuf`, `grpc`                                                                                              |
+| `otlp.traces.timeout`         | `OTLP_TRACES_TIMEOUT`         | `10000` (from SDK)         | Timeout value in milliseconds                                                                                                       |
+| `otlp.traces.headers`         | `OTLP_TRACES_HEADERS`         |                            | List of headers to apply to all outgoing traces in the form of "some-key=some-value,other-key=other-value"                          |
+| `otlp.traces.synced`          | `OTLP_TRACES_SYNCED`          | `false`                    | Set to `true` if you want traces to be sent synchronously                                                                           |
+| `otlp.traces.minimumpriority` | `OTLP_TRACES_MINIMUMPRIORITY` | `""` (=`debug`)            | minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
+| `otlp.traces.checkcert`       | `OTLP_TRACES_CHECKCERT`       | `false`                    | Set if you want to skip TLS certificate validation                                                                                  |
+| `otlp.traces.duration`        | `OTLP_TRACES_DURATION`        | `1000`                     | Artificial span duration in milliseconds (as Falco doesn't provide an ending timestamp)                                             |
+| `otlp.traces.extraenvvars`    | `OTLP_TRACES_EXTRAENVVARS`    |                            | Extra env vars (override the other settings)                                                                                        |
 
 > [!NOTE]
-For the extra Env Vars values see [standard `OTEL_*` environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/):
+For the extra Env Vars values see [standard `OTEL_*` environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)
+
+> [!WARNING]
+If you use `grpc`, the endpoint format must be `http(s)://{domain or ip}:4318`
+If you use `http/protobuf`, the endpoint format must be `http(s)://{domain or ip}:4318/v1/traces`
 
 ## Example of config.yaml
 
 ```yaml
 otlp:
   traces:
-    # endpoint: "" # OTLP endpoint in the form of http://{domain or ip}:4318/v1/traces
-    # protocol: "" # OTLP protocol http/json, http/protobuf, grpc (default: "" which uses SDK default: http/json)
+    # endpoint: "" # OTLP endpoint in the form of http(s)://{domain or ip}:4318(/v1/traces), if not empty, OTLP Traces output is enabled
+    # protocol: "" # OTLP protocol: http/protobuf, grpc (default: "" which uses SDK default: "http/protobuf")
     # timeout: "" # OTLP timeout: timeout value in milliseconds (default: "" which uses SDK default: 10000)
     # headers: "" # OTLP headers: list of headers to apply to all outgoing traces in the form of "some-key=some-value,other-key=other-value" (default: "")
     # synced: false # Set to true if you want traces to be sent synchronously (default: false)
@@ -51,6 +58,10 @@ otlp:
 
 > [!NOTE]
 The OTLP Traces are only available for the source: `syscalls`.
+
+> [!WARNING]
+Because of the way the OTEL SDK is structured, the OTLP outputs don't appear in the metrics (Prometheus, Statsd, ...) 
+and the error logs just specify `OTEL` as output.
 
 ## Running a whole stack with docker-compose
 

@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -29,7 +29,7 @@ const ServicesPath = "/services/"
 
 // NewFissionClient returns a new output.Client for accessing Kubernetes.
 func NewFissionClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	oltpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	if config.Fission.KubeConfig != "" {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", config.Fission.KubeConfig)
 		if err != nil {
@@ -44,7 +44,7 @@ func NewFissionClient(config *types.Configuration, stats *types.Statistics, prom
 			Config:           config,
 			Stats:            stats,
 			PromStats:        promStats,
-			OTLPMetrics:      oltpMetrics,
+			OTLPMetrics:      otlpMetrics,
 			StatsdClient:     statsdClient,
 			DogstatsdClient:  dogstatsdClient,
 			KubernetesClient: clientset,

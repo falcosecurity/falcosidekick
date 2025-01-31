@@ -1,4 +1,4 @@
-package otlpmetrics
+package otlp_metrics
 
 import (
 	"context"
@@ -50,6 +50,13 @@ func InitProvider(ctx context.Context, config *Config) (func(ctx context.Context
 	shutdownFunc, err := initMeterProvider(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create meter provider: %v", err)
+	}
+
+	if config.Endpoint != "" {
+		utils.Log(utils.InfoLvl, "OTLP Metrics", "Client created")
+		otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+			utils.Log(utils.ErrorLvl, "OTLP", err.Error())
+		}))
 	}
 
 	return shutdownFunc, nil
@@ -135,21 +142,24 @@ func setEnv(envVar, value string) (func(), error) {
 // initMeterProvider initializes an OTEL meter provider (and the corresponding exporter). It returns a function to shut
 // down the meter provider.
 func initMeterProvider(ctx context.Context, config *Config) (func(context.Context) error, error) {
+	var exporter sdkmetric.Exporter
 	var err error
-	var metricExporter sdkmetric.Exporter
-	switch protocol := config.Protocol; protocol {
+	switch config.Protocol {
 	case "grpc":
-		metricExporter, err = createGRPCExporter(ctx, config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create gRPC exporter: %v", err)
+		opts := []otlpmetricgrpc.Option{}
+		if !config.CheckCert {
+			opts = append(opts, otlpmetricgrpc.WithInsecure())
 		}
-	case "http/protobuf":
-		metricExporter, err = createHTTPExporter(ctx, config)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create HTTP exporter: %v", err)
-		}
+		exporter, err = otlpmetricgrpc.New(ctx, opts...)
 	default:
-		return nil, fmt.Errorf("unsupported OTLP transport protocol: %s", protocol)
+		opts := []otlpmetrichttp.Option{}
+		if !config.CheckCert {
+			opts = append(opts, otlpmetrichttp.WithInsecure())
+		}
+		exporter, err = otlpmetrichttp.New(ctx, opts...)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Logs exporter: %v", err)
 	}
 
 	res, err := sdkresource.New(ctx,
@@ -164,29 +174,12 @@ func initMeterProvider(ctx context.Context, config *Config) (func(context.Contex
 	}
 
 	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter)),
 		sdkmetric.WithResource(res),
 	)
 
 	otel.SetMeterProvider(meterProvider)
 	return meterProvider.Shutdown, nil
-}
-
-func createGRPCExporter(ctx context.Context, config *Config) (sdkmetric.Exporter, error) {
-	var options []otlpmetricgrpc.Option
-	if !config.CheckCert {
-		options = append(options, otlpmetricgrpc.WithInsecure())
-	}
-
-	return otlpmetricgrpc.New(ctx, options...)
-}
-
-func createHTTPExporter(ctx context.Context, config *Config) (sdkmetric.Exporter, error) {
-	var options []otlpmetrichttp.Option
-	if !config.CheckCert {
-		options = append(options, otlpmetrichttp.WithInsecure())
-	}
-	return otlpmetrichttp.New(ctx, options...)
 }
 
 type Counter interface {
