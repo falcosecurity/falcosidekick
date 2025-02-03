@@ -4,14 +4,14 @@ package outputs
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/PagerDuty/go-pagerduty"
+	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -38,7 +38,7 @@ func (c *Client) PagerdutyPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "pagerduty", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "pagerduty"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : PagerDuty - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
@@ -47,7 +47,7 @@ func (c *Client) PagerdutyPost(falcopayload types.FalcoPayload) {
 	c.PromStats.Outputs.With(map[string]string{"destination": "pagerduty", "status": OK}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "pagerduty"),
 		attribute.String("status", OK)).Inc()
-	log.Printf("[INFO]  : Pagerduty - Create Incident OK\n")
+	utils.Log(utils.InfoLvl, c.OutputType, "Create Incident OK")
 }
 
 func createPagerdutyEvent(falcopayload types.FalcoPayload, config types.PagerdutyConfig) pagerduty.V2Event {

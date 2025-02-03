@@ -4,11 +4,13 @@ package outputs
 
 import (
 	"bytes"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
+	"fmt"
 	"sort"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -79,7 +81,7 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 	if config.Mattermost.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
 		if err := config.Mattermost.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
-			log.Printf("[ERROR] : Mattermost - Error expanding Mattermost message %v", err)
+			utils.Log(utils.ErrorLvl, "Mattermost", fmt.Sprintf("Error expanding Mattermost message %v", err))
 		} else {
 			messageText = buf.String()
 		}
@@ -134,7 +136,7 @@ func (c *Client) MattermostPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "mattermost", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "mattermost"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Mattermost - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

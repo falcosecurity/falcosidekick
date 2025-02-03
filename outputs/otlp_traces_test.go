@@ -6,10 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/falcosecurity/falcosidekick/types"
-
-	"go.opentelemetry.io/otel/trace"
 )
 
 func TestOtlpNewTrace(t *testing.T) {

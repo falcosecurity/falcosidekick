@@ -4,14 +4,17 @@ package outputs
 
 import (
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
+
+const LokiOut string = "Loki"
 
 type lokiPayload struct {
 	Streams []lokiStream `json:"streams"`
@@ -45,12 +48,17 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		case string:
 			for k := range config.Customfields {
 				if i == k {
-					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
+					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", "_"), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
+				}
+			}
+			for k := range config.Templatedfields {
+				if i == k {
+					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", "_"), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 			for _, k := range config.Loki.ExtraLabelsList {
 				if i == k {
-					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", ""), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
+					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", "_"), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 		default:
@@ -67,10 +75,17 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		s["tags"] = strings.Join(falcopayload.Tags, ",")
 	}
 
+	var v string
+	if config.Loki.Format == "json" {
+		v = falcopayload.String()
+	} else {
+		v = falcopayload.Output
+	}
+
 	return lokiPayload{Streams: []lokiStream{
 		{
 			Stream: s,
-			Values: []lokiValue{[]string{fmt.Sprintf("%v", falcopayload.Time.UnixNano()), falcopayload.Output}},
+			Values: []lokiValue{[]string{fmt.Sprintf("%v", falcopayload.Time.UnixNano()), v}},
 		},
 	}}
 }
@@ -110,7 +125,7 @@ func (c *Client) LokiPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "loki", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "loki"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Loki - %v\n", err)
+		utils.Log(utils.ErrorLvl, LokiOut, err.Error())
 		return
 	}
 

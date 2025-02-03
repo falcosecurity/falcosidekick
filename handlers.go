@@ -6,9 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
 	"io"
-	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -16,10 +14,13 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 const (
@@ -90,7 +91,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 // testHandler sends a test event to all enabled outputs.
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	r.Body = io.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","priority":"Debug","hostname": "falcosidekick", "rule":"Test rule", "time":"` + time.Now().UTC().Format(time.RFC3339) + `","output_fields": {"proc.name":"falcosidekick","user.name":"falcosidekick"}, "tags":["test","example"]}`)))
+	r.Body = io.NopCloser(bytes.NewReader([]byte(`{"output":"This is a test from falcosidekick","source":"debug","priority":"Debug","hostname":"falcosidekick", "rule":"Test rule","time":"` + time.Now().UTC().Format(time.RFC3339) + `","output_fields":{"proc.name":"falcosidekick","user.name":"falcosidekick"},"tags":["test","example"]}`)))
 	mainHandler(w, r)
 }
 
@@ -148,12 +149,12 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 		for key, value := range config.Templatedfields {
 			tmpl, err := template.New("").Parse(value)
 			if err != nil {
-				log.Printf("[ERROR] : Parsing error for templated field '%v': %v\n", key, err)
+				utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Parsing error for templated field '%v': %v", key, err))
 				continue
 			}
 			v := new(bytes.Buffer)
 			if err := tmpl.Execute(v, falcopayload.OutputFields); err != nil {
-				log.Printf("[ERROR] : Parsing error for templated field '%v': %v\n", key, err)
+				utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Parsing error for templated field '%v': %v", key, err))
 			}
 			templatedFields += key + "=" + v.String() + " "
 			falcopayload.OutputFields[key] = v.String()
@@ -183,6 +184,11 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	for key, value := range config.Customfields {
 		if regPromLabels.MatchString(key) {
 			promLabels[key] = value
+		}
+	}
+	for key := range config.Templatedfields {
+		if regPromLabels.MatchString(strings.ReplaceAll(key, ".", "_")) {
+			promLabels[key] = fmt.Sprintf("%v", falcopayload.OutputFields[key])
 		}
 	}
 	for _, i := range config.Prometheus.ExtraLabelsList {
@@ -281,7 +287,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 
 	if config.Debug {
-		log.Printf("[DEBUG] : Falco's payload : %v\n", falcopayload.String())
+		utils.Log(utils.DebugLvl, "", fmt.Sprintf("Falco's payload : %v", falcopayload.String()))
 	}
 
 	return falcopayload, nil

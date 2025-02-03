@@ -7,8 +7,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,10 +16,11 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/embano1/memlog"
-
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/outputs"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -564,7 +563,7 @@ func init() {
 		var err error
 		kubelessClient, err = outputs.NewKubelessClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
-			log.Printf("[ERROR] : Kubeless - %v\n", err)
+			utils.Log(utils.ErrorLvl, kubelessClient.OutputType, err.Error())
 			config.Kubeless.Namespace = ""
 			config.Kubeless.Function = ""
 		} else {
@@ -596,7 +595,7 @@ func init() {
 		var err error
 		openfaasClient, err = outputs.NewOpenfaasClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
-			log.Printf("[ERROR] : OpenFaaS - %v\n", err)
+			utils.Log(utils.ErrorLvl, openfaasClient.OutputType, err.Error())
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OpenFaaS")
 		}
@@ -606,7 +605,7 @@ func init() {
 		var err error
 		tektonClient, err = outputs.NewClient("Tekton", config.Tekton.EventListener, config.Tekton.CommonConfig, *initClientArgs)
 		if err != nil {
-			log.Printf("[ERROR] : Tekton - %v\n", err)
+			utils.Log(utils.ErrorLvl, tektonClient.OutputType, err.Error())
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Tekton")
 		}
@@ -626,7 +625,7 @@ func init() {
 		var err error
 		wavefrontClient, err = outputs.NewWavefrontClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
-			log.Printf("[ERROR] : Wavefront - %v\n", err)
+			utils.Log(utils.ErrorLvl, wavefrontClient.OutputType, err.Error())
 			config.Wavefront.EndpointHost = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Wavefront")
@@ -637,7 +636,7 @@ func init() {
 		var err error
 		fissionClient, err = outputs.NewFissionClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
-			log.Printf("[ERROR] : Fission - %v\n", err)
+			utils.Log(utils.ErrorLvl, fissionClient.OutputType, err.Error())
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, outputs.Fission)
 		}
@@ -672,7 +671,7 @@ func init() {
 		yandexClient, err = outputs.NewYandexClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Yandex.S3.Bucket = ""
-			log.Printf("[ERROR] : Yandex - %v\n", err)
+			utils.Log(utils.ErrorLvl, yandexClient.OutputType, err.Error())
 		} else {
 			if config.Yandex.S3.Bucket != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "YandexS3")
@@ -685,7 +684,7 @@ func init() {
 		yandexClient, err = outputs.NewYandexClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Yandex.DataStreams.StreamName = ""
-			log.Printf("[ERROR] : Yandex - %v\n", err)
+			utils.Log(utils.ErrorLvl, yandexClient.OutputType, err.Error())
 		} else {
 			if config.Yandex.DataStreams.StreamName != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "YandexDataStreams")
@@ -698,7 +697,7 @@ func init() {
 		syslogClient, err = outputs.NewSyslogClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Syslog.Host = ""
-			log.Printf("[ERROR] : Syslog - %v\n", err)
+			utils.Log(utils.ErrorLvl, syslogClient.OutputType, err.Error())
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Syslog")
 		}
@@ -709,7 +708,7 @@ func init() {
 		mqttClient, err = outputs.NewMQTTClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.MQTT.Broker = ""
-			log.Printf("[ERROR] : MQTT - %v\n", err)
+			utils.Log(utils.ErrorLvl, mqttClient.OutputType, err.Error())
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "MQTT")
 		}
@@ -742,7 +741,7 @@ func init() {
 		spyderbatClient, err = outputs.NewSpyderbatClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.Spyderbat.OrgUID = ""
-			log.Printf("[ERROR] : Spyderbat - %v\n", err)
+			utils.Log(utils.ErrorLvl, spyderbatClient.OutputType, err.Error())
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Spyderbat")
 		}
@@ -753,7 +752,7 @@ func init() {
 		timescaleDBClient, err = outputs.NewTimescaleDBClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
 			config.TimescaleDB.Host = ""
-			log.Printf("[ERROR] : TimescaleDB - %v\n", err)
+			utils.Log(utils.ErrorLvl, timescaleDBClient.OutputType, err.Error())
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "TimescaleDB")
 		}
@@ -779,7 +778,7 @@ func init() {
 			config.Telegram.ChatID = ""
 			config.Telegram.Token = ""
 
-			log.Printf("[ERROR] : Telegram - %v\n", err)
+			utils.Log(utils.ErrorLvl, telegramClient.OutputType, err.Error())
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Telegram")
 		}
@@ -809,7 +808,7 @@ func init() {
 	if config.Dynatrace.APIToken != "" && config.Dynatrace.APIUrl != "" {
 		var err error
 		dynatraceApiUrl := strings.TrimRight(config.Dynatrace.APIUrl, "/") + "/v2/logs/ingest"
-		dynatraceClient, err = outputs.NewClient("Dynatrace", dynatraceApiUrl, types.CommonConfig{CheckCert: config.Dynatrace.CheckCert}, *initClientArgs)
+		dynatraceClient, err = outputs.NewClient("Dynatrace,", dynatraceApiUrl, types.CommonConfig{CheckCert: config.Dynatrace.CheckCert}, *initClientArgs)
 		if err != nil {
 			config.Dynatrace.APIToken = ""
 			config.Dynatrace.APIUrl = ""
@@ -837,7 +836,7 @@ func init() {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPMetrics")
 			fn := func() {
 				if err := shutDownFunc(context.TODO()); err != nil {
-					log.Printf("[ERROR] : OTLP Metrics - Error: %v\n", err)
+					utils.Log(utils.ErrorLvl, "OTLP Metrics", err.Error())
 				}
 			}
 			shutDownFuncs = append(shutDownFuncs, fn)
@@ -854,8 +853,8 @@ func init() {
 		}
 	}
 
-	log.Printf("[INFO]  : Falco Sidekick version: %s\n", GetVersionInfo().GitVersion)
-	log.Printf("[INFO]  : Enabled Outputs : %s\n", outputs.EnabledOutputs)
+	utils.Log(utils.InfoLvl, "", fmt.Sprintf("Falcosidekick version: %s", GetVersionInfo().GitVersion))
+	utils.Log(utils.InfoLvl, "", fmt.Sprintf("Enabled Outputs: %s", outputs.EnabledOutputs))
 
 }
 
@@ -864,7 +863,7 @@ func main() {
 		defer shutdown()
 	}
 	if config.Debug {
-		log.Printf("[INFO]  : Debug mode : %v", config.Debug)
+		utils.Log(utils.InfoPrefix, "", fmt.Sprintf("Debug mode: %v", config.Debug))
 	}
 
 	routes := map[string]http.Handler{
@@ -886,11 +885,11 @@ func main() {
 			if ok {
 				delete(routes, r)
 				if config.Debug {
-					log.Printf("[DEBUG] : %s is served on http", r)
+					utils.Log(utils.DebugLvl, "", fmt.Sprintf("%s is served on http", r))
 				}
 				HTTPServeMux.Handle(r, handler)
 			} else {
-				log.Printf("[WARN] : tlsserver.notlspaths has unknown path '%s'", r)
+				utils.Log(utils.WarningLvl, "", fmt.Sprintf("tlsserver.notlspaths has unknown path '%s'", r))
 			}
 		}
 	}
@@ -913,12 +912,12 @@ func main() {
 	if config.TLSServer.Deploy {
 		if config.TLSServer.MutualTLS {
 			if config.Debug {
-				log.Printf("[DEBUG] : running mTLS server")
+				utils.Log(utils.DebugLvl, "", "running mTLS server")
 			}
 
 			caCert, err := os.ReadFile(config.TLSServer.CaCertFile)
 			if err != nil {
-				log.Printf("[ERROR] : %v\n", err.Error())
+				utils.Log(utils.ErrorLvl, "", err.Error())
 			}
 			caCertPool := x509.NewCertPool()
 			caCertPool.AppendCertsFromPEM(caCert)
@@ -932,16 +931,16 @@ func main() {
 		}
 
 		if config.Debug && !config.TLSServer.MutualTLS {
-			log.Printf("[DEBUG] : running TLS server")
+			utils.Log(utils.DebugLvl, "", "running TLS server")
 		}
 
 		if len(config.TLSServer.NoTLSPaths) == 0 {
-			log.Printf("[WARN]  : tlsserver.deploy is true but tlsserver.notlspaths is empty, change tlsserver.deploy to true to deploy two servers, at least for /ping endpoint")
+			utils.Log(utils.WarningLvl, "", "tlsserver.deploy is true but tlsserver.notlspaths is empty, change tlsserver.deploy to true to deploy two servers, at least for /ping endpoint")
 		}
 
 		if len(config.TLSServer.NoTLSPaths) != 0 {
 			if config.Debug {
-				log.Printf("[DEBUG] : running HTTP server for endpoints defined in tlsserver.notlspaths")
+				utils.Log(utils.DebugLvl, "", "running HTTP server for endpoints defined in tlsserver.notlspaths")
 			}
 
 			httpServer := &http.Server{
@@ -953,30 +952,31 @@ func main() {
 				WriteTimeout:      60 * time.Second,
 				IdleTimeout:       60 * time.Second,
 			}
-			log.Printf("[INFO]  : Falcosidekick is up and listening on %s:%d for TLS and %s:%d for non-TLS", config.ListenAddress, config.ListenPort, config.ListenAddress, config.TLSServer.NoTLSPort)
+			utils.Log(utils.InfoLvl, "", fmt.Sprintf("Falcosidekick is up and listening on %s:%d for TLS and %s:%d for non-TLS", config.ListenAddress, config.ListenPort, config.ListenAddress, config.TLSServer.NoTLSPort))
 
 			errs := make(chan error, 1)
 			go serveTLS(server, errs)
 			go serveHTTP(httpServer, errs)
-			log.Fatal(<-errs)
+			err := <-errs
+			utils.Log(utils.FatalLvl, "", err.Error())
 		} else {
-			log.Printf("[INFO]  : Falcosidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
+			utils.Log(utils.InfoLvl, "", fmt.Sprintf("Falcosidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort))
 			if err := server.ListenAndServeTLS(config.TLSServer.CertFile, config.TLSServer.KeyFile); err != nil {
-				log.Fatalf("[ERROR] : %v", err.Error())
+				utils.Log(utils.FatalLvl, "", err.Error())
 			}
 		}
 	} else {
 		if config.Debug {
-			log.Printf("[DEBUG] : running HTTP server")
+			utils.Log(utils.DebugLvl, "", "running HTTP server")
 		}
 
 		if config.TLSServer.MutualTLS {
-			log.Printf("[WARN]  : tlsserver.deploy is false but tlsserver.mutualtls is true, change tlsserver.deploy to true to use mTLS")
+			utils.Log(utils.WarningLvl, "", "tlsserver.deploy is false but tlsserver.mutualtls is true, change tlsserver.deploy to true to use mTLS")
 		}
 
-		log.Printf("[INFO]  : Falcosidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort)
+		utils.Log(utils.InfoLvl, "", fmt.Sprintf("Falcosidekick is up and listening on %s:%d", config.ListenAddress, config.ListenPort))
 		if err := server.ListenAndServe(); err != nil {
-			log.Fatalf("[ERROR] : %v", err.Error())
+			utils.Log(utils.FatalLvl, "", err.Error())
 		}
 	}
 }

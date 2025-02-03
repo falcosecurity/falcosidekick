@@ -5,14 +5,16 @@ package outputs
 import (
 	"context"
 	"encoding/json"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
+	"fmt"
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func (c *Client) ReportError(err error) {
@@ -21,7 +23,7 @@ func (c *Client) ReportError(err error) {
 	c.PromStats.Outputs.With(map[string]string{"destination": "redis", "status": Error}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "redis"),
 		attribute.String("status", Error)).Inc()
-	log.Printf("[ERROR] : Redis - %v\n", err)
+	utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 }
 
 func NewRedisClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
@@ -35,9 +37,9 @@ func NewRedisClient(config *types.Configuration, stats *types.Statistics, promSt
 	// Ping the Redis server to check if it's running
 	pong, err := rClient.Ping(context.Background()).Result()
 	if err != nil {
-		log.Printf("[ERROR] : Redis - Misconfiguration, cannot connect to the server %v\n", err)
+		utils.Log(utils.ErrorLvl, "Redis", fmt.Sprintf("Misconfiguration, cannot connect to the server: %v", err))
 	}
-	log.Printf("[INFO] : Redis - Connected to redis server: %v\n", pong)
+	utils.Log(utils.InfoLvl, "Redis", fmt.Sprintf("Connected to redis server: %v", pong))
 
 	return &Client{
 		OutputType:      "Redis",

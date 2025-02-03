@@ -4,11 +4,13 @@ package outputs
 
 import (
 	"context"
+	"fmt"
+
 	"go.opentelemetry.io/otel/attribute"
-	"log"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -24,7 +26,7 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "cloudevents", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "cloudevents"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : CloudEvents - NewDefaultClient : %v\n", err)
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("NewDefaultClient : %v", err))
 			return
 		}
 		c.CloudEventsClient = client
@@ -50,7 +52,7 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 	}
 
 	if err := event.SetData(cloudevents.ApplicationJSON, falcopayload); err != nil {
-		log.Printf("[ERROR] : CloudEvents, failed to set data : %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("failed to set data : %v", err))
 	}
 
 	if result := c.CloudEventsClient.Send(ctx, event); cloudevents.IsUndelivered(result) {
@@ -59,7 +61,7 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "cloudevents", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "cloudevents"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : CloudEvents - %v\n", result)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v", result))
 		return
 	}
 
@@ -69,5 +71,5 @@ func (c *Client) CloudEventsSend(falcopayload types.FalcoPayload) {
 	c.PromStats.Outputs.With(map[string]string{"destination": "cloudevents", "status": OK}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "cloudevents"),
 		attribute.String("status", OK)).Inc()
-	log.Printf("[INFO]  : CloudEvents - Send OK\n")
+	utils.Log(utils.InfoLvl, c.OutputType, "Send OK")
 }

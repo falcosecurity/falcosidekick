@@ -3,13 +3,14 @@
 package outputs
 
 import (
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 	"regexp"
 	"strconv"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -125,7 +126,7 @@ func (c *Client) DynatracePost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "dynatrace", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "dynatrace"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Dynatrace - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

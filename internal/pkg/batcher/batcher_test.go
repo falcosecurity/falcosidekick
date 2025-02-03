@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/falcosecurity/falcosidekick/types"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func TestElasticsearchBatcher(t *testing.T) {

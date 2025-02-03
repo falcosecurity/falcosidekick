@@ -6,9 +6,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -41,7 +42,7 @@ func (c *Client) KafkaRestPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "kafkarest", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "kafkarest"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Kafka Rest - %v - %v\n", "failed to marshalling message", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("failed to marshalling message: %v", err))
 		return
 	}
 
@@ -60,7 +61,7 @@ func (c *Client) KafkaRestPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "kafkarest", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "kafkarest"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Kafka Rest - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

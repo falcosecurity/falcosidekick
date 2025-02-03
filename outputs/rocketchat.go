@@ -4,11 +4,13 @@ package outputs
 
 import (
 	"bytes"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
+	"fmt"
 	"sort"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -74,7 +76,7 @@ func newRocketchatPayload(falcopayload types.FalcoPayload, config *types.Configu
 	if config.Rocketchat.MessageFormatTemplate != nil {
 		buf := &bytes.Buffer{}
 		if err := config.Rocketchat.MessageFormatTemplate.Execute(buf, falcopayload); err != nil {
-			log.Printf("[ERROR] : RocketChat - Error expanding RocketChat message %v", err)
+			utils.Log(utils.ErrorLvl, "RocketChat", fmt.Sprintf("Error expanding RocketChat message: %v", err))
 		} else {
 			messageText = buf.String()
 		}
@@ -130,7 +132,7 @@ func (c *Client) RocketchatPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "rocketchat", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "rocketchat"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : RocketChat - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

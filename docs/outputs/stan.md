@@ -14,13 +14,14 @@
 
 ## Configuration
 
-| Setting                | Env var                | Default value    | Description                                                                                                                         |
-| ---------------------- | ---------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `stan.hostport`        | `STAN_HOSTPORT`        |                  | stan://{domain or ip}:{port}, if not empty, STAN output is **enabled**                                                              |
-| `stan.clusterid`       | `STAN_CLUSTERID`       |                  | Cluster name (mandatory)                                                                                                            |
-| `stan.clientid`        | `STAN_CLIENTID`        |                  | Client ID (mandatory)                                                                                                               |
-| `stan.checkcert`       | `STAN_CHECKCERT`       | `true`           | Check if ssl certificate of the output is valid                                                                                     |
-| `stan.minimumpriority` | `STAN_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
+|        Setting         |        Env var         |       Default value       |                                                             Description                                                             |
+| ---------------------- | ---------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `stan.hostport`        | `STAN_HOSTPORT`        |                           | stan://{domain or ip}:{port}, if not empty, STAN output is **enabled**                                                              |
+| `stan.subjecttemplate` | `STAN_SUBJECTTEMPLATE` | `falco.<priority>.<rule>` | Template for the subject, tokens <priority> and <rule> will be automatically replaced                                               |
+| `stan.clusterid`       | `STAN_CLUSTERID`       |                           | Cluster name (mandatory)                                                                                                            |
+| `stan.clientid`        | `STAN_CLIENTID`        |                           | Client ID (mandatory)                                                                                                               |
+| `stan.checkcert`       | `STAN_CHECKCERT`       | `true`                    | Check if ssl certificate of the output is valid                                                                                     |
+| `stan.minimumpriority` | `STAN_MINIMUMPRIORITY` | `""` (= `debug`)          | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
 > [!NOTE]
 The Env var values override the settings from yaml file.

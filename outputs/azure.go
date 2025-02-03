@@ -5,15 +5,16 @@ package outputs
 import (
 	"context"
 	"encoding/json"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	azeventhubs "github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
 	"github.com/DataDog/datadog-go/statsd"
+	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -38,48 +39,48 @@ func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	log.Printf("[INFO] : %v EventHub - Try sending event", c.OutputType)
+	utils.Log(utils.InfoLvl, c.OutputType+" EventHub", "Try sending event")
 	defaultAzureCred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		c.setEventHubErrorMetrics()
-		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType+" EventHub", err.Error())
 		return
 	}
 
 	producerClient, err := azeventhubs.NewProducerClient(c.Config.Azure.EventHub.Namespace, c.Config.Azure.EventHub.Name, defaultAzureCred, nil)
 	if err != nil {
 		c.setEventHubErrorMetrics()
-		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType+" EventHub", err.Error())
 		return
 	}
 	defer producerClient.Close(ctx)
 
-	log.Printf("[INFO]  : %v EventHub - Hub client created\n", c.OutputType)
+	utils.Log(utils.InfoLvl, c.OutputType+" EventHub", "Hub client created")
 
 	data, err := json.Marshal(falcopayload)
 	if err != nil {
 		c.setEventHubErrorMetrics()
-		log.Printf("[ERROR] : Cannot marshal payload: %v", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType+" EventHub", fmt.Sprintf("Cannot marshal payload: %v", err))
 		return
 	}
 
 	batch, err := producerClient.NewEventDataBatch(ctx, nil)
 	if err != nil {
 		c.setEventHubErrorMetrics()
-		log.Printf("[ERROR] : Cannot marshal payload: %v", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType+" EventHub", fmt.Sprintf("Cannot marshal payload: %v", err))
 		return
 	}
 
 	if err := batch.AddEventData(&azeventhubs.EventData{Body: data}, nil); err != nil {
 		c.setEventHubErrorMetrics()
-		log.Printf("[ERROR] : Cannot marshal payload: %v", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType+" EventHub", fmt.Sprintf("Cannot marshal payload: %v", err))
 		return
 	}
 
 	producerClient.SendEventDataBatch(ctx, batch, nil)
 	if err := producerClient.SendEventDataBatch(ctx, batch, nil); err != nil {
 		c.setEventHubErrorMetrics()
-		log.Printf("[ERROR] : %v EventHub - %v\n", c.OutputType, err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType+" EventHub", err.Error())
 		return
 	}
 
@@ -89,7 +90,7 @@ func (c *Client) EventHubPost(falcopayload types.FalcoPayload) {
 	c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": OK}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "azureeventhub"),
 		attribute.String("status", OK)).Inc()
-	log.Printf("[INFO]  : %v EventHub - Publish OK", c.OutputType)
+	utils.Log(utils.InfoLvl, c.OutputType+" EventHub", "Publish OK")
 }
 
 // setEventHubErrorMetrics set the error stats

@@ -1,11 +1,13 @@
 package main
 
 import (
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"github.com/falcosecurity/falcosidekick/types"
-	"log"
+	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 func newOTLPMetrics(config *types.Configuration) *otlpmetrics.OTLPMetrics {
@@ -47,7 +49,7 @@ func newOTLPFalcoMatchesCounter(config *types.Configuration) otlpmetrics.Counter
 	}
 	for i := range config.Customfields {
 		if !regOTLPLabels.MatchString(i) {
-			log.Printf("[ERROR] : Custom field '%v' is not a valid OTLP metric attribute name", i)
+			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Custom field '%v' is not a valid OTLP metric attribute name", i))
 			continue
 		}
 		supportedAttributes = append(supportedAttributes, i)
@@ -55,7 +57,7 @@ func newOTLPFalcoMatchesCounter(config *types.Configuration) otlpmetrics.Counter
 
 	for _, i := range config.OTLP.Metrics.ExtraAttributesList {
 		if !regOTLPLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
-			log.Printf("[ERROR] : Extra field '%v' is not a valid OTLP metric attribute name", i)
+			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Extra field '%v' is not a valid OTLP metric attribute name", i))
 			continue
 		}
 		supportedAttributes = append(supportedAttributes, strings.ReplaceAll(i, ".", "_"))

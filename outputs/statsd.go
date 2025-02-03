@@ -3,12 +3,13 @@
 package outputs
 
 import (
-	"go.opentelemetry.io/otel/attribute"
-	"log"
+	"fmt"
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -26,7 +27,7 @@ func NewStatsdClient(outputType string, config *types.Configuration, stats *type
 		fwd = config.Dogstatsd.Forwarder
 	}
 	if err != nil {
-		log.Printf("[ERROR] : Can't configure %v client for %v - %v", outputType, fwd, err)
+		utils.Log(utils.ErrorLvl, outputType, fmt.Sprintf("Can't configure client for %v - %v", fwd, err))
 		return nil, err
 	}
 
@@ -50,7 +51,7 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "statsd", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "statsd"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : StatsD - Unable to send metric (%v%v%v) : %v\n", c.Config.Statsd.Namespace, metric, t, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Unable to send metric (%v%v%v) : %v", c.Config.Statsd.Namespace, metric, t, err))
 
 			return
 		}
@@ -59,7 +60,7 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "statsd", "status": OK}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "statsd"),
 			attribute.String("status", OK)).Inc()
-		log.Printf("[INFO]  : StatsD - Send Metric OK (%v%v%v)\n", c.Config.Statsd.Namespace, metric, t)
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Send Metric OK (%v%v%v)", c.Config.Statsd.Namespace, metric, t))
 	}
 
 	if c.DogstatsdClient != nil {
@@ -69,7 +70,7 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "dogstatsd", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "dogstatsd"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : DogStatsD - Send Metric Error (%v%v%v) : %v\n", c.Config.Statsd.Namespace, metric, tags, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Send Metric Error (%v%v%v) : %v", c.Config.Statsd.Namespace, metric, tags, err))
 
 			return
 		}
@@ -78,6 +79,6 @@ func (c *Client) CountMetric(metric string, value int64, tags []string) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "dogstatsd", "status": OK}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "dogstatsd"),
 			attribute.String("status", OK)).Inc()
-		log.Printf("[INFO]  : DogStatsD - Send Metric OK (%v%v %v)\n", c.Config.Statsd.Namespace, metric, tags)
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Send Metric OK (%v%v %v)", c.Config.Statsd.Namespace, metric, tags))
 	}
 }

@@ -6,16 +6,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"strconv"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -75,10 +75,10 @@ func (c *Client) OpenfaasCall(falcopayload types.FalcoPayload) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "openfaas", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "openfaas"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : %v - %v\n", Openfaas, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 			return
 		}
-		log.Printf("[INFO]  : %v - Function Response : %v\n", Openfaas, string(rawbody))
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Function Response : %v", string(rawbody)))
 	} else {
 		err := c.Post(falcopayload)
 		if err != nil {
@@ -87,11 +87,11 @@ func (c *Client) OpenfaasCall(falcopayload types.FalcoPayload) {
 			c.PromStats.Outputs.With(map[string]string{"destination": "openfaas", "status": Error}).Inc()
 			c.OTLPMetrics.Outputs.With(attribute.String("destination", "openfaas"),
 				attribute.String("status", Error)).Inc()
-			log.Printf("[ERROR] : %v - %v\n", Openfaas, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 			return
 		}
 	}
-	log.Printf("[INFO]  : %v - Call Function \"%v\" OK\n", Openfaas, c.Config.Openfaas.FunctionName+"."+c.Config.Openfaas.FunctionNamespace)
+	utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Call Function \"%v\" OK", c.Config.Openfaas.FunctionName+"."+c.Config.Openfaas.FunctionNamespace))
 	go c.CountMetric(Outputs, 1, []string{"output:openfaas", "status:ok"})
 	c.Stats.Openfaas.Add(OK, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "openfaas", "status": OK}).Inc()

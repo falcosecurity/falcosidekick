@@ -5,12 +5,13 @@ package outputs
 import (
 	"bytes"
 	"encoding/json"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 	"strings"
 	textTemplate "text/template"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -75,7 +76,7 @@ func newGotifyPayload(falcopayload types.FalcoPayload, config *types.Configurati
 		err = ttmpl.Execute(&outtext, falcopayload)
 	}
 	if err != nil {
-		log.Printf("[ERROR] : Gotify - %v\n", err)
+		utils.Log(utils.ErrorLvl, "Gotify", err.Error())
 		return g
 	}
 
@@ -102,7 +103,7 @@ func (c *Client) GotifyPost(falcopayload types.FalcoPayload) {
 	})
 	if err != nil {
 		c.setGotifyErrorMetrics()
-		log.Printf("[ERROR] : Gotify - %v\n", err)
+		utils.Log(utils.ErrorLvl, "Gotify", err.Error())
 		return
 	}
 

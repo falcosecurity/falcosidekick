@@ -4,10 +4,11 @@ package outputs
 
 import (
 	"bytes"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"text/template"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -41,7 +42,7 @@ func newWebexPayload(falcopayload types.FalcoPayload) webexPayload {
 	var tpl bytes.Buffer
 
 	if err := webexTmpl.Execute(&tpl, falcopayload); err != nil {
-		log.Printf("[ERROR] : Webex Template - %v\n", err)
+		utils.Log(utils.ErrorLvl, "Webex", err.Error())
 
 	}
 	t := webexPayload{
@@ -63,7 +64,7 @@ func (c *Client) WebexPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "webex", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "webex"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Webex - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

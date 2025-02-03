@@ -4,10 +4,11 @@ package outputs
 
 import (
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"net/http"
 
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -144,7 +145,7 @@ func (c *Client) AutoCreateQuickwitIndex(args types.InitClientArgs) error {
 	}
 
 	if args.Config.Debug {
-		log.Printf("[DEBUG] : Quickwit - mapping: %#v\n", mapping)
+		utils.Log(utils.DebugLvl, c.OutputType, fmt.Sprintf("mapping: %v", mapping))
 	}
 
 	err = quickwitInitClient.Post(mapping)
@@ -161,7 +162,7 @@ func (c *Client) QuickwitPost(falcopayload types.FalcoPayload) {
 	c.Stats.Quickwit.Add(Total, 1)
 
 	if c.Config.Debug {
-		log.Printf("[DEBUG] : Quickwit - ingesting payload: %v\n", falcopayload)
+		utils.Log(utils.DebugLvl, c.OutputType, fmt.Sprintf("ingesting payload: %v", falcopayload))
 	}
 
 	err := c.Post(falcopayload, func(req *http.Request) {
@@ -176,7 +177,7 @@ func (c *Client) QuickwitPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "quickwit", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "quickwit"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Quickwit - %v\n", err.Error())
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

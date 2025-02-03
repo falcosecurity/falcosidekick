@@ -5,14 +5,15 @@ package outputs
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
 	"log/syslog"
 	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -92,7 +93,7 @@ func (c *Client) SyslogPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "syslog", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "syslog"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Syslog - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 
@@ -130,7 +131,7 @@ func (c *Client) SyslogPost(falcopayload types.FalcoPayload) {
 		c.PromStats.Outputs.With(map[string]string{"destination": "syslog", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "syslog"),
 			attribute.String("status", Error)).Inc()
-		log.Printf("[ERROR] : Syslog - %v\n", err)
+		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
 

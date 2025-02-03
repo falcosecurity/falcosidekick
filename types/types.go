@@ -6,13 +6,14 @@ import (
 	"context"
 	"encoding/json"
 	"expvar"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"text/template"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/embano1/memlog"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 )
 
 // FalcoPayload is a struct to map falco event json
@@ -342,6 +343,7 @@ type LokiOutputConfig struct {
 	APIKey          string
 	MinimumPriority string
 	Tenant          string
+	Format          string
 	Endpoint        string
 	ExtraLabels     string
 	ExtraLabelsList []string
@@ -365,6 +367,7 @@ type prometheusOutputConfig struct {
 type natsOutputConfig struct {
 	CommonConfig    `mapstructure:",squash"`
 	HostPort        string
+	SubjectTemplate string
 	MinimumPriority string
 }
 
@@ -373,6 +376,7 @@ type stanOutputConfig struct {
 	HostPort        string
 	ClusterID       string
 	ClientID        string
+	SubjectTemplate string
 	MinimumPriority string
 }
 

@@ -4,14 +4,11 @@ package outputs
 
 import (
 	"context"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
-	"go.opentelemetry.io/otel/attribute"
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/falcosecurity/falcosidekick/types"
-
+	"go.opentelemetry.io/otel/attribute"
 	corev1 "k8s.io/api/core/v1"
 	errorsv1 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,6 +17,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	wgpolicy "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/api/wgpolicyk8s.io/v1alpha2"
 	crd "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/generated/v1alpha2/clientset/versioned"
+
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
+	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
+	"github.com/falcosecurity/falcosidekick/types"
 )
 
 type resource struct {
@@ -32,18 +33,18 @@ const (
 	policyReportName        string = "falco-policy-report"
 	policyReportSource      string = "Falco"
 
-	update string = "Update"
-	create string = "Create"
+	updateStr string = "Update"
+	createStr string = "Create"
 
-	high     wgpolicy.PolicyResultSeverity = "high"
-	low      wgpolicy.PolicyResultSeverity = "low"
-	medium   wgpolicy.PolicyResultSeverity = "medium"
-	info     wgpolicy.PolicyResultSeverity = "info"
-	critical wgpolicy.PolicyResultSeverity = "critical"
+	highStr     wgpolicy.PolicyResultSeverity = "high"
+	lowStr      wgpolicy.PolicyResultSeverity = "low"
+	mediumStr   wgpolicy.PolicyResultSeverity = "medium"
+	infoStr     wgpolicy.PolicyResultSeverity = "info"
+	criticalStr wgpolicy.PolicyResultSeverity = "critical"
 
-	fail wgpolicy.PolicyResult = "fail"
-	warn wgpolicy.PolicyResult = "warn"
-	skip wgpolicy.PolicyResult = "skip"
+	failStr wgpolicy.PolicyResult = "fail"
+	warnStr wgpolicy.PolicyResult = "warn"
+	skipStr wgpolicy.PolicyResult = "skip"
 
 	k8sPodName       string = "k8s.pod.name"
 	k8sNsName        string = "k8s.ns.name"
@@ -106,7 +107,7 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 	if err != nil {
 		clientConfig, err = clientcmd.BuildConfigFromFlags("", config.PolicyReport.Kubeconfig)
 		if err != nil {
-			log.Printf("[ERROR] : PolicyReport - Unable to load kube config file: %v\n", err)
+			utils.Log(utils.ErrorLvl, "PolicyReport", fmt.Sprintf("Unable to load kube config file: %v", err))
 			return nil, err
 		}
 	}
@@ -122,7 +123,7 @@ func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics,
 	if config.PolicyReport.FalcoNamespace == "" {
 		dat, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 		if err != nil {
-			log.Printf("[ERROR] : PolicyReport - Unable to get the Falcosidekick's namespace, '%v' used instead\n", defaultNamespace)
+			utils.Log(utils.ErrorLvl, "PolicyReport", fmt.Sprintf("Unable to get the Falcosidekick's namespace, '%v' used instead", defaultNamespace))
 		} else {
 			defaultNamespace = string(dat)
 		}
@@ -193,12 +194,12 @@ func newResult(falcopayload types.FalcoPayload) *wgpolicy.PolicyReportResult {
 }
 
 func (c *Client) createOrUpdatePolicyReport(result *wgpolicy.PolicyReportResult, namespace string) error {
-	action := update
+	action := updateStr
 
 	_, err := c.KubernetesClient.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	if err != nil {
 		if errorsv1.IsNotFound(err) {
-			log.Printf("[INFO]  : PolicyReport - Can't find the namespace '%v', fallback to '%v'\n", namespace, defaultNamespace)
+			utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("Can't find the namespace '%v', fallback to '%v'", namespace, defaultNamespace))
 			namespace = defaultNamespace
 			result.Subjects[0].Namespace = defaultNamespace
 		}
@@ -212,7 +213,7 @@ func (c *Client) createOrUpdatePolicyReport(result *wgpolicy.PolicyReportResult,
 	}
 	if policyr.Name == "" {
 		policyr = newPolicyReport()
-		action = create
+		action = createStr
 	}
 
 	policyr.Results = append(policyr.Results, *result)
@@ -223,41 +224,41 @@ func (c *Client) createOrUpdatePolicyReport(result *wgpolicy.PolicyReportResult,
 
 	policyr.Summary = getSummary(policyr.Results)
 
-	if action == create {
+	if action == createStr {
 		_, err := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Create(context.Background(), policyr, metav1.CreateOptions{})
 		if err != nil {
 			if errorsv1.IsAlreadyExists(err) {
-				action = update
+				action = updateStr
 				policyr, err = c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Get(context.Background(), policyReportName, metav1.GetOptions{})
 				if err != nil {
-					log.Printf("[ERROR] : PolicyReport - Error with with the Policy Report %v in namespace %v: %v\n", policyReportName, namespace, err)
+					utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Error with with the Policy Report %v in namespace %v: %v", policyReportName, namespace, err))
 					return err
 				}
 				_, err := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Update(context.Background(), policyr, metav1.UpdateOptions{})
 				if err != nil {
-					log.Printf("[ERROR] : PolicyReport - Can't %v the Policy Report %v in namespace %v: %v\n", action, policyReportName, namespace, err)
+					utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Policy Report %v in namespace %v: %v", action, policyReportName, namespace, err))
 					return err
 				}
 			} else {
-				log.Printf("[ERROR] : PolicyReport - Can't %v the Policy Report %v in namespace %v: %v\n", action, policyReportName, namespace, err)
+				utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Policy Report %v in namespace %v: %v", action, policyReportName, namespace, err))
 				return err
 			}
 		}
-		log.Printf("[INFO]  : PolicyReport - %v the Policy Report %v in namespace %v\n", action, policyReportName, namespace)
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v the Policy Report %v in namespace %v", action, policyReportName, namespace))
 		return nil
 	} else {
 		_, err := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Update(context.Background(), policyr, metav1.UpdateOptions{})
 		if err != nil {
-			log.Printf("[ERROR] : PolicyReport - Can't %v the Policy Report %v in namespace %v: %v\n", action, policyReportName, namespace, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Policy Report %v in namespace %v: %v", action, policyReportName, namespace, err))
 			return err
 		}
-		log.Printf("[INFO]  : PolicyReport - %v the Policy Report %v in namespace %v\n", action, policyReportName, namespace)
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v the Policy Report %v in namespace %v", action, policyReportName, namespace))
 		return nil
 	}
 }
 
 func (c *Client) createOrUpdateClusterPolicyReport(result *wgpolicy.PolicyReportResult) error {
-	action := update
+	action := updateStr
 
 	cpolicyr, err := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Get(context.Background(), clusterPolicyReportName, metav1.GetOptions{})
 	if err != nil {
@@ -265,9 +266,9 @@ func (c *Client) createOrUpdateClusterPolicyReport(result *wgpolicy.PolicyReport
 			return err
 		}
 	}
-	if cpolicyr == nil {
+	if cpolicyr.Name == "" {
 		cpolicyr = newClusterPolicyReport()
-		action = create
+		action = createStr
 	}
 
 	cpolicyr.Results = append(cpolicyr.Results, *result)
@@ -278,35 +279,35 @@ func (c *Client) createOrUpdateClusterPolicyReport(result *wgpolicy.PolicyReport
 
 	cpolicyr.Summary = getSummary(cpolicyr.Results)
 
-	if action == create {
+	if action == createStr {
 		_, err := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Create(context.Background(), cpolicyr, metav1.CreateOptions{})
 		if err != nil {
 			if errorsv1.IsAlreadyExists(err) {
-				action = update
+				action = updateStr
 				cpolicyr, err = c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Get(context.Background(), policyReportName, metav1.GetOptions{})
 				if err != nil {
-					log.Printf("[ERROR] : PolicyReport - Error with with the Cluster Policy Report %v: %v\n", policyReportName, err)
+					utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Error with with the Cluster Policy Report %v: %v", policyReportName, err))
 					return err
 				}
 				_, err := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Update(context.Background(), cpolicyr, metav1.UpdateOptions{})
 				if err != nil {
-					log.Printf("[ERROR] : PolicyReport - Can't %v the Cluster Policy Report %v: %v\n", action, policyReportName, err)
+					utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Cluster Policy Report %v: %v", action, policyReportName, err))
 					return err
 				}
 			} else {
-				log.Printf("[ERROR] : PolicyReport - Can't %v the Cluster Policy Report %v: %v\n", action, clusterPolicyReportName, err)
+				utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Cluster Policy Report %v: %v", action, clusterPolicyReportName, err))
 				return err
 			}
 		}
-		log.Printf("[INFO]  : PolicyReport - %v Cluster the Policy Report %v\n", action, policyReportName)
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v Cluster the Policy Report %v", action, policyReportName))
 		return nil
 	} else {
 		_, err := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Update(context.Background(), cpolicyr, metav1.UpdateOptions{})
 		if err != nil {
-			log.Printf("[ERROR] : PolicyReport - Can't %v the Cluster Policy Report %v: %v\n", action, clusterPolicyReportName, err)
+			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Cluster Policy Report %v: %v", action, clusterPolicyReportName, err))
 			return err
 		}
-		log.Printf("[INFO]  : PolicyReport - %v the ClusterPolicy Report %v\n", action, policyReportName)
+		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v the ClusterPolicy Report %v", action, policyReportName))
 		return nil
 	}
 }
@@ -332,25 +333,25 @@ func getSummary(results []wgpolicy.PolicyReportResult) wgpolicy.PolicyReportSumm
 
 func mapResult(event types.FalcoPayload) wgpolicy.PolicyResult {
 	if event.Priority <= types.Notice {
-		return skip
+		return skipStr
 	} else if event.Priority == types.Warning {
-		return warn
+		return warnStr
 	} else {
-		return fail
+		return failStr
 	}
 }
 
 func mapSeverity(event types.FalcoPayload) wgpolicy.PolicyResultSeverity {
 	if event.Priority <= types.Informational {
-		return info
+		return infoStr
 	} else if event.Priority <= types.Notice {
-		return low
+		return lowStr
 	} else if event.Priority <= types.Warning {
-		return medium
+		return mediumStr
 	} else if event.Priority <= types.Error {
-		return high
+		return highStr
 	} else {
-		return critical
+		return criticalStr
 	}
 }
 
