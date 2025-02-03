@@ -39,7 +39,6 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/batcher"
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
-	"github.com/falcosecurity/falcosidekick/outputs/otlpmetrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
