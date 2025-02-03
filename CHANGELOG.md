@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.31.0 - 2025-02-04
+#### New
+- New output: **OTLP Logs** ([PR#1109](https://github.com/falcosecurity/falcosidekick/pull/1109))
+
+#### Enhancement
+- Add the namespace and the pod name as labels by default in `Loki` payload ([PR#1087](https://github.com/falcosecurity/falcosidekick/pull/1087) thanks to [@afreyermuth98](https://github.com/afreyermuth98))
+- Allow to set the format for the `Loki` payload to JSON ([PR#1091](https://github.com/falcosecurity/falcosidekick/pull/1091))
+- Allow to set a template for the subjets for `NATS`/`STAN` outputs ([PR#1099](https://github.com/falcosecurity/falcosidekick/pull/1099))
+- Improve the logger with a generic and extensible method ([PR#1102](https://github.com/falcosecurity/falcosidekick/pull/1102))
+
+#### Fix
+- Remove forgotten debug line ([PR#1088](https://github.com/falcosecurity/falcosidekick/pull/1088))
+- Fix missing templated fields as labls in `Loki` payload ([PR#1091](https://github.com/falcosecurity/falcosidekick/pull/1091))
+- Fix creation error of `ClusterPolicyReports` ([PR#1100](https://github.com/falcosecurity/falcosidekick/pull/100))
+- Fix missing custom headers for HTTP requests for `Loki` ([PR#1107](https://github.com/falcosecurity/falcosidekick/pull/1107) thanks to [@lsroe](https://github.com/lsroe))
+- Fix wrong key format for `Prometheus` format ([PR#1110](https://github.com/falcosecurity/falcosidekick/pull/1110) thanks to [@rubensf](https://github.com/rubensf))
+
 ## 2.30.0 - 2024-11-28
 #### New
 - New output: **Webex** ([PR#979](https://github.com/falcosecurity/falcosidekick/pull/979) thanks to [@k0rventen](https://github.com/k0rventen))
