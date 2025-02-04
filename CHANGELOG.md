@@ -1,6 +1,10 @@
 # Changelog
 
-## 2.31.0 - 2025-02-04
+## 2.31.1 - 2025-02-04
+#### Fix
+- Fix error while closing the writer for `GCPStorage` ([PR#1116](https://github.com/falcosecurity/falcosidekick/pull/1116) thanks to [@chanukya-yekollu-exa](https://github.com/chanukya-yekollu-exa))
+
+## 2.31.0 - 2025-02-03
 #### New
 - New output: **OTLP Logs** ([PR#1109](https://github.com/falcosecurity/falcosidekick/pull/1109))
 
