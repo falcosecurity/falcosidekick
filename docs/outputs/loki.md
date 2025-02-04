@@ -42,6 +42,7 @@ loki:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # tenant: "" # Add the tenant header if needed. Enabled if not empty
+  # format: "text" # Format for the log entry value: json, text (default)
   # endpoint: "/loki/api/v1/push" # The endpoint URL path, default is "/loki/api/v1/push" more info : https://grafana.com/docs/loki/latest/api/#post-apiprompush
   # extralabels: "" # comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
   # customHeaders: # Custom headers to add in POST, useful for Authentication
