@@ -63,7 +63,7 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 	}
 
 	if config.GCP.Storage.Bucket != "" {
-		credentials, err := google.CredentialsFromJSON(context.Background(), []byte(googleCredentialsData))
+		credentials, err := google.CredentialsFromJSON(context.Background(), []byte(googleCredentialsData), storage.ScopeReadWrite)
 		if err != nil {
 			utils.Log(utils.ErrorLvl, "GCP PubSub", "Error while loading GCS Credentials")
 			return nil, errors.New("error while loading GCP Credentials")
