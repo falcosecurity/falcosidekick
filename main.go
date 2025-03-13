@@ -82,6 +82,7 @@ var (
 	otlpTracesClient    *outputs.Client
 	otlpLogsClient      *outputs.Client
 	talonClient         *outputs.Client
+	azureSentinelClient *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -865,6 +866,18 @@ func init() {
 			config.Talon.Address = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Talon")
+		}
+	}
+
+	if config.AzureSentinel.WorkspaceID != "" && config.AzureSentinel.SharedKey != "" {
+		var err error
+		url := fmt.Sprintf("https://%s.ods.opinsights.azure.com/api/logs?api-version=2016-04-01", config.AzureSentinel.WorkspaceID)
+		azureSentinelClient, err = outputs.NewClient("AzureSentinel", url, config.AzureSentinel.CommonConfig, *initClientArgs)
+		if err != nil {
+			config.AzureSentinel.WorkspaceID = ""
+			config.AzureSentinel.SharedKey = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "AzureSentinel")
 		}
 	}
 
