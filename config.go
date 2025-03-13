@@ -262,6 +262,15 @@ var httpOutputDefaults = map[string]map[string]any{
 		"Username":         "",
 		"Password":         "",
 	},
+	"AzureSentinel": {
+        "WorkspaceID":         "",
+        "SharedKey":           "",
+        "TableName":           "FalcoEvents",
+        "MinimumPriority":     "",
+        "MutualTLS":           false,
+        "CheckCert":           true,
+        "MaxConcurrentRequests": 1,
+    },
 }
 
 // Other output defaults that do not need commonHttpOutputDefaults

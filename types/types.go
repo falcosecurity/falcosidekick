@@ -120,6 +120,7 @@ type Configuration struct {
 	Dynatrace          DynatraceOutputConfig
 	OTLP               OTLPOutputConfig
 	Talon              TalonOutputConfig
+	AzureSentinel AzureSentinelOutputConfig `mapstructure:"AzureSentinel"`
 }
 
 // InitClientArgs represent a client parameters for initialization
@@ -837,6 +838,15 @@ type TalonOutputConfig struct {
 	MinimumPriority string
 }
 
+// AzureSentinelOutputConfig represents parameters for Azure Sentinel
+type AzureSentinelOutputConfig struct {
+    CommonConfig    `mapstructure:",squash"`
+    WorkspaceID     string
+    SharedKey       string
+    TableName       string
+    MinimumPriority string
+}
+
 // Statistics is a struct to store stastics
 type Statistics struct {
 	Requests          *expvar.Map
@@ -872,6 +882,7 @@ type Statistics struct {
 	Webhook           *expvar.Map
 	Webex             *expvar.Map
 	AzureEventHub     *expvar.Map
+	AzureSentinel     *expvar.Map
 	GCPPubSub         *expvar.Map
 	GCPStorage        *expvar.Map
 	GCPCloudFunctions *expvar.Map

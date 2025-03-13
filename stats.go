@@ -55,6 +55,7 @@ func getInitStats() *types.Statistics {
 		Webhook:           getOutputNewMap("webhook"),
 		CloudEvents:       getOutputNewMap("cloudevents"),
 		AzureEventHub:     getOutputNewMap("azureeventhub"),
+		AzureSentinel:     getOutputNewMap("azuresentinel"),
 		GCPPubSub:         getOutputNewMap("gcppubsub"),
 		GCPStorage:        getOutputNewMap("gcpstorage"),
 		GCPCloudFunctions: getOutputNewMap("gcpcloudfunctions"),
