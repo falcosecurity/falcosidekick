@@ -577,3 +577,15 @@ talon:
   # address: "" # Falco talon address, if not empty, Falco Talon output is enabled
   # checkcert: false # check if ssl certificate of the output is valid (default: true)
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+
+logstash:
+  # address: "" # Logstash address, if not empty, Logstash output is enabled
+  # port: 5044 # Logstash port number (default: 5044)
+  # tls: false # communicate over tls; requires Logstash version 8+ to work 
+  # mutualtls: false # or authenticate to the output with TLS; if true, checkcert flag will be ignored (server cert will always be checked) (default: false)
+  # checkcert: true # Check if ssl certificate of the output is valid (default: true)
+  # certfile: "" # Use this certificate file instead of the client certificate when using mutual TLS (default: "")
+  # keyfile: "" # Use this key file instead of the client certificate when using mutual TLS (default: "")
+  # cacertfile: "" # Use this CA certificate file instead of the client certificate when using mutual TLS (default: "")
+  # minimumpriority: minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "debug")
+  # tags: ["falco"] # An additional list of tags that will be added to those produced by Falco (default: [])
