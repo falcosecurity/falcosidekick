@@ -10,8 +10,9 @@ import (
 	"io"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/embano1/memlog"
 	"github.com/google/uuid"
 	"github.com/xitongsys/parquet-go-source/mem"
@@ -308,12 +309,13 @@ func (c *Client) writeParquet(uid string, records []memlog.Record) error {
 		key := fmt.Sprintf("/%s/region=%s/accountId=%s/eventDay=%s/%s.parquet", c.Config.AWS.SecurityLake.Prefix, c.Config.AWS.SecurityLake.Region, c.Config.AWS.SecurityLake.AccountID, t.Format("20060102"), uid)
 		ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelFn()
-		resp, err := s3.New(c.AWSSession).PutObjectWithContext(ctx, &s3.PutObjectInput{
+
+		resp, err := s3.NewFromConfig(*c.AWSConfig).PutObject(ctx, &s3.PutObjectInput{
 			Bucket:      aws.String(c.Config.AWS.SecurityLake.Bucket),
 			Key:         aws.String(key),
-			Body:        aws.ReadSeekCloser(r),
+			Body:        r,
 			ContentType: aws.String("Apache Parquet"),
-			ACL:         aws.String(s3.ObjectCannedACLBucketOwnerFullControl),
+			ACL:         s3types.ObjectCannedACLBucketOwnerFullControl,
 		})
 		if err != nil {
 			utils.Log(utils.ErrorLvl, c.OutputType+" SecurityLake", fmt.Sprintf("Upload parquet file %s.parquet Failed: %v", uid, err))

@@ -25,7 +25,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	timescaledb "github.com/jackc/pgx/v5/pgxpool"
@@ -110,7 +110,7 @@ type Client struct {
 	Stats                   *types.Statistics
 	PromStats               *types.PromStatistics
 	OTLPMetrics             *otlpmetrics.OTLPMetrics
-	AWSSession              *session.Session
+	AWSConfig               *aws.Config
 	StatsdClient            *statsd.Client
 	DogstatsdClient         *statsd.Client
 	GCPTopicClient          *pubsub.Topic
