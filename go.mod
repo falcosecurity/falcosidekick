@@ -18,7 +18,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.2
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.4
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.47.3
-	github.com/aws/aws-sdk-go-v2/service/kinesis v1.33.3
+	github.com/aws/aws-sdk-go-v2/service/kinesis v1.35.0
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.71.2
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.43.0
 	github.com/aws/aws-sdk-go-v2/service/sns v1.17.4
