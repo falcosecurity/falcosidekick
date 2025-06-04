@@ -2,7 +2,7 @@
 
 
 - **Category**: Chat/Messaging
-- **Website**: https://rocket.chat
+- **Website**: https://github.com/mattermost/mattermost
 
 ## Table of content
 
