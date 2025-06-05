@@ -32,6 +32,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
+	logstash "github.com/telkomdev/go-stash"
 	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
 	"golang.org/x/sync/semaphore"
 	"k8s.io/client-go/kubernetes"
@@ -127,6 +128,7 @@ type Client struct {
 	TimescaleDBClient *timescaledb.Pool
 	RedisClient       *redis.Client
 	OTLPLogsLogger    *slog.Logger
+	LogstashClient    *logstash.Stash
 
 	// Enable gzip compression
 	EnableCompression bool

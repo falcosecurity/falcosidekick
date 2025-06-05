@@ -116,6 +116,7 @@ Follow the links to get the configuration of each output.
 - [**SumoLogic**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/sumologic.md)
 - [**Quickwit**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/quickwit.md)
 - [**Datadog Logs**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/datadog_logs.md)
+- [**Logstash**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/logstash.md)
 
 ### Object Storage
 
