@@ -7,12 +7,11 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
-	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/telkomdev/go-stash"
 )
@@ -64,12 +63,16 @@ func NewLogstashClient(config *types.Configuration, stats *types.Statistics, pro
 
 		cert, err := tls.LoadX509KeyPair(MutualTLSClientCertPath, MutualTLSClientKeyPath)
 		if err != nil {
-			log.Printf("[ERROR] : Logstash - Failed to load SSL certificate: %v\n", err)
+			err = fmt.Errorf("failed to load logstash SSL certificate: %w", err)
+			utils.Log(utils.ErrorLvl, "Logstash", err.Error())
+			return nil, err
 		}
 
 		caCert, err := os.ReadFile(MutualTLSClientCaCertPath)
 		if err != nil {
-			log.Printf("[ERROR] : Logstash - Failed to load SSL CA certificate: %v\n", err)
+			err = fmt.Errorf("failed to load logstash SSL CA certificate: %w", err)
+			utils.Log(utils.ErrorLvl, "Logstash", err.Error())
+			return nil, err
 		}
 
 		// Configure TLS
@@ -98,9 +101,11 @@ func NewLogstashClient(config *types.Configuration, stats *types.Statistics, pro
 	lClient, err := stash.Connect(config.Logstash.Address, config.Logstash.Port, stash.SetTLSConfig(tlsCfg), stash.SetTLS(config.Logstash.TLS || config.Logstash.MutualTLS))
 
 	if err != nil {
-		log.Printf("[ERROR] : Logstash - Misconfiguration, cannot connect to the server: %v\n", err)
+		err = fmt.Errorf("misconfiguration, cannot connect to the logstash server: %w", err)
+		utils.Log(utils.ErrorLvl, "Logstash", err.Error())
+		return nil, err
 	}
-	log.Printf("[INFO] : Logstash - Connected to logstash server\n")
+	utils.Log(utils.InfoLvl, "Logstash", "connected to logstash server")
 
 	return &Client{
 		OutputType:      "Logstash",
@@ -115,23 +120,30 @@ func NewLogstashClient(config *types.Configuration, stats *types.Statistics, pro
 
 func (c *Client) LogstashPost(falcopayload types.FalcoPayload) {
 	status := OK
-	loglevel := "INFO"
+	loglevel := utils.InfoLvl
 	c.Stats.Logstash.Add(Total, 1)
 
 	falcopayload.OutputFields = replaceKeysWithIndexes(falcopayload.OutputFields)
 
 	falcopayload.Tags = append(falcopayload.Tags, c.Config.Logstash.Tags...)
-	logstashPayload, _ := json.Marshal(falcopayload)
+	logstashPayload, err := json.Marshal(falcopayload)
+	if err != nil {
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("failed to marshal falcopayload: %v", err))
+
+		c.Stats.Logstash.Add(Error, 1)
+		c.PromStats.Outputs.With(map[string]string{"destination": "logstash", "status": Error}).Inc()
+		return
+	}
 
 	n, err := c.LogstashClient.Write(logstashPayload)
 	if err != nil {
 		status = Error
-		loglevel = strings.ToUpper(status)
+		loglevel = utils.ErrorLvl
 	}
 
 	c.Stats.Logstash.Add(status, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "logstash", "status": status}).Inc()
 	go c.CountMetric(Outputs, 1, []string{"output:logstash", fmt.Sprintf("status:%v", status)})
 
-	log.Printf("[%v] : output.logstash status=%v (%v)\n", loglevel, status, n)
+	utils.Log(loglevel, c.OutputType, fmt.Sprintf("output.logstash status=%v (%v)", status, n))
 }
