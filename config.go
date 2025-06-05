@@ -417,7 +417,6 @@ var outputDefaults = map[string]map[string]any{
 	"Logstash": {
 		"Address":         "",
 		"Port":            5044,
-		"Password":        "",
 		"MinimumPriority": "",
 		"MutualTLS":       false,
 		"CheckCert":       false,
