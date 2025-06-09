@@ -18,12 +18,12 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.2
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.4
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.47.3
-	github.com/aws/aws-sdk-go-v2/service/kinesis v1.35.0
-	github.com/aws/aws-sdk-go-v2/service/lambda v1.71.2
+	github.com/aws/aws-sdk-go-v2/service/kinesis v1.35.1
+	github.com/aws/aws-sdk-go-v2/service/lambda v1.71.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.43.0
 	github.com/aws/aws-sdk-go-v2/service/sns v1.17.4
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.18.3
-	github.com/aws/aws-sdk-go-v2/service/sts v1.33.19
+	github.com/aws/aws-sdk-go-v2/service/sts v1.33.20
 	github.com/cloudevents/sdk-go/v2 v2.15.2
 	github.com/eclipse/paho.mqtt.golang v1.5.0
 	github.com/embano1/memlog v0.4.6
