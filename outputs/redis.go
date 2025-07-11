@@ -31,6 +31,7 @@ func NewRedisClient(config *types.Configuration, stats *types.Statistics, promSt
 
 	rClient := redis.NewClient(&redis.Options{
 		Addr:     config.Redis.Address,
+		Username: config.Redis.Username,
 		Password: config.Redis.Password,
 		DB:       config.Redis.Database,
 	})

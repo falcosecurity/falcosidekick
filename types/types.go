@@ -750,6 +750,7 @@ type TimescaleDBConfig struct {
 // RedisConfig represents config parameters for Redis
 type RedisConfig struct {
 	Address         string
+	Username        string
 	Password        string
 	Database        int
 	StorageType     string
