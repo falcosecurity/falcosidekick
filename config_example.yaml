@@ -491,6 +491,7 @@ timescaledb:
 
 redis:
   # address: "" # Redis address, if not empty, Redis output is enabled
+  # username: "" # Username to authenticate with Redis (default: "")
   # password: "" # Password to authenticate with Redis (default: "")
   # database: "" # Redis database number (default: 0)
   # storagetype: "" # Redis storage type: hashmap or list (default: "list")
@@ -581,7 +582,7 @@ talon:
 logstash:
   # address: "" # Logstash address, if not empty, Logstash output is enabled
   # port: 5044 # Logstash port number (default: 5044)
-  # tls: false # communicate over tls; requires Logstash version 8+ to work 
+  # tls: false # communicate over tls; requires Logstash version 8+ to work
   # mutualtls: false # or authenticate to the output with TLS; if true, checkcert flag will be ignored (server cert will always be checked) (default: false)
   # checkcert: true # Check if ssl certificate of the output is valid (default: true)
   # certfile: "" # Use this certificate file instead of the client certificate when using mutual TLS (default: "")

@@ -20,6 +20,7 @@
 | `redis.database`        | `REDIS_DATABASE`        | `0`              | Redis database number                                                                                                               |
 | `redis.storagetype`     | `REDIS_STORAGETYPE`     | `list`           | Redis storage type: `hashmap` or `list`                                                                                             |
 | `redis.key`             | `REDIS_KEY`             | `falco`          | Redis storage key name                                                                                                              |
+| `redis.username`        | N/A | | Redis user to authenticate with Redis. By default no username is set. [See ACLs for more information](https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/). |
 | `redis.password`        | `REDIS_PASSWORD`        |                  | Password to authenticate with Redis                                                                                                 |
 | `redis.minimumpriority` | `REDIS_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
@@ -34,6 +35,7 @@ redis:
   # database: "" # Redis database number (default: 0)
   # storagetype: "" # Redis storage type: hashmap or list (default: list)
   # key: "" # Redis storage key name (default: "falco")
+  # username: "" # Username to authenticate with Redis (default: "")
   # password: "" # Password to authenticate with Redis (default: "")
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
