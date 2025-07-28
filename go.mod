@@ -14,7 +14,6 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.39.0
 	github.com/aws/aws-sdk-go-v2/config v1.25.3
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.2
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.4
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.47.3
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.35.4
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.77.4
@@ -66,7 +65,10 @@ require (
 	sigs.k8s.io/wg-policy-prototypes v0.0.0-20240327135653-0fc2ddc5d3e3
 )
 
-require go.yaml.in/yaml/v2 v2.4.2 // indirect
+require (
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.4 // indirect
+	go.yaml.in/yaml/v2 v2.4.2 // indirect
+)
 
 require (
 	cel.dev/expr v0.24.0 // indirect

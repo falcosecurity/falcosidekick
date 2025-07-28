@@ -9,17 +9,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	cloudwatchlogstypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
@@ -42,72 +38,15 @@ import (
 // NewAWSClient returns a new output.Client for accessing the AWS API.
 func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
 	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
-	var region string
-	if config.AWS.Region != "" {
-		region = config.AWS.Region
-	} else if os.Getenv("AWS_REGION") != "" {
-		region = os.Getenv("AWS_REGION")
-	} else if os.Getenv("AWS_DEFAULT_REGION") != "" {
-		region = os.Getenv("AWS_DEFAULT_REGION")
-	} else {
-		var err error
-		cfg, err := awsconfig.LoadDefaultConfig(context.TODO())
-		if err != nil {
-			return nil, err
-		}
-		metaClient := imds.NewFromConfig(cfg)
 
-		getMetadataOutput, err := metaClient.GetMetadata(context.TODO(), &imds.GetMetadataInput{Path: "placement/region"})
-		if err != nil {
-			utils.Log(utils.ErrorLvl, "AWS", fmt.Sprintf("Error while calling from Metadata AWS: %v", err.Error()))
-			return nil, errors.New("error calling to get metadata")
-		}
-
-		defer getMetadataOutput.Content.Close()
-		regionBytes, err := io.ReadAll(getMetadataOutput.Content)
-		if err != nil {
-			utils.Log(utils.ErrorLvl, "AWS", fmt.Sprintf("Error while getting region from Metadata AWS Session: %v", err.Error()))
-			return nil, errors.New("error getting region from metadata")
-		}
-
-		region = string(regionBytes)
-		utils.Log(utils.InfoLvl, "AWS", fmt.Sprintf("region from metadata: %s", region))
-	}
-
-	if config.AWS.AccessKeyID != "" && config.AWS.SecretAccessKey != "" && region != "" {
-		err1 := os.Setenv("AWS_ACCESS_KEY_ID", config.AWS.AccessKeyID)
-		err2 := os.Setenv("AWS_SECRET_ACCESS_KEY", config.AWS.SecretAccessKey)
-		err3 := os.Setenv("AWS_DEFAULT_REGION", region)
-		if err1 != nil || err2 != nil || err3 != nil {
-			utils.Log(utils.ErrorLvl, "AWS", "Error setting AWS env vars")
-			return nil, errors.New("error setting AWS env vars")
-		}
-	}
-
-	awscfg := &aws.Config{Region: region}
-
-	if config.AWS.RoleARN != "" {
-		stsSvc := sts.NewFromConfig(*awscfg)
-		stsArIn := new(sts.AssumeRoleInput)
-		stsArIn.RoleArn = aws.String(config.AWS.RoleARN)
-		stsArIn.RoleSessionName = aws.String(fmt.Sprintf("session-%v", uuid.New().String()))
-		if config.AWS.ExternalID != "" {
-			stsArIn.ExternalId = aws.String(config.AWS.ExternalID)
-		}
-		assumedRole, err := stsSvc.AssumeRole(context.Background(), stsArIn)
-		if err != nil {
-			utils.Log(utils.ErrorLvl, "AWS", "Error while Assuming Role")
-			return nil, errors.New("error while assuming role")
-		}
-		awscfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider(
-			*assumedRole.Credentials.AccessKeyId,
-			*assumedRole.Credentials.SecretAccessKey,
-			*assumedRole.Credentials.SessionToken,
-		))
+	awscfg, err := awsconfig.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		utils.Log(utils.ErrorLvl, "AWS", fmt.Sprintf("Error loading AWS config: %v", err.Error()))
+		return nil, errors.New("error while loading AWS config")
 	}
 
 	if config.AWS.CheckIdentity {
-		_, err := sts.NewFromConfig(*awscfg).GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
+		_, err := sts.NewFromConfig(awscfg).GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
 		if err != nil {
 			utils.Log(utils.ErrorLvl, "AWS", fmt.Sprintf("Error while getting AWS Token: %v", err.Error()))
 			return nil, errors.New("error while getting AWS Token")
@@ -115,7 +54,7 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 	}
 
 	var endpointURL *url.URL
-	endpointURL, err := url.Parse(config.AWS.SQS.URL)
+	endpointURL, err = url.Parse(config.AWS.SQS.URL)
 	if err != nil {
 		utils.Log(utils.ErrorLvl, "AWS SQS", err.Error())
 		return nil, ErrClientCreation
@@ -125,7 +64,7 @@ func NewAWSClient(config *types.Configuration, stats *types.Statistics, promStat
 		OutputType:      "AWS",
 		EndpointURL:     endpointURL,
 		Config:          config,
-		AWSConfig:       awscfg,
+		AWSConfig:       &awscfg,
 		Stats:           stats,
 		PromStats:       promStats,
 		OTLPMetrics:     otlpMetrics,

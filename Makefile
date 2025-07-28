@@ -24,10 +24,10 @@ ifdef SOURCE_DATE_EPOCH
 else
     BUILD_DATE ?= $(shell date "$(DATE_FMT)")
 endif
-GIT_TREESTATE = "clean"
+GIT_TREESTATE = clean
 DIFF = $(shell git diff --quiet >/dev/null 2>&1; if [ $$? -eq 1 ]; then echo "1"; fi)
 ifeq ($(DIFF), 1)
-    GIT_TREESTATE = "dirty"
+    GIT_TREESTATE = dirty
 endif
 
 PKG=main
