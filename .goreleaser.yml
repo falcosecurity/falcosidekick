@@ -10,10 +10,10 @@ env:
   - COSIGN_YES=true
 
 snapshot:
-  version_template: 'latest'
+  version_template: "latest"
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 
 # Prevents parallel builds from stepping on each others toes downloading modules
 before:
@@ -36,11 +36,7 @@ builds:
       - arm64
       - arm
     goarm:
-      - '7'
-    asmflags:
-      - all=-trimpath={{.Env.GOPATH}}
-    gcflags:
-      - all=-trimpath={{.Env.GOPATH}}
+      - "7"
     env:
       - CGO_ENABLED=0
     flags:
@@ -51,6 +47,11 @@ builds:
 
 dockers_v2:
   - dockerfile: Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+      - linux/arm/v7
+
     images:
       - "falcosecurity/falcosidekick"
       - "public.ecr.aws/falcosecurity/falcosidekick"
