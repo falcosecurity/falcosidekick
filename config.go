@@ -262,6 +262,11 @@ var httpOutputDefaults = map[string]map[string]any{
 		"Username":         "",
 		"Password":         "",
 	},
+	"Splunk": {
+		"Host":            "",
+		"MinimumPriority": "",
+		"Token":           "",
+	},
 }
 
 // Other output defaults that do not need commonHttpOutputDefaults
@@ -461,6 +466,7 @@ func getConfig() *types.Configuration {
 			Logs:    types.OTLPLogs{ExtraEnvVars: make(map[string]string)},
 			Metrics: otlpmetrics.Config{ExtraEnvVars: make(map[string]string)},
 		},
+		Splunk: types.SplunkOutputConfig{CustomHeaders: make(map[string]string)},
 	}
 
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
@@ -641,6 +647,7 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("GCP.PubSub.CustomAttributes")
 	v.GetStringMapString("OTLP.Traces.ExtraEnvVars")
 	v.GetStringMapString("OTLP.Metrics.ExtraEnvVars")
+	v.GetStringMapString("Splunk.CustomHeaders")
 
 	c.Elasticsearch.CustomHeaders = v.GetStringMapString("Elasticsearch.CustomHeaders")
 
@@ -704,6 +711,16 @@ func getConfig() *types.Configuration {
 			tagkeys := strings.Split(label, ":")
 			if len(tagkeys) == 2 {
 				c.Webhook.CustomHeaders[tagkeys[0]] = tagkeys[1]
+			}
+		}
+	}
+
+	if value, present := os.LookupEnv("SPLUNK_CUSTOMHEADERS"); present {
+		customheaders := strings.Split(value, ",")
+		for _, label := range customheaders {
+			tagkeys := strings.Split(label, ":")
+			if len(tagkeys) == 2 {
+				c.Splunk.CustomHeaders[tagkeys[0]] = tagkeys[1]
 			}
 		}
 	}
@@ -959,6 +976,7 @@ func getConfig() *types.Configuration {
 	c.OTLP.Metrics.MinimumPriority = checkPriority(c.OTLP.Metrics.MinimumPriority)
 	c.Talon.MinimumPriority = checkPriority(c.Talon.MinimumPriority)
 	c.Logstash.MinimumPriority = checkPriority(c.Logstash.MinimumPriority)
+	c.Splunk.MinimumPriority = checkPriority(c.Splunk.MinimumPriority)
 
 	c.Slack.MessageFormatTemplate = getMessageFormatTemplate("Slack", c.Slack.MessageFormat)
 	c.Rocketchat.MessageFormatTemplate = getMessageFormatTemplate("Rocketchat", c.Rocketchat.MessageFormat)

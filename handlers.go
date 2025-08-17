@@ -404,6 +404,10 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go webhookClient.WebhookPost(falcopayload)
 	}
 
+	if config.Splunk.Host != "" && (falcopayload.Priority >= types.Priority(config.Splunk.MinimumPriority) || falcopayload.Rule == testRule) {
+		go splunkClient.Send(falcopayload)
+	}
+
 	if config.NodeRed.Address != "" && (falcopayload.Priority >= types.Priority(config.NodeRed.MinimumPriority) || falcopayload.Rule == testRule) {
 		go noderedClient.NodeRedPost(falcopayload)
 	}
