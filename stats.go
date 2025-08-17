@@ -92,6 +92,7 @@ func getInitStats() *types.Statistics {
 		OTLPLogs:          getOutputNewMap("otlplogs"),
 		Talon:             getOutputNewMap("talon"),
 		Logstash:          getOutputNewMap("logstash"),
+		Splunk:            getOutputNewMap("splunk"),
 	}
 	stats.Falco.Add(outputs.Emergency, 0)
 	stats.Falco.Add(outputs.Alert, 0)

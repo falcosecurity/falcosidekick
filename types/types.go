@@ -121,6 +121,7 @@ type Configuration struct {
 	OTLP               OTLPOutputConfig
 	Talon              TalonOutputConfig
 	Logstash           LogstashConfig
+	Splunk             SplunkOutputConfig
 }
 
 // InitClientArgs represent a client parameters for initialization
@@ -476,6 +477,15 @@ type WebhookOutputConfig struct {
 	Address         string
 	Method          string
 	CustomHeaders   map[string]string
+	MinimumPriority string
+}
+
+// SplunkOutputConfig represents parameters for Splunk
+type SplunkOutputConfig struct {
+	CommonConfig    `mapstructure:",squash"`
+	Host            string
+	CustomHeaders   map[string]string
+	Token           string
 	MinimumPriority string
 }
 
@@ -927,6 +937,7 @@ type Statistics struct {
 	OTLPLogs          *expvar.Map
 	Talon             *expvar.Map
 	Logstash          *expvar.Map
+	Splunk            *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics

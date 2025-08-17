@@ -21,3 +21,6 @@ falcosidekick
 
 tmp/
 dist/
+
+.DS_Store
+
