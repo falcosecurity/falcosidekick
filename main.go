@@ -83,6 +83,7 @@ var (
 	otlpLogsClient      *outputs.Client
 	talonClient         *outputs.Client
 	logstashClient      *outputs.Client
+	splunkClient        *outputs.Client
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
@@ -876,6 +877,16 @@ func init() {
 			config.Talon.Address = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Talon")
+		}
+	}
+
+	if config.Splunk.Host != "" {
+		var err error
+		splunkClient, err = outputs.NewClient("Splunk", config.Splunk.Host, types.CommonConfig{CheckCert: config.Splunk.CheckCert}, *initClientArgs)
+		if err != nil {
+			config.Splunk.Host = ""
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Splunk")
 		}
 	}
 
