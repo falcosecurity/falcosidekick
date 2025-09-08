@@ -1,13 +1,8 @@
-run:
-  timeout: 5m
-issues:
-  exclude-files:
-    - "zz_generated.*\\.go$"
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - goconst
-    - gofmt
     - gosec
     - govet
     - ineffassign
@@ -16,5 +11,25 @@ linters:
     - prealloc
     - unconvert
     - unused
-  # Run with --fast=false for more extensive checks
-  fast: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - zz_generated.*\.go$
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - zz_generated.*\.go$
+      - third_party$
+      - builtin$
+      - examples$
