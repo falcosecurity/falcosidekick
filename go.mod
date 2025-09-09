@@ -42,7 +42,7 @@ require (
 	github.com/wavefronthq/wavefront-sdk-go v0.15.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20241021075129-b732d2ac9c9b
-	go.opentelemetry.io/contrib/bridges/otelslog v0.10.0
+	go.opentelemetry.io/contrib/bridges/otelslog v0.13.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.13.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.10.0
@@ -179,7 +179,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.34.0 // indirect
-	go.opentelemetry.io/otel/log v0.13.0 // indirect
+	go.opentelemetry.io/otel/log v0.14.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.7.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
