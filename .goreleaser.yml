@@ -49,86 +49,21 @@ builds:
       - "{{ .Env.LDFLAGS }}"
     binary: falcosidekick
 
-dockers:
-  - goos: linux
-    goarch: amd64
-    dockerfile: Dockerfile
-    use: buildx
-    image_templates:
-      - "falcosecurity/falcosidekick:stable-amd64"
-      - "falcosecurity/falcosidekick:{{ .Version }}-amd64"
-      - "public.ecr.aws/falcosecurity/falcosidekick:stable-amd64"
-      - "public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-amd64"
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--platform=linux/amd64"
+dockers_v2:
+  - dockerfile: Dockerfile
+    images:
+      - "falcosecurity/falcosidekick"
+      - "public.ecr.aws/falcosecurity/falcosidekick"
+    tags:
+      - stable
+      - "{{ .Version }}"
+    labels:
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
     extra_files:
       - LICENSE
-
-  - goos: linux
-    goarch: arm64
-    dockerfile: Dockerfile
-    use: buildx
-    image_templates:
-      - "falcosecurity/falcosidekick:stable-arm64"
-      - "falcosecurity/falcosidekick:{{ .Version }}-arm64"
-      - "public.ecr.aws/falcosecurity/falcosidekick:stable-arm64"
-      - "public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-arm64"
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--platform=linux/arm64"
-    extra_files:
-      - LICENSE
-
-  - goos: linux
-    goarch: arm
-    goarm: '7'
-    dockerfile: Dockerfile
-    use: buildx
-    image_templates:
-      - "falcosecurity/falcosidekick:stable-armv7"
-      - "falcosecurity/falcosidekick:{{ .Version }}-armv7"
-      - "public.ecr.aws/falcosecurity/falcosidekick:stable-armv7"
-      - "public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-armv7"
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.name={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--platform=linux/arm/v7"
-    extra_files:
-      - LICENSE
-
-docker_manifests:
-  - name_template: 'falcosecurity/falcosidekick:stable'
-    image_templates:
-      - 'falcosecurity/falcosidekick:stable-amd64'
-      - 'falcosecurity/falcosidekick:stable-arm64'
-      - 'falcosecurity/falcosidekick:stable-armv7'
-  - name_template: 'falcosecurity/falcosidekick:{{ .Version }}'
-    image_templates:
-      - 'falcosecurity/falcosidekick:{{ .Version }}-amd64'
-      - 'falcosecurity/falcosidekick:{{ .Version }}-arm64'
-      - 'falcosecurity/falcosidekick:{{ .Version }}-armv7'
-  - name_template: 'public.ecr.aws/falcosecurity/falcosidekick:stable'
-    image_templates:
-      - 'public.ecr.aws/falcosecurity/falcosidekick:stable-amd64'
-      - 'public.ecr.aws/falcosecurity/falcosidekick:stable-arm64'
-      - 'public.ecr.aws/falcosecurity/falcosidekick:stable-armv7'
-  - name_template: 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}'
-    image_templates:
-      - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-amd64'
-      - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-arm64'
-      - 'public.ecr.aws/falcosecurity/falcosidekick:{{ .Version }}-armv7'
 
 signs:
   - id: falcosidekick

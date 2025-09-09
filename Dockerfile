@@ -2,6 +2,7 @@ ARG BASE_IMAGE=alpine:3.22
 # Final Docker image
 FROM ${BASE_IMAGE} AS final-stage
 LABEL MAINTAINER="Falco Maintainers"
+ARG TARGETPLATFORM
 
 RUN apk add --update --no-cache ca-certificates gcompat
 
@@ -13,7 +14,7 @@ USER 1234
 
 WORKDIR ${HOME}/app
 COPY LICENSE .
-COPY falcosidekick .
+COPY $TARGETPLATFORM/falcosidekick .
 
 EXPOSE 2801
 
