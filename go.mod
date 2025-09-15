@@ -19,7 +19,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.35.4
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.77.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.0
-	github.com/aws/aws-sdk-go-v2/service/sns v1.37.2
+	github.com/aws/aws-sdk-go-v2/service/sns v1.38.3
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.18.3
 	github.com/aws/aws-sdk-go-v2/service/sts v1.36.0
 	github.com/cloudevents/sdk-go/v2 v2.16.1
