@@ -17,8 +17,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.4
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.47.3
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.35.4
-	github.com/aws/aws-sdk-go-v2/service/lambda v1.77.3
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.0
+	github.com/aws/aws-sdk-go-v2/service/lambda v1.77.4
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1
 	github.com/aws/aws-sdk-go-v2/service/sns v1.37.2
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.18.3
 	github.com/aws/aws-sdk-go-v2/service/sts v1.36.0
