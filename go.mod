@@ -22,7 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.37.2
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.18.3
 	github.com/aws/aws-sdk-go-v2/service/sts v1.36.0
-	github.com/cloudevents/sdk-go/v2 v2.15.2
+	github.com/cloudevents/sdk-go/v2 v2.16.1
 	github.com/eclipse/paho.mqtt.golang v1.5.0
 	github.com/embano1/memlog v0.4.6
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
