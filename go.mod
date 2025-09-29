@@ -25,7 +25,7 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/embano1/memlog v0.4.6
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
-	github.com/emersion/go-smtp v0.22.0
+	github.com/emersion/go-smtp v0.24.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.15.0
