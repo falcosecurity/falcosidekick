@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        required: true
+        type: string
+        default: snapshot
+        description: |
+          the mode to use. either `snapshot` or `release`. Will affect effective version, as well
+          as target-oci-registry.
+
+jobs:
+  prepare:
+    uses: gardener/cc-utils/.github/workflows/prepare.yaml@master
+    with:
+      mode: ${{ inputs.mode }}
+      version-commit-callback-action-path:
+    permissions:
+      contents: read
+
+  oci-images:
+    name: Build OCI-Images
+    needs:
+      - prepare
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    secrets: inherit
+    uses: gardener/cc-utils/.github/workflows/oci-ocm.yaml@master
+    strategy:
+      matrix:
+        args:
+          - name: falcosidekick-fork
+            target:
+            oci-repository: gardener/falcosidekick-fork
+            dockerfile: Dockerfile-fork
+    with:
+      name: ${{ matrix.args.name }}
+      version: ${{ needs.prepare.outputs.version }}
+      target: ${{ matrix.args.target }}
+      dockerfile: ${{ matrix.args.dockerfile }}
+      oci-registry: ${{ needs.prepare.outputs.oci-registry }}
+      oci-repository: ${{ matrix.args.oci-repository }}
+      oci-platforms: linux/amd64,linux/arm64
+      extra-tags: latest
