@@ -34,7 +34,7 @@ require (
 	github.com/nats-io/stan.go v0.10.4
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/redis/go-redis/v9 v9.8.0
+	github.com/redis/go-redis/v9 v9.14.1
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.11.1
