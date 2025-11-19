@@ -96,7 +96,7 @@ var httpOutputDefaults = map[string]map[string]any{
 	"Alertmanager": {
 		"HostPort":                 []string{},
 		"MinimumPriority":          "",
-		"Endpoint":                 "/api/v1/alerts",
+		"Endpoint":                 "/api/v2/alerts",
 		"ExpiresAfter":             0,
 		"DropEventDefaultPriority": "critical",
 		"DropEventThresholds":      "10000:critical: 1000:critical: 100:critical: 10:warning: 1:warning",
