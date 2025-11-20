@@ -3,13 +3,17 @@
 package outputs
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	azeventhubs "github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azdatalake/file"
 	"github.com/DataDog/datadog-go/statsd"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -99,5 +103,133 @@ func (c *Client) setEventHubErrorMetrics() {
 	c.Stats.AzureEventHub.Add(Error, 1)
 	c.PromStats.Outputs.With(map[string]string{"destination": "azureeventhub", "status": Error}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "azureeventhub"),
+		attribute.String("status", Error)).Inc()
+}
+
+func (c *Client) UploadBlob(falcopayload types.FalcoPayload) {
+	f, _ := json.Marshal(falcopayload)
+
+	prefix := ""
+	t := time.Now()
+	if c.Config.Azure.Blob.Prefix != "" {
+		prefix = c.Config.Azure.Blob.Prefix
+	}
+
+	serviceURL := fmt.Sprintf("https://%s.dfs.core.windows.net/", c.Config.Azure.Blob.Account)
+	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format(time.RFC3339Nano))
+
+	utils.Log(utils.InfoLvl, c.OutputType+" Blob", "Try writing blob")
+	defaultAzureCred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		c.setBlobErrorMetrics()
+		utils.Log(utils.ErrorLvl, c.OutputType+" Blob", err.Error())
+		return
+	}
+
+	// create a client for the specified storage account
+	client, err := azblob.NewClient(serviceURL, defaultAzureCred, nil)
+	if err != nil {
+		c.setBlobErrorMetrics()
+		utils.Log(utils.ErrorLvl, c.OutputType+" Blob",
+			fmt.Sprintf("Error with acccount %s: %v", serviceURL, err))
+		return
+	}
+
+	// upload the file to the specified container with the specified blob name
+	// TODO: should any part of the response be validated here? aws s3 client performs a few checks
+	_, err = client.UploadStream(context.TODO(), c.Config.Azure.Blob.Container, key, bytes.NewReader(f), nil)
+	if err != nil {
+		c.setBlobErrorMetrics()
+		utils.Log(utils.ErrorLvl, c.OutputType+" Blob",
+			fmt.Sprintf("Cannot upload file %s to %s: %v", key, serviceURL, err))
+
+		go c.CountMetric("outputs", 1, []string{"output:azblob", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "azblob", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "azblob"),
+			attribute.String("status", Error)).Inc()
+		utils.Log(utils.ErrorLvl, c.OutputType+" S3", err.Error())
+
+		return
+	}
+
+	go c.CountMetric("outputs", 1, []string{"output:azblob", "status:ok"})
+	c.PromStats.Outputs.With(map[string]string{"destination": "azblob", "status": "ok"}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "azblob"),
+		attribute.String("status", OK)).Inc()
+}
+
+// setBlobErrorMetrics set the error stats
+func (c *Client) setBlobErrorMetrics() {
+	go c.CountMetric(Outputs, 1, []string{"output:azblob", "status:error"})
+	c.Stats.AzureBlob.Add(Error, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "azblob", "status": Error}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "azblob"),
+		attribute.String("status", Error)).Inc()
+}
+
+func (c *Client) UploadADLS(falcopayload types.FalcoPayload) {
+	f, _ := json.Marshal(falcopayload)
+
+	prefix := ""
+	t := time.Now()
+	if c.Config.Azure.ADLS.Prefix != "" {
+		prefix = c.Config.Azure.ADLS.Prefix
+	}
+
+	serviceURL := fmt.Sprintf("https://%s.dfs.core.windows.net/", c.Config.Azure.ADLS.Account)
+	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format(time.RFC3339Nano))
+
+	utils.Log(utils.InfoLvl, c.OutputType+" ADLS Gen2 Blob", "Try writing ADLS blob")
+	defaultAzureCred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		c.setADLSErrorMetrics()
+		utils.Log(utils.ErrorLvl, c.OutputType+" ADLS Gen2 Blob", err.Error())
+		return
+	}
+
+	// create a client for the specified storage account
+	path, err := url.JoinPath(serviceURL, c.Config.Azure.ADLS.Container, key)
+	if err != nil {
+		c.setADLSErrorMetrics()
+		utils.Log(utils.ErrorLvl, c.OutputType+" ADLS Gen2 Blob", err.Error())
+		return
+	}
+
+	client, err := file.NewClient(path, defaultAzureCred, nil)
+	if err != nil {
+		c.setADLSErrorMetrics()
+		utils.Log(utils.ErrorLvl, c.OutputType+" ADLS Gen2 Blob",
+			fmt.Sprintf("Error with acccount %s: %v", serviceURL, err))
+		return
+	}
+
+	// upload the file to the specified container with the specified blob name
+	err = client.UploadStream(context.TODO(), bytes.NewReader(f), nil)
+	if err != nil {
+		c.setADLSErrorMetrics()
+		utils.Log(utils.ErrorLvl, c.OutputType+" ADLS Gen2 Blob",
+			fmt.Sprintf("Cannot upload file %s to %s: %v", key, serviceURL, err))
+
+		go c.CountMetric("outputs", 1, []string{"output:azdatalake", "status:error"})
+		c.PromStats.Outputs.With(map[string]string{"destination": "azdatalake", "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "azdatalake"),
+			attribute.String("status", Error)).Inc()
+		utils.Log(utils.ErrorLvl, c.OutputType+" S3", err.Error())
+
+		return
+	}
+
+	go c.CountMetric("outputs", 1, []string{"output:azdatalake", "status:ok"})
+	c.PromStats.Outputs.With(map[string]string{"destination": "azdatalake", "status": "ok"}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "azdatalake"),
+		attribute.String("status", OK)).Inc()
+}
+
+// setADLSErrorMetrics set the error stats
+func (c *Client) setADLSErrorMetrics() {
+	go c.CountMetric(Outputs, 1, []string{"output:azdatalake", "status:error"})
+	c.Stats.AzureADLS.Add(Error, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "azdatalake", "status": Error}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "azdatalake"),
 		attribute.String("status", Error)).Inc()
 }
