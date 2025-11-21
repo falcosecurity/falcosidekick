@@ -305,6 +305,12 @@ gcp:
     endpoint: "" # The URL of the Cloud Function
     jwt: "" # Appropriate JWT to invoke the Cloud Function
     # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
+  chronicle:
+    # projectid: "" # The GCP Project ID containing the Chronicle instance
+    # instanceid: "" # The Chronicle instance ID
+    # region: "" # The Chronicle region (e.g., "us", "europe-west12")
+    # logtype: "FALCO_IDS" # The log type identifier (default: "FALCO_IDS")
+    # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 googlechat:
   webhookurl: "" # Google Chat WebhookURL (ex: https://chat.googleapis.com/v1/spaces/XXXXXX/YYYYYY), if not empty, Google Chat output is enabled
