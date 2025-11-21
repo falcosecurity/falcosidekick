@@ -115,7 +115,7 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 		}
 	}
 	amPayload.Labels["source"] = "falco"
-	amPayload.Labels["rule"] = falcopayload.Rule
+	amPayload.Labels["alertname"] = falcopayload.Rule
 	amPayload.Labels["eventsource"] = falcopayload.Source
 	if falcopayload.Hostname != "" {
 		amPayload.Labels[Hostname] = falcopayload.Hostname
