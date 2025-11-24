@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -129,18 +128,6 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	falcopayload.UUID = uuid.New().String()
 
-	var kn, kp string
-	for i, j := range falcopayload.OutputFields {
-		if j != nil {
-			if i == "k8s.ns.name" {
-				kn = j.(string)
-			}
-			if i == "k8s.pod.name" {
-				kp = j.(string)
-			}
-		}
-	}
-
 	var templatedFields string
 	if len(config.Templatedfields) > 0 {
 		if falcopayload.OutputFields == nil {
@@ -167,44 +154,6 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	nullClient.CountMetric("falco.accepted", 1, []string{"priority:" + falcopayload.Priority.String()})
 	stats.Falco.Add(strings.ToLower(falcopayload.Priority.String()), 1)
-	promLabels := map[string]string{
-		"rule":         falcopayload.Rule,
-		"priority_raw": strings.ToLower(falcopayload.Priority.String()),
-		"priority":     strconv.Itoa(int(falcopayload.Priority)),
-		"source":       falcopayload.Source,
-		"k8s_ns_name":  kn,
-		"k8s_pod_name": kp,
-	}
-	if falcopayload.Hostname != "" {
-		promLabels["hostname"] = falcopayload.Hostname
-	} else {
-		promLabels["hostname"] = "unknown"
-	}
-
-	for key, value := range config.Customfields {
-		if regPromLabels.MatchString(key) {
-			promLabels[key] = value
-		}
-	}
-	for key := range config.Templatedfields {
-		if regPromLabels.MatchString(strings.ReplaceAll(key, ".", "_")) {
-			promLabels[key] = fmt.Sprintf("%v", falcopayload.OutputFields[key])
-		}
-	}
-	for _, i := range config.Prometheus.ExtraLabelsList {
-		promLabels[strings.ReplaceAll(i, ".", "_")] = ""
-		for key, value := range falcopayload.OutputFields {
-			if key == i && regPromLabels.MatchString(strings.ReplaceAll(key, ".", "_")) {
-				switch value.(type) {
-				case string:
-					promLabels[strings.ReplaceAll(key, ".", "_")] = fmt.Sprintf("%v", value)
-				default:
-					continue
-				}
-			}
-		}
-	}
-	promStats.Falco.With(promLabels).Inc()
 
 	// Falco OTLP metric
 	hostname := falcopayload.Hostname
