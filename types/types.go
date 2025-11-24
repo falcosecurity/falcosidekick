@@ -942,7 +942,6 @@ type Statistics struct {
 
 // PromStatistics is a struct to store prometheus metrics
 type PromStatistics struct {
-	Falco   *prometheus.CounterVec
 	Inputs  *prometheus.CounterVec
 	Outputs *prometheus.CounterVec
 }
