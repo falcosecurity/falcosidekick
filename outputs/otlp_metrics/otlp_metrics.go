@@ -2,6 +2,7 @@ package otlp_metrics
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"os"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 )
@@ -148,13 +150,20 @@ func initMeterProvider(ctx context.Context, config *Config) (func(context.Contex
 	case "grpc":
 		opts := []otlpmetricgrpc.Option{}
 		if !config.CheckCert {
-			opts = append(opts, otlpmetricgrpc.WithInsecure())
+			tlsConfig := &tls.Config{
+				InsecureSkipVerify: true,
+			}
+			creds := credentials.NewTLS(tlsConfig)
+			opts = append(opts, otlpmetricgrpc.WithTLSCredentials(creds))
 		}
 		exporter, err = otlpmetricgrpc.New(ctx, opts...)
 	default:
 		opts := []otlpmetrichttp.Option{}
 		if !config.CheckCert {
-			opts = append(opts, otlpmetrichttp.WithInsecure())
+			tlsCfg := &tls.Config{
+				InsecureSkipVerify: true,
+			}
+			opts = append(opts, otlpmetrichttp.WithTLSClientConfig(tlsCfg))
 		}
 		exporter, err = otlpmetrichttp.New(ctx, opts...)
 	}
