@@ -570,6 +570,12 @@ func getConfig() *types.Configuration {
 	v.SetDefault("GCP.CloudRun.JWT", "")
 	v.SetDefault("GCP.CloudRun.MinimumPriority", "")
 
+	v.SetDefault("GCP.Chronicle.MinimumPriority", "")
+	v.SetDefault("GCP.Chronicle.Region", "")
+	v.SetDefault("GCP.Chronicle.ProjectID", "")
+	v.SetDefault("GCP.Chronicle.InstanceID", "")
+	v.SetDefault("GCP.Chronicle.LogType", "FALCO_IDS")
+
 	v.SetDefault("Yandex.AccessKeyID", "")
 	v.SetDefault("Yandex.SecretAccessKey", "")
 	v.SetDefault("Yandex.Region", "ru-central1")
@@ -946,6 +952,7 @@ func getConfig() *types.Configuration {
 	c.GCP.Storage.MinimumPriority = checkPriority(c.GCP.Storage.MinimumPriority)
 	c.GCP.CloudFunctions.MinimumPriority = checkPriority(c.GCP.CloudFunctions.MinimumPriority)
 	c.GCP.CloudRun.MinimumPriority = checkPriority(c.GCP.CloudRun.MinimumPriority)
+	c.GCP.Chronicle.MinimumPriority = checkPriority(c.GCP.Chronicle.MinimumPriority)
 	c.Googlechat.MinimumPriority = checkPriority(c.Googlechat.MinimumPriority)
 	c.Cliq.MinimumPriority = checkPriority(c.Cliq.MinimumPriority)
 	c.Kafka.MinimumPriority = checkPriority(c.Kafka.MinimumPriority)
