@@ -108,14 +108,15 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	var customFields string
 	if len(config.Customfields) > 0 {
-		if falcopayload.OutputFields == nil {
-			falcopayload.OutputFields = make(map[string]interface{})
-		}
-		for key, value := range config.Customfields {
-			customFields += key + "=" + value + " "
-			falcopayload.OutputFields[key] = value
-		}
-	}
+    if falcopayload.OutputFields == nil {
+        falcopayload.OutputFields = make(map[string]interface{})
+    }
+    for key, value := range config.Customfields {
+        sanitizedKey := strings.ReplaceAll(key, ".", "_")
+        customFields += sanitizedKey + "=" + value + " "
+        falcopayload.OutputFields[sanitizedKey] = value
+    }
+}
 
 	falcopayload.Tags = append(falcopayload.Tags, config.Customtags...)
 
@@ -182,8 +183,9 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 
 	for key, value := range config.Customfields {
-		if regPromLabels.MatchString(key) {
-			promLabels[key] = value
+		sanitizedKey := strings.ReplaceAll(key, ".", "_")
+		if regPromLabels.MatchString(sanitizedKey) {
+			promLabels[sanitizedKey] = value
 		}
 	}
 	for key := range config.Templatedfields {
@@ -220,10 +222,11 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 
 	for key, value := range config.Customfields {
-		if regOTLPMetricsAttributes.MatchString(key) {
-			attrs = append(attrs, attribute.String(key, value))
-		}
-	}
+     sanitizedKey := strings.ReplaceAll(key, ".", "_")
+    if regOTLPMetricsAttributes.MatchString(sanitizedKey) {
+        attrs = append(attrs, attribute.String(sanitizedKey, value))
+    }
+}
 	for _, attr := range config.OTLP.Metrics.ExtraAttributesList {
 		attrName := strings.ReplaceAll(attr, ".", "_")
 		attrValue := ""
