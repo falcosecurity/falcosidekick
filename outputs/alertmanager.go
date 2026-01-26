@@ -116,6 +116,11 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 	}
 	amPayload.Labels["source"] = "falco"
 	amPayload.Labels["rule"] = falcopayload.Rule
+
+	// All alerts originating from Prometheus contain the "alertname" label so we follow that standard here since it's
+	// often expected downstream for grouping/routing/templating. Duplicates "rule" label above which was left intact for backwards compatibility.
+	amPayload.Labels["alertname"] = falcopayload.Rule
+
 	amPayload.Labels["eventsource"] = falcopayload.Source
 	if falcopayload.Hostname != "" {
 		amPayload.Labels[Hostname] = falcopayload.Hostname
