@@ -420,6 +420,14 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go azureClient.EventHubPost(falcopayload)
 	}
 
+	if config.Azure.Blob.Container != "" && (falcopayload.Priority >= types.Priority(config.Azure.Blob.MinimumPriority) || falcopayload.Rule == testRule) {
+		go azureClient.UploadBlob(falcopayload)
+	}
+
+	if config.Azure.ADLS.Container != "" && (falcopayload.Priority >= types.Priority(config.Azure.ADLS.MinimumPriority) || falcopayload.Rule == testRule) {
+		go azureClient.UploadADLS(falcopayload)
+	}
+
 	if config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "" && (falcopayload.Priority >= types.Priority(config.GCP.PubSub.MinimumPriority) || falcopayload.Rule == testRule) {
 		go gcpClient.GCPPublishTopic(falcopayload)
 	}
