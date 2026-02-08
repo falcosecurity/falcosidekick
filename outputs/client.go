@@ -34,6 +34,7 @@ import (
 	"github.com/segmentio/kafka-go"
 	logstash "github.com/telkomdev/go-stash"
 	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
+	"golang.org/x/oauth2"
 	"golang.org/x/sync/semaphore"
 	"k8s.io/client-go/kubernetes"
 	crdClient "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/generated/v1alpha2/clientset/versioned"
@@ -116,6 +117,8 @@ type Client struct {
 	DogstatsdClient         *statsd.Client
 	GCPTopicClient          *pubsub.Topic
 	GCPCloudFunctionsClient *gcpfunctions.CloudFunctionsClient
+	GCPChronicleClient      *http.Client
+	GCPTokenSource          oauth2.TokenSource
 
 	GCSStorageClient  *storage.Client
 	KafkaProducer     *kafka.Writer

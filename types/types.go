@@ -536,6 +536,7 @@ type GcpOutputConfig struct {
 	Storage          gcpStorage
 	CloudFunctions   gcpCloudFunctions
 	CloudRun         gcpCloudRun
+	Chronicle        gcpChronicle
 }
 
 type gcpCloudFunctions struct {
@@ -554,6 +555,14 @@ type gcpStorage struct {
 	Bucket          string
 	Prefix          string
 	MinimumPriority string
+}
+
+type gcpChronicle struct {
+	MinimumPriority string
+	Region          string
+	ProjectID       string
+	InstanceID      string
+	LogType         string
 }
 
 // GooglechatConfig represents parameters for Google chat
@@ -938,6 +947,7 @@ type Statistics struct {
 	Talon             *expvar.Map
 	Logstash          *expvar.Map
 	Splunk            *expvar.Map
+	GCPChronicle      *expvar.Map
 }
 
 // PromStatistics is a struct to store prometheus metrics
