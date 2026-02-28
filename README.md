@@ -338,7 +338,7 @@ customtags: # custom tags are added to the falco events, if the value starts wit
 # bracketreplacer: "_" # if not empty, replace the brackets in keys of Output Fields
 outputFieldFormat: "<timestamp>: <priority> <output> <custom_fields> <templated_fields>" # if not empty, allow to change the format of the output field. (default: "<timestamp>: <priority> <output>")
 mutualtlsfilespath: "/etc/certs" # folder which will used to store client.crt, client.key and ca.crt files for mutual tls for outputs, will be deprecated in the future (default: "/etc/certs")
-mutualtlsclient: # takes priority over mutualtlsfilespath if not emtpy
+mutualtlsclient: # takes priority over mutualtlsfilespath if not empty
   certfile: "/etc/certs/client/client.crt" # client certification file
   keyfile: "/etc/certs/client/client.key" # client key
   cacertfile: "/etc/certs/client/ca.crt" # for server certification
