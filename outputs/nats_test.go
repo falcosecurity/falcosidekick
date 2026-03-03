@@ -232,6 +232,52 @@ func TestNatsConnectOptions(t *testing.T) {
 	}
 }
 
+func TestNatsTLSConnectOptions(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+
+	t.Run("no tls options requested", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &types.Configuration{}
+		cfg.Nats.HostPort = "nats://example:4222"
+		options, err := natsTLSConnectOptions(cfg, types.CommonConfig{CheckCert: true})
+		require.NoError(t, err)
+		require.Nil(t, options)
+	})
+
+	t.Run("checkcert false enables tls option", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &types.Configuration{}
+		cfg.Nats.HostPort = "nats://example:4222"
+		options, err := natsTLSConnectOptions(cfg, types.CommonConfig{CheckCert: false})
+		require.NoError(t, err)
+		require.Len(t, options, 1)
+	})
+
+	t.Run("missing tls ca file returns error", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &types.Configuration{}
+		cfg.Nats.HostPort = "nats://example:4222"
+		cfg.TLSClient.CaCertFile = filepath.Join(tempDir, "missing-root.pem")
+		_, err := natsTLSConnectOptions(cfg, types.CommonConfig{CheckCert: true})
+		require.Error(t, err)
+	})
+
+	t.Run("missing mutual tls files returns error", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &types.Configuration{}
+		cfg.Nats.HostPort = "nats://example:4222"
+		cfg.MutualTLSFilesPath = tempDir
+		_, err := natsTLSConnectOptions(cfg, types.CommonConfig{MutualTLS: true, CheckCert: true})
+		require.Error(t, err)
+	})
+}
+
 func natsConfig(credsFile, nkeySeedFile, jwtFile string) *types.Configuration {
 	cfg := &types.Configuration{}
 	cfg.Nats.CredsFile = credsFile
