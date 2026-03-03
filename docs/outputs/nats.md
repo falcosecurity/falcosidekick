@@ -8,8 +8,10 @@
 - [NATS](#nats)
   - [Table of content](#table-of-content)
   - [Configuration](#configuration)
+  - [subjecttemplate: "falco.." # template for the subject, tokens  and  will be automatically replaced (default: falco..)](#subjecttemplate-falco--template-for-the-subject-tokens--and--will-be-automatically-replaced-default-falco)
   - [Example of `config.yaml`](#example-of-configyaml)
   - [Additional info](#additional-info)
+  - [Screenshots](#screenshots)
 
 ## Configuration
 
@@ -26,6 +28,18 @@
 
 > [!NOTE]
 > Env var values override settings from `config.yaml`.
+
+<a id="subjecttemplate-falco--template-for-the-subject-tokens--and--will-be-automatically-replaced-default-falco"></a>
+
+### `subjecttemplate: "falco.<priority>.<rule>" # template for the subject, tokens <priority> and <rule> will be automatically replaced (default: falco.<priority>.<rule>)`
+
+- Subject tokens:
+  - `<priority>`: Falco priority (`debug`, `notice`, `warning`, ...)
+  - `<rule>`: Falco rule name normalized for subjects
+- Example result:
+  - Template: `falco.<priority>.<rule>`
+  - Event: priority `Debug`, rule `Test rule`
+  - Subject: `falco.debug.test_rule`
 
 ## Example of `config.yaml`
 
@@ -48,3 +62,7 @@ nats:
   - NKey mode: set `nats.nkeyseedfile` only
   - JWT mode: set both `nats.jwtfile` and `nats.nkeyseedfile`
 - Invalid combinations are rejected at startup and NATS output is disabled.
+
+## Screenshots
+
+No dedicated screenshot for NATS output yet.
