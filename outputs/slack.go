@@ -43,7 +43,6 @@ type slackPayload struct {
 func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
 	var (
 		messageText string
-		attachments []slackAttachment
 		attachment  slackAttachment
 		fields      []slackAttachmentField
 		field       slackAttachmentField
@@ -133,13 +132,11 @@ func newSlackPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 	}
 	attachment.Color = color
 
-	attachments = append(attachments, attachment)
-
 	s := slackPayload{
 		Text:        messageText,
 		Username:    config.Slack.Username,
 		IconURL:     config.Slack.Icon,
-		Attachments: attachments}
+		Attachments: []slackAttachment{attachment}}
 
 	if config.Slack.Channel != "" {
 		s.Channel = config.Slack.Channel

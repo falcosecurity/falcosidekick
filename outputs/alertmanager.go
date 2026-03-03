@@ -151,11 +151,7 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 		amPayload.Annotations[annotation] = value
 	}
 
-	var a []alertmanagerPayload
-
-	a = append(a, amPayload)
-
-	return a
+	return []alertmanagerPayload{amPayload}
 }
 
 // AlertmanagerPost posts event to AlertManager

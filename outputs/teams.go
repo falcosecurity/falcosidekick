@@ -35,10 +35,9 @@ type teamsPayload struct {
 
 func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuration) teamsPayload {
 	var (
-		sections []teamsSection
-		section  teamsSection
-		facts    []teamsFact
-		fact     teamsFact
+		section teamsSection
+		facts   []teamsFact
+		fact    teamsFact
 	)
 
 	section.ActivityTitle = "Falcosidekick"
@@ -104,13 +103,11 @@ func newTeamsPayload(falcopayload types.FalcoPayload, config *types.Configuratio
 		color = "ccfff2"
 	}
 
-	sections = append(sections, section)
-
 	t := teamsPayload{
 		Type:       "MessageCard",
 		Summary:    falcopayload.Output,
 		ThemeColor: color,
-		Sections:   sections,
+		Sections:   []teamsSection{section},
 	}
 
 	return t

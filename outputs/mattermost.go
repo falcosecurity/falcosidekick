@@ -17,7 +17,6 @@ import (
 func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configuration) slackPayload {
 	var (
 		messageText string
-		attachments []slackAttachment
 		attachment  slackAttachment
 		fields      []slackAttachmentField
 		field       slackAttachmentField
@@ -108,8 +107,6 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 	}
 	attachment.Color = color
 
-	attachments = append(attachments, attachment)
-
 	iconURL := DefaultIconURL
 	if config.Mattermost.Icon != "" {
 		iconURL = config.Mattermost.Icon
@@ -119,7 +116,7 @@ func newMattermostPayload(falcopayload types.FalcoPayload, config *types.Configu
 		Text:        messageText,
 		Username:    config.Mattermost.Username,
 		IconURL:     iconURL,
-		Attachments: attachments,
+		Attachments: []slackAttachment{attachment},
 	}
 
 	return s
