@@ -165,6 +165,9 @@ var httpOutputDefaults = map[string]map[string]any{
 	"NATS": {
 		"HostPort":        "",
 		"SubjectTemplate": "falco.<priority>.<rule>",
+		"CredsFile":       "",
+		"NkeySeedFile":    "",
+		"JWTFile":         "",
 	},
 	"Opsgenie": {
 		"Region":          "us",
