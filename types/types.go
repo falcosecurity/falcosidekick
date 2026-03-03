@@ -370,6 +370,9 @@ type natsOutputConfig struct {
 	CommonConfig    `mapstructure:",squash"`
 	HostPort        string
 	SubjectTemplate string
+	CredsFile       string
+	NkeySeedFile    string
+	JWTFile         string
 	MinimumPriority string
 }
 
