@@ -3,6 +3,14 @@
 - **Category**: Message queue / Streaming
 - **Website**: https://nats.io/
 
+## Table of content
+
+- [NATS](#nats)
+  - [Table of content](#table-of-content)
+  - [Configuration](#configuration)
+  - [Example of `config.yaml`](#example-of-configyaml)
+  - [Additional info](#additional-info)
+
 ## Configuration
 
 | Setting                | Env var                | Default value            | Description                                                                                                                              |
