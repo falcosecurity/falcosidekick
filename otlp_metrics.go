@@ -55,13 +55,14 @@ func newOTLPFalcoMatchesCounter(config *types.Configuration) otlpmetrics.Counter
 		supportedAttributes = append(supportedAttributes, i)
 	}
 
-	for _, i := range config.OTLP.Metrics.ExtraAttributesList {
-		if !regOTLPLabels.MatchString(strings.ReplaceAll(i, ".", "_")) {
-			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Extra field '%v' is not a valid OTLP metric attribute name", i))
-			continue
-		}
-		supportedAttributes = append(supportedAttributes, strings.ReplaceAll(i, ".", "_"))
-	}
+    for i := range config.Customfields {
+        sanitizedAttr := strings.ReplaceAll(i, ".", "_")
+      if !regOTLPLabels.MatchString(sanitizedAttr) {
+        utils.Log(utils.WarningLvl, "", fmt.Sprintf("Custom field '%v' (sanitized to '%v') is not a valid OTLP metric attribute name", i, sanitizedAttr))
+        continue
+      }
+      supportedAttributes = append(supportedAttributes, sanitizedAttr)
+    }
 
 	name := "falcosecurity_falco_rules_matches_total"
 	description := "Number of times rules match"
