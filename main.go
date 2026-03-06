@@ -858,7 +858,7 @@ func init() {
 		shutDownFunc, err := otlpmetrics.InitProvider(context.Background(), &config.OTLP.Metrics)
 		if err != nil {
 			fmt.Println(err)
-			config.OTLP.Logs.Endpoint = ""
+			config.OTLP.Metrics.Endpoint = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPMetrics")
 			fn := func() {
