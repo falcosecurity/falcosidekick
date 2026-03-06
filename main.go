@@ -823,7 +823,7 @@ func init() {
 	if config.Dynatrace.APIToken != "" && config.Dynatrace.APIUrl != "" {
 		var err error
 		dynatraceApiUrl := strings.TrimRight(config.Dynatrace.APIUrl, "/") + "/v2/logs/ingest"
-		dynatraceClient, err = outputs.NewClient("Dynatrace,", dynatraceApiUrl, types.CommonConfig{CheckCert: config.Dynatrace.CheckCert}, *initClientArgs)
+		dynatraceClient, err = outputs.NewClient("Dynatrace", dynatraceApiUrl, types.CommonConfig{CheckCert: config.Dynatrace.CheckCert}, *initClientArgs)
 		if err != nil {
 			config.Dynatrace.APIToken = ""
 			config.Dynatrace.APIUrl = ""
