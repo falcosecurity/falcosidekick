@@ -152,7 +152,7 @@ func init() {
 		var err error
 		dogstatsdClient, err = outputs.NewStatsdClient("DogStatsD", config, stats)
 		if err != nil {
-			config.Statsd.Forwarder = ""
+			config.Dogstatsd.Forwarder = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "DogStatsD")
 			nullClient.DogstatsdClient = dogstatsdClient
