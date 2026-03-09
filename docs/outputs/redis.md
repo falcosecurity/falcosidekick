@@ -22,6 +22,12 @@
 | `redis.key`             | `REDIS_KEY`             | `falco`          | Redis storage key name                                                                                                              |
 | `redis.username`        | N/A | | Redis user to authenticate with Redis. By default no username is set. [See ACLs for more information](https://redis.io/docs/latest/operate/oss_and_stack/management/security/acl/). |
 | `redis.password`        | `REDIS_PASSWORD`        |                  | Password to authenticate with Redis                                                                                                 |
+| `redis.tls`             | `REDIS_TLS`             | `false`          | Use TLS connection                                                                                                                  |
+| `redis.mutualtls`       | `REDIS_MUTUALTLS`       | `false`          | Authenticate to the output with TLS; if true, checkcert is ignored (server cert will always be checked)                             |
+| `redis.checkcert`       | `REDIS_CHECKCERT`       | `true`           | Check if ssl certificate of the output is valid                                                                                     |
+| `redis.certfile`        | `REDIS_CERTFILE`        |                  | Client certificate file for mutual TLS                                                                                              |
+| `redis.keyfile`         | `REDIS_KEYFILE`         |                  | Client key file for mutual TLS                                                                                                      |
+| `redis.cacertfile`      | `REDIS_CACERTFILE`      |                  | CA certificate file for mutual TLS                                                                                                  |
 | `redis.minimumpriority` | `REDIS_MINIMUMPRIORITY` | `""` (= `debug`) | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
 
 > [!NOTE]
@@ -37,6 +43,12 @@ redis:
   # key: "" # Redis storage key name (default: "falco")
   # username: "" # Username to authenticate with Redis (default: "")
   # password: "" # Password to authenticate with Redis (default: "")
+  # tls: false # Use TLS connection (default: false)
+  # mutualtls: false # Authenticate to the output with TLS; if true, checkcert is ignored (default: false)
+  # checkcert: true # Check if ssl certificate of the output is valid (default: true)
+  # certfile: "" # Client certificate file for mutual TLS (default: "")
+  # keyfile: "" # Client key file for mutual TLS (default: "")
+  # cacertfile: "" # CA certificate file for mutual TLS (default: "")
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 ```
 
