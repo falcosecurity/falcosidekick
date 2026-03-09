@@ -71,13 +71,13 @@ signs:
     signature: "${artifact}.sig"
     certificate: "${artifact}.pem"
     cmd: cosign
-    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--output-certificate", "${artifact}.pem", "${artifact}"]
+    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--output-certificate", "${artifact}.pem", "--bundle", "${artifact}.bundle", "${artifact}"]
     artifacts: archive
   - id: checksum
     signature: "${artifact}.sig"
     certificate: "${artifact}.pem"
     cmd: cosign
-    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--output-certificate", "${artifact}.pem", "${artifact}"]
+    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--output-certificate", "${artifact}.pem", "--bundle", "${artifact}.bundle", "${artifact}"]
     artifacts: checksum
 
 docker_signs:
