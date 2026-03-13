@@ -133,7 +133,7 @@ func natsTLSConnectOptions(config *types.Configuration, cfg types.CommonConfig) 
 
 	hostPort := strings.TrimSpace(config.Nats.HostPort)
 	tlsRequested := cfg.MutualTLS || !cfg.CheckCert || config.TLSClient.CaCertFile != "" ||
-		strings.HasPrefix(hostPort, "natss://") || strings.HasPrefix(hostPort, "tls://")
+		strings.HasPrefix(hostPort, "tls://")
 	if !tlsRequested {
 		return nil, nil
 	}

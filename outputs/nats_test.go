@@ -257,6 +257,16 @@ func TestNatsTLSConnectOptions(t *testing.T) {
 		require.Len(t, options, 1)
 	})
 
+	t.Run("tls scheme enables tls option", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &types.Configuration{}
+		cfg.Nats.HostPort = "tls://example:4222"
+		options, err := natsTLSConnectOptions(cfg, types.CommonConfig{CheckCert: true})
+		require.NoError(t, err)
+		require.Len(t, options, 1)
+	})
+
 	t.Run("missing tls ca file returns error", func(t *testing.T) {
 		t.Parallel()
 
