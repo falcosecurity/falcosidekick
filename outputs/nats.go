@@ -72,7 +72,7 @@ func resolveNatsAuthMode(authFiles natsAuthFiles) (natsAuthMode, error) {
 }
 
 func validateNatsAuthFile(path, configKey string) error {
-	_, err := os.ReadFile(path)
+	_, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("nats auth misconfiguration: %s must reference a readable file: %w", configKey, err)
 	}
