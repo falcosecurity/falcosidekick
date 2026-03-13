@@ -329,7 +329,6 @@ func init() {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "NATS")
 			}
 		}
-
 	}
 
 	if config.Stan.HostPort != "" && config.Stan.ClusterID != "" && config.Stan.ClientID != "" {
