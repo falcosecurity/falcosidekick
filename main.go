@@ -317,12 +317,17 @@ func init() {
 	}
 
 	if config.Nats.HostPort != "" {
-		var err error
-		natsClient, err = outputs.NewClient("NATS", config.Nats.HostPort, config.Nats.CommonConfig, *initClientArgs)
-		if err != nil {
+		if err := outputs.ValidateNatsAuthConfig(config); err != nil {
+			utils.Log(utils.ErrorLvl, "NATS", err.Error())
 			config.Nats.HostPort = ""
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "NATS")
+			var err error
+			natsClient, err = outputs.NewClient("NATS", config.Nats.HostPort, config.Nats.CommonConfig, *initClientArgs)
+			if err != nil {
+				config.Nats.HostPort = ""
+			} else {
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "NATS")
+			}
 		}
 	}
 
