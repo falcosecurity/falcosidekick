@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -153,11 +152,6 @@ type Client struct {
 
 // InitClient returns a new output.Client for accessing the different API.
 func NewClient(outputType string, defaultEndpointURL string, cfg types.CommonConfig, params types.InitClientArgs) (*Client, error) {
-	reg := regexp.MustCompile(`(http|nats)(s?)://.*`)
-	if !reg.MatchString(defaultEndpointURL) {
-		utils.Log(utils.ErrorLvl, outputType, "Bad Endpoint")
-		return nil, ErrClientCreation
-	}
 	if _, err := url.ParseRequestURI(defaultEndpointURL); err != nil {
 		utils.Log(utils.ErrorLvl, outputType, err.Error())
 		return nil, ErrClientCreation
@@ -165,6 +159,12 @@ func NewClient(outputType string, defaultEndpointURL string, cfg types.CommonCon
 	endpointURL, err := url.Parse(defaultEndpointURL)
 	if err != nil {
 		utils.Log(utils.ErrorLvl, outputType, err.Error())
+		return nil, ErrClientCreation
+	}
+	switch endpointURL.Scheme {
+	case "http", "https", "nats", "tls":
+	default:
+		utils.Log(utils.ErrorLvl, outputType, "Bad Endpoint")
 		return nil, ErrClientCreation
 	}
 	return &Client{
