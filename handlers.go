@@ -464,7 +464,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go tektonClient.TektonPost(falcopayload)
 	}
 
-	if config.Rabbitmq.URL != "" && config.Rabbitmq.Queue != "" && (falcopayload.Priority >= types.Priority(config.Openfaas.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.Rabbitmq.URL != "" && config.Rabbitmq.Queue != "" && (falcopayload.Priority >= types.Priority(config.Rabbitmq.MinimumPriority) || falcopayload.Rule == testRule) {
 		go rabbitmqClient.Publish(falcopayload)
 	}
 

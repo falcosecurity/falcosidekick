@@ -68,16 +68,14 @@ dockers_v2:
 
 signs:
   - id: falcosidekick
-    signature: "${artifact}.sig"
-    certificate: "${artifact}.pem"
+    signature: "${artifact}.bundle"
     cmd: cosign
-    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--output-certificate", "${artifact}.pem", "${artifact}"]
+    args: ["sign-blob", "--bundle", "${artifact}.bundle", "${artifact}"]
     artifacts: archive
   - id: checksum
-    signature: "${artifact}.sig"
-    certificate: "${artifact}.pem"
+    signature: "${artifact}.bundle"
     cmd: cosign
-    args: ["sign-blob", "--output-signature", "${artifact}.sig", "--output-certificate", "${artifact}.pem", "${artifact}"]
+    args: ["sign-blob", "--bundle", "${artifact}.bundle", "${artifact}"]
     artifacts: checksum
 
 docker_signs:

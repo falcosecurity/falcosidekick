@@ -152,7 +152,7 @@ func init() {
 		var err error
 		dogstatsdClient, err = outputs.NewStatsdClient("DogStatsD", config, stats)
 		if err != nil {
-			config.Statsd.Forwarder = ""
+			config.Dogstatsd.Forwarder = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "DogStatsD")
 			nullClient.DogstatsdClient = dogstatsdClient
@@ -829,7 +829,7 @@ func init() {
 	if config.Dynatrace.APIToken != "" && config.Dynatrace.APIUrl != "" {
 		var err error
 		dynatraceApiUrl := strings.TrimRight(config.Dynatrace.APIUrl, "/") + "/v2/logs/ingest"
-		dynatraceClient, err = outputs.NewClient("Dynatrace,", dynatraceApiUrl, types.CommonConfig{CheckCert: config.Dynatrace.CheckCert}, *initClientArgs)
+		dynatraceClient, err = outputs.NewClient("Dynatrace", dynatraceApiUrl, types.CommonConfig{CheckCert: config.Dynatrace.CheckCert}, *initClientArgs)
 		if err != nil {
 			config.Dynatrace.APIToken = ""
 			config.Dynatrace.APIUrl = ""
@@ -864,7 +864,7 @@ func init() {
 		shutDownFunc, err := otlpmetrics.InitProvider(context.Background(), &config.OTLP.Metrics)
 		if err != nil {
 			fmt.Println(err)
-			config.OTLP.Logs.Endpoint = ""
+			config.OTLP.Metrics.Endpoint = ""
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OTLPMetrics")
 			fn := func() {

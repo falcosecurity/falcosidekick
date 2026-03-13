@@ -11,6 +11,12 @@ linters:
     - prealloc
     - unconvert
     - unused
+  settings:
+    gosec:
+      excludes:
+        - G115
+        - G117
+        - G704
   exclusions:
     generated: lax
     presets:

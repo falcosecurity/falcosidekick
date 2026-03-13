@@ -61,7 +61,7 @@ func newDiscordPayload(falcopayload types.FalcoPayload, config *types.Configurat
 		color = "12370112" // light grey
 	}
 
-	embeds := make([]discordEmbedPayload, 0)
+	embeds := make([]discordEmbedPayload, 0, 1)
 
 	embedFields := make([]discordEmbedFieldPayload, 0)
 	var embedField discordEmbedFieldPayload
