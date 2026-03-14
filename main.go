@@ -486,7 +486,7 @@ func init() {
 		}
 	}
 
-	if (config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "") || config.GCP.Storage.Bucket != "" || config.GCP.CloudFunctions.Name != "" || (config.GCP.Chronicle.ProjectID != "" && config.GCP.Chronicle.InstanceID != "") {
+	if (config.GCP.PubSub.ProjectID != "" && config.GCP.PubSub.Topic != "") || config.GCP.Storage.Bucket != "" || config.GCP.CloudFunctions.Name != "" || (config.GCP.Chronicle.ProjectID != "" && config.GCP.Chronicle.InstanceID != "" && config.GCP.Chronicle.Region != "") {
 		var err error
 		gcpClient, err = outputs.NewGCPClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
 		if err != nil {
@@ -506,7 +506,7 @@ func init() {
 			if config.GCP.CloudFunctions.Name != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "GCPCloudFunctions")
 			}
-			if config.GCP.Chronicle.ProjectID != "" && config.GCP.Chronicle.InstanceID != "" {
+			if config.GCP.Chronicle.ProjectID != "" && config.GCP.Chronicle.InstanceID != "" && config.GCP.Chronicle.Region != "" {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "GCPChronicle")
 			}
 		}

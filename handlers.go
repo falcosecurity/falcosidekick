@@ -436,7 +436,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		go gcpClient.UploadGCS(falcopayload)
 	}
 
-	if config.GCP.Chronicle.MinimumPriority != "" && config.GCP.Chronicle.Region != "" && config.GCP.Chronicle.ProjectID != "" && config.GCP.Chronicle.InstanceID != "" && gcpClient != nil && (falcopayload.Priority >= types.Priority(config.GCP.Chronicle.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.GCP.Chronicle.Region != "" && config.GCP.Chronicle.ProjectID != "" && config.GCP.Chronicle.InstanceID != "" && gcpClient != nil && (falcopayload.Priority >= types.Priority(config.GCP.Chronicle.MinimumPriority) || falcopayload.Rule == testRule) {
 		go gcpClient.GCPChronicleIngest(falcopayload)
 	}
 
