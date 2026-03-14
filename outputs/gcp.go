@@ -102,8 +102,7 @@ func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStat
 	}
 
 	// Initialize Chronicle client and token source if all required fields are configured
-	if config.GCP.Chronicle.MinimumPriority != "" &&
-		config.GCP.Chronicle.Region != "" &&
+	if config.GCP.Chronicle.Region != "" &&
 		config.GCP.Chronicle.ProjectID != "" &&
 		config.GCP.Chronicle.InstanceID != "" {
 		ctx := context.Background()
