@@ -182,13 +182,15 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 
 	for key, value := range config.Customfields {
-		if regPromLabels.MatchString(key) {
-			promLabels[key] = value
+		sanitizedKey := strings.ReplaceAll(key, ".", "_")
+		if regPromLabels.MatchString(sanitizedKey) {
+			promLabels[sanitizedKey] = value
 		}
 	}
 	for key := range config.Templatedfields {
-		if regPromLabels.MatchString(strings.ReplaceAll(key, ".", "_")) {
-			promLabels[key] = fmt.Sprintf("%v", falcopayload.OutputFields[key])
+		sanitizedKey := strings.ReplaceAll(key, ".", "_")
+		if regPromLabels.MatchString(sanitizedKey) {
+			promLabels[sanitizedKey] = fmt.Sprintf("%v", falcopayload.OutputFields[key])
 		}
 	}
 	for _, i := range config.Prometheus.ExtraLabelsList {
@@ -220,8 +222,9 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	}
 
 	for key, value := range config.Customfields {
-		if regOTLPMetricsAttributes.MatchString(key) {
-			attrs = append(attrs, attribute.String(key, value))
+		sanitizedKey := strings.ReplaceAll(key, ".", "_")
+		if regOTLPMetricsAttributes.MatchString(sanitizedKey) {
+			attrs = append(attrs, attribute.String(sanitizedKey, value))
 		}
 	}
 	for _, attr := range config.OTLP.Metrics.ExtraAttributesList {

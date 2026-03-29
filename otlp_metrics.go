@@ -48,11 +48,12 @@ func newOTLPFalcoMatchesCounter(config *types.Configuration) otlpmetrics.Counter
 		"k8s_pod_name",
 	}
 	for i := range config.Customfields {
-		if !regOTLPLabels.MatchString(i) {
+		sanitized := strings.ReplaceAll(i, ".", "_")
+		if !regOTLPLabels.MatchString(sanitized) {
 			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Custom field '%v' is not a valid OTLP metric attribute name", i))
 			continue
 		}
-		supportedAttributes = append(supportedAttributes, i)
+		supportedAttributes = append(supportedAttributes, sanitized)
 	}
 
 	for _, i := range config.OTLP.Metrics.ExtraAttributesList {
