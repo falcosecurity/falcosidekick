@@ -4,8 +4,11 @@ package outputs
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -29,11 +32,61 @@ func (c *Client) ReportError(err error) {
 func NewRedisClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
 	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 
+	var tlsCfg *tls.Config
+
+	if config.Redis.MutualTLS {
+		certFile := firstValid([]string{config.Redis.CertFile, config.MutualTLSClient.CertFile, config.MutualTLSFilesPath + "/client.crt"})
+		keyFile := firstValid([]string{config.Redis.KeyFile, config.MutualTLSClient.KeyFile, config.MutualTLSFilesPath + "/client.key"})
+		caCertFile := firstValid([]string{config.Redis.CaCertFile, config.MutualTLSClient.CaCertFile, config.MutualTLSFilesPath + "/ca.crt"})
+
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			err = fmt.Errorf("failed to load Redis TLS certificate: %w", err)
+			utils.Log(utils.ErrorLvl, "Redis", err.Error())
+			return nil, err
+		}
+
+		caCert, err := os.ReadFile(caCertFile)
+		if err != nil {
+			err = fmt.Errorf("failed to load Redis CA certificate: %w", err)
+			utils.Log(utils.ErrorLvl, "Redis", err.Error())
+			return nil, err
+		}
+
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			pool = x509.NewCertPool()
+		}
+
+		tlsCfg = &tls.Config{
+			MinVersion:   tls.VersionTLS12,
+			Certificates: []tls.Certificate{cert},
+			RootCAs:      pool,
+		}
+		tlsCfg.RootCAs.AppendCertsFromPEM(caCert)
+	} else if config.Redis.TLS {
+		if !config.Redis.CheckCert {
+			tlsCfg = &tls.Config{
+				InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
+			}
+		} else {
+			pool, err := x509.SystemCertPool()
+			if err != nil {
+				pool = x509.NewCertPool()
+			}
+			tlsCfg = &tls.Config{
+				MinVersion: tls.VersionTLS12,
+				RootCAs:    pool,
+			}
+		}
+	}
+
 	rClient := redis.NewClient(&redis.Options{
-		Addr:     config.Redis.Address,
-		Username: config.Redis.Username,
-		Password: config.Redis.Password,
-		DB:       config.Redis.Database,
+		Addr:      config.Redis.Address,
+		Username:  config.Redis.Username,
+		Password:  config.Redis.Password,
+		DB:        config.Redis.Database,
+		TLSConfig: tlsCfg,
 	})
 	// Ping the Redis server to check if it's running
 	pong, err := rClient.Ping(context.Background()).Result()

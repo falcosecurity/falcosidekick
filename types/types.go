@@ -768,7 +768,11 @@ type RedisConfig struct {
 	Version         int
 	MinimumPriority string
 	CheckCert       bool
+	TLS             bool
 	MutualTLS       bool
+	CertFile        string
+	KeyFile         string
+	CaCertFile      string
 }
 
 // TelegramConfig represents parameters for Telegram
