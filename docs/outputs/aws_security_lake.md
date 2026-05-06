@@ -43,7 +43,7 @@ aws:
   # rolearn: "" # aws role to assume (optional if you use EC2 Instance Profile)
   # externalid: "" # external id for the role to assume (optional if you use EC2 Instance Profile)
   # checkidentity: true # check the identity credentials, set to false for locale developments (default: true)
-  securitylake.:
+  securitylake:
     bucket: "" # Bucket for AWS SecurityLake data, if not empty, AWS SecurityLake output is enabled
     region: "" # Bucket Region
     prefix: "" # Prefix for keys
