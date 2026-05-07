@@ -409,6 +409,7 @@ var outputDefaults = map[string]map[string]any{
 	"Telegram": {
 		"Token":           "",
 		"ChatID":          "",
+		"MessageThreadID": "",
 		"MinimumPriority": "",
 		"CheckCert":       true,
 	},
