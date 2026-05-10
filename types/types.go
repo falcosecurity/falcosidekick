@@ -81,7 +81,6 @@ type Configuration struct {
 	Customfields       map[string]string
 	Customtags         []string
 	Templatedfields    map[string]string
-	Prometheus         prometheusOutputConfig
 	Slack              SlackOutputConfig
 	Cliq               CliqOutputConfig
 	Mattermost         MattermostOutputConfig
@@ -376,11 +375,6 @@ type SumoLogicOutputConfig struct {
 	SourceCategory  string
 	SourceHost      string
 	Name            string
-}
-
-type prometheusOutputConfig struct {
-	ExtraLabels     string
-	ExtraLabelsList []string
 }
 
 type natsOutputConfig struct {
