@@ -205,7 +205,7 @@ aws:
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
     # endpoint: "" # endpoint URL that overrides the default generated endpoint, use this for S3 compatible APIs
     # objectcannedacl: "bucket-owner-full-control" # Canned ACL (x-amz-acl) to use when creating the object
-  securitylake.:
+  securitylake:
     # bucket: "" # Bucket for AWS SecurityLake data, if not empty, AWS SecurityLake output is enabled
     # region: "" # Bucket Region  (mandatory)
     # prefix: "" # Prefix for keys  (mandatory)
