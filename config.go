@@ -252,6 +252,7 @@ var httpOutputDefaults = map[string]map[string]any{
 		"Database":        0,
 		"StorageType":     "list",
 		"Key":             "falco",
+		"CheckCert":       true,
 		"MinimumPriority": "",
 	},
 	"OpenObserve": {
