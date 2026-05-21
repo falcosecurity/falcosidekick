@@ -159,12 +159,12 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 	}
 
 	key := fmt.Sprintf("%s/%s/%s.json", prefix, t.Format("2006-01-02"), t.Format(time.RFC3339Nano))
-	awsConfig := aws.NewConfig()
-	var client s3.Client
+	var client *s3.Client
 	if c.Config.AWS.S3.Endpoint != "" {
-		s3.NewFromConfig(*awsConfig, s3.WithEndpointResolver(s3.EndpointResolverFromURL(c.Config.AWS.S3.Endpoint)))
+		client = s3.NewFromConfig(*c.AWSConfig,
+			s3.WithEndpointResolver(s3.EndpointResolverFromURL(c.Config.AWS.S3.Endpoint)))
 	} else {
-		client = *s3.NewFromConfig(*awsConfig)
+		client = s3.NewFromConfig(*c.AWSConfig)
 	}
 	resp, err := client.PutObject(context.Background(), &s3.PutObjectInput{
 		Bucket: aws.String(c.Config.AWS.S3.Bucket),
