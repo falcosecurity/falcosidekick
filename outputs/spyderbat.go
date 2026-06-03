@@ -147,7 +147,11 @@ func newSpyderbatPayload(falcopayload types.FalcoPayload) (spyderbatPayload, err
 		errStr := fmt.Sprintf("evt.time is nil for rule %s", falcopayload.Rule)
 		return spyderbatPayload{}, errors.New(errStr)
 	}
-	jsonTime, err := timeStr.(json.Number).Int64()
+	timeNum, ok := timeStr.(json.Number)
+	if !ok {
+		return spyderbatPayload{}, fmt.Errorf("evt.time is not a number for rule %s", falcopayload.Rule)
+	}
+	jsonTime, err := timeNum.Int64()
 	if err != nil {
 		return spyderbatPayload{}, err
 	}
@@ -158,7 +162,11 @@ func newSpyderbatPayload(falcopayload types.FalcoPayload) (spyderbatPayload, err
 		errStr := fmt.Sprintf("proc.pid is nil for rule %s", falcopayload.Rule)
 		return spyderbatPayload{}, errors.New(errStr)
 	}
-	pid, err := pidStr.(json.Number).Int64()
+	pidNum, ok := pidStr.(json.Number)
+	if !ok {
+		return spyderbatPayload{}, fmt.Errorf("proc.pid is not a number for rule %s", falcopayload.Rule)
+	}
+	pid, err := pidNum.Int64()
 	if err != nil {
 		return spyderbatPayload{}, err
 	}
@@ -169,8 +177,8 @@ func newSpyderbatPayload(falcopayload types.FalcoPayload) (spyderbatPayload, err
 	if len(args) > 2 {
 		message = args[2:]
 	}
-	arguments := falcopayload.OutputFields["proc.cmdline"].(string)
-	container := falcopayload.OutputFields["container.id"].(string)
+	arguments, _ := falcopayload.OutputFields["proc.cmdline"].(string)
+	container, _ := falcopayload.OutputFields["container.id"].(string)
 
 	return spyderbatPayload{
 		Schema:        Schema,
