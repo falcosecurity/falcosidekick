@@ -3,6 +3,7 @@
 package outputs
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -107,4 +108,65 @@ func TestOtlpNewTrace(t *testing.T) {
 		cases[idx].actualTraceID = c.actualTraceID
 	}
 	// 2nd pass to verify cross-case traceID comparisons (equality, difference)
+}
+
+// TestGenerateTraceIDWithNonStringFields ensures that non-string values in the
+// output fields used to build the trace ID do not panic. These fields come from
+// attacker-influenceable payloads, so a bare type assertion would panic and, since
+// generateTraceID runs in its own goroutine, crash the whole process.
+func TestGenerateTraceIDWithNonStringFields(t *testing.T) {
+	cases := []struct {
+		msg string
+		fp  types.FalcoPayload
+	}{
+		{
+			msg: "container.id as a JSON number",
+			fp: types.FalcoPayload{
+				OutputFields: map[string]interface{}{
+					"container.id": json.Number("42"),
+				},
+			},
+		},
+		{
+			msg: "k8s fields as bool and number",
+			fp: types.FalcoPayload{
+				OutputFields: map[string]interface{}{
+					"k8s.ns.name":  true,
+					"k8s.pod.name": json.Number("1"),
+				},
+			},
+		},
+		{
+			msg: "evt.hostname as a nested object",
+			fp: types.FalcoPayload{
+				OutputFields: map[string]interface{}{
+					"evt.hostname": map[string]interface{}{"nested": "value"},
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		require.NotPanics(t, func() {
+			// No usable string field, so an error is expected, but never a panic.
+			_, err := generateTraceID(c.fp)
+			require.Error(t, err, c.msg)
+		}, c.msg)
+	}
+}
+
+// TestGenerateTraceIDFallsBackOnNonStringField ensures a non-string value for one
+// field does not prevent a valid trace ID from being built from another field.
+func TestGenerateTraceIDFallsBackOnNonStringField(t *testing.T) {
+	fp := types.FalcoPayload{
+		OutputFields: map[string]interface{}{
+			"container.id": json.Number("42"), // non-string, must be ignored
+			"evt.hostname": "localhost",       // valid, must be used
+		},
+	}
+	require.NotPanics(t, func() {
+		traceID, err := generateTraceID(fp)
+		require.NoError(t, err)
+		// Same hash as the "Payload with Hostname" case above.
+		require.Equal(t, "b96c8fbfe005d268653aef8210412f0a", traceID.String())
+	})
 }

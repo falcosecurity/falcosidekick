@@ -108,20 +108,10 @@ func (c *Client) OTLPTracesPost(falcopayload types.FalcoPayload) {
 }
 
 func generateTraceID(falcopayload types.FalcoPayload) (trace.TraceID, error) {
-	var k8sNsName, k8sPodName, containerId, evtHostname string
-
-	if falcopayload.OutputFields["k8s.ns.name"] != nil {
-		k8sNsName = falcopayload.OutputFields["k8s.ns.name"].(string)
-	}
-	if falcopayload.OutputFields["k8s.pod.name"] != nil {
-		k8sPodName = falcopayload.OutputFields["k8s.pod.name"].(string)
-	}
-	if falcopayload.OutputFields["container.id"] != nil {
-		containerId = falcopayload.OutputFields["container.id"].(string)
-	}
-	if falcopayload.OutputFields["evt.hostname"] != nil {
-		evtHostname = falcopayload.OutputFields["evt.hostname"].(string)
-	}
+	k8sNsName, _ := falcopayload.OutputFields["k8s.ns.name"].(string)
+	k8sPodName, _ := falcopayload.OutputFields["k8s.pod.name"].(string)
+	containerId, _ := falcopayload.OutputFields["container.id"].(string)
+	evtHostname, _ := falcopayload.OutputFields["evt.hostname"].(string)
 
 	var traceIDStr string
 	if k8sNsName != "" && k8sPodName != "" {
