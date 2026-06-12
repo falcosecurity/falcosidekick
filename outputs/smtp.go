@@ -22,7 +22,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-const rfc2822 = "Mon Jan 02 15:04:05 -0700 2006"
+const rfc2822 = "Mon, 02 Jan 2006 15:04:05 -0700"
 
 // SMTPPayload is payload for SMTP Output
 type SMTPPayload struct {
