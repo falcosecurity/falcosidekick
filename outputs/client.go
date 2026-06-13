@@ -422,12 +422,10 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrTooManyRequest, resp.StatusCode, c.getInlinedBodyAsString(resp)))
 		return ErrTooManyRequest
 	case http.StatusInternalServerError: //500
-		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v)", ErrTooManyRequest, resp.StatusCode))
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrInternalServer, resp.StatusCode, c.getInlinedBodyAsString(resp)))
 		return ErrInternalServer
 	case http.StatusBadGateway: //502
-		msg := c.getInlinedBodyAsString(resp)
-		fmt.Println(msg)
-		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v)", ErrTooManyRequest, resp.StatusCode))
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrBadGateway, resp.StatusCode, c.getInlinedBodyAsString(resp)))
 		return ErrBadGateway
 	default:
 		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("unexpected Response (%v)", resp.StatusCode))
