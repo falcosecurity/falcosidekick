@@ -3,13 +3,19 @@
 package outputs
 
 import (
+	"expvar"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nkeys"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 
+	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
@@ -288,6 +294,39 @@ func TestNatsTLSConnectOptions(t *testing.T) {
 	})
 }
 
+func TestNatsPublishReusesConnection(t *testing.T) {
+	fake := &fakeNATSConnection{}
+	connectCalls := 0
+	originalConnect := connectNATS
+	connectNATS = func(_ string, _ ...nats.Option) (natsConnection, error) {
+		connectCalls++
+		return fake, nil
+	}
+	t.Cleanup(func() {
+		connectNATS = originalConnect
+	})
+
+	client := newNatsTestClient(t)
+	payload := types.FalcoPayload{
+		Priority: types.Warning,
+		Rule:     "Unexpected connection to K8s API Server",
+	}
+
+	client.NatsPublish(payload)
+	client.NatsPublish(payload)
+
+	require.Equal(t, 1, connectCalls)
+	require.Equal(t, []string{
+		"falco.warning.unexpected_connection_to_k8s_api_server",
+		"falco.warning.unexpected_connection_to_k8s_api_server",
+	}, fake.subjects)
+	require.NotNil(t, client.ShutDownFunc)
+
+	client.ShutDownFunc()
+	require.True(t, fake.closed)
+	require.Equal(t, 1, fake.flushes)
+}
+
 func natsConfig(credsFile, nkeySeedFile, jwtFile string) *types.Configuration {
 	cfg := &types.Configuration{}
 	cfg.Nats.CredsFile = credsFile
@@ -314,4 +353,56 @@ func writeTestFile(t *testing.T, dir, fileName, content string) string {
 	err := os.WriteFile(path, []byte(content), 0o600)
 	require.NoError(t, err)
 	return path
+}
+
+func newNatsTestClient(t *testing.T) *Client {
+	t.Helper()
+
+	config := &types.Configuration{}
+	stats := &types.Statistics{
+		Nats: expvar.NewMap(fmt.Sprintf("nats_test_%d", time.Now().UnixNano())),
+	}
+	promStats := &types.PromStatistics{
+		Outputs: prometheus.NewCounterVec(
+			prometheus.CounterOpts{Name: "nats_test_outputs_total"},
+			[]string{"destination", "status"},
+		),
+	}
+	otlpMetrics := &otlpmetrics.OTLPMetrics{
+		Outputs: otlpmetrics.NewCounter("nats_test_outputs", "NATS test outputs", []string{"destination", "status"}),
+	}
+
+	client, err := NewClient("NATS", "nats://example:4222", types.CommonConfig{CheckCert: true}, types.InitClientArgs{
+		Config:      config,
+		Stats:       stats,
+		PromStats:   promStats,
+		OTLPMetrics: otlpMetrics,
+	})
+	require.NoError(t, err)
+
+	return client
+}
+
+type fakeNATSConnection struct {
+	subjects []string
+	flushes  int
+	closed   bool
+}
+
+func (f *fakeNATSConnection) Publish(subject string, _ []byte) error {
+	f.subjects = append(f.subjects, subject)
+	return nil
+}
+
+func (f *fakeNATSConnection) Flush() error {
+	f.flushes++
+	return nil
+}
+
+func (f *fakeNATSConnection) Close() {
+	f.closed = true
+}
+
+func (f *fakeNATSConnection) IsClosed() bool {
+	return f.closed
 }

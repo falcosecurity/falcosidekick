@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	nats "github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel/attribute"
@@ -22,6 +23,19 @@ import (
 var slugRegExp = regexp.MustCompile("[^a-z0-9]+")
 
 const defaultNatsSubjects = "falco.<priority>.<rule>"
+
+type natsConnection interface {
+	Publish(subject string, data []byte) error
+	Flush() error
+	Close()
+	IsClosed() bool
+}
+
+type natsConnectFunc func(string, ...nats.Option) (natsConnection, error)
+
+var connectNATS natsConnectFunc = func(url string, options ...nats.Option) (natsConnection, error) {
+	return nats.Connect(url, options...)
+}
 
 type natsAuthMode uint8
 
@@ -189,6 +203,55 @@ func natsTLSConnectOptions(config *types.Configuration, cfg types.CommonConfig) 
 	return []nats.Option{nats.Secure(tlsConfig)}, nil
 }
 
+func (c *Client) ensureNatsConnection() (natsConnection, error) {
+	c.natsMu.Lock()
+	defer c.natsMu.Unlock()
+
+	if c.NATSConn != nil && !c.NATSConn.IsClosed() {
+		return c.NATSConn, nil
+	}
+
+	options, err := natsConnectOptions(c.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsOptions, err := natsTLSConnectOptions(c.Config, c.cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	options = append(options, tlsOptions...)
+	options = append(options,
+		nats.Name("falcosidekick"),
+		nats.MaxReconnects(-1),
+		nats.ReconnectWait(2*time.Second),
+		nats.RetryOnFailedConnect(true),
+	)
+
+	nc, err := connectNATS(c.EndpointURL.String(), options...)
+	if err != nil {
+		return nil, err
+	}
+
+	c.NATSConn = nc
+	c.ShutDownFunc = c.closeNatsConnection
+	return nc, nil
+}
+
+func (c *Client) closeNatsConnection() {
+	c.natsMu.Lock()
+	defer c.natsMu.Unlock()
+
+	if c.NATSConn == nil {
+		return
+	}
+
+	_ = c.NATSConn.Flush()
+	c.NATSConn.Close()
+	c.NATSConn = nil
+}
+
 // NatsPublish publishes event to NATS
 func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 	c.Stats.Nats.Add(Total, 1)
@@ -201,30 +264,12 @@ func (c *Client) NatsPublish(falcopayload types.FalcoPayload) {
 	subject = strings.ReplaceAll(subject, "<priority>", strings.ToLower(falcopayload.Priority.String()))
 	subject = strings.ReplaceAll(subject, "<rule>", strings.Trim(slugRegExp.ReplaceAllString(strings.ToLower(falcopayload.Rule), "_"), "_"))
 
-	options, err := natsConnectOptions(c.Config)
+	nc, err := c.ensureNatsConnection()
 	if err != nil {
 		c.setNatsErrorMetrics()
 		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
-
-	tlsOptions, err := natsTLSConnectOptions(c.Config, c.cfg)
-	if err != nil {
-		c.setNatsErrorMetrics()
-		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
-		return
-	}
-
-	options = append(options, tlsOptions...)
-
-	nc, err := nats.Connect(c.EndpointURL.String(), options...)
-	if err != nil {
-		c.setNatsErrorMetrics()
-		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
-		return
-	}
-	defer nc.Flush()
-	defer nc.Close()
 
 	j, err := json.Marshal(falcopayload)
 	if err != nil {

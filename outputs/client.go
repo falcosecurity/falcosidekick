@@ -131,6 +131,7 @@ type Client struct {
 	RedisClient       *redis.Client
 	OTLPLogsLogger    *slog.Logger
 	LogstashClient    *logstash.Stash
+	NATSConn          natsConnection
 
 	// Enable gzip compression
 	EnableCompression bool
@@ -139,6 +140,8 @@ type Client struct {
 	httpcli *http.Client
 	// lock for http client creation
 	mx sync.Mutex
+	// lock for NATS client creation
+	natsMu sync.Mutex
 
 	// common config
 	cfg types.CommonConfig
@@ -170,7 +173,7 @@ func NewClient(outputType string, defaultEndpointURL string, cfg types.CommonCon
 		utils.Log(utils.ErrorLvl, outputType, "Bad Endpoint")
 		return nil, ErrClientCreation
 	}
-	return &Client{
+	client := &Client{
 		cfg:             cfg,
 		OutputType:      outputType,
 		EndpointURL:     endpointURL,
@@ -181,7 +184,11 @@ func NewClient(outputType string, defaultEndpointURL string, cfg types.CommonCon
 		OTLPMetrics:     params.OTLPMetrics,
 		StatsdClient:    params.StatsdClient,
 		DogstatsdClient: params.DogstatsdClient,
-	}, nil
+	}
+	if outputType == "NATS" {
+		client.ShutDownFunc = client.closeNatsConnection
+	}
+	return client, nil
 }
 
 type RequestOptionFunc func(req *http.Request)

@@ -327,6 +327,7 @@ func init() {
 				config.Nats.HostPort = ""
 			} else {
 				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "NATS")
+				shutDownFuncs = append(shutDownFuncs, natsClient.ShutDownFunc)
 			}
 		}
 	}
