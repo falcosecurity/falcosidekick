@@ -4,7 +4,7 @@ package outputs
 
 import (
 	"encoding/json"
-	"strconv"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -82,7 +82,7 @@ func TestNewDynatracePayloadWithExtraOutputFields(t *testing.T) {
 				K8sNamespaceName:      K8sNamespaceName,
 				K8sPodName:            K8sPodName,
 				ProcessExecutableName: ProcessExecutableName,
-				SpanId:                strconv.Itoa(SpanId),
+				SpanId:                fmt.Sprintf("%v", SpanId),
 				MitreTactic:           MitreTactic,
 				MitreTechnique:        MitreTechnique,
 			},
@@ -105,4 +105,32 @@ func TestNewDynatracePayloadWithExtraOutputFields(t *testing.T) {
 
 	output := newDynatracePayload(f)
 	require.Equal(t, output, expectedOutput)
+}
+
+func TestNewDynatracePayloadWithNonStringOutputFields(t *testing.T) {
+	var f types.FalcoPayload
+	require.Nil(t, json.Unmarshal([]byte(falcoTestInput), &f))
+
+	// output_fields values are not guaranteed to be strings. Feed wrong types
+	// into the fields that map to semantic attributes and make sure building
+	// the payload does not panic.
+	f.OutputFields["container.id"] = 12345
+	f.OutputFields["container.name"] = true
+	f.OutputFields["k8s.ns.name"] = float64(42)
+	f.OutputFields["proc.name"] = []string{"unexpected"}
+	f.OutputFields["span.id"] = false
+
+	var output dtPayload
+	require.NotPanics(t, func() {
+		output = newDynatracePayload(f)
+	})
+
+	msg := output.Payload[0]
+	// non-string values are ignored rather than crashing the process
+	require.Empty(t, msg.ContainerId)
+	require.Empty(t, msg.ContainerName)
+	require.Empty(t, msg.K8sNamespaceName)
+	require.Empty(t, msg.ProcessExecutableName)
+	// span.id is rendered with a type-agnostic format
+	require.Equal(t, "false", msg.SpanId)
 }
