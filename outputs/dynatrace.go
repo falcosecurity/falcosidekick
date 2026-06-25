@@ -3,9 +3,9 @@
 package outputs
 
 import (
+	"fmt"
 	"net/http"
 	"regexp"
-	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -79,21 +79,35 @@ func newDynatracePayload(falcopayload types.FalcoPayload) dtPayload {
 
 			switch fcKey {
 			case "container.id":
-				message.ContainerId = val.(string)
+				if s, ok := val.(string); ok {
+					message.ContainerId = s
+				}
 			case "container.name":
-				message.ContainerName = val.(string)
+				if s, ok := val.(string); ok {
+					message.ContainerName = s
+				}
 			case "container.image":
-				message.ContainerImageName = val.(string)
+				if s, ok := val.(string); ok {
+					message.ContainerImageName = s
+				}
 			case "k8s.ns.name", "ka.target.namespace":
-				message.K8sNamespaceName = val.(string)
+				if s, ok := val.(string); ok {
+					message.K8sNamespaceName = s
+				}
 			case "k8s.pod.name":
-				message.K8sPodName = val.(string)
+				if s, ok := val.(string); ok {
+					message.K8sPodName = s
+				}
 			case "k8s.pod.id":
-				message.K8sPodUid = val.(string)
+				if s, ok := val.(string); ok {
+					message.K8sPodUid = s
+				}
 			case "proc.name":
-				message.ProcessExecutableName = val.(string)
+				if s, ok := val.(string); ok {
+					message.ProcessExecutableName = s
+				}
 			case "span.id":
-				message.SpanId = strconv.Itoa(val.(int))
+				message.SpanId = fmt.Sprintf("%v", val)
 			default:
 				continue
 			}
