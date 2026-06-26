@@ -66,9 +66,7 @@ func NewRedisClient(config *types.Configuration, stats *types.Statistics, promSt
 		tlsCfg.RootCAs.AppendCertsFromPEM(caCert)
 	} else if config.Redis.TLS {
 		if !config.Redis.CheckCert {
-			tlsCfg = &tls.Config{
-				InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
-			}
+			tlsCfg = utils.InsecureSkipVerifyTLSConfig()
 		} else {
 			pool, err := x509.SystemCertPool()
 			if err != nil {

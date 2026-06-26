@@ -3,7 +3,6 @@
 package outputs
 
 import (
-	"crypto/tls"
 	"fmt"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -28,9 +27,7 @@ func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promSta
 		options.Password = config.MQTT.Password
 	}
 	if !config.MQTT.CheckCert {
-		options.TLSConfig = &tls.Config{
-			InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
-		}
+		options.TLSConfig = utils.InsecureSkipVerifyTLSConfig()
 	}
 	options.OnConnectionLost = func(client mqtt.Client, err error) {
 		utils.Log(utils.ErrorLvl, "MQTT", fmt.Sprintf("Connection lost: %v", err))

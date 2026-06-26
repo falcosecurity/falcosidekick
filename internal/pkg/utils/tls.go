@@ -5,5 +5,5 @@ package utils
 import "crypto/tls"
 
 func InsecureSkipVerifyTLSConfig() *tls.Config {
-	return &tls.Config{InsecureSkipVerify: true}
+	return &tls.Config{InsecureSkipVerify: true} // #nosec G402 This is only set as a result of explicit configuration
 }
