@@ -92,9 +92,7 @@ func NewLogstashClient(config *types.Configuration, stats *types.Statistics, pro
 	} else {
 		// The check cert flag and mutual tls are mutually exclusive
 		if !config.Logstash.CheckCert {
-			tlsCfg = &tls.Config{
-				InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
-			}
+			tlsCfg = utils.InsecureSkipVerifyTLSConfig()
 		}
 	}
 

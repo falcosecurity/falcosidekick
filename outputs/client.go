@@ -519,9 +519,7 @@ func (c *Client) configureTransport() (*http.Transport, error) {
 	} else {
 		// With MutualTLS enabled, the check cert flag is ignored
 		if !c.cfg.CheckCert {
-			customTransport.TLSClientConfig = &tls.Config{
-				InsecureSkipVerify: true, // #nosec G402 This is only set as a result of explicit configuration
-			}
+			customTransport.TLSClientConfig = utils.InsecureSkipVerifyTLSConfig()
 		}
 	}
 	return customTransport, nil
