@@ -25,11 +25,19 @@
 | `otlp.metrics.headers`         | `OTLP_METRICS_HEADERS`         | `""`                       | List of headers to apply to all outgoing metrics in the form of `some-key=some-value,other-key=other-value`                                         |
 | `otlp.metrics.extraenvvars`    | `OTLP_METRICS_EXTRAENVVARS`    | `""`                       | Extra env vars (override the other settings)                                                                                                        |
 | `otlp.metrics.minimumpriority` | `OTLP_METRICS_MINIMUMPRIORITY` | `""` (=`debug`)            | Minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""`                 |
-| `otlp.metrics.checkcert`       | `OTLP_METRICS_CHECKCERT`       | `true`                     | Set to false if you want to skip TLS certificate validation (only with https)                                                                       |
+| `otlp.metrics.tls`             | `OTLP_METRICS_TLS`             | `false`                    | Use TLS for the connection (default: false)                                                                                                         |
+| `otlp.metrics.checkcert`       | `OTLP_METRICS_CHECKCERT`       | `true`                     | Set to `false` to skip TLS certificate validation (only when `tls` is `true`)                                                                       |
 | `otlp.metrics.extraattributes` | `OTLP_METRICS_EXTRAATTRIBUTES` | `""`                       | Comma-separated list of fields to use as labels additionally to source, priority, rule, hostname, tags, k8s_ns_name, k8s_pod_name and custom_fields |
 
 > [!NOTE]
 For the extra Env Vars values see [standard `OTEL_*` environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)
+
+> [!NOTE]
+> TLS behavior depends on the combination of `tls` and `checkcert`:
+> - `tls: false` + `checkcert: true` (both defaults) — TLS with full certificate validation (kept for backward compatibility)
+> - `tls: false` + `checkcert: false` — plaintext, no TLS
+> - `tls: true` + `checkcert: true` — TLS with full certificate validation
+> - `tls: true` + `checkcert: false` — TLS without certificate validation
 
 > [!WARNING]
 If you use `grpc`, the endpoint format must be `http(s)://{domain or ip}:4318`
@@ -48,7 +56,8 @@ otlp:
       # OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: 10000
       # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
     # minimumpriority: "" # Minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "")
-    # checkcert: true # Set to false if you want to skip TLS certificate validation (only with https) (default: true)
+    # tls: false # Use TLS for the connection (default: false)
+    # checkcert: true # Set to false to skip TLS certificate validation (only when tls is true) (default: true)
     # extraattributes: "" # Comma-separated list of fields to use as labels additionally to source, priority, rule, hostname, tags, k8s_ns_name, k8s_pod_name and custom_fields
 ```
 

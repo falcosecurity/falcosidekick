@@ -25,12 +25,20 @@
 | `otlp.traces.headers`         | `OTLP_TRACES_HEADERS`         |                            | List of headers to apply to all outgoing traces in the form of "some-key=some-value,other-key=other-value"                          |
 | `otlp.traces.synced`          | `OTLP_TRACES_SYNCED`          | `false`                    | Set to `true` if you want traces to be sent synchronously                                                                           |
 | `otlp.traces.minimumpriority` | `OTLP_TRACES_MINIMUMPRIORITY` | `""` (=`debug`)            | minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
-| `otlp.traces.checkcert`       | `OTLP_TRACES_CHECKCERT`       | `false`                    | Set if you want to skip TLS certificate validation                                                                                  |
+| `otlp.traces.tls`             | `OTLP_TRACES_TLS`             | `false`                    | Use TLS for the connection (default: false)                                                                                         |
+| `otlp.traces.checkcert`       | `OTLP_TRACES_CHECKCERT`       | `true`                     | Set to `false` to skip TLS certificate validation (only when `tls` is `true`)                                                       |
 | `otlp.traces.duration`        | `OTLP_TRACES_DURATION`        | `1000`                     | Artificial span duration in milliseconds (as Falco doesn't provide an ending timestamp)                                             |
 | `otlp.traces.extraenvvars`    | `OTLP_TRACES_EXTRAENVVARS`    |                            | Extra env vars (override the other settings)                                                                                        |
 
 > [!NOTE]
 For the extra Env Vars values see [standard `OTEL_*` environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)
+
+> [!NOTE]
+> TLS behavior depends on the combination of `tls` and `checkcert`:
+> - `tls: false` + `checkcert: true` (both defaults) — TLS with full certificate validation (kept for backward compatibility)
+> - `tls: false` + `checkcert: false` — plaintext, no TLS
+> - `tls: true` + `checkcert: true` — TLS with full certificate validation
+> - `tls: true` + `checkcert: false` — TLS without certificate validation
 
 > [!WARNING]
 If you use `grpc`, the endpoint format must be `http(s)://{domain or ip}:4318`
@@ -51,7 +59,8 @@ otlp:
       # OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: 10000
       # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-    # checkcert: true # Set if you want to skip TLS certificate validation (default: true)
+    # tls: false # Use TLS for the connection (default: false)
+    # checkcert: true # Set to false to skip TLS certificate validation (only when tls is true) (default: true)
 ```
 
 ## Additional info

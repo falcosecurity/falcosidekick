@@ -558,7 +558,8 @@ otlp:
       # OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: 10000
       # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-    # checkcert: true # Set if you want to skip TLS certificate validation (default: true)
+    # tls: false # Use TLS for the connection (default: false)
+    # checkcert: true # Set to false to skip TLS certificate validation (only when tls is true) (default: true)
   logs:
     # endpoint: "" # OTLP endpoint in the form of http(s)://{domain or ip}:4318(/v1/logs), if not empty, OTLP Traces output is enabled
     # protocol: "" # OTLP protocol http/json, http/protobuf, grpc (default: "" which uses SDK default: http/json)
@@ -568,7 +569,8 @@ otlp:
       # OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: 10000
       # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-    # checkcert: true # Set if you want to skip TLS certificate validation (default: true)
+    # tls: false # Use TLS for the connection (default: false)
+    # checkcert: true # Set to false to skip TLS certificate validation (only when tls is true) (default: true)
   metrics:
     # endpoint: "" # OTLP endpoint, typically in the form http(s)://{domain or ip}:4318(/v1/metrics), if not empty, OTLP Metrics output is enabled
     # protocol: "" # OTLP transport protocol to be used for metrics data; it can be "grpc" or "http/protobuf" (default: "grpc")
@@ -578,7 +580,8 @@ otlp:
       # OTEL_EXPORTER_OTLP_METRICS_TIMEOUT: 10000
       # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
     # minimumpriority: "" # Minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default: "")
-    # checkcert: true # Set to false if you want to skip TLS certificate validation (only with https) (default: true)
+    # tls: false # Use TLS for the connection (default: false)
+    # checkcert: true # Set to false to skip TLS certificate validation (only when tls is true) (default: true)
     # extraattributes: "" # Comma-separated list of fields to use as labels additionally to source, priority, rule, hostname, tags, k8s_ns_name, k8s_pod_name and custom_fields
 
 talon:
