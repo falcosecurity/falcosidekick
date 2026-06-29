@@ -21,12 +21,20 @@
 | `otlp.logs.headers`         | `OTLP_LOGS_HEADERS`         |                            | List of headers to apply to all outgoing logs in the form of "some-key=some-value,other-key=other-value"                            |
 | `otlp.logs.synced`          | `OTLP_LOGS_SYNCED`          | `false`                    | Set to `true` if you want logs to be sent synchronously                                                                             |
 | `otlp.logs.minimumpriority` | `OTLP_LOGS_MINIMUMPRIORITY` | `""` (=`debug`)            | minimum priority of event for using this output, order is `emergency,alert,critical,error,warning,notice,informational,debug or ""` |
-| `otlp.logs.checkcert`       | `OTLP_LOGS_CHECKCERT`       | `false`                    | Set if you want to skip TLS certificate validation                                                                                  |
+| `otlp.logs.tls`             | `OTLP_LOGS_TLS`             | `false`                    | Use TLS for the connection (default: false)                                                                                         |
+| `otlp.logs.checkcert`       | `OTLP_LOGS_CHECKCERT`       | `true`                     | Set to `false` to skip TLS certificate validation (only when `tls` is `true`)                                                       |
 | `otlp.logs.duration`        | `OTLP_LOGS_DURATION`        | `1000`                     | Artificial span duration in milliseconds (as Falco doesn't provide an ending timestamp)                                             |
 | `otlp.logs.extraenvvars`    | `OTLP_LOGS_EXTRAENVVARS`    |                            | Extra env vars (override the other settings)                                                                                        |
 
 > [!NOTE]
 For the extra Env Vars values see [standard `OTEL_*` environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)
+
+> [!NOTE]
+> TLS behavior depends on the combination of `tls` and `checkcert`:
+> - `tls: false` + `checkcert: true` (both defaults) — TLS with full certificate validation (kept for backward compatibility)
+> - `tls: false` + `checkcert: false` — plaintext, no TLS
+> - `tls: true` + `checkcert: true` — TLS with full certificate validation
+> - `tls: true` + `checkcert: false` — TLS without certificate validation
 
 ## Example of config.yaml
 
@@ -41,7 +49,8 @@ otlp:
       # OTEL_EXPORTER_OTLP_TRACES_TIMEOUT: 10000
       # OTEL_EXPORTER_OTLP_TIMEOUT: 10000
     # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
-    # checkcert: true # Set if you want to skip TLS certificate validation (default: true)
+    # tls: false # Use TLS for the connection (default: false)
+    # checkcert: true # Set to false to skip TLS certificate validation (only when tls is true) (default: true)
 ```
 
 ## Additional info
