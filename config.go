@@ -605,6 +605,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.Traces.Timeout", 10000)
 	v.SetDefault("OTLP.Traces.Synced", false)
 	v.SetDefault("OTLP.Traces.MinimumPriority", "")
+	v.SetDefault("OTLP.Traces.TLS", false)
 	v.SetDefault("OTLP.Traces.CheckCert", true)
 	// NB: Unfortunately falco events don't provide endtime, artificially set
 	// it to 1000ms by default, override-able via OTLP_DURATION environment variable.
@@ -619,6 +620,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.Logs.Headers", "")
 	v.SetDefault("OTLP.Logs.Timeout", 10000)
 	v.SetDefault("OTLP.Logs.MinimumPriority", "")
+	v.SetDefault("OTLP.Logs.TLS", false)
 	v.SetDefault("OTLP.Logs.CheckCert", true)
 
 	v.SetDefault("OTLP.Metrics.Endpoint", "")
@@ -628,6 +630,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.Metrics.Headers", "")
 	v.SetDefault("OTLP.Metrics.Timeout", 10000)
 	v.SetDefault("OTLP.Metrics.MinimumPriority", "")
+	v.SetDefault("OTLP.Metrics.TLS", false)
 	v.SetDefault("OTLP.Metrics.CheckCert", true)
 	v.SetDefault("OTLP.Metrics.ExtraAttributes", "")
 

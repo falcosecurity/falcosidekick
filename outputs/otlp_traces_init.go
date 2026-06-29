@@ -14,6 +14,7 @@ import (
 	otelresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
@@ -39,13 +40,21 @@ func installTracesExportPipeline(config *types.Configuration, ctx context.Contex
 	case GRPC:
 		opts := []otlptracegrpc.Option{}
 		if !config.OTLP.Traces.CheckCert {
-			opts = append(opts, otlptracegrpc.WithInsecure())
+			if config.OTLP.Traces.TLS {
+				opts = append(opts, otlptracegrpc.WithTLSCredentials(credentials.NewTLS(utils.InsecureSkipVerifyTLSConfig())))
+			} else {
+				opts = append(opts, otlptracegrpc.WithInsecure())
+			}
 		}
 		exporter, err = otlptracegrpc.New(ctx, opts...)
 	default:
 		opts := []otlptracehttp.Option{}
 		if !config.OTLP.Traces.CheckCert {
-			opts = append(opts, otlptracehttp.WithInsecure())
+			if config.OTLP.Traces.TLS {
+				opts = append(opts, otlptracehttp.WithTLSClientConfig(utils.InsecureSkipVerifyTLSConfig()))
+			} else {
+				opts = append(opts, otlptracehttp.WithInsecure())
+			}
 		}
 		exporter, err = otlptracehttp.New(ctx, opts...)
 	}

@@ -13,6 +13,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
@@ -81,14 +82,22 @@ func OTLPLogsInit(ctx context.Context, config *types.Configuration) (*sdklog.Log
 	switch config.OTLP.Logs.Protocol {
 	case GRPC:
 		opts := []otlploggrpc.Option{}
-		if !config.OTLP.Traces.CheckCert {
-			opts = append(opts, otlploggrpc.WithInsecure())
+		if !config.OTLP.Logs.CheckCert {
+			if config.OTLP.Logs.TLS {
+				opts = append(opts, otlploggrpc.WithTLSCredentials(credentials.NewTLS(utils.InsecureSkipVerifyTLSConfig())))
+			} else {
+				opts = append(opts, otlploggrpc.WithInsecure())
+			}
 		}
 		exporter, err = otlploggrpc.New(ctx, opts...)
 	default:
 		opts := []otlploghttp.Option{}
-		if !config.OTLP.Traces.CheckCert {
-			opts = append(opts, otlploghttp.WithInsecure())
+		if !config.OTLP.Logs.CheckCert {
+			if config.OTLP.Logs.TLS {
+				opts = append(opts, otlploghttp.WithTLSClientConfig(utils.InsecureSkipVerifyTLSConfig()))
+			} else {
+				opts = append(opts, otlploghttp.WithInsecure())
+			}
 		}
 		exporter, err = otlploghttp.New(ctx, opts...)
 	}

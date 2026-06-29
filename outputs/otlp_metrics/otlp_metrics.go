@@ -14,6 +14,7 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.23.1"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 )
@@ -33,6 +34,7 @@ type Config struct {
 	Timeout             int64
 	Headers             string
 	ExtraEnvVars        map[string]string
+	TLS                 bool
 	CheckCert           bool
 	MinimumPriority     string
 	ExtraAttributes     string
@@ -148,13 +150,21 @@ func initMeterProvider(ctx context.Context, config *Config) (func(context.Contex
 	case "grpc":
 		opts := []otlpmetricgrpc.Option{}
 		if !config.CheckCert {
-			opts = append(opts, otlpmetricgrpc.WithInsecure())
+			if config.TLS {
+				opts = append(opts, otlpmetricgrpc.WithTLSCredentials(credentials.NewTLS(utils.InsecureSkipVerifyTLSConfig())))
+			} else {
+				opts = append(opts, otlpmetricgrpc.WithInsecure())
+			}
 		}
 		exporter, err = otlpmetricgrpc.New(ctx, opts...)
 	default:
 		opts := []otlpmetrichttp.Option{}
 		if !config.CheckCert {
-			opts = append(opts, otlpmetrichttp.WithInsecure())
+			if config.TLS {
+				opts = append(opts, otlpmetrichttp.WithTLSClientConfig(utils.InsecureSkipVerifyTLSConfig()))
+			} else {
+				opts = append(opts, otlpmetrichttp.WithInsecure())
+			}
 		}
 		exporter, err = otlpmetrichttp.New(ctx, opts...)
 	}
