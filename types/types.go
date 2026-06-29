@@ -29,6 +29,23 @@ type FalcoPayload struct {
 	Hostname     string                 `json:"hostname,omitempty"`
 }
 
+// DeepCopy returns a deep copy of the FalcoPayload, duplicating the OutputFields
+// map and Tags slice so concurrent goroutines can safely read without racing.
+func (f FalcoPayload) DeepCopy() FalcoPayload {
+	c := f
+	if f.OutputFields != nil {
+		c.OutputFields = make(map[string]interface{}, len(f.OutputFields))
+		for k, v := range f.OutputFields {
+			c.OutputFields[k] = v
+		}
+	}
+	if f.Tags != nil {
+		c.Tags = make([]string, len(f.Tags))
+		copy(c.Tags, f.Tags)
+	}
+	return c
+}
+
 func (f FalcoPayload) String() string {
 	j, _ := json.Marshal(f)
 	return string(j)
