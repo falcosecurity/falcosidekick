@@ -40,13 +40,21 @@ func installTracesExportPipeline(config *types.Configuration, ctx context.Contex
 	case GRPC:
 		opts := []otlptracegrpc.Option{}
 		if !config.OTLP.Traces.CheckCert {
-			opts = append(opts, otlptracegrpc.WithTLSCredentials(credentials.NewTLS(utils.InsecureSkipVerifyTLSConfig())))
+			if config.OTLP.Traces.TLS {
+				opts = append(opts, otlptracegrpc.WithTLSCredentials(credentials.NewTLS(utils.InsecureSkipVerifyTLSConfig())))
+			} else {
+				opts = append(opts, otlptracegrpc.WithInsecure())
+			}
 		}
 		exporter, err = otlptracegrpc.New(ctx, opts...)
 	default:
 		opts := []otlptracehttp.Option{}
 		if !config.OTLP.Traces.CheckCert {
-			opts = append(opts, otlptracehttp.WithTLSClientConfig(utils.InsecureSkipVerifyTLSConfig()))
+			if config.OTLP.Traces.TLS {
+				opts = append(opts, otlptracehttp.WithTLSClientConfig(utils.InsecureSkipVerifyTLSConfig()))
+			} else {
+				opts = append(opts, otlptracehttp.WithInsecure())
+			}
 		}
 		exporter, err = otlptracehttp.New(ctx, opts...)
 	}

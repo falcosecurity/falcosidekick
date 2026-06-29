@@ -83,13 +83,21 @@ func OTLPLogsInit(ctx context.Context, config *types.Configuration) (*sdklog.Log
 	case GRPC:
 		opts := []otlploggrpc.Option{}
 		if !config.OTLP.Logs.CheckCert {
-			opts = append(opts, otlploggrpc.WithTLSCredentials(credentials.NewTLS(utils.InsecureSkipVerifyTLSConfig())))
+			if config.OTLP.Logs.TLS {
+				opts = append(opts, otlploggrpc.WithTLSCredentials(credentials.NewTLS(utils.InsecureSkipVerifyTLSConfig())))
+			} else {
+				opts = append(opts, otlploggrpc.WithInsecure())
+			}
 		}
 		exporter, err = otlploggrpc.New(ctx, opts...)
 	default:
 		opts := []otlploghttp.Option{}
 		if !config.OTLP.Logs.CheckCert {
-			opts = append(opts, otlploghttp.WithTLSClientConfig(utils.InsecureSkipVerifyTLSConfig()))
+			if config.OTLP.Logs.TLS {
+				opts = append(opts, otlploghttp.WithTLSClientConfig(utils.InsecureSkipVerifyTLSConfig()))
+			} else {
+				opts = append(opts, otlploghttp.WithInsecure())
+			}
 		}
 		exporter, err = otlploghttp.New(ctx, opts...)
 	}
