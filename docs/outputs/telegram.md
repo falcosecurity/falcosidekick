@@ -16,6 +16,7 @@
 
 | Setting                    | Env var                    | Default value    | Description                                                                                                                         |
 | -------------------------- | -------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `telegram.host`             | `TELEGRAM_HOST`           | https://api.telegram.org | Telegram api url. If you are not using local bot API, leave this value at the default.
 | `telegram.chatid`           | `TELEGRAM_CHATID`           |                  | Telegram Identifier of the shared chat, if not empty, Telegram is **enabled**                                                       |
 | `telegram.token`            | `TELEGRAM_TOKEN`            |                  | Telegram bot authentication token                                                                                                   |
 | `telegram.messagethreadid`  | `TELEGRAM_MESSAGETHREADID`  |                  | Telegram individual chats within the group                                                                                          |

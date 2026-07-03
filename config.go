@@ -408,6 +408,7 @@ var outputDefaults = map[string]map[string]any{
 		"CheckCert":       true,
 	},
 	"Telegram": {
+		"Host":            "https://api.telegram.org",
 		"Token":           "",
 		"ChatID":          "",
 		"MessageThreadID": "",

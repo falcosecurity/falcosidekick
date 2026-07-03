@@ -786,6 +786,7 @@ type RedisConfig struct {
 
 // TelegramConfig represents parameters for Telegram
 type TelegramConfig struct {
+	Host            string
 	Token           string
 	ChatID          string
 	MinimumPriority string
