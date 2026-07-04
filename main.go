@@ -788,7 +788,7 @@ func init() {
 		}
 	}
 
-	if config.Telegram.ChatID != "" && config.Telegram.Token != "" && config.Telegram.Host != "" {
+	if config.Telegram.ChatID != "" && config.Telegram.Token != "" {
 		var err error
 		var urlFormat = "%s/bot%s/sendMessage"
 
