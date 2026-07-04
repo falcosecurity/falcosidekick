@@ -931,6 +931,10 @@ func getConfig() *types.Configuration {
 		})
 	}
 
+	if c.Telegram.Host == "" {
+		c.Telegram.Host = "https://api.telegram.org"
+	}
+	
 	c.Slack.MinimumPriority = checkPriority(c.Slack.MinimumPriority)
 	c.Rocketchat.MinimumPriority = checkPriority(c.Rocketchat.MinimumPriority)
 	c.Mattermost.MinimumPriority = checkPriority(c.Mattermost.MinimumPriority)
