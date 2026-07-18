@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	azeventhubs "github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
+	azeventhubs "github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs/v2"
 	"github.com/DataDog/datadog-go/statsd"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -20,7 +20,8 @@ import (
 
 // NewEventHubClient returns a new output.Client for accessing the Azure Event Hub.
 func NewEventHubClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	return &Client{
 		OutputType:      "AzureEventHub",
 		Config:          config,
