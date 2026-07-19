@@ -130,6 +130,8 @@ type Client struct {
 	Crdclient                  *crdClient.Clientset
 	OpenReportsClient          openreportsclient.Interface
 	openReportDefaultNamespace string
+	openReportMutex            sync.Mutex
+	openClusterReportMutex     sync.Mutex
 	MQTTClient                 mqtt.Client
 	TimescaleDBClient          *timescaledb.Pool
 	RedisClient                *redis.Client

@@ -584,55 +584,131 @@ func TestUpdateOrCreateOpenReportMetrics(t *testing.T) {
 }
 
 func TestOpenReportConcurrentUpdatesDoNotLoseResults(t *testing.T) {
-	existing := newOpenReport(openReportTestNamespace)
-	existing.ResourceVersion = "1"
-	existing.Results = []openreports.ReportResult{*testOpenReportResult("existing", openReportSkip)}
-	client, reportsClient, _ := newOpenReportTestClient(20, existing)
-
-	var reactorMu sync.Mutex
-	resourceVersion := 1
-	reportsClient.PrependReactor("update", "reports", func(action k8stesting.Action) (bool, runtime.Object, error) {
-		reactorMu.Lock()
-		defer reactorMu.Unlock()
-		update := action.(k8stesting.UpdateAction).GetObject().(*openreports.Report).DeepCopy()
-		currentObject, err := reportsClient.Tracker().Get(openReportGVR, openReportTestNamespace, openReportName)
-		if err != nil {
-			return true, nil, err
-		}
-		current := currentObject.(*openreports.Report)
-		if update.ResourceVersion != current.ResourceVersion {
-			return true, nil, apierrors.NewConflict(schema.GroupResource{Group: "openreports.io", Resource: "reports"}, openReportName, stderrors.New("conflict"))
-		}
-		resourceVersion++
-		update.ResourceVersion = strconv.Itoa(resourceVersion)
-		if err := reportsClient.Tracker().Update(openReportGVR, update, openReportTestNamespace); err != nil {
-			return true, nil, err
-		}
-		return true, update, nil
-	})
-
-	const writers = 4
-	errors := make(chan error, writers)
-	var wg sync.WaitGroup
-	for index := 0; index < writers; index++ {
-		wg.Add(1)
-		go func(index int) {
-			defer wg.Done()
-			errors <- client.createOrUpdateOpenReport(testOpenReportResult("incoming-"+strconv.Itoa(index), openReportFail), openReportTestNamespace)
-		}(index)
-	}
-	wg.Wait()
-	close(errors)
-	for err := range errors {
-		require.NoError(t, err)
+	tests := []struct {
+		name       string
+		resource   string
+		gvr        schema.GroupVersionResource
+		namespace  string
+		objectName string
+		lock       func(*Client) *sync.Mutex
+		invoke     func(*Client, *openreports.ReportResult) error
+		results    func(runtime.Object) ([]openreports.ReportResult, openreports.ReportSummary)
+	}{
+		{
+			name:       "Report",
+			resource:   "reports",
+			gvr:        openReportGVR,
+			namespace:  openReportTestNamespace,
+			objectName: openReportName,
+			lock:       func(client *Client) *sync.Mutex { return &client.openReportMutex },
+			invoke: func(client *Client, result *openreports.ReportResult) error {
+				return client.createOrUpdateOpenReport(result, openReportTestNamespace)
+			},
+			results: func(object runtime.Object) ([]openreports.ReportResult, openreports.ReportSummary) {
+				report := object.(*openreports.Report)
+				return report.Results, report.Summary
+			},
+		},
+		{
+			name:       "ClusterReport",
+			resource:   "clusterreports",
+			gvr:        openClusterReportGVR,
+			objectName: openClusterReportName,
+			lock:       func(client *Client) *sync.Mutex { return &client.openClusterReportMutex },
+			invoke: func(client *Client, result *openreports.ReportResult) error {
+				return client.createOrUpdateOpenClusterReport(result)
+			},
+			results: func(object runtime.Object) ([]openreports.ReportResult, openreports.ReportSummary) {
+				report := object.(*openreports.ClusterReport)
+				return report.Results, report.Summary
+			},
+		},
 	}
 
-	report, err := reportsClient.OpenreportsV1alpha1().Reports(openReportTestNamespace).Get(context.Background(), openReportName, metav1.GetOptions{})
-	require.NoError(t, err)
-	require.Len(t, report.Results, writers+1)
-	require.Equal(t, 1, countOpenReportRule(report.Results, "existing"))
-	for index := 0; index < writers; index++ {
-		require.Equal(t, 1, countOpenReportRule(report.Results, "incoming-"+strconv.Itoa(index)))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			writers := retry.DefaultRetry.Steps * 4
+			client, reportsClient, _ := newOpenReportTestClient(writers + 1)
+			expectedLock := test.lock(client)
+			reportsClient.PrependReactor("*", test.resource, func(action k8stesting.Action) (bool, runtime.Object, error) {
+				if expectedLock.TryLock() {
+					expectedLock.Unlock()
+					return true, nil, stderrors.New("OpenReport API transaction executed without its scope lock")
+				}
+				return false, nil, nil
+			})
+
+			start := make(chan struct{})
+			errors := make(chan error, writers)
+			var wg sync.WaitGroup
+			for index := 0; index < writers; index++ {
+				wg.Add(1)
+				go func(index int) {
+					defer wg.Done()
+					<-start
+					errors <- test.invoke(client, testOpenReportResult("incoming-"+strconv.Itoa(index), openReportFail))
+				}(index)
+			}
+			close(start)
+			wg.Wait()
+			close(errors)
+			for err := range errors {
+				require.NoError(t, err)
+			}
+
+			object, err := reportsClient.Tracker().Get(test.gvr, test.namespace, test.objectName)
+			require.NoError(t, err)
+			results, summary := test.results(object)
+			require.Len(t, results, writers)
+			for index := 0; index < writers; index++ {
+				require.Equal(t, 1, countOpenReportRule(results, "incoming-"+strconv.Itoa(index)))
+			}
+			require.Equal(t, openreports.ReportSummary{Fail: writers}, summary)
+		})
 	}
-	require.Equal(t, openreports.ReportSummary{Fail: writers, Skip: 1}, report.Summary)
+}
+
+func TestOpenReportScopesDoNotBlockEachOther(t *testing.T) {
+	tests := []struct {
+		name   string
+		block  func(*Client) *sync.Mutex
+		invoke func(*Client) error
+	}{
+		{
+			name:  "Report lock does not block ClusterReport",
+			block: func(client *Client) *sync.Mutex { return &client.openReportMutex },
+			invoke: func(client *Client) error {
+				return client.createOrUpdateOpenClusterReport(testOpenReportResult("cluster", openReportFail))
+			},
+		},
+		{
+			name:  "ClusterReport lock does not block Report",
+			block: func(client *Client) *sync.Mutex { return &client.openClusterReportMutex },
+			invoke: func(client *Client) error {
+				return client.createOrUpdateOpenReport(testOpenReportResult("namespaced", openReportFail), openReportTestNamespace)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client, _, _ := newOpenReportTestClient(10)
+			blockedLock := test.block(client)
+			blockedLock.Lock()
+			done := make(chan error, 1)
+			go func() {
+				done <- test.invoke(client)
+			}()
+
+			select {
+			case err := <-done:
+				blockedLock.Unlock()
+				require.NoError(t, err)
+			case <-time.After(time.Second):
+				blockedLock.Unlock()
+				<-done
+				require.Fail(t, "independent OpenReport scopes blocked each other")
+			}
+		})
+	}
 }

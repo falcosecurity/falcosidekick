@@ -228,6 +228,9 @@ func (c *Client) createOrUpdateOpenReport(result *openreports.ReportResult, name
 		utils.Log(utils.DebugLvl, c.OutputType, fmt.Sprintf("Unable to check namespace '%v', proceeding with it: %v", namespace, namespaceErr))
 	}
 
+	c.openReportMutex.Lock()
+	defer c.openReportMutex.Unlock()
+
 	action := openReportUpdate
 	err := retry.OnError(retry.DefaultRetry, isRetriableOpenReportError, func() error {
 		reports := c.OpenReportsClient.OpenreportsV1alpha1().Reports(namespace)
@@ -262,6 +265,9 @@ func (c *Client) createOrUpdateOpenReport(result *openreports.ReportResult, name
 }
 
 func (c *Client) createOrUpdateOpenClusterReport(result *openreports.ReportResult) error {
+	c.openClusterReportMutex.Lock()
+	defer c.openClusterReportMutex.Unlock()
+
 	action := openReportUpdate
 	err := retry.OnError(retry.DefaultRetry, isRetriableOpenReportError, func() error {
 		reports := c.OpenReportsClient.OpenreportsV1alpha1().ClusterReports()
