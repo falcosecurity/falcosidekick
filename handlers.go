@@ -512,6 +512,11 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 			safeGo(func() { policyReportClient.UpdateOrCreatePolicyReport(falcopayload) })
 		}
 	}
+	if config.OpenReport.Enabled && falcopayload.Priority >= types.Priority(config.OpenReport.MinimumPriority) {
+		if falcopayload.Source == syscalls || falcopayload.Source == syscall || falcopayload.Source == "k8saudit" {
+			safeGo(func() { openReportClient.UpdateOrCreateOpenReport(falcopayload) })
+		}
+	}
 
 	if config.Yandex.S3.Bucket != "" && (falcopayload.Priority >= types.Priority(config.Yandex.S3.MinimumPriority) || falcopayload.Rule == testRule) {
 		safeGo(func() { yandexClient.UploadYandexS3(falcopayload) })

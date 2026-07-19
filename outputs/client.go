@@ -29,6 +29,7 @@ import (
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	timescaledb "github.com/jackc/pgx/v5/pgxpool"
+	openreportsclient "github.com/openreports/reports-api/pkg/client/clientset/versioned"
 	amqp "github.com/rabbitmq/amqp091-go"
 	redis "github.com/redis/go-redis/v9"
 	"github.com/segmentio/kafka-go"
@@ -120,18 +121,20 @@ type Client struct {
 	GCPChronicleClient      *http.Client
 	GCPTokenSource          oauth2.TokenSource
 
-	GCSStorageClient  *storage.Client
-	KafkaProducer     *kafka.Writer
-	CloudEventsClient cloudevents.Client
-	KubernetesClient  kubernetes.Interface
-	RabbitmqClient    *amqp.Channel
-	WavefrontSender   *wavefront.Sender
-	Crdclient         *crdClient.Clientset
-	MQTTClient        mqtt.Client
-	TimescaleDBClient *timescaledb.Pool
-	RedisClient       *redis.Client
-	OTLPLogsLogger    *slog.Logger
-	LogstashClient    *logstash.Stash
+	GCSStorageClient           *storage.Client
+	KafkaProducer              *kafka.Writer
+	CloudEventsClient          cloudevents.Client
+	KubernetesClient           kubernetes.Interface
+	RabbitmqClient             *amqp.Channel
+	WavefrontSender            *wavefront.Sender
+	Crdclient                  *crdClient.Clientset
+	OpenReportsClient          openreportsclient.Interface
+	openReportDefaultNamespace string
+	MQTTClient                 mqtt.Client
+	TimescaleDBClient          *timescaledb.Pool
+	RedisClient                *redis.Client
+	OTLPLogsLogger             *slog.Logger
+	LogstashClient             *logstash.Stash
 
 	// Enable gzip compression
 	EnableCompression bool

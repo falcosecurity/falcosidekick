@@ -100,6 +100,7 @@ type Configuration struct {
 	Tekton             tektonConfig
 	WebUI              WebUIOutputConfig
 	PolicyReport       PolicyReportConfig
+	OpenReport         OpenReportConfig
 	Rabbitmq           RabbitmqConfig
 	Wavefront          WavefrontOutputConfig
 	Fission            fissionConfig
@@ -647,6 +648,15 @@ type PolicyReportConfig struct {
 	MaxEvents       int
 }
 
+// OpenReportConfig represents parameters for the OpenReports output.
+type OpenReportConfig struct {
+	Enabled         bool
+	Kubeconfig      string
+	FalcoNamespace  string
+	MinimumPriority string
+	MaxEvents       int
+}
+
 // RabbitmqConfig represents parameters for rabbitmq
 type RabbitmqConfig struct {
 	URL             string
@@ -936,6 +946,7 @@ type Statistics struct {
 	Syslog            *expvar.Map
 	Cliq              *expvar.Map
 	PolicyReport      *expvar.Map
+	OpenReport        *expvar.Map
 	NodeRed           *expvar.Map
 	MQTT              *expvar.Map
 	Zincsearch        *expvar.Map

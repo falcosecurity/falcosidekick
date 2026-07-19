@@ -329,6 +329,13 @@ var outputDefaults = map[string]map[string]any{
 		"FalcoNamespace":  "",
 		"PruneByPriority": false,
 	},
+	"OpenReport": {
+		"Enabled":         false,
+		"Kubeconfig":      "",
+		"MinimumPriority": "",
+		"MaxEvents":       1000,
+		"FalcoNamespace":  "",
+	},
 	"Rabbitmq": {
 		"URL":             "",
 		"Queue":           "",
@@ -980,6 +987,7 @@ func getConfig() *types.Configuration {
 	c.Syslog.MinimumPriority = checkPriority(c.Syslog.MinimumPriority)
 	c.MQTT.MinimumPriority = checkPriority(c.MQTT.MinimumPriority)
 	c.PolicyReport.MinimumPriority = checkPriority(c.PolicyReport.MinimumPriority)
+	c.OpenReport.MinimumPriority = checkPriority(c.OpenReport.MinimumPriority)
 	c.Spyderbat.MinimumPriority = checkPriority(c.Spyderbat.MinimumPriority)
 	c.Zincsearch.MinimumPriority = checkPriority(c.Zincsearch.MinimumPriority)
 	c.NodeRed.MinimumPriority = checkPriority(c.NodeRed.MinimumPriority)
