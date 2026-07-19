@@ -420,6 +420,19 @@ func TestOpenReportFIFOAndSummary(t *testing.T) {
 	require.Equal(t, openreports.ReportSummary{Warn: 1, Skip: 1}, clusterReport.Summary)
 }
 
+func TestOpenReportSummaryCountsEveryResult(t *testing.T) {
+	results := []openreports.ReportResult{
+		*testOpenReportResult("pass-one", openReportPass),
+		*testOpenReportResult("pass-two", openReportPass),
+		*testOpenReportResult("fail", openReportFail),
+		*testOpenReportResult("warn", openReportWarn),
+		*testOpenReportResult("error", openReportError),
+		*testOpenReportResult("skip", openReportSkip),
+	}
+
+	require.Equal(t, openreports.ReportSummary{Pass: 2, Fail: 1, Warn: 1, Error: 1, Skip: 1}, getOpenReportSummary(results))
+}
+
 func TestOpenReportResultMapping(t *testing.T) {
 	timestamp := time.Date(2026, time.July, 19, 17, 42, 31, 123456789, time.UTC)
 	payload := types.FalcoPayload{
