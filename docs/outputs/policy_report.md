@@ -1,5 +1,8 @@
 # Policy Report
 
+> [!WARNING]
+> **Deprecated:** use the [OpenReport output](open_report.md) to produce `openreports.io/v1alpha1` `Report` and `ClusterReport` resources. This output remains available for legacy `wgpolicyk8s.io` resources.
+
 - **Category**: Other
 - **Website**: https://github.com/kubernetes-sigs/wg-policy-prototypes/tree/master/policy-report/falco-adapter
 
