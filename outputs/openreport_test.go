@@ -172,7 +172,7 @@ func countOpenReportRule(results []openreports.ReportResult, rule string) int {
 
 func requireOpenReportGVK(t *testing.T, object runtime.Object, kind string) {
 	t.Helper()
-	require.Equal(t, openreports.SchemeGroupVersion.String(), object.GetObjectKind().GroupVersionKind().GroupVersion().String())
+	require.Equal(t, "openreports.io/v1alpha1", object.GetObjectKind().GroupVersionKind().GroupVersion().String())
 	require.Equal(t, kind, object.GetObjectKind().GroupVersionKind().Kind)
 }
 
@@ -184,7 +184,7 @@ func TestCreateOrUpdateOpenReport(t *testing.T) {
 		context.Background(), openReportName, metav1.GetOptions{},
 	)
 	require.NoError(t, err)
-	require.Equal(t, openReportName, report.Name)
+	require.Equal(t, "falco-report", report.Name)
 	require.Equal(t, openReportTestNamespace, report.Namespace)
 	require.Equal(t, "falcosidekick", report.Labels["app.kubernetes.io/managed-by"])
 	requireOpenReportGVK(t, report, "Report")
@@ -217,7 +217,7 @@ func TestCreateOrUpdateOpenClusterReport(t *testing.T) {
 		context.Background(), openClusterReportName, metav1.GetOptions{},
 	)
 	require.NoError(t, err)
-	require.Equal(t, openClusterReportName, report.Name)
+	require.Equal(t, "falco-cluster-report", report.Name)
 	require.Empty(t, report.Namespace)
 	require.Equal(t, "falcosidekick", report.Labels["app.kubernetes.io/managed-by"])
 	requireOpenReportGVK(t, report, "ClusterReport")
@@ -513,6 +513,28 @@ func TestOpenReportNamespaceFallback(t *testing.T) {
 		_, err := reportsClient.OpenreportsV1alpha1().Reports(openReportTestNamespace).Get(context.Background(), openReportName, metav1.GetOptions{})
 		require.NoError(t, err)
 	})
+}
+
+func TestOpenReportFallbackIsPerClient(t *testing.T) {
+	previousLegacyNamespace := defaultNamespace
+	defaultNamespace = "legacy-shared"
+	t.Cleanup(func() { defaultNamespace = previousLegacyNamespace })
+
+	firstClient, firstReportsClient, _ := newOpenReportTestClient(10)
+	firstClient.openReportDefaultNamespace = "fallback-one"
+	secondClient, secondReportsClient, _ := newOpenReportTestClient(10)
+	secondClient.openReportDefaultNamespace = "fallback-two"
+
+	require.NoError(t, firstClient.createOrUpdateOpenReport(testOpenReportResult("first", openReportFail), "missing"))
+	require.NoError(t, secondClient.createOrUpdateOpenReport(testOpenReportResult("second", openReportFail), "missing"))
+
+	firstReport, err := firstReportsClient.OpenreportsV1alpha1().Reports("fallback-one").Get(context.Background(), "falco-report", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"first"}, openReportRules(firstReport.Results))
+
+	secondReport, err := secondReportsClient.OpenreportsV1alpha1().Reports("fallback-two").Get(context.Background(), "falco-report", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{"second"}, openReportRules(secondReport.Results))
 }
 
 func TestNewOpenReportClientRejectsInvalidMaxEvents(t *testing.T) {
