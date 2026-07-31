@@ -420,12 +420,20 @@ fission:
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
 
+# Deprecated: use openreport instead.
 policyreport:
   enabled: false # if true policyreport output is enabled
   kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
   falconamespace: "" # Set the namespace where Falco is running (only if falcosidekick is running outside the cluster)
   maxevents: 1000 # the max number of events per report(default: 1000)
   prunebypriority: false # if true; the events with lowest severity are pruned first, in FIFO order (default: false)
+
+openreport:
+  enabled: false # if true OpenReport output is enabled
+  kubeconfig: "~/.kube/config" # Kubeconfig file to use (only if falcosidekick is running outside the cluster)
+  falconamespace: "" # Set the namespace where Falco is running (only if falcosidekick is running outside the cluster)
+  maxevents: 1000 # the max number of events per report (default: 1000; must be greater than 0)
+  minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 yandex:
   # accesskeyid: "" # yandex access key

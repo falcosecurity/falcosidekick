@@ -62,6 +62,7 @@ var (
 	tektonClient        *outputs.Client
 	webUIClient         *outputs.Client
 	policyReportClient  *outputs.Client
+	openReportClient    *outputs.Client
 	rabbitmqClient      *outputs.Client
 	wavefrontClient     *outputs.Client
 	fissionClient       *outputs.Client
@@ -598,6 +599,16 @@ func init() {
 			config.PolicyReport.Enabled = false
 		} else {
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "PolicyReport")
+		}
+	}
+
+	if config.OpenReport.Enabled {
+		var err error
+		openReportClient, err = outputs.NewOpenReportClient(config, stats, promStats, otlpMetrics, statsdClient, dogstatsdClient)
+		if err != nil {
+			config.OpenReport.Enabled = false
+		} else {
+			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "OpenReport")
 		}
 	}
 

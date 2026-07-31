@@ -178,7 +178,8 @@ Follow the links to get the configuration of each output.
 - [**OTEL Traces**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/otlp_traces.md)
 
 ### Other
-- [**Policy Report**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/policy_report.md)
+- [**OpenReport**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/open_report.md)
+- [**Policy Report (Deprecated)**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/policy_report.md)
 
 ### Response engine
 - [**Falco Talon**](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/talon.md)

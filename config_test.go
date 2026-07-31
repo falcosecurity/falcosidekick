@@ -44,3 +44,45 @@ func TestTelegramMessageThreadIDEnvBinding(t *testing.T) {
 	require.NoError(t, v.Unmarshal(c))
 	require.Equal(t, "4", c.Telegram.MessageThreadID)
 }
+
+func TestOpenReportDefaultsRegistered(t *testing.T) {
+	openReportDefaults, ok := outputDefaults["OpenReport"]
+	require.True(t, ok, "outputDefaults must contain OpenReport entry")
+
+	expected := map[string]any{
+		"Enabled":         false,
+		"Kubeconfig":      "",
+		"FalcoNamespace":  "",
+		"MinimumPriority": "",
+		"MaxEvents":       1000,
+	}
+	for key, value := range expected {
+		require.Contains(t, openReportDefaults, key)
+		require.Equal(t, value, openReportDefaults[key])
+	}
+}
+
+func TestOpenReportEnvBinding(t *testing.T) {
+	t.Setenv("OPENREPORT_ENABLED", "true")
+	t.Setenv("OPENREPORT_KUBECONFIG", "/tmp/openreport-kubeconfig")
+	t.Setenv("OPENREPORT_FALCONAMESPACE", "falco")
+	t.Setenv("OPENREPORT_MINIMUMPRIORITY", "warning")
+	t.Setenv("OPENREPORT_MAXEVENTS", "42")
+
+	v := viper.New()
+	for prefix, defaults := range outputDefaults {
+		for key, value := range defaults {
+			v.SetDefault(prefix+"."+key, value)
+		}
+	}
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
+
+	c := &types.Configuration{}
+	require.NoError(t, v.Unmarshal(c))
+	require.True(t, c.OpenReport.Enabled)
+	require.Equal(t, "/tmp/openreport-kubeconfig", c.OpenReport.Kubeconfig)
+	require.Equal(t, "falco", c.OpenReport.FalcoNamespace)
+	require.Equal(t, "warning", c.OpenReport.MinimumPriority)
+	require.Equal(t, 42, c.OpenReport.MaxEvents)
+}

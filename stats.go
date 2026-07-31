@@ -78,6 +78,7 @@ func getInitStats() *types.Statistics {
 		MQTT:              getOutputNewMap("mqtt"),
 		Spyderbat:         getOutputNewMap("spyderbat"),
 		PolicyReport:      getOutputNewMap("policyreport"),
+		OpenReport:        getOutputNewMap("openreport"),
 		NodeRed:           getOutputNewMap("nodered"),
 		Zincsearch:        getOutputNewMap("zincsearch"),
 		Gotify:            getOutputNewMap("gotify"),
