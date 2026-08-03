@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/segmentio/kafka-go/sasl/scram"
@@ -25,8 +25,8 @@ import (
 
 // NewKafkaClient returns a new output.Client for accessing the Apache Kafka.
 func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
-
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	transport := &kafka.Transport{
 		Dial: (&net.Dialer{
 			Timeout:   3 * time.Second,
@@ -37,7 +37,6 @@ func NewKafkaClient(config *types.Configuration, stats *types.Statistics, promSt
 
 	if config.Kafka.TLS {
 		caCertPool, err := x509.SystemCertPool()
-
 		if err != nil {
 			utils.Log(utils.ErrorLvl, "Kafka", fmt.Sprintf("failed to initialize root CAs: %v", err))
 		}

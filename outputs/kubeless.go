@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"k8s.io/client-go/kubernetes"
@@ -21,16 +21,19 @@ import (
 )
 
 // Some constant strings to use in request headers
-const KubelessEventIDKey = "event-id"
-const KubelessUserAgentKey = "User-Agent"
-const KubelessEventTypeKey = "event-type"
-const KubelessEventNamespaceKey = "event-namespace"
-const KubelessEventTypeValue = "falco"
-const KubelessContentType = "application/json"
+const (
+	KubelessEventIDKey        = "event-id"
+	KubelessUserAgentKey      = "User-Agent"
+	KubelessEventTypeKey      = "event-type"
+	KubelessEventNamespaceKey = "event-namespace"
+	KubelessEventTypeValue    = "falco"
+	KubelessContentType       = "application/json"
+)
 
 // NewKubelessClient returns a new output.Client for accessing Kubernetes.
 func NewKubelessClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	if config.Kubeless.Kubeconfig != "" {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", config.Kubeless.Kubeconfig)
 		if err != nil {

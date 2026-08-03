@@ -10,7 +10,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -25,11 +25,12 @@ import (
 
 // NewYandexClient returns a new output.Client for accessing the Yandex API.
 func NewYandexClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
-
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	// Load the SDK's configuration from environment and shared config, and
 	// create the client with this.
-	cfg, err := awsConfig.LoadDefaultConfig(context.Background(),
+	cfg, err := awsConfig.LoadDefaultConfig(
+		context.Background(),
 		awsConfig.WithRegion(config.Yandex.Region),
 		awsConfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(config.Yandex.AccessKeyID, config.Yandex.SecretAccessKey, "")),
 	)

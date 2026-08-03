@@ -13,7 +13,7 @@ import (
 	"strings"
 	textTemplate "text/template"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	sasl "github.com/emersion/go-sasl"
 	smtp "github.com/emersion/go-smtp"
 
@@ -34,7 +34,8 @@ type SMTPPayload struct {
 
 // NewSMTPClient returns a new output.Client for accessing a SMTP server.
 func NewSMTPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	reg := regexp.MustCompile(`.*:[0-9]+`)
 	if !reg.MatchString(config.SMTP.HostPort) {
 		utils.Log(utils.ErrorLvl, "SMTP", "Bad Host:Port")
