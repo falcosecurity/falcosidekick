@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"go.opentelemetry.io/otel/attribute"
 	corev1 "k8s.io/api/core/v1"
 	errorsv1 "k8s.io/apimachinery/pkg/api/errors"
@@ -102,7 +102,8 @@ func newClusterPolicyReport() *wgpolicy.ClusterPolicyReport {
 }
 
 func NewPolicyReportClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	clientConfig, err := rest.InClusterConfig()
 	if err != nil {
 		clientConfig, err = clientcmd.BuildConfigFromFlags("", config.PolicyReport.Kubeconfig)
@@ -174,7 +175,7 @@ func (c *Client) UpdateOrCreatePolicyReport(falcopayload types.FalcoPayload) {
 
 // newResult creates a new entry for Reports
 func newResult(falcopayload types.FalcoPayload) *wgpolicy.PolicyReportResult {
-	var properties = make(map[string]string)
+	properties := make(map[string]string)
 	for i, j := range falcopayload.OutputFields {
 		properties[i] = toString(j)
 	}
