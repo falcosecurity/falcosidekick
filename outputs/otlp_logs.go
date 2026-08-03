@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
@@ -21,7 +21,8 @@ import (
 )
 
 func NewOtlpLogsClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	initClientArgs := &types.InitClientArgs{
 		Config:          config,
 		Stats:           stats,

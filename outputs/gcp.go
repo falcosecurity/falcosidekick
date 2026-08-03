@@ -15,7 +15,7 @@ import (
 	gcpfunctions "cloud.google.com/go/functions/apiv1"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/googleapis/gax-go/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/oauth2"
@@ -30,7 +30,8 @@ import (
 
 // NewGCPClient returns a new output.Client for accessing the GCP API.
 func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	base64decodedCredentialsData, err := base64.StdEncoding.DecodeString(config.GCP.Credentials)
 	if err != nil {
 		utils.Log(utils.ErrorLvl, "GCP", "Erroc.OutputTyper while base64-decoding GCP Credentials")

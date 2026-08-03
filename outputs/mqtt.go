@@ -5,7 +5,7 @@ package outputs
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
@@ -17,8 +17,8 @@ import (
 
 // NewMQTTClient returns a new output.Client for accessing Kubernetes.
 func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
-
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	options := mqtt.NewClientOptions()
 	options.AddBroker(config.MQTT.Broker)
 	options.SetClientID("falcosidekick-" + uuid.NewString()[:6])
