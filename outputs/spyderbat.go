@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 
@@ -22,12 +22,13 @@ import (
 	"github.com/falcosecurity/falcosidekick/types"
 )
 
-const Falcosidekick_ string = "falcosidekick_"
-const SourcePath string = "/source/"
-const APIv1Path string = "api/v1/org/"
+const (
+	Falcosidekick_ string = "falcosidekick_"
+	SourcePath     string = "/source/"
+	APIv1Path      string = "api/v1/org/"
+)
 
 func isSourcePresent(config *types.Configuration) (bool, error) {
-
 	client := &http.Client{}
 
 	source_url, err := url.JoinPath(config.Spyderbat.APIUrl, APIv1Path+config.Spyderbat.OrgUID+SourcePath)
@@ -73,7 +74,6 @@ type SourceBody struct {
 }
 
 func makeSource(config *types.Configuration) error {
-
 	data := SourceBody{
 		Name:        config.Spyderbat.Source,
 		Description: config.Spyderbat.SourceDescription,
@@ -195,8 +195,8 @@ func newSpyderbatPayload(falcopayload types.FalcoPayload) (spyderbatPayload, err
 }
 
 func NewSpyderbatClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
-
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	hasSource, err := isSourcePresent(config)
 	if err != nil {
 		utils.Log(utils.ErrorLvl, "Spyderbat", err.Error())

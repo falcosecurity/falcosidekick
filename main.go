@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/embano1/memlog"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -275,7 +275,6 @@ func init() {
 		if err != nil {
 			config.Elasticsearch.HostPort = ""
 		} else {
-
 			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "Elasticsearch")
 		}
 	}
@@ -514,7 +513,7 @@ func init() {
 
 	if config.GCP.CloudRun.Endpoint != "" && config.GCP.CloudRun.JWT != "" {
 		var err error
-		var outputName = "GCPCloudRun"
+		outputName := "GCPCloudRun"
 
 		gcpCloudRunClient, err = outputs.NewClient(outputName, config.GCP.CloudRun.Endpoint, types.CommonConfig{}, *initClientArgs)
 
@@ -557,8 +556,8 @@ func init() {
 
 	if config.Pagerduty.RoutingKey != "" {
 		var err error
-		var url = "https://events.pagerduty.com/v2/enqueue"
-		var outputName = "Pagerduty"
+		url := "https://events.pagerduty.com/v2/enqueue"
+		outputName := "Pagerduty"
 
 		pagerdutyClient, err = outputs.NewClient(outputName, url, config.Pagerduty.CommonConfig, *initClientArgs)
 
@@ -654,7 +653,7 @@ func init() {
 
 	if config.Grafana.HostPort != "" && config.Grafana.APIKey != "" {
 		var err error
-		var outputName = "Grafana"
+		outputName := "Grafana"
 		endpointUrl := fmt.Sprintf("%s/api/annotations", config.Grafana.HostPort)
 		grafanaClient, err = outputs.NewClient(outputName, endpointUrl, config.Grafana.CommonConfig, *initClientArgs)
 		if err != nil {
@@ -667,7 +666,7 @@ func init() {
 
 	if config.GrafanaOnCall.WebhookURL != "" {
 		var err error
-		var outputName = "GrafanaOnCall"
+		outputName := "GrafanaOnCall"
 		grafanaOnCallClient, err = outputs.NewClient(outputName, config.GrafanaOnCall.WebhookURL, config.GrafanaOnCall.CommonConfig, *initClientArgs)
 		if err != nil {
 			config.GrafanaOnCall.WebhookURL = ""
@@ -790,7 +789,7 @@ func init() {
 
 	if config.Telegram.ChatID != "" && config.Telegram.Token != "" {
 		var err error
-		var urlFormat = "%s/bot%s/sendMessage"
+		urlFormat := "%s/bot%s/sendMessage"
 
 		telegramClient, err = outputs.NewClient("Telegram", fmt.Sprintf(urlFormat, config.Telegram.Host, config.Telegram.Token), types.CommonConfig{CheckCert: config.Telegram.CheckCert}, *initClientArgs)
 

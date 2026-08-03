@@ -10,7 +10,7 @@ import (
 	"hash/fnv"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -24,7 +24,8 @@ import (
 var getTracerProvider = otel.GetTracerProvider
 
 func NewOtlpTracesClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	initClientArgs := &types.InitClientArgs{
 		Config:          config,
 		Stats:           stats,
@@ -72,7 +73,8 @@ func (c *Client) newTrace(falcopayload types.FalcoPayload) (*trace.Span, error) 
 		ctx,
 		falcopayload.Rule,
 		trace.WithTimestamp(startTime),
-		trace.WithSpanKind(trace.SpanKindServer))
+		trace.WithSpanKind(trace.SpanKindServer),
+	)
 
 	span.SetAttributes(attribute.String("uuid", falcopayload.UUID))
 	span.SetAttributes(attribute.String("source", falcopayload.Source))

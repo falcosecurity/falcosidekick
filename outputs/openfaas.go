@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"
 	"k8s.io/client-go/kubernetes"
@@ -21,7 +21,8 @@ import (
 
 // NewOpenfaasClient returns a new output.Client for accessing Kubernetes.
 func NewOpenfaasClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
+) (*Client, error) {
 	if config.Openfaas.Kubeconfig != "" {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", config.Openfaas.Kubeconfig)
 		if err != nil {
