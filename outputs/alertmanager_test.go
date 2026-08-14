@@ -131,3 +131,26 @@ func Test_alertmanagerSafeLabel(t *testing.T) {
 		})
 	}
 }
+
+// Falco sends n_drops as a JSON number, not a string. newFalcoPayload decodes
+// with UseNumber, so the value arrives as json.Number and a type assertion to
+// string panics. Every other drop-event test quotes the value, which is why
+// this path was never covered.
+func TestNewAlertmanagerPayloadDropEventNumericFields(t *testing.T) {
+	input := `{"hostname":"host","output":"Falco internal: syscall event drop. 815508 system calls dropped in last second.","output_fields":{"n_drops":815508,"n_drops_buffer_total":815508,"n_drops_bug":0,"n_evts":2270350},"priority":"Debug","rule":"Falco internal: syscall event drop","time":"2023-03-03T03:03:03.000000003Z"}`
+	var f types.FalcoPayload
+	d := json.NewDecoder(strings.NewReader(input))
+	d.UseNumber()
+	require.Nil(t, d.Decode(&f))
+
+	config := &types.Configuration{
+		Alertmanager: types.AlertmanagerOutputConfig{DropEventDefaultPriority: Critical},
+	}
+	json.Unmarshal([]byte(defaultThresholds), &config.Alertmanager.DropEventThresholdsList)
+
+	o := newAlertmanagerPayload(f, config)
+	require.Len(t, o, 1)
+	require.Equal(t, ">10000", o[0].Labels["n_drops"])
+	require.Equal(t, ">10000", o[0].Labels["n_drops_buffer_total"])
+	require.Equal(t, "0", o[0].Labels["n_drops_bug"])
+}

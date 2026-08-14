@@ -394,7 +394,7 @@ func getResourceNameKind(outputFields map[string]interface{}) (string, string) {
 		return toString(outputFields[kaTargetName]), toString(outputFields[kaTargetResource])
 	}
 	if outputFields[kaRespName] != nil {
-		return toString(outputFields[kaRespName].(string)), toString(outputFields[kaTargetResource])
+		return toString(outputFields[kaRespName]), toString(outputFields[kaTargetResource])
 	}
 
 	return "", ""
