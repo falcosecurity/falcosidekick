@@ -74,7 +74,10 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 		}
 		// strip cardinalities of syscall drops
 		if strings.HasPrefix(i, "n_drop") {
-			d, err := strconv.ParseInt(j.(string), 10, 64)
+			// the payload decoder runs with UseNumber, so a numeric value arrives
+			// as json.Number rather than a string
+			sj := toString(j)
+			d, err := strconv.ParseInt(sj, 10, 64)
 			if err == nil {
 				var jj string
 				if d == 0 {
@@ -94,7 +97,7 @@ func newAlertmanagerPayload(falcopayload types.FalcoPayload, config *types.Confi
 					}
 				}
 				if jj == "" {
-					jj = j.(string)
+					jj = sj
 					if prio := types.Priority(config.Alertmanager.DropEventDefaultPriority); falcopayload.Priority < prio {
 						falcopayload.Priority = prio
 					}
