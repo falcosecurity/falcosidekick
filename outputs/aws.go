@@ -171,6 +171,8 @@ func (c *Client) UploadS3(falcopayload types.FalcoPayload) {
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(f),
 		ACL:    s3types.ObjectCannedACL(c.Config.AWS.S3.ObjectCannedACL),
+		// Object Lock buckets reject PutObject requests carrying no integrity value.
+		ChecksumAlgorithm: s3types.ChecksumAlgorithmCrc32,
 	})
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:awss3", "status:error"})
