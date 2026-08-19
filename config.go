@@ -554,8 +554,6 @@ func getConfig() *types.Configuration {
 
 	v.SetDefault("Alertmanager.MinimumPriority", "")
 
-	v.SetDefault("Prometheus.ExtraLabels", "")
-
 	v.SetDefault("Azure.eventHub.Namespace", "")
 	v.SetDefault("Azure.eventHub.Name", "")
 	v.SetDefault("Azure.eventHub.MinimumPriority", "")
@@ -890,10 +888,6 @@ func getConfig() *types.Configuration {
 		if c.Elasticsearch.Batching.FlushInterval <= 0 {
 			c.Elasticsearch.Batching.FlushInterval = types.DefaultFlushInterval
 		}
-	}
-
-	if c.Prometheus.ExtraLabels != "" {
-		c.Prometheus.ExtraLabelsList = strings.Split(strings.ReplaceAll(c.Prometheus.ExtraLabels, " ", ""), ",")
 	}
 
 	if c.OTLP.Metrics.ExtraAttributes != "" {
