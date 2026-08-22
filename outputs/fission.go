@@ -21,18 +21,15 @@ import (
 )
 
 // Some constant strings to use in request headers
-const (
-	FissionEventIDKey        = "event-id"
-	FissionEventNamespaceKey = "event-namespace"
-	FissionContentType       = "application/json"
-	APIv1Namespaces          = "/api/v1/namespaces/"
-	ServicesPath             = "/services/"
-)
+const FissionEventIDKey = "event-id"
+const FissionEventNamespaceKey = "event-namespace"
+const FissionContentType = "application/json"
+const APIv1Namespaces = "/api/v1/namespaces/"
+const ServicesPath = "/services/"
 
 // NewFissionClient returns a new output.Client for accessing Kubernetes.
 func NewFissionClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
-) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	if config.Fission.KubeConfig != "" {
 		restConfig, err := clientcmd.BuildConfigFromFlags("", config.Fission.KubeConfig)
 		if err != nil {

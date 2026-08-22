@@ -81,26 +81,20 @@ var EnabledOutputs []string
 const DefaultContentType = "application/json; charset=utf-8"
 
 // Some common header values that may be needed in other files
-const (
-	ContentTypeHeaderKey   = "Content-Type"
-	UserAgentHeaderKey     = "User-Agent"
-	AuthorizationHeaderKey = "Authorization"
-	UserAgentHeaderValue   = "Falcosidekick"
-	Bearer                 = "Bearer"
-)
+const ContentTypeHeaderKey = "Content-Type"
+const UserAgentHeaderKey = "User-Agent"
+const AuthorizationHeaderKey = "Authorization"
+const UserAgentHeaderValue = "Falcosidekick"
+const Bearer = "Bearer"
 
 // files names are static fo the shake of helm and single docker compatibility
-const (
-	MutualTLSClientCertFilename = "/client.crt"
-	MutualTLSClientKeyFilename  = "/client.key"
-	MutualTLSCacertFilename     = "/ca.crt"
-)
+const MutualTLSClientCertFilename = "/client.crt"
+const MutualTLSClientKeyFilename = "/client.key"
+const MutualTLSCacertFilename = "/ca.crt"
 
 // HTTP Methods
-const (
-	HttpPost = "POST"
-	HttpPut  = "PUT"
-)
+const HttpPost = "POST"
+const HttpPut = "PUT"
 
 // Protocol
 const GRPC = "grpc"
@@ -388,7 +382,7 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 	go c.CountMetric("outputs", 1, []string{"output:" + strings.ToLower(c.OutputType), "status:" + strings.ToLower(http.StatusText(resp.StatusCode))})
 
 	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: // 200, 201, 202, 204
+	case http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent: //200, 201, 202, 204
 		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v OK (%v)", method, resp.StatusCode))
 		ot := c.OutputType
 		logResponse := ot == Kubeless || ot == Openfaas || ot == Fission

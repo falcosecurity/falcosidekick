@@ -21,8 +21,7 @@ import (
 )
 
 func NewOtlpLogsClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
-) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	initClientArgs := &types.InitClientArgs{
 		Config:          config,
 		Stats:           stats,

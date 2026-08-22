@@ -17,8 +17,8 @@ import (
 
 // NewWavefrontClient returns a new output.Client for accessing the Wavefront API.
 func NewWavefrontClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
-) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+
 	var sender wavefront.Sender
 	var err error
 
@@ -67,6 +67,7 @@ func NewWavefrontClient(config *types.Configuration, stats *types.Statistics, pr
 
 // WavefrontPost sends metrics to WaveFront.
 func (c *Client) WavefrontPost(falcopayload types.FalcoPayload) {
+
 	tags := make(map[string]string)
 	tags["severity"] = falcopayload.Priority.String()
 	tags["rule"] = falcopayload.Rule
@@ -87,6 +88,7 @@ func (c *Client) WavefrontPost(falcopayload types.FalcoPayload) {
 
 	if len(falcopayload.Tags) != 0 {
 		tags["tags"] = strings.Join(falcopayload.Tags, ", ")
+
 	}
 
 	c.Stats.Wavefront.Add(Total, 1)

@@ -17,8 +17,8 @@ import (
 
 // NewMQTTClient returns a new output.Client for accessing Kubernetes.
 func NewMQTTClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
-) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+
 	options := mqtt.NewClientOptions()
 	options.AddBroker(config.MQTT.Broker)
 	options.SetClientID("falcosidekick-" + uuid.NewString()[:6])
