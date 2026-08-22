@@ -20,10 +20,10 @@ func NewStatsdClient(outputType string, config *types.Configuration, stats *type
 	var fwd string
 	switch outputType {
 	case "StatsD":
-		statsdClient, err = statsd.New(config.Statsd.Forwarder, statsd.WithNamespace(config.Statsd.Namespace), statsd.WithTags(config.Statsd.Tags))
+		statsdClient, err = statsd.New(config.Statsd.Forwarder, statsd.WithNamespace(config.Statsd.Namespace), statsd.WithTags(config.Statsd.Tags), statsd.WithoutOriginDetection())
 		fwd = config.Statsd.Forwarder
 	case "DogStatsD":
-		statsdClient, err = statsd.New(config.Dogstatsd.Forwarder, statsd.WithNamespace(config.Dogstatsd.Namespace), statsd.WithTags(config.Dogstatsd.Tags))
+		statsdClient, err = statsd.New(config.Dogstatsd.Forwarder, statsd.WithNamespace(config.Dogstatsd.Namespace), statsd.WithTags(config.Dogstatsd.Tags), statsd.WithoutOriginDetection())
 		fwd = config.Dogstatsd.Forwarder
 	}
 	if err != nil {
