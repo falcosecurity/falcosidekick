@@ -30,8 +30,8 @@ func (c *Client) ReportError(err error) {
 }
 
 func NewRedisClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
-) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+
 	var tlsCfg *tls.Config
 
 	if config.Redis.MutualTLS {
