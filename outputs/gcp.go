@@ -30,8 +30,7 @@ import (
 
 // NewGCPClient returns a new output.Client for accessing the GCP API.
 func NewGCPClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
-) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
 	base64decodedCredentialsData, err := base64.StdEncoding.DecodeString(config.GCP.Credentials)
 	if err != nil {
 		utils.Log(utils.ErrorLvl, "GCP", "Erroc.OutputTyper while base64-decoding GCP Credentials")

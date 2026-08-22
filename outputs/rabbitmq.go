@@ -18,8 +18,8 @@ import (
 
 // NewRabbitmqClient returns a new output.Client for accessing the RabbitmMQ API.
 func NewRabbitmqClient(config *types.Configuration, stats *types.Statistics, promStats *types.PromStatistics,
-	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client,
-) (*Client, error) {
+	otlpMetrics *otlpmetrics.OTLPMetrics, statsdClient, dogstatsdClient *statsd.Client) (*Client, error) {
+
 	var channel *amqp.Channel
 	if config.Rabbitmq.URL != "" && config.Rabbitmq.Queue != "" {
 		conn, err := amqp.Dial(config.Rabbitmq.URL)
@@ -57,6 +57,7 @@ func (c *Client) Publish(falcopayload types.FalcoPayload) {
 		ContentType: "text/plain",
 		Body:        payload,
 	})
+
 	if err != nil {
 		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Error while publishing message: %v", err))
 		c.Stats.Rabbitmq.Add(Error, 1)
