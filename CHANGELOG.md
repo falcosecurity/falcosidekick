@@ -1,5 +1,53 @@
 # Changelog
 
+## 2.34.1 - 2026-06-03
+#### Fix
+- Prevent DoS panics from malformed `output_fields` in the `OTLP Traces` and `OTLP Metrics` outputs ([PR#1379](https://github.com/falcosecurity/falcosidekick/pull/1379) thanks to [@c2ndev](https://github.com/c2ndev))
+
+## 2.34.0 - 2026-05-22
+#### New
+- New output: **Google SecOps** (Chronicle) ([PR#1288](https://github.com/falcosecurity/falcosidekick/pull/1288) thanks to [@brennoo](https://github.com/brennoo))
+
+#### Enhancement
+- Add `TLS` and mutual `TLS` support for the `Redis` output ([issue#1211](https://github.com/falcosecurity/falcosidekick/issues/1211))
+- Add `/area automation` to the PR template ([PR#1359](https://github.com/falcosecurity/falcosidekick/pull/1359) thanks to [@ekoops](https://github.com/ekoops))
+- Update the vulnerable Go modules ([PR#1366](https://github.com/falcosecurity/falcosidekick/pull/1366) thanks to [@c2ndev](https://github.com/c2ndev))
+
+#### Fix
+- Replace the dots by underscores in the labels of the metrics for the custom fields ([PR#1337](https://github.com/falcosecurity/falcosidekick/pull/1337) thanks to [@raajheshkannaa](https://github.com/raajheshkannaa))
+- Bind the `MessageThreadID` env var to fix the ignored topic routing for `Telegram` ([PR#1357](https://github.com/falcosecurity/falcosidekick/pull/1357) thanks to [@raajheshkannaa](https://github.com/raajheshkannaa))
+- Use the `AWS` config for the S3 client in `UploadS3` ([PR#1363](https://github.com/falcosecurity/falcosidekick/pull/1363) thanks to [@alexmircea98](https://github.com/alexmircea98))
+- Fix the config examples for the `AWS Security Lake` output ([PR#1356](https://github.com/falcosecurity/falcosidekick/pull/1356) thanks to [@immanuwell](https://github.com/immanuwell))
+
+## 2.33.0 - 2026-03-09
+#### Enhancement
+- Add the `alertname` label for the `AlertManager` output ([PR#1278](https://github.com/falcosecurity/falcosidekick/pull/1278) thanks to [@edkennard](https://github.com/edkennard))
+- Use the recommended chain of configuration providers for the `AWS` outputs ([PR#1219](https://github.com/falcosecurity/falcosidekick/pull/1219) thanks to [@gnadaban](https://github.com/gnadaban))
+- Upgrade to Go 1.26 ([PR#1314](https://github.com/falcosecurity/falcosidekick/pull/1314))
+- Update the deprecated `goreleaser` docker build ([PR#1252](https://github.com/falcosecurity/falcosidekick/pull/1252))
+- Add the `--bundle` flag to `cosign sign-blob` for the `cosign` v3 compatibility ([PR#1322](https://github.com/falcosecurity/falcosidekick/pull/1322) thanks to [@c2ndev](https://github.com/c2ndev))
+- Migrate the `goreleaser` signs config to the `cosign` v3 bundle format ([PR#1323](https://github.com/falcosecurity/falcosidekick/pull/1323) thanks to [@c2ndev](https://github.com/c2ndev))
+
+#### Fix
+- Fix the default endpoint of the `AlertManager` output which returned an unexpected response (410) ([PR#1281](https://github.com/falcosecurity/falcosidekick/pull/1281) thanks to [@kupschp](https://github.com/kupschp))
+- Update `aws-sdk-go-v2` to fix the retrieval of the metadata with `EKS Pod Identity` ([PR#1291](https://github.com/falcosecurity/falcosidekick/pull/1291) thanks to [@dicksontung](https://github.com/dicksontung))
+- Update `service/sqs` to v1.42.22 to fix the `ResolveEndpointV2` error ([PR#1302](https://github.com/falcosecurity/falcosidekick/pull/1302) thanks to [@ansilh](https://github.com/ansilh))
+- Fix several unaddressed bugs: wrong `MinimumPriority` config for `RabbitMQ`, wrong config field cleared when the `OTLP Metrics` and `DogStatsD` inits fail, trailing comma in the `Dynatrace` output type ([PR#1320](https://github.com/falcosecurity/falcosidekick/pull/1320))
+- Fix a typo in the `README` ([PR#1303](https://github.com/falcosecurity/falcosidekick/pull/1303) thanks to [@fr4nsyz](https://github.com/fr4nsyz))
+
+## 2.32.0 - 2025-09-09
+#### New
+- New output: **Logstash** ([PR#1146](https://github.com/falcosecurity/falcosidekick/pull/1146) thanks to [@thabiger](https://github.com/thabiger))
+- New output: **Splunk** ([PR#1233](https://github.com/falcosecurity/falcosidekick/pull/1233) thanks to [@fjvela](https://github.com/fjvela))
+
+#### Enhancement
+- Migrate the `AWS` outputs from `aws-sdk-go` v1 to v2 ([PR#1170](https://github.com/falcosecurity/falcosidekick/pull/1170) thanks to [@chenliu1993](https://github.com/chenliu1993))
+- Allow to specify a username for the `Redis` output ([PR#1212](https://github.com/falcosecurity/falcosidekick/pull/1212) thanks to [@pgporada](https://github.com/pgporada))
+- Update Go and Alpine versions, clean up and update the CI ([PR#1246](https://github.com/falcosecurity/falcosidekick/pull/1246))
+
+#### Fix
+- Fix the URL used by the `Mattermost` output ([PR#1192](https://github.com/falcosecurity/falcosidekick/pull/1192) thanks to [@zdeneksvarc](https://github.com/zdeneksvarc))
+
 ## 2.31.1 - 2025-02-04
 #### Fix
 - Fix error while closing the writer for `GCPStorage` ([PR#1116](https://github.com/falcosecurity/falcosidekick/pull/1116) thanks to [@chanukya-yekollu-exa](https://github.com/chanukya-yekollu-exa))
