@@ -11,12 +11,14 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"log"
 	"strings"
 	"testing"
 	"time"
@@ -97,6 +99,77 @@ func TestPost(t *testing.T) {
 
 		errPost := nc.Post("")
 		require.Equal(t, errPost, j)
+	}
+}
+
+func TestPostServerErrorsLogCorrectErrorAndDoNotWriteStdout(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.EscapedPath() {
+		case "/500":
+			http.Error(w, "upstream exploded", http.StatusInternalServerError)
+		case "/502":
+			http.Error(w, "temporary proxy failure", http.StatusBadGateway)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.EscapedPath())
+		}
+	}))
+	defer ts.Close()
+
+	testCases := []struct {
+		path         string
+		expectedErr  error
+		expectedLog  string
+		unwantedLog  string
+	}{
+		{
+			path:        "/500",
+			expectedErr: ErrInternalServer,
+			expectedLog: ErrInternalServer.Error(),
+			unwantedLog: ErrTooManyRequest.Error(),
+		},
+		{
+			path:        "/502",
+			expectedErr: ErrBadGateway,
+			expectedLog: ErrBadGateway.Error(),
+			unwantedLog: ErrTooManyRequest.Error(),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.path, func(t *testing.T) {
+			initClientArgs := &types.InitClientArgs{
+				Config:    &types.Configuration{},
+				Stats:     &types.Statistics{},
+				PromStats: &types.PromStatistics{},
+			}
+			nc, err := NewClient("", ts.URL+tc.path, types.CommonConfig{CheckCert: true}, *initClientArgs)
+			require.NoError(t, err)
+
+			var logBuf bytes.Buffer
+			logWriter := log.Writer()
+			log.SetOutput(&logBuf)
+			defer log.SetOutput(logWriter)
+
+			oldStdout := os.Stdout
+			r, w, err := os.Pipe()
+			require.NoError(t, err)
+			os.Stdout = w
+			defer func() {
+				os.Stdout = oldStdout
+			}()
+
+			err = nc.Post("")
+
+			require.NoError(t, w.Close())
+			stdoutBytes, readErr := io.ReadAll(r)
+			require.NoError(t, readErr)
+			require.NoError(t, r.Close())
+
+			require.ErrorIs(t, err, tc.expectedErr)
+			require.Contains(t, logBuf.String(), tc.expectedLog)
+			require.NotContains(t, logBuf.String(), tc.unwantedLog)
+			require.Empty(t, string(stdoutBytes))
+		})
 	}
 }
 
