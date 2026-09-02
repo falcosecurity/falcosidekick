@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.35.0 - 2026-08-31
+#### Enhancement
+- Add a `TLS` field and allow to set the CA cert for the `OTLP Traces`/`OTLP Metrics`/`OTLP Logs` outputs ([PR#1389](https://github.com/falcosecurity/falcosidekick/pull/1389) thanks to [@AleksandarSavchev](https://github.com/AleksandarSavchev))
+- Add the `MessageThreadID` and `Host` settings for the `Telegram` output ([PR#1393](https://github.com/falcosecurity/falcosidekick/pull/1393) thanks to [@1323ED5](https://github.com/1323ED5))
+- Upgrade the `Azure Event Hubs` SDK to v2 ([PR#1399](https://github.com/falcosecurity/falcosidekick/pull/1399) thanks to [@chimanjain](https://github.com/chimanjain))
+- Add the documentation for the `OTLP` outputs ([PR#1414](https://github.com/falcosecurity/falcosidekick/pull/1414) thanks to [@S3DFX-CYBER](https://github.com/S3DFX-CYBER))
+
+#### Fix
+- Fix a race condition when multiple outputs are configured ([PR#1390](https://github.com/falcosecurity/falcosidekick/pull/1390) thanks to [@marwinski](https://github.com/marwinski))
+- Handle the `CheckCert` setting correctly for the `OTLP` outputs ([PR#1389](https://github.com/falcosecurity/falcosidekick/pull/1389) thanks to [@AleksandarSavchev](https://github.com/AleksandarSavchev))
+- Emit an RFC 5322-compliant `Date` header for the `SMTP` output ([PR#1382](https://github.com/falcosecurity/falcosidekick/pull/1382) thanks to [@billzter](https://github.com/billzter))
+- Prevent a panic with non-string `output_fields` in the `Dynatrace` output ([PR#1387](https://github.com/falcosecurity/falcosidekick/pull/1387) thanks to [@arpitjain099](https://github.com/arpitjain099))
+- Handle numeric `output_fields` without a string assertion ([PR#1413](https://github.com/falcosecurity/falcosidekick/pull/1413) thanks to [@arpitjain099](https://github.com/arpitjain099))
+- Send a checksum with the `PutObject` calls for the `AWS S3` output ([PR#1415](https://github.com/falcosecurity/falcosidekick/pull/1415) thanks to [@manduinca](https://github.com/manduinca))
+- Use Unix epoch seconds for the timestamps of the `PolicyReports` ([PR#1425](https://github.com/falcosecurity/falcosidekick/pull/1425) thanks to [@christianhuth](https://github.com/christianhuth))
+
 ## 2.34.1 - 2026-06-03
 #### Fix
 - Prevent DoS panics from malformed `output_fields` in the `OTLP Traces` and `OTLP Metrics` outputs ([PR#1379](https://github.com/falcosecurity/falcosidekick/pull/1379) thanks to [@c2ndev](https://github.com/c2ndev))
