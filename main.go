@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/embano1/memlog"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
