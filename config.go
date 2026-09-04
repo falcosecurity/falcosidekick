@@ -455,27 +455,6 @@ func init() {
 }
 
 func getConfig() *types.Configuration {
-	c := &types.Configuration{
-		Customfields:    make(map[string]string),
-		Templatedfields: make(map[string]string),
-		TLSServer:       types.TLSServer{NoTLSPaths: make([]string, 0)},
-		Grafana:         types.GrafanaOutputConfig{CustomHeaders: make(map[string]string)},
-		Loki:            types.LokiOutputConfig{CustomHeaders: make(map[string]string)},
-		Elasticsearch:   types.ElasticsearchOutputConfig{CustomHeaders: make(map[string]string)},
-		Quickwit:        types.QuickwitOutputConfig{CustomHeaders: make(map[string]string)},
-		OpenObserve:     types.OpenObserveConfig{CustomHeaders: make(map[string]string)},
-		Webhook:         types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
-		Alertmanager:    types.AlertmanagerOutputConfig{HostPort: make([]string, 0), ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[types.PriorityType]string), CustomHeaders: make(map[string]string)},
-		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
-		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
-		OTLP: types.OTLPOutputConfig{
-			Traces:  types.OTLPTraces{ExtraEnvVars: make(map[string]string)},
-			Logs:    types.OTLPLogs{ExtraEnvVars: make(map[string]string)},
-			Metrics: otlpmetrics.Config{ExtraEnvVars: make(map[string]string)},
-		},
-		Splunk: types.SplunkOutputConfig{CustomHeaders: make(map[string]string)},
-	}
-
 	configFile := kingpin.Flag("config-file", "config file").Short('c').ExistingFile()
 	version := kingpin.Flag("version", "falcosidekick version").Short('v').Bool()
 	kingpin.Parse()
@@ -486,6 +465,35 @@ func getConfig() *types.Configuration {
 		os.Exit(0)
 	}
 
+	v := newConfigViper()
+	if *configFile != "" {
+		configFilePath = *configFile
+		// at startup the error is only logged, like before
+		_ = readConfigFile(v, *configFile)
+	}
+	return newConfiguration(v)
+}
+
+// reloadConfig re-reads the config file passed with -c and returns a fresh
+// Configuration. It shares the exact same loading logic as getConfig, so the
+// precedence order (env vars > config file > defaults) is preserved on reload.
+// A read error is returned to the caller so a reload can be aborted instead
+// of swapping in a configuration built from an unreadable file.
+func reloadConfig() (*types.Configuration, error) {
+	if configFilePath == "" {
+		return nil, nil
+	}
+	v := newConfigViper()
+	if err := readConfigFile(v, configFilePath); err != nil {
+		return nil, err
+	}
+	return newConfiguration(v), nil
+}
+
+// newConfigViper returns a viper instance pre-loaded with all the defaults
+// and the environment variables bindings. It is shared by getConfig and
+// reloadConfig so both paths resolve values in the exact same way.
+func newConfigViper() *viper.Viper {
 	v := viper.New()
 	v.SetDefault("ListenAddress", "")
 	v.SetDefault("ListenPort", 2801)
@@ -635,18 +643,6 @@ func getConfig() *types.Configuration {
 	v.SetDefault("OTLP.Metrics.CheckCert", true)
 	v.SetDefault("OTLP.Metrics.ExtraAttributes", "")
 
-	if *configFile != "" {
-		d, f := path.Split(*configFile)
-		if d == "" {
-			d = "."
-		}
-		v.SetConfigName(f[0 : len(f)-len(filepath.Ext(f))])
-		v.AddConfigPath(d)
-		err := v.ReadInConfig()
-		if err != nil {
-			utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Error when reading config file : %v", err))
-		}
-	}
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
@@ -664,6 +660,49 @@ func getConfig() *types.Configuration {
 	v.GetStringMapString("OTLP.Traces.ExtraEnvVars")
 	v.GetStringMapString("OTLP.Metrics.ExtraEnvVars")
 	v.GetStringMapString("Splunk.CustomHeaders")
+
+	return v
+}
+
+// readConfigFile reads the yaml config file into v.
+func readConfigFile(v *viper.Viper, configFile string) error {
+	d, f := path.Split(configFile)
+	if d == "" {
+		d = "."
+	}
+	v.SetConfigName(f[0 : len(f)-len(filepath.Ext(f))])
+	v.AddConfigPath(d)
+	if err := v.ReadInConfig(); err != nil {
+		utils.Log(utils.ErrorLvl, "", fmt.Sprintf("Error when reading config file : %v", err))
+		return err
+	}
+	return nil
+}
+
+// newConfiguration unmarshals v into a Configuration, then applies the
+// env-only overrides and the post-processing/validation. It is shared by
+// getConfig and reloadConfig.
+func newConfiguration(v *viper.Viper) *types.Configuration {
+	c := &types.Configuration{
+		Customfields:    make(map[string]string),
+		Templatedfields: make(map[string]string),
+		TLSServer:       types.TLSServer{NoTLSPaths: make([]string, 0)},
+		Grafana:         types.GrafanaOutputConfig{CustomHeaders: make(map[string]string)},
+		Loki:            types.LokiOutputConfig{CustomHeaders: make(map[string]string)},
+		Elasticsearch:   types.ElasticsearchOutputConfig{CustomHeaders: make(map[string]string)},
+		Quickwit:        types.QuickwitOutputConfig{CustomHeaders: make(map[string]string)},
+		OpenObserve:     types.OpenObserveConfig{CustomHeaders: make(map[string]string)},
+		Webhook:         types.WebhookOutputConfig{CustomHeaders: make(map[string]string)},
+		Alertmanager:    types.AlertmanagerOutputConfig{HostPort: make([]string, 0), ExtraLabels: make(map[string]string), ExtraAnnotations: make(map[string]string), CustomSeverityMap: make(map[types.PriorityType]string), CustomHeaders: make(map[string]string)},
+		CloudEvents:     types.CloudEventsOutputConfig{Extensions: make(map[string]string)},
+		GCP:             types.GcpOutputConfig{PubSub: types.GcpPubSub{CustomAttributes: make(map[string]string)}},
+		OTLP: types.OTLPOutputConfig{
+			Traces:  types.OTLPTraces{ExtraEnvVars: make(map[string]string)},
+			Logs:    types.OTLPLogs{ExtraEnvVars: make(map[string]string)},
+			Metrics: otlpmetrics.Config{ExtraEnvVars: make(map[string]string)},
+		},
+		Splunk: types.SplunkOutputConfig{CustomHeaders: make(map[string]string)},
+	}
 
 	c.Elasticsearch.CustomHeaders = v.GetStringMapString("Elasticsearch.CustomHeaders")
 

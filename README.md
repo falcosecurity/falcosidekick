@@ -360,6 +360,23 @@ tlsserver:
 > [!NOTE]
 For the confiuration of the outputs, see the [docs](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/).
 
+#### Hot reload
+
+When falcosidekick is started with a config file (`-c`), the configuration can be reloaded without restarting the process:
+
+- **automatically**: the config file is watched and any modification triggers a reload (writes are debounced by 500ms),
+- **manually**: send a `SIGHUP` to the process (`kill -HUP <pid>`).
+
+On reload, the output clients are rebuilt from the new configuration: newly enabled outputs are started on the fly and removed ones are dropped. The precedence order stays identical to the startup one: _env vars_ override values from _file_.
+
+The watcher handles atomic saves (write-tmp-then-rename) and Kubernetes ConfigMap volume updates (symlink swaps). If a reload can not read the file (e.g. it is momentarily truncated by an editor), the reload is aborted and the running configuration is kept.
+
+> [!NOTE]
+Some fields can not be applied on the fly and keep their startup values on reload (a warning is logged):
+>
+> - `listenaddress`, `listenport` and the `tlsserver` block (the listeners are not re-bound),
+> - `customfields`, `templatedfields`, `prometheus.extralabels` and `otlp.metrics.extraattributes` (the prometheus/OTLP label sets are registered at startup and can not change cardinality at runtime).
+
 ## Usage
 
 Usage :
