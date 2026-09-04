@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -87,6 +88,8 @@ var (
 
 	statsdClient, dogstatsdClient *statsd.Client
 	config                        *types.Configuration
+	configFilePath                string
+	reloadMu                      sync.RWMutex
 	stats                         *types.Statistics
 	promStats                     *types.PromStatistics
 	otlpMetrics                   *otlpmetrics.OTLPMetrics
@@ -136,6 +139,84 @@ func init() {
 		PromStats:       promStats,
 		OTLPMetrics:     otlpMetrics,
 	}
+
+	initOutputs()
+}
+
+// resetOutputClients drops every output client. It is called before
+// rebuilding them so that outputs removed from the config are really
+// disabled after a reload.
+func resetOutputClients() {
+	statsdClient, dogstatsdClient = nil, nil
+	if nullClient != nil {
+		nullClient.StatsdClient = nil
+		nullClient.DogstatsdClient = nil
+	}
+	slackClient = nil
+	cliqClient = nil
+	rocketchatClient = nil
+	mattermostClient = nil
+	teamsClient = nil
+	webexClient = nil
+	datadogClient = nil
+	datadogLogsClient = nil
+	discordClient = nil
+	alertmanagerClients = nil
+	elasticsearchClient = nil
+	quickwitClient = nil
+	influxdbClient = nil
+	lokiClient = nil
+	sumologicClient = nil
+	natsClient = nil
+	stanClient = nil
+	awsClient = nil
+	smtpClient = nil
+	opsgenieClient = nil
+	webhookClient = nil
+	noderedClient = nil
+	cloudeventsClient = nil
+	azureClient = nil
+	gcpClient = nil
+	googleChatClient = nil
+	kafkaClient = nil
+	kafkaRestClient = nil
+	pagerdutyClient = nil
+	gcpCloudRunClient = nil
+	kubelessClient = nil
+	openfaasClient = nil
+	tektonClient = nil
+	webUIClient = nil
+	policyReportClient = nil
+	rabbitmqClient = nil
+	wavefrontClient = nil
+	fissionClient = nil
+	grafanaClient = nil
+	grafanaOnCallClient = nil
+	yandexClient = nil
+	syslogClient = nil
+	mqttClient = nil
+	zincsearchClient = nil
+	gotifyClient = nil
+	spyderbatClient = nil
+	timescaleDBClient = nil
+	redisClient = nil
+	telegramClient = nil
+	n8nClient = nil
+	openObserveClient = nil
+	dynatraceClient = nil
+	otlpTracesClient = nil
+	otlpLogsClient = nil
+	talonClient = nil
+	logstashClient = nil
+	splunkClient = nil
+}
+
+// initOutputs (re)builds the output clients from the current config. It is
+// called once at startup and again on every configuration reload. Clients
+// whose config was removed are dropped, new ones are enabled on the fly.
+func initOutputs() {
+	resetOutputClients()
+	outputs.EnabledOutputs = []string{}
 
 	if config.Statsd.Forwarder != "" {
 		var err error
@@ -902,6 +983,12 @@ func main() {
 	for _, shutdown := range shutDownFuncs {
 		defer shutdown()
 	}
+
+	go handleReloadSignals()
+	if configFilePath != "" {
+		go watchConfigFile()
+	}
+
 	if config.Debug {
 		utils.Log(utils.InfoPrefix, "", fmt.Sprintf("Debug mode: %v", config.Debug))
 	}

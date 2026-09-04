@@ -30,7 +30,12 @@ const (
 )
 
 // mainHandler is Falcosidekick main handler (default).
+// A read lock is held for the whole processing so that a configuration
+// reload can not swap config and output clients in the middle of an event.
 func mainHandler(w http.ResponseWriter, r *http.Request) {
+	reloadMu.RLock()
+	defer reloadMu.RUnlock()
+
 	stats.Requests.Add("total", 1)
 	nullClient.CountMetric("total", 1, []string{})
 
