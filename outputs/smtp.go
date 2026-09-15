@@ -13,7 +13,7 @@ import (
 	"strings"
 	textTemplate "text/template"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	sasl "github.com/emersion/go-sasl"
 	smtp "github.com/emersion/go-smtp"
 
