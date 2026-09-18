@@ -14,9 +14,7 @@
 
 ## Configuration
 
-| Setting                  | Env var                  | Default value | Description                                                                                                    |
-| ------------------------ | ------------------------ | ------------- | -------------------------------------------------------------------------------------------------------------- |
-| `prometheus.extralabels` | `PROMETHEUS_EXTRALABELS` |               | Comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields |
+This output has no specific configuration settings.
 
 > [!NOTE]
 The Env var values override the settings from yaml file.
@@ -25,7 +23,6 @@ The Env var values override the settings from yaml file.
 
 ```yaml
 prometheus:
-  # extralabels: "" # comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
 ```
 
 ## Additional info
