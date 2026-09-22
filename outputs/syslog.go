@@ -96,6 +96,7 @@ func (c *Client) SyslogPost(falcopayload types.FalcoPayload) {
 		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
 		return
 	}
+	defer sysLog.Close()
 
 	var payload []byte
 
