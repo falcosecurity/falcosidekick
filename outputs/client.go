@@ -24,7 +24,7 @@ import (
 	gcpfunctions "cloud.google.com/go/functions/apiv1"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
