@@ -92,7 +92,6 @@ var (
 	otlpMetrics                   *otlpmetrics.OTLPMetrics
 	initClientArgs                *types.InitClientArgs
 
-	regPromLabels            *regexp.Regexp
 	regOTLPMetricsAttributes *regexp.Regexp
 	regOutputFormat          *regexp.Regexp
 	shutDownFuncs            []func()
@@ -109,7 +108,6 @@ func init() {
 		return
 	}
 
-	regPromLabels, _ = regexp.Compile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
 	// TODO: replace the following regex if something more appropriate is found
 	regOTLPMetricsAttributes = regexp.MustCompile("^[a-zA-Z_:][a-zA-Z0-9_:]*$")
 	regOutputFormat, _ = regexp.Compile(`(?i)[0-9:]+\.[0-9]+: (Debug|Informational|Notice|Warning|Error|Critical|Alert|Emergency) .*`)

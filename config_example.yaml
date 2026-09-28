@@ -232,7 +232,6 @@ smtp:
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 prometheus:
-  # extralabels: "" # comma separated list of fields to use as labels additionally to rule, source, priority, tags and custom_fields
 
 statsd:
   forwarder: "" # The address for the StatsD forwarder, in the form "host:port", if not empty StatsD is enabled

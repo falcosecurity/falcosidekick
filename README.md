@@ -423,6 +423,11 @@ The daemon exposes a `prometheus` endpoint on URI `/metrics`.
 
 See the [docs](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/prometheus.md) for more info.
 
+> [!WARNING]
+> **Breaking change**: The `prometheus.extralabels` configuration option (and `PROMETHEUS_EXTRALABELS` env var) has been removed. Fields are no longer added as extra labels on Prometheus metrics. If you had dashboards or alerts relying on labels set via `prometheus.extralabels`, you will need to update them accordingly.
+
+For additional context, see [issue #1132](https://github.com/falcosecurity/falcosidekick/issues/1132). For best practices on using Falco metrics, refer to the [Falco metrics documentation](https://falco.org/docs/concepts/metrics/).
+
 ### StatsD / DogStatsD
 
 The daemon is able to push its metrics to a StatsD/DogstatsD server. See
