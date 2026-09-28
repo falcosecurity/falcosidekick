@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 

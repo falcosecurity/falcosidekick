@@ -10,7 +10,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	"github.com/falcosecurity/falcosidekick/types"
 	"github.com/telkomdev/go-stash"
