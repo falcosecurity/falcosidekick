@@ -95,6 +95,27 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	mainHandler(w, r)
 }
 
+// kubernetesFields picks the namespace and pod name out of output_fields.
+//
+// The map is decoded straight from the request body, so a field can hold any
+// JSON value. A non-string is ignored rather than asserted, since a bare
+// j.(string) panics on a number, object, list or bool.
+func kubernetesFields(outputFields map[string]interface{}) (namespace, pod string) {
+	for k, v := range outputFields {
+		if v == nil {
+			continue
+		}
+		switch k {
+		case "k8s.ns.name":
+			namespace, _ = v.(string)
+		case "k8s.pod.name":
+			pod, _ = v.(string)
+		}
+	}
+
+	return namespace, pod
+}
+
 func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	var falcopayload types.FalcoPayload
 
@@ -129,17 +150,7 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	falcopayload.UUID = uuid.New().String()
 
-	var kn, kp string
-	for i, j := range falcopayload.OutputFields {
-		if j != nil {
-			if i == "k8s.ns.name" {
-				kn = j.(string)
-			}
-			if i == "k8s.pod.name" {
-				kp = j.(string)
-			}
-		}
-	}
+	kn, kp := kubernetesFields(falcopayload.OutputFields)
 
 	var templatedFields string
 	if len(config.Templatedfields) > 0 {
