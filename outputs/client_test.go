@@ -50,6 +50,10 @@ func TestNewClient(t *testing.T) {
 	nc, err := NewClient("test", "http://localhost", types.CommonConfig{CheckCert: true}, *initClientArgs)
 	require.Nil(t, err)
 	require.Equal(t, &testClientOutput, nc)
+
+	nc, err = NewClient("test", "tls://localhost:4222", types.CommonConfig{CheckCert: true}, *initClientArgs)
+	require.NoError(t, err)
+	require.Equal(t, "tls", nc.EndpointURL.Scheme)
 }
 
 func TestPost(t *testing.T) {
