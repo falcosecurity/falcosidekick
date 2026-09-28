@@ -40,7 +40,7 @@ For the extra Env Vars values see [standard `OTEL_*` environment variables](http
 > - `tls: true` + `checkcert: false` — TLS without certificate validation
 
 > [!WARNING]
-If you use `grpc`, the endpoint format must be `http(s)://{domain or ip}:4318`
+If you use `grpc`, the endpoint format must be `http(s)://{domain or ip}:4317`
 If you use `http/protobuf`, the endpoint format must be `http(s)://{domain or ip}:4318/v1/traces`
 
 ## Example of config.yaml
