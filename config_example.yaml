@@ -410,6 +410,18 @@ grafanaoncall:
 
 webui:
   url: "" # WebUI URL, if not empty, WebUI output is enabled
+  # oauth2:
+  #   tokenurl: "" # OAuth2 token endpoint (enables OAuth2 client credentials when set)
+  #   clientid: "" # OAuth2 client ID (required if tokenurl is set)
+  #   clientsecret: "" # OAuth2 client secret (mutually exclusive with clientsecretfile)
+  #   clientsecretfile: "" # path to file containing OAuth2 client secret (takes precedence over clientsecret; useful for Kubernetes secrets)
+  #   scopes: "" # comma or space-separated OAuth2 scopes (optional; e.g., "api,read")
+  #   audience: "" # OAuth2 audience claim (optional; sent as audience form parameter)
+  #   resourceindicator: false # send audience as resource parameter (RFC 8707) in addition to audience (default: false)
+  #   cafile: "" # path to PEM file with CA certificate(s) for verifying token endpoint TLS (optional; appended to system roots)
+  # tokenfile: "" # path to token file (enables token file mode; mutually exclusive with oauth2.tokenurl); re-read when file changes (default: "")
+  # checkcert: true # check if ssl certificate of the output is valid (default: true)
+  # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked) (default: false)
 
 fission:
   function: "" # Name of Fission function, if not empty, Fission is enabled
