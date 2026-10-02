@@ -587,7 +587,43 @@ func init() {
 		if err != nil {
 			config.WebUI.URL = ""
 		} else {
-			outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
+			// Validate and initialize authentication
+			hasAuth := config.WebUI.OAuth2.TokenURL != "" || config.WebUI.TokenFile != ""
+			authFailed := false
+
+			// Check for partial OAuth2 config: if any field is set but tokenurl is empty, that's an error
+			hasPartialOAuth2Config := (config.WebUI.OAuth2.ClientID != "" ||
+				config.WebUI.OAuth2.ClientSecret != "" ||
+				config.WebUI.OAuth2.ClientSecretFile != "" ||
+				config.WebUI.OAuth2.Scopes != "" ||
+				config.WebUI.OAuth2.Audience != "" ||
+				config.WebUI.OAuth2.CAFile != "") &&
+				config.WebUI.OAuth2.TokenURL == ""
+
+			if hasPartialOAuth2Config {
+				utils.Log(utils.ErrorLvl, "WebUI", "oauth2 configuration is incomplete: tokenurl must be set if any other oauth2 fields are configured")
+				authFailed = true
+			} else if hasAuth {
+				// Warn if using plaintext HTTP with auth (but don't block)
+				outputs.WarnIfPlaintextWebUIURL(config.WebUI.URL, hasAuth)
+
+				tokenProvider, err := outputs.ValidateWebUIAuth(config.WebUI)
+				if err != nil {
+					utils.Log(utils.ErrorLvl, "WebUI", err.Error())
+					authFailed = true
+				} else if tokenProvider != nil {
+					webUIClient.WebUITokenSource = tokenProvider
+				}
+			}
+
+			// Clear sensitive fields on all paths (success or failure)
+			config.WebUI.OAuth2.ClientSecret = ""
+
+			if !authFailed {
+				outputs.EnabledOutputs = append(outputs.EnabledOutputs, "WebUI")
+			} else {
+				config.WebUI.URL = ""
+			}
 		}
 	}
 
