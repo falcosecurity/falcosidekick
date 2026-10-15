@@ -17,7 +17,7 @@
 | Setting                   | Env var                   | Default value    | Description                                                                                                                         |
 | ------------------------- | ------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `grafana.hostport`        | `GRAFANA_HOSTPORT`        |                  | http://{domain or ip}:{port}, if not empty, Grafana output is **enabled**                                                           |
-| `grafana.apikey`          | `GRAFANA_HOSTPORT`        |                  | API Key to authenticate to Grafana                                                                                                  |
+| `grafana.apikey`          | `GRAFANA_APIKEY`        |                  | API Key to authenticate to Grafana                                                                                                  |
 | `grafana.dashboardid`     | `GRAFANA_DASHBOARDID`     |                  | Annotations are scoped to a specific dashboard. Optionnal.                                                                          |
 | `grafana.panelid`         | `GRAFANA_PANELID`         |                  | Annotations are scoped to a specific panel. Optionnal.                                                                              |
 | `grafana.allfieldsastags` | `GRAFANA_ALLFIELDSASTAGS` | `false`          | If true, all custom fields are added as tags                                                                                        |
