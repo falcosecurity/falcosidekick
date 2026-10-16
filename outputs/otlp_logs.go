@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
