@@ -44,3 +44,28 @@ func TestTelegramMessageThreadIDEnvBinding(t *testing.T) {
 	require.NoError(t, v.Unmarshal(c))
 	require.Equal(t, "4", c.Telegram.MessageThreadID)
 }
+
+// TestWebUIOAuth2EnvBinding verifies that WebUI OAuth2 and TokenFile env vars
+// are properly bound when configured in outputDefaults.
+func TestWebUIOAuth2EnvBinding(t *testing.T) {
+	t.Setenv("WEBUI_OAUTH2_TOKENURL", "https://oauth.example.com/token")
+	t.Setenv("WEBUI_OAUTH2_CLIENTID", "test-client")
+	t.Setenv("WEBUI_OAUTH2_CLIENTSECRETFILE", "/path/to/secret")
+	t.Setenv("WEBUI_TOKENFILE", "/path/to/token")
+
+	v := viper.New()
+	for prefix, m := range outputDefaults {
+		for key, val := range m {
+			v.SetDefault(prefix+"."+key, val)
+		}
+	}
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
+
+	c := &types.Configuration{}
+	require.NoError(t, v.Unmarshal(c))
+	require.Equal(t, "https://oauth.example.com/token", c.WebUI.OAuth2.TokenURL)
+	require.Equal(t, "test-client", c.WebUI.OAuth2.ClientID)
+	require.Equal(t, "/path/to/secret", c.WebUI.OAuth2.ClientSecretFile)
+	require.Equal(t, "/path/to/token", c.WebUI.TokenFile)
+}
