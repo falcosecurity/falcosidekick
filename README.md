@@ -266,6 +266,29 @@ helm repo update
 helm install falco --set falcosidekick.enabled=true falcosecurity/falco
 ```
 
+To configure an output, put its settings under the `config` key (`config.<output>.<setting>`, the full list is in the [chart documentation](https://github.com/falcosecurity/charts/blob/master/charts/falcosidekick/README.md)). For example, to enable the [Syslog](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/syslog.md) output in a _values.yaml_ file:
+
+* with the `falcosidekick` chart:
+```yaml
+  config:
+    syslog:
+      host: "192.168.1.1"
+      port: "514"
+```
+
+* with the `falco` chart, where all `falcosidekick` settings are prefixed with `falcosidekick.`:
+```yaml
+  falcosidekick:
+    enabled: true
+    config:
+      syslog:
+        host: "192.168.1.1"
+        port: "514"
+```
+
+> [!IMPORTANT]
+The `config` level is required: settings placed directly under `falcosidekick:` (for example `falcosidekick.syslog.host`) are ignored.
+
 ### Connect Falco
 
 To connect Falco with Falcosidekick, you need to change it configuration as following:
