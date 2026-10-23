@@ -63,7 +63,7 @@ falcosidekick-linux:
 
 .PHONY: build-image
 build-image: falcosidekick-linux
-	$(DOCKER) build -t $(IMAGE_TAG) .
+	$(DOCKER) build --pull -t $(IMAGE_TAG) .
 
 .PHONY: push-image
 push-image:

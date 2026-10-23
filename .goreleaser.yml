@@ -47,6 +47,8 @@ builds:
 
 dockers_v2:
   - dockerfile: Dockerfile
+    flags:
+      - "--pull=true"
     platforms:
       - linux/amd64
       - linux/arm64

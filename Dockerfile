@@ -4,7 +4,8 @@ FROM ${BASE_IMAGE} AS final-stage
 LABEL MAINTAINER="Falco Maintainers"
 ARG TARGETPLATFORM
 
-RUN apk add --update --no-cache ca-certificates gcompat
+# Require the trust store update for the eMudhra intermediate CA compromise.
+RUN apk add --update --no-cache 'ca-certificates>=20261020-r0' gcompat
 
 # Create user falcosidekick
 RUN addgroup -S falcosidekick && adduser -u 1234 -S falcosidekick -G falcosidekick

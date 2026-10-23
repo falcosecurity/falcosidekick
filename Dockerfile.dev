@@ -14,7 +14,8 @@ RUN make falcosidekick
 FROM ${BASE_IMAGE} AS final-stage
 LABEL MAINTAINER="Falco Maintainers"
 
-RUN apk add --update --no-cache ca-certificates
+# Require the trust store update for the eMudhra intermediate CA compromise.
+RUN apk add --update --no-cache 'ca-certificates>=20261020-r0'
 
 # Create user falcosidekick
 RUN addgroup -S falcosidekick && adduser -u 1234 -S falcosidekick -G falcosidekick
