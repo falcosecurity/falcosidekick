@@ -3,9 +3,14 @@
 package outputs
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/syslog"
+	"net"
+	"os"
 	"strings"
 	"time"
 
@@ -23,6 +28,9 @@ func NewSyslogClient(config *types.Configuration, stats *types.Statistics, promS
 	if !ok {
 		return nil, fmt.Errorf("failed to configure Syslog client: invalid protocol %s", config.Syslog.Protocol)
 	}
+	if config.Syslog.TLS && strings.ToLower(config.Syslog.Protocol) != TCP {
+		return nil, fmt.Errorf("failed to configure Syslog client: TLS requires the %s protocol, got %s", TCP, config.Syslog.Protocol)
+	}
 
 	return &Client{
 		OutputType:      "Syslog",
@@ -37,6 +45,84 @@ func NewSyslogClient(config *types.Configuration, stats *types.Statistics, promS
 
 func isValidProtocolString(protocol string) bool {
 	return protocol == TCP || protocol == UDP
+}
+
+const syslogTLSDialTimeout = 10 * time.Second
+
+// syslogTLSConfig builds the TLS configuration used to reach the syslog server.
+func (c *Client) syslogTLSConfig() (*tls.Config, error) {
+	cfg := &tls.Config{MinVersion: tls.VersionTLS12}
+
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		pool = x509.NewCertPool()
+	}
+	cfg.RootCAs = pool
+
+	if c.Config.TLSClient.CaCertFile != "" {
+		caCert, err := os.ReadFile(c.Config.TLSClient.CaCertFile)
+		if err != nil {
+			return nil, err
+		}
+		pool.AppendCertsFromPEM(caCert)
+	}
+
+	if c.Config.Syslog.MutualTLS {
+		certPath, keyPath, caPath := c.Config.MutualTLSClient.CertFile, c.Config.MutualTLSClient.KeyFile, c.Config.MutualTLSClient.CaCertFile
+		if certPath == "" {
+			certPath = c.Config.MutualTLSFilesPath + MutualTLSClientCertFilename
+		}
+		if keyPath == "" {
+			keyPath = c.Config.MutualTLSFilesPath + MutualTLSClientKeyFilename
+		}
+		if caPath == "" {
+			caPath = c.Config.MutualTLSFilesPath + MutualTLSCacertFilename
+		}
+		cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			return nil, err
+		}
+		caCert, err := os.ReadFile(caPath)
+		if err != nil {
+			return nil, err
+		}
+		pool.AppendCertsFromPEM(caCert)
+		cfg.Certificates = []tls.Certificate{cert}
+		return cfg, nil
+	}
+
+	// With MutualTLS enabled, the check cert flag is ignored
+	if !c.Config.Syslog.CheckCert {
+		return utils.InsecureSkipVerifyTLSConfig(), nil
+	}
+	return cfg, nil
+}
+
+// sendSyslogTLS writes one message to the syslog server over TLS, as an RFC 5424
+// message with the octet-counting framing of RFC 5425.
+func (c *Client) sendSyslogTLS(endpoint string, priority syslog.Priority, hostname string, payload []byte) error {
+	cfg, err := c.syslogTLSConfig()
+	if err != nil {
+		return err
+	}
+	dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: syslogTLSDialTimeout}, Config: cfg}
+	conn, err := dialer.Dial("tcp", endpoint)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = io.WriteString(conn, formatSyslogTLSFrame(priority, time.Now(), hostname, payload))
+	return err
+}
+
+// formatSyslogTLSFrame returns an RFC 5424 message prefixed by its length (RFC 5425 section 4.3).
+func formatSyslogTLSFrame(priority syslog.Priority, ts time.Time, hostname string, payload []byte) string {
+	if hostname == "" {
+		hostname = "-"
+	}
+	msg := fmt.Sprintf("<%d>1 %s %s %s - - - %s", int(priority), ts.Format(time.RFC3339), hostname, Falco, payload)
+	return fmt.Sprintf("%d %s", len(msg), msg)
 }
 
 func getCEFSeverity(priority types.PriorityType) string {
@@ -86,18 +172,6 @@ func (c *Client) SyslogPost(falcopayload types.FalcoPayload) {
 		priority = syslog.LOG_DEBUG
 	}
 
-	sysLog, err := syslog.Dial(c.Config.Syslog.Protocol, endpoint, priority, Falco)
-	if err != nil {
-		go c.CountMetric(Outputs, 1, []string{"output:syslog", "status:error"})
-		c.Stats.Syslog.Add(Error, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "syslog", "status": Error}).Inc()
-		c.OTLPMetrics.Outputs.With(attribute.String("destination", "syslog"),
-			attribute.String("status", Error)).Inc()
-		utils.Log(utils.ErrorLvl, c.OutputType, err.Error())
-		return
-	}
-	defer sysLog.Close()
-
 	var payload []byte
 
 	if c.Config.Syslog.Format == "cef" {
@@ -125,7 +199,18 @@ func (c *Client) SyslogPost(falcopayload types.FalcoPayload) {
 		payload, _ = json.Marshal(falcopayload)
 	}
 
-	_, err = sysLog.Write(payload)
+	var err error
+	if c.Config.Syslog.TLS {
+		hostname, _ := os.Hostname()
+		err = c.sendSyslogTLS(endpoint, priority, hostname, payload)
+	} else {
+		var sysLog *syslog.Writer
+		sysLog, err = syslog.Dial(c.Config.Syslog.Protocol, endpoint, priority, Falco)
+		if err == nil {
+			defer sysLog.Close()
+			_, err = sysLog.Write(payload)
+		}
+	}
 	if err != nil {
 		go c.CountMetric(Outputs, 1, []string{"output:syslog", "status:error"})
 		c.Stats.Syslog.Add(Error, 1)
