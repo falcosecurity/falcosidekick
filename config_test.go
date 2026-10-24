@@ -3,9 +3,12 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 
+	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 
@@ -43,4 +46,32 @@ func TestTelegramMessageThreadIDEnvBinding(t *testing.T) {
 	c := &types.Configuration{}
 	require.NoError(t, v.Unmarshal(c))
 	require.Equal(t, "4", c.Telegram.MessageThreadID)
+}
+
+// TestEnvVarsReachConfig covers documented env vars that were ignored because
+// getConfig() never registered their key with viper, and AutomaticEnv only
+// binds registered keys.
+func TestEnvVarsReachConfig(t *testing.T) {
+	tests := []struct {
+		env   string
+		value string
+		got   func(*types.Configuration) any
+	}{
+		{"YANDEX_S3_MINIMUMPRIORITY", "warning", func(c *types.Configuration) any { return c.Yandex.S3.MinimumPriority }},
+		{"NATS_MINIMUMPRIORITY", "error", func(c *types.Configuration) any { return c.Nats.MinimumPriority }},
+		{"STAN_MINIMUMPRIORITY", "critical", func(c *types.Configuration) any { return c.Stan.MinimumPriority }},
+		{"WAVEFRONT_FLUSHINTERVALSECONDS", "5", func(c *types.Configuration) any { return c.Wavefront.FlushIntervalSeconds }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.env, func(t *testing.T) {
+			t.Setenv(tc.env, tc.value)
+
+			// getConfig parses os.Args with the global kingpin parser, which rejects the test flags.
+			args, cmdLine := os.Args, kingpin.CommandLine
+			os.Args, kingpin.CommandLine = []string{"falcosidekick"}, kingpin.New("falcosidekick", "")
+			t.Cleanup(func() { os.Args, kingpin.CommandLine = args, cmdLine })
+
+			require.Equal(t, tc.value, fmt.Sprint(tc.got(getConfig())))
+		})
+	}
 }
