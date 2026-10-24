@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/retry"
 	wgpolicy "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/api/wgpolicyk8s.io/v1alpha2"
 	crd "sigs.k8s.io/wg-policy-prototypes/policy-report/pkg/generated/v1alpha2/clientset/versioned"
 
@@ -193,9 +195,27 @@ func newResult(falcopayload types.FalcoPayload) *wgpolicy.PolicyReportResult {
 	}
 }
 
-func (c *Client) createOrUpdatePolicyReport(result *wgpolicy.PolicyReportResult, namespace string) error {
-	action := updateStr
+// reportLocks serializes the writes to each report within this process. Every event is written by
+// its own goroutine, as a read-modify-write of the whole report, so a burst of events for the same
+// report used to read the same resourceVersion and all but one write failed with a Conflict (#1179).
+var reportLocks sync.Map // "<namespace>/<name>" -> *sync.Mutex
 
+func lockReport(key string) (unlock func()) {
+	m, _ := reportLocks.LoadOrStore(key, &sync.Mutex{})
+	mu := m.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
+// isRetriableReportWrite reports whether a write lost a race with another writer (another
+// falcosidekick replica, or anything else updating the report): it changed the report after we
+// read it (Conflict), or created it after we found none (AlreadyExists). Either way, read it again
+// and reapply the result.
+func isRetriableReportWrite(err error) bool {
+	return errorsv1.IsConflict(err) || errorsv1.IsAlreadyExists(err)
+}
+
+func (c *Client) createOrUpdatePolicyReport(result *wgpolicy.PolicyReportResult, namespace string) error {
 	_, err := c.KubernetesClient.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	if err != nil {
 		if errorsv1.IsNotFound(err) {
@@ -205,111 +225,75 @@ func (c *Client) createOrUpdatePolicyReport(result *wgpolicy.PolicyReportResult,
 		}
 	}
 
-	policyr, err := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Get(context.Background(), policyReportName, metav1.GetOptions{})
+	defer lockReport(namespace + "/" + policyReportName)()
+
+	action := updateStr
+	err = retry.OnError(retry.DefaultRetry, isRetriableReportWrite, func() error {
+		policyr, err := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Get(context.Background(), policyReportName, metav1.GetOptions{})
+		if err != nil && !errorsv1.IsNotFound(err) {
+			return err
+		}
+		action = updateStr
+		if errorsv1.IsNotFound(err) || policyr == nil || policyr.Name == "" {
+			policyr = newPolicyReport()
+			action = createStr
+		}
+
+		policyr.Results = append(policyr.Results, *result)
+		if len(policyr.Results) > c.Config.PolicyReport.MaxEvents {
+			policyr.Results = policyr.Results[1:]
+		}
+		policyr.Summary = getSummary(policyr.Results)
+
+		if action == createStr {
+			_, err = c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Create(context.Background(), policyr, metav1.CreateOptions{})
+		} else {
+			_, err = c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Update(context.Background(), policyr, metav1.UpdateOptions{})
+		}
+		return err
+	})
 	if err != nil {
-		if !errorsv1.IsNotFound(err) {
-			return err
-		}
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Policy Report %v in namespace %v: %v", action, policyReportName, namespace, err))
+		return err
 	}
-	if policyr.Name == "" {
-		policyr = newPolicyReport()
-		action = createStr
-	}
-
-	policyr.Results = append(policyr.Results, *result)
-
-	if len(policyr.Results) > c.Config.PolicyReport.MaxEvents {
-		policyr.Results = policyr.Results[1:]
-	}
-
-	policyr.Summary = getSummary(policyr.Results)
-
-	if action == createStr {
-		_, err := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Create(context.Background(), policyr, metav1.CreateOptions{})
-		if err != nil {
-			if errorsv1.IsAlreadyExists(err) {
-				action = updateStr
-				policyr, err = c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Get(context.Background(), policyReportName, metav1.GetOptions{})
-				if err != nil {
-					utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Error with with the Policy Report %v in namespace %v: %v", policyReportName, namespace, err))
-					return err
-				}
-				_, err := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Update(context.Background(), policyr, metav1.UpdateOptions{})
-				if err != nil {
-					utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Policy Report %v in namespace %v: %v", action, policyReportName, namespace, err))
-					return err
-				}
-			} else {
-				utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Policy Report %v in namespace %v: %v", action, policyReportName, namespace, err))
-				return err
-			}
-		}
-		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v the Policy Report %v in namespace %v", action, policyReportName, namespace))
-		return nil
-	} else {
-		_, err := c.Crdclient.Wgpolicyk8sV1alpha2().PolicyReports(namespace).Update(context.Background(), policyr, metav1.UpdateOptions{})
-		if err != nil {
-			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Policy Report %v in namespace %v: %v", action, policyReportName, namespace, err))
-			return err
-		}
-		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v the Policy Report %v in namespace %v", action, policyReportName, namespace))
-		return nil
-	}
+	utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v the Policy Report %v in namespace %v", action, policyReportName, namespace))
+	return nil
 }
 
 func (c *Client) createOrUpdateClusterPolicyReport(result *wgpolicy.PolicyReportResult) error {
+	defer lockReport("/" + clusterPolicyReportName)()
+
 	action := updateStr
+	err := retry.OnError(retry.DefaultRetry, isRetriableReportWrite, func() error {
+		cpolicyr, err := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Get(context.Background(), clusterPolicyReportName, metav1.GetOptions{})
+		if err != nil && !errorsv1.IsNotFound(err) {
+			return err
+		}
+		action = updateStr
+		if errorsv1.IsNotFound(err) || cpolicyr == nil || cpolicyr.Name == "" {
+			cpolicyr = newClusterPolicyReport()
+			action = createStr
+		}
 
-	cpolicyr, err := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Get(context.Background(), clusterPolicyReportName, metav1.GetOptions{})
+		cpolicyr.Results = append(cpolicyr.Results, *result)
+		if len(cpolicyr.Results) > c.Config.PolicyReport.MaxEvents {
+			cpolicyr.Results = cpolicyr.Results[1:]
+		}
+		cpolicyr.Summary = getSummary(cpolicyr.Results)
+
+		if action == createStr {
+			_, err = c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Create(context.Background(), cpolicyr, metav1.CreateOptions{})
+		} else {
+			_, err = c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Update(context.Background(), cpolicyr, metav1.UpdateOptions{})
+		}
+		return err
+	})
 	if err != nil {
-		if !errorsv1.IsNotFound(err) {
-			return err
-		}
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Cluster Policy Report %v: %v", action, clusterPolicyReportName, err))
+		return err
 	}
-	if cpolicyr.Name == "" {
-		cpolicyr = newClusterPolicyReport()
-		action = createStr
-	}
-
-	cpolicyr.Results = append(cpolicyr.Results, *result)
-
-	if len(cpolicyr.Results) > c.Config.PolicyReport.MaxEvents {
-		cpolicyr.Results = cpolicyr.Results[1:]
-	}
-
-	cpolicyr.Summary = getSummary(cpolicyr.Results)
-
-	if action == createStr {
-		_, err := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Create(context.Background(), cpolicyr, metav1.CreateOptions{})
-		if err != nil {
-			if errorsv1.IsAlreadyExists(err) {
-				action = updateStr
-				cpolicyr, err = c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Get(context.Background(), policyReportName, metav1.GetOptions{})
-				if err != nil {
-					utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Error with with the Cluster Policy Report %v: %v", policyReportName, err))
-					return err
-				}
-				_, err := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Update(context.Background(), cpolicyr, metav1.UpdateOptions{})
-				if err != nil {
-					utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Cluster Policy Report %v: %v", action, policyReportName, err))
-					return err
-				}
-			} else {
-				utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Cluster Policy Report %v: %v", action, clusterPolicyReportName, err))
-				return err
-			}
-		}
-		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v Cluster the Policy Report %v", action, policyReportName))
-		return nil
-	} else {
-		_, err := c.Crdclient.Wgpolicyk8sV1alpha2().ClusterPolicyReports().Update(context.Background(), cpolicyr, metav1.UpdateOptions{})
-		if err != nil {
-			utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("Can't %v the Cluster Policy Report %v: %v", action, clusterPolicyReportName, err))
-			return err
-		}
-		utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v the ClusterPolicy Report %v", action, policyReportName))
-		return nil
-	}
+	utils.Log(utils.InfoLvl, c.OutputType, fmt.Sprintf("%v the Cluster Policy Report %v", action, clusterPolicyReportName))
+	return nil
 }
 
 func getSummary(results []wgpolicy.PolicyReportResult) wgpolicy.PolicyReportSummary {
