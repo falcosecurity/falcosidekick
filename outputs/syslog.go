@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
