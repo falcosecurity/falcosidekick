@@ -955,12 +955,11 @@ func main() {
 				utils.Log(utils.DebugLvl, "", "running mTLS server")
 			}
 
-			caCert, err := os.ReadFile(config.TLSServer.CaCertFile)
+			caCertPool, err := loadCACertPool(config.TLSServer.CaCertFile)
 			if err != nil {
 				utils.Log(utils.ErrorLvl, "", err.Error())
+				os.Exit(1)
 			}
-			caCertPool := x509.NewCertPool()
-			caCertPool.AppendCertsFromPEM(caCert)
 
 			server.TLSConfig = &tls.Config{
 				ClientAuth: tls.RequireAndVerifyClientCert,
@@ -1019,6 +1018,21 @@ func main() {
 			utils.Log(utils.FatalLvl, "", err.Error())
 		}
 	}
+}
+
+// loadCACertPool reads a PEM bundle and returns a pool with its certificates.
+// It fails if the file holds no valid certificate, as an empty pool would make
+// the mTLS server reject every client.
+func loadCACertPool(path string) (*x509.CertPool, error) {
+	caCert, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read tlsserver.cacertfile: %w", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caCert) {
+		return nil, fmt.Errorf("tlsserver.cacertfile %s contains no valid PEM certificates", path)
+	}
+	return pool, nil
 }
 
 func serveTLS(server *http.Server, errs chan<- error) {

@@ -483,7 +483,9 @@ func (c *Client) configureTransport() (*http.Transport, error) {
 		if err != nil {
 			return customTransport, err
 		}
-		customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
+		if !customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert) {
+			return customTransport, fmt.Errorf("tlsclient.cacertfile %s contains no valid PEM certificates", c.Config.TLSClient.CaCertFile)
+		}
 	}
 
 	if c.cfg.MutualTLS {
@@ -514,7 +516,9 @@ func (c *Client) configureTransport() (*http.Transport, error) {
 		if err != nil {
 			return customTransport, err
 		}
-		customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
+		if !customTransport.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert) {
+			return customTransport, fmt.Errorf("mutual TLS CA cert file %s contains no valid PEM certificates", MutualTLSClientCaCertPath)
+		}
 		customTransport.TLSClientConfig.Certificates = []tls.Certificate{cert}
 	} else {
 		// With MutualTLS enabled, the check cert flag is ignored

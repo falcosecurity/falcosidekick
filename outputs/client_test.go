@@ -408,3 +408,23 @@ func certsetup(config *types.Configuration) (serverTLSConf *tls.Config, err erro
 	}
 	return serverTLSConf, nil
 }
+
+func TestConfigureTransportCACertFileWithoutCertificates(t *testing.T) {
+	for name, content := range map[string]string{
+		"empty":   "",
+		"not PEM": "this is not a certificate\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			caFile := t.TempDir() + "/ca.crt"
+			require.NoError(t, os.WriteFile(caFile, []byte(content), 0600))
+
+			config := &types.Configuration{}
+			config.TLSClient.CaCertFile = caFile
+			c := &Client{OutputType: "test", cfg: types.CommonConfig{CheckCert: true}, Config: config}
+
+			_, err := c.configureTransport()
+			require.ErrorContains(t, err, caFile)
+			require.ErrorContains(t, err, "contains no valid PEM certificates")
+		})
+	}
+}

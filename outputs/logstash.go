@@ -87,7 +87,11 @@ func NewLogstashClient(config *types.Configuration, stats *types.Statistics, pro
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      pool,
 		}
-		tlsCfg.RootCAs.AppendCertsFromPEM(caCert)
+		if !tlsCfg.RootCAs.AppendCertsFromPEM(caCert) {
+			err = fmt.Errorf("logstash SSL CA certificate file %s contains no valid PEM certificates", MutualTLSClientCaCertPath)
+			utils.Log(utils.ErrorLvl, "Logstash", err.Error())
+			return nil, err
+		}
 
 	} else {
 		// The check cert flag and mutual tls are mutually exclusive
