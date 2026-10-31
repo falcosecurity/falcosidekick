@@ -63,7 +63,11 @@ func NewRedisClient(config *types.Configuration, stats *types.Statistics, promSt
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      pool,
 		}
-		tlsCfg.RootCAs.AppendCertsFromPEM(caCert)
+		if !tlsCfg.RootCAs.AppendCertsFromPEM(caCert) {
+			err = fmt.Errorf("redis CA certificate file %s contains no valid PEM certificates", caCertFile)
+			utils.Log(utils.ErrorLvl, "Redis", err.Error())
+			return nil, err
+		}
 	} else if config.Redis.TLS {
 		if !config.Redis.CheckCert {
 			tlsCfg = utils.InsecureSkipVerifyTLSConfig()
