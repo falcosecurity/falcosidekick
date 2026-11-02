@@ -36,68 +36,8 @@ LDFLAGS=-X $(VERSION_PKG).Version=$(GIT_VERSION) -X $(VERSION_PKG).Commit=$(GIT_
 # Directories.
 ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
-# Docker
-IMAGE_TAG := falcosecurity/falcosidekick:latest
-
 ## --------------------------------------
-## Build
-## --------------------------------------
-
-.PHONY: falcosidekick
-falcosidekick: ## Build falcosidekick binary
-	$(GO) mod download
-	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO) build -trimpath -ldflags "$(LDFLAGS)" -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o $@ ./cmd/falcosidekick/
-
-.PHONY: falcosidekick-linux
-falcosidekick-linux: ## Build falcosidekick binary for Linux
-	$(GO) mod download
-	GOOS=linux GOARCH=$(GOARCH) $(GO) build -ldflags "$(LDFLAGS)" -gcflags all=-trimpath=/src -asmflags all=-trimpath=/src -a -installsuffix cgo -o falcosidekick ./cmd/falcosidekick/
-
-.PHONY: build-image
-build-image: falcosidekick-linux ## Build Docker image
-	$(DOCKER) build -t $(IMAGE_TAG) .
-
-.PHONY: push-image
-push-image: ## Push Docker image
-	$(DOCKER) push $(IMAGE_TAG)
-
-## --------------------------------------
-## Test
-## --------------------------------------
-
-.PHONY: test
-test: ## Run unit tests with race detection
-	$(GO) vet ./...
-	$(GO) test ${TEST_FLAGS} ./...
-
-.PHONY: test-coverage
-test-coverage: ## Run tests with coverage report and threshold check
-	$(GO) test -race -coverprofile=coverage.out -covermode=atomic ./...
-	@$(GO) tool cover -func=coverage.out | tail -1
-	@COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%'); \
-	if [ $$(echo "$$COVERAGE < 80" | bc -l) -eq 1 ]; then \
-		echo "FAIL: Coverage $$COVERAGE% is below 80% threshold"; exit 1; \
-	else \
-		echo "OK: Coverage $$COVERAGE%"; \
-	fi
-
-## --------------------------------------
-## Linting
-## --------------------------------------
-
-.PHONY: lint
-lint: ## Run golangci-lint (Go)
-	golangci-lint run ./...
-
-.PHONY: lint-fix
-lint-fix: ## Run golangci-lint with auto-fix and struct field alignment
-	golangci-lint run --fix ./...
-	golangci-lint fmt ./...
-	fieldalignment -fix ./internal/...
-
-## --------------------------------------
-## v3 Targets (scoped to internal/ and cmd/ only)
-## These will replace the root-level targets when v2 legacy is removed.
+## v3 Targets
 ## --------------------------------------
 
 V3_PACKAGES=./internal/... ./cmd/...
@@ -154,32 +94,7 @@ ui-dev: ## Start frontend dev server (Bun)
 	cd ui && $(BUN) run dev
 
 ## --------------------------------------
-## Full verification
-## --------------------------------------
-
-.PHONY: verify
-verify: lint test ui-build ui-lint ## Run all Go and UI checks
-
-## --------------------------------------
-## Release
-## --------------------------------------
-
-.PHONY: goreleaser-snapshot
-goreleaser-snapshot: ## Release snapshot using goreleaser
-	LDFLAGS="$(LDFLAGS)" goreleaser --snapshot --skip=sign --clean
-
-## --------------------------------------
-## Cleanup / Verification
-## --------------------------------------
-
-.PHONY: clean
-clean: ## Remove build artifacts
-	rm -rf dist
-	rm -rf coverage.out
-
-## --------------------------------------
-## v3 Build Surface (parallel to v2)
-## v2 targets above stay unchanged. Everything below is v3-only.
+## v3 Build Surface
 ## --------------------------------------
 
 BUN            ?= $(HOME)/.bun/bin/bun
@@ -189,7 +104,7 @@ V3_IMAGE       ?= falcosidekick
 V3_DIST        := dist
 
 # v3 version string: closest v3.* tag, or `v3-dev-<short-sha>` before the
-# first v3 tag exists. v2 git tags are explicitly ignored.
+# first v3 tag exists.
 V3_GIT_DESCRIBE := $(shell git describe --tags --match 'v3.*' --dirty 2>/dev/null)
 V3_GIT_DIRTY    := $(shell git diff --quiet 2>/dev/null || echo -dirty)
 V3_GIT_SHORT    := $(shell git rev-parse --short HEAD 2>/dev/null)

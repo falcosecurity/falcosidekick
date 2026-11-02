@@ -5,12 +5,12 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - development
+      - master
     tags:
       - "v3.*"
   pull_request:
     branches:
-      - development
+      - master
 
 permissions: {}
 
