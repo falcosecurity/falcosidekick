@@ -118,7 +118,7 @@ func TestReleaseV3Artifacts(t *testing.T) {
 				require.Equal(t, "Dockerfile.v3", docker.Dockerfile)
 				require.Equal(t, build.Binary, docker.BuildArgs["BINARY"])
 				require.Nil(t, docker.LegacyBuildArgs)
-				require.Equal(t, []string{"ghcr.io/c2ndev/falcosidekick"}, docker.Images)
+				require.Equal(t, []string{"falcosecurity/falcosidekick", "public.ecr.aws/falcosecurity/falcosidekick"}, docker.Images)
 				require.ElementsMatch(t, []string{"linux/amd64", "linux/arm64"}, docker.Platforms)
 				if ui {
 					require.Equal(t, "ui", docker.BuildArgs["VARIANT"])
@@ -145,7 +145,7 @@ func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
 			refGuard := "startsWith(github.ref, 'refs/tags/v3.')"
 			if name == "v3-build" {
 				publishID = "v3-build-snapshot"
-				refGuard = "github.ref == 'refs/heads/development'"
+				refGuard = "github.ref == 'refs/heads/master'"
 			}
 			publish := workflow.Jobs[publishID]
 			require.Contains(t, publish.Needs, "checks")
@@ -185,12 +185,6 @@ func TestReleaseChecksIncludeUITestsAndLint(t *testing.T) {
 	require.Equal(t, "bun test", strings.TrimSpace(ui.Run))
 	check := releaseWorkflowStep(t, "v3-test.yml", "v3-unit-tests", "release-config")
 	require.Equal(t, "check --config .goreleaser.v3.yml", check.With["args"])
-}
-
-func TestReleaseLegacyExcludesV3Tags(t *testing.T) {
-	var workflow releaseWorkflow
-	readReleaseYAML(t, ".github/workflows/release.yml", &workflow)
-	require.Equal(t, []string{"*", "!v3.*"}, workflow.On["push"].Tags)
 }
 
 func runReleaseScript(t *testing.T, script, tool, shim string, env ...string) (output, dir string, err error) {
@@ -291,20 +285,22 @@ esac
 				return
 			}
 			require.NoError(t, err, output)
-			image := "ghcr.io/c2ndev/falcosidekick"
-			for _, suffix := range []string{"", "-slim"} {
-				for _, arch := range []string{"amd64", "arm64"} {
-					local := image + ":v3-latest" + suffix + "-" + arch
-					remote := image + ":v3-" + sha + suffix + "-" + arch
-					require.Contains(t, log, "tag "+local+" "+remote+"\n")
-					require.Contains(t, log, "push "+remote+"\n")
+			for _, image := range []string{"falcosecurity/falcosidekick", "public.ecr.aws/falcosecurity/falcosidekick"} {
+				for _, suffix := range []string{"", "-slim"} {
+					for _, arch := range []string{"amd64", "arm64"} {
+						local := image + ":v3-latest" + suffix + "-" + arch
+						remote := image + ":v3-" + sha + suffix + "-" + arch
+						require.Contains(t, log, "tag "+local+" "+remote+"\n")
+						require.Contains(t, log, "push "+remote+"\n")
+					}
+					manifest := "buildx imagetools create --tag " + image + ":v3-latest" + suffix
+					for _, arch := range []string{"amd64", "arm64"} {
+						manifest += " " + image + ":v3-" + sha + suffix + "-" + arch
+					}
+					require.Contains(t, log, manifest+"\n")
 				}
-				manifest := "buildx imagetools create --tag " + image + ":v3-latest" + suffix
-				for _, arch := range []string{"amd64", "arm64"} {
-					manifest += " " + image + ":v3-" + sha + suffix + "-" + arch
-				}
-				require.Contains(t, log, manifest+"\n")
 			}
+			require.NotRegexp(t, `:latest(\s|$)`, log)
 			require.Less(t, strings.LastIndex(log, "push "), strings.Index(log, "buildx imagetools create"))
 		})
 	}

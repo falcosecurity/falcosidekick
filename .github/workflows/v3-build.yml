@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - development
+      - master
 
 permissions: {}
 
@@ -17,12 +17,12 @@ jobs:
   v3-build-snapshot:
     name: v3 goreleaser snapshot
     needs: [checks]
-    if: github.repository == 'c2ndev/falcosidekick' && github.ref == 'refs/heads/development'
+    if: github.repository == 'falcosecurity/falcosidekick' && github.ref == 'refs/heads/master'
     concurrency: v3-publish
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -49,12 +49,24 @@ jobs:
 
       - uses: anchore/sbom-action/download-syft@17ae1740179002c89186b61233e0f892c3118b11 # v0.23.0
 
-      - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+      - name: Login to Docker Hub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        env:
+          DOCKERHUB_OIDC_CONNECTIONID: ${{ vars.DOCKERHUB_OIDC_CONNECTION }}
+          DOCKERHUB_OIDC_EXPIREIN: 600
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: falcosecurity
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        with:
+          role-to-assume: arn:aws:iam::292999226676:role/github_actions-falcosidekick-ecr
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+        with:
+          registry-type: public
 
       - uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         with:
@@ -68,7 +80,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          image=ghcr.io/c2ndev/falcosidekick
+          images=(falcosecurity/falcosidekick public.ecr.aws/falcosecurity/falcosidekick)
+          image="${images[0]}"
           for variant in ui slim; do
             suffix=""
             [[ "$variant" != slim ]] || suffix=-slim
@@ -83,15 +96,19 @@ jobs:
             done
           done
           # Snapshot mode loads platform images locally; it does not publish them.
-          for suffix in "" -slim; do
-            for arch in amd64 arm64; do
-              remote_image="${image}:v3-${GITHUB_SHA}${suffix}-${arch}"
-              docker tag "${image}:v3-latest${suffix}-${arch}" "$remote_image"
-              docker push "$remote_image"
+          for image in "${images[@]}"; do
+            for suffix in "" -slim; do
+              for arch in amd64 arm64; do
+                remote_image="${image}:v3-${GITHUB_SHA}${suffix}-${arch}"
+                docker tag "${image}:v3-latest${suffix}-${arch}" "$remote_image"
+                docker push "$remote_image"
+              done
             done
           done
-          for suffix in "" -slim; do
-            docker buildx imagetools create --tag "${image}:v3-latest${suffix}" \
-              "${image}:v3-${GITHUB_SHA}${suffix}-amd64" \
-              "${image}:v3-${GITHUB_SHA}${suffix}-arm64"
+          for image in "${images[@]}"; do
+            for suffix in "" -slim; do
+              docker buildx imagetools create --tag "${image}:v3-latest${suffix}" \
+                "${image}:v3-${GITHUB_SHA}${suffix}-amd64" \
+                "${image}:v3-${GITHUB_SHA}${suffix}-arm64"
+            done
           done

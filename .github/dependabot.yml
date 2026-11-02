@@ -19,3 +19,24 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  - package-ecosystem: gomod
+    directory: "/"
+    target-branch: "2.x"
+    schedule:
+      interval: "weekly"
+    groups:
+      gomod:
+        update-types:
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "2.x"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        update-types:
+          - "minor"
+          - "patch"

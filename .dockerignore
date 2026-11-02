@@ -1,8 +1,6 @@
 .circleci
 .github
 .golangci.yml
-_config.yml
-config_example.yaml
 *.md
 hack
 imgs
