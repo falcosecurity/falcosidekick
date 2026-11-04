@@ -237,6 +237,17 @@ var httpOutputDefaults = map[string]map[string]any{
 	},
 	"Webui": {
 		"URL": "",
+		"OAuth2": map[string]any{
+			"TokenURL":          "",
+			"ClientID":          "",
+			"ClientSecret":      "",
+			"ClientSecretFile":  "",
+			"Scopes":            "",
+			"Audience":          "",
+			"ResourceIndicator": false,
+			"CAFile":            "",
+		},
+		"TokenFile": "",
 	},
 	"Grafana": {
 		"HostPort":        "",

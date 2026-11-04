@@ -652,6 +652,20 @@ type tektonConfig struct {
 type WebUIOutputConfig struct {
 	CommonConfig `mapstructure:",squash"`
 	URL          string
+	OAuth2       WebUIOAuth2Config
+	TokenFile    string
+}
+
+// WebUIOAuth2Config represents OAuth2 client credentials configuration
+type WebUIOAuth2Config struct {
+	TokenURL          string
+	ClientID          string
+	ClientSecret      string
+	ClientSecretFile  string
+	Scopes            string
+	Audience          string
+	ResourceIndicator bool
+	CAFile            string
 }
 
 // PolicyReportConfig represents parameters for policyreport

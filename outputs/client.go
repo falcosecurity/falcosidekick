@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	gcpfunctions "cloud.google.com/go/functions/apiv1"
 	"cloud.google.com/go/pubsub"
@@ -120,18 +121,21 @@ type Client struct {
 	GCPChronicleClient      *http.Client
 	GCPTokenSource          oauth2.TokenSource
 
-	GCSStorageClient  *storage.Client
-	KafkaProducer     *kafka.Writer
-	CloudEventsClient cloudevents.Client
-	KubernetesClient  kubernetes.Interface
-	RabbitmqClient    *amqp.Channel
-	WavefrontSender   *wavefront.Sender
-	Crdclient         *crdClient.Clientset
-	MQTTClient        mqtt.Client
-	TimescaleDBClient *timescaledb.Pool
-	RedisClient       *redis.Client
-	OTLPLogsLogger    *slog.Logger
-	LogstashClient    *logstash.Stash
+	GCSStorageClient       *storage.Client
+	KafkaProducer          *kafka.Writer
+	CloudEventsClient      cloudevents.Client
+	KubernetesClient       kubernetes.Interface
+	RabbitmqClient         *amqp.Channel
+	WavefrontSender        *wavefront.Sender
+	Crdclient              *crdClient.Clientset
+	MQTTClient             mqtt.Client
+	TimescaleDBClient      *timescaledb.Pool
+	RedisClient            *redis.Client
+	OTLPLogsLogger         *slog.Logger
+	LogstashClient         *logstash.Stash
+	WebUITokenSource       tokenProvider
+	webUITokenErrorMu      sync.Mutex
+	webUITokenErrorLastLog time.Time
 
 	// Enable gzip compression
 	EnableCompression bool
