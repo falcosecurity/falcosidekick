@@ -44,3 +44,19 @@ func TestTelegramMessageThreadIDEnvBinding(t *testing.T) {
 	require.NoError(t, v.Unmarshal(c))
 	require.Equal(t, "4", c.Telegram.MessageThreadID)
 }
+
+// TestAlertmanagerDefaultDropEventThresholds checks that the registered default
+// for alertmanager.dropeventthresholds parses into the documented list of
+// thresholds, each with a valid Falco priority.
+func TestAlertmanagerDefaultDropEventThresholds(t *testing.T) {
+	def, ok := outputDefaults["Alertmanager"]["DropEventThresholds"].(string)
+	require.True(t, ok, "outputDefaults[\"Alertmanager\"] must register DropEventThresholds as a string")
+
+	require.Equal(t, []types.ThresholdConfig{
+		{Value: 10000, Priority: types.Critical},
+		{Value: 1000, Priority: types.Critical},
+		{Value: 100, Priority: types.Critical},
+		{Value: 10, Priority: types.Warning},
+		{Value: 1, Priority: types.Warning},
+	}, parseDropEventThresholds(def))
+}
