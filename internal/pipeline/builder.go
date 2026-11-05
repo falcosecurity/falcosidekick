@@ -20,6 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
@@ -64,9 +67,12 @@ func BuildOutput(
 		return nil, fmt.Errorf("runtime merge: %w", invalidOutputConfigError{cause: err})
 	}
 
-	healthCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
-	healthErr := driver.HealthCheck(healthCtx)
-	cancel()
+	var healthErr error
+	if merged.ProbesDestination() {
+		healthCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
+		healthErr = driver.HealthCheck(healthCtx)
+		cancel()
+	}
 	if errors.Is(healthErr, output.ErrMisconfigured) {
 		_ = driver.Close()
 		return nil, fmt.Errorf("health check: %w", invalidOutputConfigError{cause: healthErr})
@@ -81,6 +87,47 @@ func BuildOutput(
 		}
 	}
 	return out, nil
+}
+
+// BuildOutputs builds outputs concurrently; on any failure it closes them all.
+func BuildOutputs(
+	ctx context.Context,
+	cat *catalog.Catalog,
+	configs map[string]map[string]any,
+	defaults output.RuntimeConfig,
+	deps output.Deps,
+) (map[string]*Output, error) {
+	type result struct {
+		out *Output
+		err error
+	}
+	results := make(map[string]*result, len(configs))
+	for name := range configs {
+		results[name] = &result{}
+	}
+	var wg sync.WaitGroup
+	for name, cfg := range configs {
+		res := results[name]
+		wg.Go(func() { res.out, res.err = BuildOutput(ctx, cat, name, cfg, defaults, deps) })
+	}
+	wg.Wait()
+
+	names := slices.Sorted(maps.Keys(results))
+	for _, name := range names {
+		if err := results[name].err; err != nil {
+			for _, res := range results {
+				if res.out != nil {
+					_ = res.out.Close()
+				}
+			}
+			return nil, fmt.Errorf("output %q: %w", name, err)
+		}
+	}
+	outputs := make(map[string]*Output, len(results))
+	for name, res := range results {
+		outputs[name] = res.out
+	}
+	return outputs, nil
 }
 
 // healthCheckTimeout bounds the destination probe made before an output starts.

@@ -22,9 +22,11 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 	"time"
 
@@ -267,24 +269,17 @@ func createOutputs(
 	rawOutputs map[string]map[string]any,
 	cat *catalog.Catalog,
 	mc core.MetricsCollector,
-) (_ []*pipeline.Output, retErr error) {
-	outputs := make([]*pipeline.Output, 0, len(rawOutputs))
-	defer func() {
-		if retErr != nil {
-			closeOutputs(outputs)
-		}
-	}()
-
+) ([]*pipeline.Output, error) {
 	deps := output.Deps{Logger: slog.Default(), Metrics: mc}
-	for name, outputCfg := range rawOutputs {
-		out, err := pipeline.BuildOutput(ctx, cat, name, outputCfg, cfg.RuntimeDefaults, deps)
-		if err != nil {
-			return nil, fmt.Errorf("output %q: %w", name, err)
-		}
-		outputs = append(outputs, out)
+	built, err := pipeline.BuildOutputs(ctx, cat, rawOutputs, cfg.RuntimeDefaults, deps)
+	if err != nil {
+		return nil, err
+	}
+	outputs := make([]*pipeline.Output, 0, len(built))
+	for _, name := range slices.Sorted(maps.Keys(built)) {
+		outputs = append(outputs, built[name])
 		slog.Info("output enabled", "output", name)
 	}
-
 	return outputs, nil
 }
 

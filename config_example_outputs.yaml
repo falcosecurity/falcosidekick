@@ -17,9 +17,10 @@
 #       enabled: false
 #       batch_size: 500
 #       flush_interval: 1s
+#     health_check: true               # false skips the destination probe
 #
 # Health check: at startup, on reload and on API PUT each output probes its
-# destination for at most 5s. Rejected credentials (401/403), a wrong path
+# destination for at most 5s, all outputs concurrently. Rejected credentials (401/403), a wrong path
 # (404), an untrusted certificate or a Kafka SASL failure stop startup or
 # reject the change. Elasticsearch treats 403 as transient, since GET / needs
 # the monitor privilege. Any other failure starts the output as "degraded"
