@@ -230,10 +230,6 @@ v3-verify-full: v3-lint-full v3-test-default v3-test-hack v3-test-ui-tag ui-v3-b
 v3-live-test: build-image-v3-local ## Deploy v3 to the local kind cluster and run the live-test protocol
 	./hack/live-test/run.sh
 
-.PHONY: v3-elasticsearch-matrix
-v3-elasticsearch-matrix: ## Run Elasticsearch output live tests against each supported server version in Docker
-	./hack/elasticsearch-matrix.sh
-
 .PHONY: v3-goreleaser-snapshot
 v3-goreleaser-snapshot: ## Dry-run v3 goreleaser snapshot build (no sign, no publish)
 	LDFLAGS="$(LDFLAGS)" goreleaser release --config .goreleaser.v3.yml --snapshot --clean --skip=sign,publish

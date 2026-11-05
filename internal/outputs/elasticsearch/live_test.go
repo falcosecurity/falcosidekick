@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build elasticsearch_live
+//go:build integration
 
 package elasticsearch
 
@@ -38,8 +38,8 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
-// Run with hack/elasticsearch-matrix.sh, or set FALCOSIDEKICK_ES_URL to a
-// disposable cluster: the test deletes the indices and templates it uses.
+// Set FALCOSIDEKICK_ES_URL to a disposable Elasticsearch or OpenSearch
+// cluster: the test deletes the indices and templates it uses.
 // FALCOSIDEKICK_ES_USERNAME and FALCOSIDEKICK_ES_PASSWORD enable the
 // authentication cases; the user must be able to create API keys unless
 // FALCOSIDEKICK_ES_API_KEYS=false. FALCOSIDEKICK_ES_CA_FILE enables the TLS
