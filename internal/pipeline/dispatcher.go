@@ -180,13 +180,20 @@ func (d *Dispatcher) ReplaceOutput(retireCtx, runCtx context.Context, name strin
 		return ErrDispatcherStopped
 	}
 	old, exists := d.outputs[name]
+	if exists {
+		newOut.inherit(old)
+	}
 	newOut.Start(runCtx)
 	d.outputs[name] = newOut
 	d.mu.Unlock()
 
-	if exists {
-		return old.Retire(retireCtx)
+	if !exists {
+		return nil
 	}
+	if err := old.Retire(retireCtx); err != nil {
+		return err
+	}
+	newOut.absorb()
 	return nil
 }
 
