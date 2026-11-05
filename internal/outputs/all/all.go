@@ -21,17 +21,26 @@ package all
 import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/alertmanager"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/awss3"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/awssns"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/awssqs"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/cloudevents"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/datadog"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/discord"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/elasticsearch"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/gcppubsub"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/grafanaoncall"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/inmemory"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/kafka"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/loki"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/opsgenie"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/otlp"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/pagerduty"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/policyreport"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/redis"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/slack"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/smtp"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/syslog"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/talon"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/teams"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
@@ -41,17 +50,26 @@ import (
 func Types() []output.Type {
 	return []output.Type{
 		alertmanager.OutputType,
+		awss3.OutputType,
+		awssns.OutputType,
+		awssqs.OutputType,
 		cloudevents.OutputType,
 		datadog.OutputType,
 		discord.OutputType,
 		elasticsearch.OutputType,
+		gcppubsub.OutputType,
 		grafanaoncall.OutputType,
 		kafka.OutputType,
 		loki.OutputType,
 		inmemory.OutputType,
 		opsgenie.OutputType,
+		otlp.OutputType,
 		pagerduty.OutputType,
+		policyreport.OutputType,
+		redis.OutputType,
 		slack.OutputType,
+		smtp.OutputType,
+		syslog.OutputType,
 		talon.OutputType,
 		teams.OutputType,
 		webhook.OutputType,

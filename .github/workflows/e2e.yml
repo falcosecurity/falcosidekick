@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   self-contained:
-    name: e2e webhook, slack, kafka unreachable
+    name: e2e self-contained outputs
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -256,3 +256,177 @@ jobs:
       - name: Stop server
         if: always()
         run: docker rm -f es || true
+
+  aws:
+    name: e2e aws s3, sqs, sns (localstack)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FALCOSIDEKICK_E2E_AWS_ENDPOINT: http://127.0.0.1:4566
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Start LocalStack
+        run: |
+          docker run -d --name fsk-e2e-localstack -p 127.0.0.1:4566:4566 -e SERVICES=s3,sqs,sns,sts localstack/localstack:4.14.0
+          timeout 120 bash -c 'until curl -fsS http://127.0.0.1:4566/_localstack/health | grep -q "\"sns\": \"\(available\|running\)\""; do sleep 2; done'
+      - name: Run AWS tests
+        run: go test -count=1 -v -tags e2e -run TestAWS ./test/e2e/
+      - name: LocalStack logs
+        if: failure()
+        run: docker logs --tail 200 fsk-e2e-localstack
+      - name: Stop LocalStack
+        if: always()
+        run: docker rm -f fsk-e2e-localstack || true
+
+  gcppubsub:
+    name: e2e gcp pub/sub (emulator)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FALCOSIDEKICK_E2E_PUBSUB_EMULATOR: 127.0.0.1:8085
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Start Pub/Sub emulator
+        run: |
+          docker run -d --name fsk-e2e-pubsub -p 127.0.0.1:8085:8085 \
+            gcr.io/google.com/cloudsdktool/google-cloud-cli:592.0.0-emulators \
+            gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=fsk-e2e
+          timeout 120 bash -c 'until docker logs fsk-e2e-pubsub 2>&1 | grep -q "Server started"; do sleep 2; done'
+      - name: Run Pub/Sub tests
+        run: go test -count=1 -v -tags e2e -run TestGCPPubSub ./test/e2e/
+      - name: Stop emulator
+        if: always()
+        run: docker rm -f fsk-e2e-pubsub || true
+
+  smtp:
+    name: e2e smtp (mailpit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FALCOSIDEKICK_E2E_SMTP_ADDR: localhost:11025
+      FALCOSIDEKICK_E2E_SMTP_USER: fsk
+      FALCOSIDEKICK_E2E_SMTP_PASSWORD: fsk-e2e-password
+      FALCOSIDEKICK_E2E_MAILPIT_API: http://127.0.0.1:18025
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Start Mailpit
+        run: |
+          docker run -d --name fsk-e2e-mailpit -p 127.0.0.1:11025:1025 -p 127.0.0.1:18025:8025 \
+            -e MP_SMTP_AUTH="${FALCOSIDEKICK_E2E_SMTP_USER}:${FALCOSIDEKICK_E2E_SMTP_PASSWORD}" \
+            -e MP_SMTP_TLS_CERT=sans:localhost -e MP_SMTP_TLS_KEY=sans:localhost \
+            -e MP_SMTP_REQUIRE_STARTTLS=true axllent/mailpit:v1.33.0
+          timeout 60 bash -c 'until curl -fsS http://127.0.0.1:18025/readyz; do sleep 1; done'
+      - name: Run SMTP tests
+        run: go test -count=1 -v -tags e2e -run TestSMTP ./test/e2e/
+      - name: Stop Mailpit
+        if: always()
+        run: docker rm -f fsk-e2e-mailpit || true
+
+  redis:
+    name: e2e redis 7.4 and 8
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FALCOSIDEKICK_E2E_REDIS_ADDR: 127.0.0.1:16379,127.0.0.1:16380
+      FALCOSIDEKICK_E2E_REDIS_PASSWORD: fsk-e2e-redis
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Start Redis
+        run: |
+          docker run -d --name fsk-e2e-redis7 -p 127.0.0.1:16379:6379 redis:7.4 redis-server --requirepass "$FALCOSIDEKICK_E2E_REDIS_PASSWORD"
+          docker run -d --name fsk-e2e-redis8 -p 127.0.0.1:16380:6379 redis:8 redis-server --requirepass "$FALCOSIDEKICK_E2E_REDIS_PASSWORD"
+          for c in fsk-e2e-redis7 fsk-e2e-redis8; do
+            timeout 60 bash -c "until docker exec $c redis-cli -a \"\$FALCOSIDEKICK_E2E_REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG; do sleep 1; done"
+          done
+      - name: Run Redis tests
+        run: go test -count=1 -v -tags e2e -run TestRedis ./test/e2e/
+      - name: Stop Redis
+        if: always()
+        run: docker rm -f fsk-e2e-redis7 fsk-e2e-redis8 || true
+
+  otlp:
+    name: e2e otlp (collector)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      FALCOSIDEKICK_E2E_OTLP_GRPC: http://127.0.0.1:14317
+      FALCOSIDEKICK_E2E_OTLP_HTTP: http://127.0.0.1:14318
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Start collector
+        run: |
+          out="$RUNNER_TEMP/otel-out"; mkdir -p "$out"; chmod 777 "$out"
+          echo "FALCOSIDEKICK_E2E_OTLP_FILE=$out" >> "$GITHUB_ENV"
+          docker run -d --name fsk-e2e-otel -p 127.0.0.1:14317:4317 -p 127.0.0.1:14318:4318 \
+            -v "$PWD/test/e2e/testdata/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro" \
+            -v "$out:/out" otel/opentelemetry-collector-contrib:0.164.0
+          timeout 60 bash -c 'until (echo > /dev/tcp/127.0.0.1/14318) 2>/dev/null; do sleep 1; done'
+      - name: Run OTLP tests
+        run: go test -count=1 -v -tags e2e -run TestOTLP ./test/e2e/
+      - name: Collector logs
+        if: failure()
+        run: docker logs --tail 200 fsk-e2e-otel
+      - name: Stop collector
+        if: always()
+        run: docker rm -f fsk-e2e-otel || true
+
+  policyreport:
+    name: e2e policyreport (kind, openreports)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
+        with:
+          version: v0.30.0
+          cluster_name: fsk-policyreport
+      - name: Install openreports CRDs
+        run: |
+          kubectl apply -f https://github.com/openreports/reports-api/releases/download/v0.2.1/install.yaml
+          kubectl wait --for condition=Established --timeout=120s crd/reports.openreports.io crd/clusterreports.openreports.io
+          kind get kubeconfig --name fsk-policyreport > "$RUNNER_TEMP/kubeconfig"
+          echo "FALCOSIDEKICK_E2E_KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Run PolicyReport tests
+        run: go test -count=1 -p 1 -v -tags e2e -run TestPolicyReport ./test/e2e/
