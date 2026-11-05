@@ -298,8 +298,9 @@ func peerClosed(conn net.Conn) bool {
 // and stops as soon as the context ends.
 func write(ctx context.Context, conn net.Conn, msg []byte) error {
 	deadline := time.Now().Add(ioTimeout)
+	ctxDeadline := false
 	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
-		deadline = d
+		deadline, ctxDeadline = d, true
 	}
 	if err := conn.SetWriteDeadline(deadline); err != nil {
 		return err
@@ -309,6 +310,10 @@ func write(ctx context.Context, conn net.Conn, msg []byte) error {
 	if _, err := conn.Write(msg); err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
+		}
+		if ne, ok := errors.AsType[net.Error](err); ok && ne.Timeout() && ctxDeadline {
+			<-ctx.Done()
+			return ctx.Err()
 		}
 		return err
 	}
