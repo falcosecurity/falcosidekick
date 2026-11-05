@@ -106,13 +106,8 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSON(ctx, d.cfg.Method, target, evt)
 }
 
-// HealthCheck verifies connectivity to the webhook address.
-func (d *driver) HealthCheck(ctx context.Context) error {
-	target, err := d.cfg.DeliveryURL()
-	if err != nil {
-		return shared.WrapDeliveryError("webhook", "target", err)
-	}
-	return d.sender.HealthCheck(ctx, target)
-}
+// HealthCheck is a no-op: the endpoint only accepts POST, so no request can
+// probe it without delivering a message.
+func (d *driver) HealthCheck(context.Context) error { return nil }
 
 func (d *driver) Close() error { return nil }

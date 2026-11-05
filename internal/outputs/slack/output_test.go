@@ -438,16 +438,19 @@ func TestCreateRuntimeDefaults(t *testing.T) {
 	assert.Equal(t, defaultFooter, o.cfg.Footer)
 }
 
-func TestSlackHealthCheck(t *testing.T) {
-	runSlackCases(t, []testutil.OutputTestCase{
-		{
-			Name:         "health check sends GET",
-			AddressField: "host",
-			ValidateReq: func(t *testing.T, req *http.Request, _ []byte) {
-				// Harness validates Send works; this just ensures the output is valid
-			},
-		},
-	})
+func TestSlackHealthCheckSendsNoRequest(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	d, err := OutputType.New(map[string]any{"host": server.URL, "secret_endpoint": testEndpoint}, output.Deps{})
+	require.NoError(t, err)
+	assert.NoError(t, d.HealthCheck(context.Background()))
+	server.Close()
+	assert.Zero(t, calls, "a probe would post a message to the channel")
 }
 
 func TestSlackInit(t *testing.T) {

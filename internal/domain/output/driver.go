@@ -52,6 +52,19 @@ type LateFailureReporter interface {
 	SetLateFailureHandler(handler func(err error))
 }
 
+// WarningReporter is an optional interface for drivers that can deliver while
+// part of the destination is failing, such as Alertmanager with several hosts.
+// The pipeline installs the handler before the first Send. The driver passes a
+// description to raise the warning and an empty string to clear it.
+type WarningReporter interface {
+	SetWarningHandler(handler func(warning string))
+}
+
+// ErrMisconfigured marks a HealthCheck failure that a retry cannot fix, such
+// as rejected credentials, a wrong path or an untrusted certificate. Drivers
+// wrap it so callers can refuse the configuration instead of starting.
+var ErrMisconfigured = errors.New("destination rejects the configuration")
+
 // ErrEmptyUUID indicates an empty UUID passed to GetEvent.
 var ErrEmptyUUID = errors.New("uuid is required")
 

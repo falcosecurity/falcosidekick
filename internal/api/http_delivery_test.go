@@ -169,9 +169,9 @@ func waitForHTTPDeliveryStatus(t *testing.T, rig *mutationTestRig, sent, failed 
 			return false
 		}
 		if sent == 0 {
-			return st.LastError != "" && st.Status == "error"
+			return st.LastError != "" && st.Status == pipeline.HealthError
 		}
-		return st.LastError == "" && st.Status == "ok" && !st.LastSuccess.IsZero()
+		return st.LastError == "" && st.Status == pipeline.HealthOK && !st.LastSuccess.IsZero()
 	}, 5*time.Second, time.Millisecond, "queued HTTP delivery did not reach its expected terminal state")
 }
 
@@ -223,12 +223,12 @@ func assertHTTPDeliveryProjections(t *testing.T, srv *Server, name, wantReason s
 		assert.Zero(t, st.DroppedTotal, "%s", path)
 		assert.Zero(t, st.QueueDepth, "%s", path)
 		if wantReason != "" {
-			assert.Equal(t, "error", st.Status, "%s", path)
+			assert.Equal(t, pipeline.HealthError, st.Status, "%s", path)
 			assert.Contains(t, st.LastError, name, "%s", path)
 			assert.Contains(t, st.LastError, wantReason, "%s", path)
 			assert.True(t, st.LastSuccess.IsZero(), "%s", path)
 		} else {
-			assert.Equal(t, "ok", st.Status, "%s", path)
+			assert.Equal(t, pipeline.HealthOK, st.Status, "%s", path)
 			assert.Empty(t, st.LastError, "%s", path)
 			assert.False(t, st.LastSuccess.IsZero(), "%s", path)
 		}

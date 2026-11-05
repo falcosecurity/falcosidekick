@@ -26,6 +26,8 @@ import (
 	"io"
 	"net/http"
 	"slices"
+
+	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
 const (
@@ -156,13 +158,28 @@ func (s *Sender) SendRawReadBody(ctx context.Context, method, url string, body [
 	return s.DoReadBody(ctx, req)
 }
 
-// HealthCheck sends a GET request and returns an error if unreachable.
-func (s *Sender) HealthCheck(ctx context.Context, url string) error {
+// HealthCheck sends GET url. Rejected credentials (401, 403), a missing path
+// (404) and an untrusted certificate wrap output.ErrMisconfigured, except
+// the statuses listed in transient; other failures are returned as they
+// are, since they may pass once the destination is up.
+func (s *Sender) HealthCheck(ctx context.Context, url string, transient ...int) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return WrapDeliveryError(s.name, "healthcheck", err)
 	}
-	return s.Do(ctx, req)
+	err = s.Do(ctx, req)
+	if isMisconfiguration(err, transient) {
+		return fmt.Errorf("%w: %w", output.ErrMisconfigured, err)
+	}
+	return err
+}
+
+func isMisconfiguration(err error, transient []int) bool {
+	switch status := HTTPStatus(err); status {
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
+		return !slices.Contains(transient, status)
+	}
+	return IsTLSVerificationError(err)
 }
 
 // Do executes a prepared request. Only 2xx is success.

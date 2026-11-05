@@ -147,15 +147,38 @@ func TestElasticsearchCreateValidation(t *testing.T) {
 }
 
 func TestElasticsearchHealthCheck(t *testing.T) {
-	testutil.RunOutputTests(t, OutputType, []testutil.OutputTestCase{
-		{
-			Name:         "sends GET to base URL",
-			AddressField: "host",
-			ValidateReq: func(t *testing.T, req *http.Request, _ []byte) {
-				// harness validates Send works; HealthCheck validated by Init test
-			},
-		},
-	})
+	for _, tc := range []struct {
+		name          string
+		status        int
+		misconfigured bool
+	}{
+		{name: "ok", status: http.StatusOK},
+		{name: "rejected credentials", status: http.StatusUnauthorized, misconfigured: true},
+		{name: "wrong base path", status: http.StatusNotFound, misconfigured: true},
+		{name: "no monitor privilege", status: http.StatusForbidden},
+		{name: "unavailable", status: http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var path, method string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				path, method = r.URL.Path, r.Method
+				w.WriteHeader(tc.status)
+			}))
+			t.Cleanup(server.Close)
+			d, err := OutputType.New(map[string]any{"host": server.URL, "base_path": "/es"}, output.Deps{})
+			require.NoError(t, err)
+
+			err = d.HealthCheck(context.Background())
+			assert.Equal(t, http.MethodGet, method)
+			assert.Equal(t, "/es", path)
+			if tc.status == http.StatusOK {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Equal(t, tc.misconfigured, errors.Is(err, output.ErrMisconfigured))
+		})
+	}
 }
 
 func TestElasticsearchClose(t *testing.T) {

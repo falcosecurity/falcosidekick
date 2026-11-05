@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,8 +87,10 @@ func TestWebhookSpecificCases(t *testing.T) {
 }
 
 func TestWebhookCreateValidation(t *testing.T) {
-	t.Run("healthcheck success", func(t *testing.T) {
+	t.Run("healthcheck sends no request", func(t *testing.T) {
+		var calls atomic.Int32
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			calls.Add(1)
 			w.WriteHeader(http.StatusOK)
 		}))
 		defer server.Close()
@@ -95,12 +98,13 @@ func TestWebhookCreateValidation(t *testing.T) {
 		o, err := OutputType.New(map[string]any{"host": server.URL}, output.Deps{})
 		require.NoError(t, err)
 		assert.NoError(t, o.HealthCheck(context.Background()))
+		assert.Zero(t, calls.Load(), "a probe would deliver a message to a POST-only endpoint")
 	})
 
-	t.Run("healthcheck failure", func(t *testing.T) {
+	t.Run("healthcheck ignores an unreachable host", func(t *testing.T) {
 		o, err := OutputType.New(map[string]any{"host": "http://127.0.0.1:1"}, output.Deps{})
 		require.NoError(t, err)
-		assert.Error(t, o.HealthCheck(context.Background()))
+		assert.NoError(t, o.HealthCheck(context.Background()))
 	})
 
 	t.Run("send to unreachable host", func(t *testing.T) {
@@ -288,7 +292,7 @@ func TestWebhookHeaderFileRotation(t *testing.T) {
 	assert.Equal(t, []string{"public", "protected"}, first.Values("X-Key"))
 
 	require.NoError(t, os.WriteFile(path, []byte("Bearer rotated\r\n"), 0o600))
-	require.NoError(t, d.HealthCheck(context.Background()))
+	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
 	second := <-captured
 	assert.Equal(t, []string{"Bearer rotated"}, second.Values("Authorization"))
 	assert.Equal(t, []string{"public", "protected"}, second.Values("X-Key"))

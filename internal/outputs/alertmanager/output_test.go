@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -320,6 +321,79 @@ func TestAlertmanagerHealthCheck(t *testing.T) {
 func TestAlertmanagerHealthCheckNoHosts(t *testing.T) {
 	o := &driver{cfg: config{}}
 	assert.Error(t, o.HealthCheck(context.Background()))
+}
+
+func statusServer(t *testing.T, status *atomic.Int32) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(int(status.Load()))
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestFanOutWarningFollowsPartialFailure(t *testing.T) {
+	var badStatus, goodStatus atomic.Int32
+	badStatus.Store(http.StatusInternalServerError)
+	goodStatus.Store(http.StatusOK)
+	bad, good := statusServer(t, &badStatus), statusServer(t, &goodStatus)
+
+	o := &driver{
+		cfg: config{
+			HTTPTargetConfig: shared.HTTPTargetConfig{Endpoint: defaultEndpoint},
+			Hosts:            []string{bad.URL, good.URL},
+		},
+		sender: testutil.MustNewSender(t, "alertmanager"),
+		logger: slog.New(slog.DiscardHandler),
+	}
+	var warnings []string
+	o.SetWarningHandler(func(warning string) { warnings = append(warnings, warning) })
+
+	require.NoError(t, o.Send(context.Background(), testutil.CreateValidEvent()))
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0], "1 of 2 hosts failed")
+	assert.Contains(t, warnings[0], "HTTP 500")
+
+	badStatus.Store(http.StatusOK)
+	require.NoError(t, o.Send(context.Background(), testutil.CreateValidEvent()))
+	assert.Equal(t, []string{warnings[0], ""}, warnings, "full delivery clears the warning")
+}
+
+func TestAlertmanagerHealthCheckClassifiesHosts(t *testing.T) {
+	var ok, notFound, unavailable atomic.Int32
+	ok.Store(http.StatusOK)
+	notFound.Store(http.StatusNotFound)
+	unavailable.Store(http.StatusServiceUnavailable)
+	okServer, notFoundServer, unavailableServer := statusServer(t, &ok), statusServer(t, &notFound), statusServer(t, &unavailable)
+
+	for _, tc := range []struct {
+		name           string
+		wantErrContain string
+		hosts          []string
+		misconfigured  bool
+	}{
+		{name: "all healthy", hosts: []string{okServer.URL, okServer.URL}},
+		{name: "one unavailable", hosts: []string{okServer.URL, unavailableServer.URL}, wantErrContain: "1 of 2 hosts"},
+		{name: "wrong path on one host", hosts: []string{okServer.URL, notFoundServer.URL}, misconfigured: true, wantErrContain: "HTTP 404"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			o := &driver{
+				cfg: config{
+					HTTPTargetConfig: shared.HTTPTargetConfig{Endpoint: defaultEndpoint},
+					Hosts:            tc.hosts,
+				},
+				sender: testutil.MustNewSender(t, "alertmanager"),
+				logger: slog.New(slog.DiscardHandler),
+			}
+			err := o.HealthCheck(context.Background())
+			if tc.wantErrContain == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErrContain)
+			assert.Equal(t, tc.misconfigured, errors.Is(err, output.ErrMisconfigured))
+		})
+	}
 }
 
 func TestAlertmanagerCustomEndpoint(t *testing.T) {

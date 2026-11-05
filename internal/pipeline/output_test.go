@@ -76,14 +76,14 @@ func TestOutputClearsLastErrorAfterRecoveredSend(t *testing.T) {
 		return out.driver.Send(ctx, newTestEvent())
 	})
 	failed := out.GetStatus()
-	require.Equal(t, "error", failed.Status)
+	require.Equal(t, HealthError, failed.Status)
 	require.Contains(t, failed.LastError, "temporary send failure")
 
 	out.executeWithRetry(context.Background(), 1, func(ctx context.Context) error {
 		return out.driver.Send(ctx, newTestEvent())
 	})
 	recovered := out.GetStatus()
-	assert.Equal(t, "ok", recovered.Status)
+	assert.Equal(t, HealthOK, recovered.Status)
 	assert.Empty(t, recovered.LastError)
 	assert.Equal(t, 1, recovered.FailedTotal)
 	assert.Equal(t, 1, recovered.SentTotal)
