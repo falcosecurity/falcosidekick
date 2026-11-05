@@ -36,9 +36,9 @@ type alertPayload struct {
 
 func (d *driver) buildAlert(evt *event.Event) alertPayload {
 	labels := map[string]string{
-		"alertname": shared.SanitizeLabel(evt.Rule),
+		"alertname": evt.Rule,
 		"source":    evt.Source,
-		"rule":      shared.SanitizeLabel(evt.Rule),
+		"rule":      evt.Rule,
 		"priority":  string(evt.Priority),
 		"severity":  d.resolveSeverity(evt.Priority),
 	}
@@ -51,8 +51,9 @@ func (d *driver) buildAlert(evt *event.Event) alertPayload {
 		labels["tags"] = tags
 	}
 
+	// Alertmanager restricts label names, not label values.
 	for k, v := range d.cfg.ExtraLabels {
-		labels[shared.SanitizeLabel(k)] = shared.SanitizeLabel(v)
+		labels[shared.SanitizeLabel(k)] = v
 	}
 
 	annotations := map[string]string{

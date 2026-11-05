@@ -173,7 +173,8 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 		return nil, fmt.Errorf("kafka: %s", errs.Error())
 	}
 
-	opts, err := buildClientOpts(&cfg)
+	logger := shared.ResolveLogger(deps.Logger, "kafka")
+	opts, err := buildClientOpts(&cfg, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +182,7 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	return &driver{
 		cfg:    cfg,
 		opts:   opts,
-		logger: shared.ResolveLogger(deps.Logger, "kafka"),
+		logger: logger,
 	}, nil
 }
 

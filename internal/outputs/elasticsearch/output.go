@@ -36,9 +36,11 @@ import (
 )
 
 const (
-	defaultIndex  = "falco"
-	defaultSuffix = "daily"
-	suffixNone    = "none"
+	defaultIndex    = "falco"
+	defaultSuffix   = "daily"
+	suffixNone      = "none"
+	defaultShards   = 3
+	defaultReplicas = 3
 
 	queryFilterPath = "filter_path"
 	queryPipeline   = "pipeline"
@@ -76,8 +78,8 @@ var OutputType = output.Type{
 			{Name: "api_key", Type: "string", Secret: true, Label: "API Key"},
 			{Name: "flatten_fields", Type: "bool", Default: false, Label: "Flatten Fields"},
 			{Name: "create_index_template", Type: "bool", Default: false, Label: "Create Index Template"},
-			{Name: "number_of_shards", Type: "int", Default: 3, Label: "Number of Shards"},
-			{Name: "number_of_replicas", Type: "int", Default: 3, Label: "Number of Replicas"},
+			{Name: "number_of_shards", Type: "int", Default: defaultShards, Label: "Number of Shards"},
+			{Name: "number_of_replicas", Type: "int", Default: defaultReplicas, Label: "Number of Replicas"},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }
@@ -144,7 +146,8 @@ func (c *config) validateAPIKey() utils.ValidationErrors {
 }
 
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
-	var cfg config
+	// Absent keys keep these defaults; explicit values, including 0, replace them.
+	cfg := config{NumberOfShards: defaultShards, NumberOfReplicas: defaultReplicas}
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
 		return nil, fmt.Errorf("elasticsearch config: %w", err)
 	}

@@ -234,6 +234,65 @@ func TestBuildMappingsDynamicTemplate(t *testing.T) {
 
 	tmpl := dt[0]["output_fields_as_keyword"].(map[string]any)
 	assert.Equal(t, "output_fields.*", tmpl["path_match"])
+	// Without it the objects created for dotted names (output_fields.proc)
+	// are mapped as text and every event is rejected.
+	assert.Equal(t, "string", tmpl["match_mapping_type"])
+}
+
+func TestInitTemplateShardSettings(t *testing.T) {
+	for _, tc := range []struct {
+		config       map[string]any
+		name         string
+		wantErr      string
+		wantShards   int
+		wantReplicas int
+	}{
+		{name: "absent", config: map[string]any{}, wantShards: 3, wantReplicas: 3},
+		{name: "null", config: map[string]any{"number_of_shards": nil, "number_of_replicas": nil}, wantShards: 3, wantReplicas: 3},
+		{name: "explicit shards", config: map[string]any{"number_of_shards": 1}, wantShards: 1, wantReplicas: 3},
+		{name: "explicit replicas", config: map[string]any{"number_of_replicas": 2}, wantShards: 3, wantReplicas: 2},
+		{name: "explicit zero replicas", config: map[string]any{"number_of_replicas": 0}, wantShards: 3, wantReplicas: 0},
+		{name: "string values", config: map[string]any{"number_of_shards": "2", "number_of_replicas": "0"}, wantShards: 2, wantReplicas: 0},
+		{name: "explicit zero shards", config: map[string]any{"number_of_shards": 0}, wantErr: "number_of_shards: must be > 0 when create_index_template is true, got 0"},
+		{name: "negative shards", config: map[string]any{"number_of_shards": -1}, wantErr: "number_of_shards: must be > 0 when create_index_template is true, got -1"},
+		{name: "negative replicas", config: map[string]any{"number_of_replicas": -1}, wantErr: "number_of_replicas: must be >= 0 when create_index_template is true, got -1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var settings map[string]any
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodHead {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				var tmpl struct {
+					Template struct {
+						Settings map[string]any `json:"settings"`
+					} `json:"template"`
+				}
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&tmpl))
+				settings = tmpl.Template.Settings
+			}))
+			t.Cleanup(server.Close)
+			tc.config["host"] = server.URL
+			tc.config["create_index_template"] = true
+
+			d, err := createOutput(tc.config, output.Deps{})
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.NoError(t, d.Init(context.Background()))
+			assert.EqualValues(t, tc.wantShards, settings["number_of_shards"])
+			assert.EqualValues(t, tc.wantReplicas, settings["number_of_replicas"])
+		})
+	}
+}
+
+func TestShardSettingsIgnoredWithoutTemplate(t *testing.T) {
+	_, err := createOutput(map[string]any{"host": "https://es.example", "number_of_shards": 0, "number_of_replicas": -1}, output.Deps{})
+	require.NoError(t, err)
 }
 
 func TestTextWithKeyword(t *testing.T) {

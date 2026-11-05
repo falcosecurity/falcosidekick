@@ -34,7 +34,17 @@ func TestBuildAlertIncludesAlertname(t *testing.T) {
 	alert := o.buildAlert(evt)
 
 	assert.NotEmpty(t, alert.Labels["alertname"], "must set alertname for AM routing")
-	assert.Equal(t, shared.SanitizeLabel(evt.Rule), alert.Labels["alertname"])
+	assert.Equal(t, evt.Rule, alert.Labels["alertname"])
+}
+
+func TestBuildAlertKeepsRuleVerbatim(t *testing.T) {
+	o := &driver{cfg: config{}}
+	evt := testutil.CreateValidEvent()
+	evt.Rule = "Write below binary dir (k8s.io/ns)"
+	alert := o.buildAlert(evt)
+
+	assert.Equal(t, evt.Rule, alert.Labels["alertname"], "label values are free text in Alertmanager")
+	assert.Equal(t, evt.Rule, alert.Labels["rule"])
 }
 
 func TestBuildAlertIncludesStartsAt(t *testing.T) {
@@ -126,6 +136,22 @@ func TestBuildAlertExtraLabels(t *testing.T) {
 
 	assert.Equal(t, "production", alert.Labels["env"])
 	assert.Equal(t, "default", alert.Labels["k8s_ns"])
+}
+
+func TestBuildAlertKeepsLabelValues(t *testing.T) {
+	o := &driver{cfg: config{
+		ExtraLabels: map[string]string{"region": "eu-west-1", "url": "https://x.example/a b", "team.name": "sec/ops"},
+	}}
+	evt := testutil.CreateValidEvent()
+	evt.Hostname = "node-1.eu-west-1.internal"
+	evt.Tags = []string{"mitre-execution", "T1059"}
+	alert := o.buildAlert(evt)
+
+	assert.Equal(t, "eu-west-1", alert.Labels["region"])
+	assert.Equal(t, "https://x.example/a b", alert.Labels["url"])
+	assert.Equal(t, "sec/ops", alert.Labels["team_name"], "names are sanitized, values are not")
+	assert.Equal(t, "node-1.eu-west-1.internal", alert.Labels["hostname"])
+	assert.Equal(t, "T1059,mitre-execution", alert.Labels["tags"])
 }
 
 func TestResolveSeverityUsesSharedDefault(t *testing.T) {

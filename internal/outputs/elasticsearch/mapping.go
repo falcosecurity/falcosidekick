@@ -46,15 +46,6 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 		return fmt.Errorf("elasticsearch index template check: %w", checkErr)
 	}
 
-	shards := d.cfg.NumberOfShards
-	if shards <= 0 {
-		shards = 3
-	}
-	replicas := d.cfg.NumberOfReplicas
-	if replicas < 0 {
-		replicas = 3
-	}
-
 	pattern := d.cfg.Index + "-*"
 	if d.cfg.Suffix == suffixNone {
 		pattern = d.cfg.Index
@@ -64,8 +55,8 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 		"index_patterns": []string{pattern},
 		"template": map[string]any{
 			"settings": map[string]any{
-				"number_of_shards":   shards,
-				"number_of_replicas": replicas,
+				"number_of_shards":   d.cfg.NumberOfShards,
+				"number_of_replicas": d.cfg.NumberOfReplicas,
 			},
 			"mappings": buildMappings(),
 		},
@@ -81,14 +72,17 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 
 // buildMappings returns Elasticsearch mappings for Falco events.
 // Explicit types for known stable fields prevent mapping explosions.
-// Dynamic template for output_fields handles variable Falco fields.
+// Dynamic template for output_fields handles variable Falco fields; it
+// matches strings only, because dotted field names such as proc.name are
+// expanded into objects that must stay objects.
 func buildMappings() map[string]any {
 	return map[string]any{
 		"dynamic_templates": []map[string]any{
 			{
 				"output_fields_as_keyword": map[string]any{
-					"path_match": "output_fields.*",
-					"mapping":    textWithKeyword(256),
+					"path_match":         "output_fields.*",
+					"match_mapping_type": "string",
+					"mapping":            textWithKeyword(256),
 				},
 			},
 		},
