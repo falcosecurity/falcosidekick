@@ -23,146 +23,195 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestWatcherTriggersReloadOnFileWrite(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "outputs.yaml")
-	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
+const testDebounce = 100 * time.Millisecond
 
+// startWatcher runs a watcher on paths and waits until it watches them.
+func startWatcher(t *testing.T, paths []string) *atomic.Int64 {
+	t.Helper()
 	var calls atomic.Int64
-	w := NewWatcher([]string{path}, 50*time.Millisecond, func() error {
+	w := NewWatcher(paths, testDebounce, func() error {
 		calls.Add(1)
 		return nil
 	}, slog.Default())
-
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = w.Run(ctx)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+	select {
+	case <-w.Ready():
+	case <-time.After(5 * time.Second):
+		t.Fatal("watcher not ready")
+	}
+	return &calls
+}
 
-	go func() { _ = w.Run(ctx) }()
+func waitCalls(t *testing.T, calls *atomic.Int64, want int64, msg string) {
+	t.Helper()
+	require.Eventually(t, func() bool { return calls.Load() >= want }, 5*time.Second, 10*time.Millisecond, msg)
+}
 
-	time.Sleep(100 * time.Millisecond)
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+}
 
-	require.NoError(t, os.WriteFile(path, []byte("outputs:\n  slack: {}"), 0o644))
+func TestWatcherTriggersReloadOnFileWrite(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "outputs.yaml")
+	writeFile(t, path, "outputs: {}")
+	calls := startWatcher(t, []string{path})
 
-	assert.Eventually(t, func() bool {
-		return calls.Load() >= 1
-	}, 2*time.Second, 50*time.Millisecond, "watcher must trigger reload after file write")
+	writeFile(t, path, "outputs:\n  slack: {}")
+	waitCalls(t, calls, 1, "a write must trigger a reload")
 }
 
 func TestWatcherTriggersReloadOnAtomicRename(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
-	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
+	writeFile(t, path, "outputs: {}")
+	calls := startWatcher(t, []string{path})
 
-	var calls atomic.Int64
-	w := NewWatcher([]string{path}, 50*time.Millisecond, func() error {
-		calls.Add(1)
-		return nil
-	}, slog.Default())
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() { _ = w.Run(ctx) }()
-
-	time.Sleep(100 * time.Millisecond)
-
-	// Simulate atomic save: write to temp file, then rename over the target.
-	tmp := filepath.Join(dir, "outputs.yaml.tmp")
-	require.NoError(t, os.WriteFile(tmp, []byte("outputs:\n  slack: {}"), 0o644))
-	require.NoError(t, os.Rename(tmp, path))
-
-	assert.Eventually(t, func() bool {
-		return calls.Load() >= 1
-	}, 2*time.Second, 50*time.Millisecond, "watcher must trigger reload after atomic rename")
-
-	// Second atomic rename must also be detected (inode changes again).
-	tmp2 := filepath.Join(dir, "outputs.yaml.tmp2")
-	require.NoError(t, os.WriteFile(tmp2, []byte("outputs:\n  loki: {}"), 0o644))
-	require.NoError(t, os.Rename(tmp2, path))
-
-	assert.Eventually(t, func() bool {
-		return calls.Load() >= 2
-	}, 2*time.Second, 50*time.Millisecond, "watcher must detect second atomic rename")
-}
-
-func TestWatcherDebounceCoalesces(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "outputs.yaml")
-	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
-
-	var calls atomic.Int64
-	w := NewWatcher([]string{path}, 200*time.Millisecond, func() error {
-		calls.Add(1)
-		return nil
-	}, slog.Default())
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() { _ = w.Run(ctx) }()
-
-	time.Sleep(100 * time.Millisecond)
-
-	for i := 0; i < 5; i++ {
-		require.NoError(t, os.WriteFile(path, []byte("outputs:\n  v: "+string(rune('0'+i))), 0o644))
-		time.Sleep(20 * time.Millisecond)
+	for i, content := range []string{"outputs:\n  slack: {}", "outputs:\n  loki: {}"} {
+		tmp := filepath.Join(dir, "outputs.yaml.tmp")
+		writeFile(t, tmp, content)
+		require.NoError(t, os.Rename(tmp, path))
+		waitCalls(t, calls, int64(i+1), "every atomic rename must trigger a reload, the inode changes each time")
 	}
-
-	time.Sleep(500 * time.Millisecond)
-
-	assert.Equal(t, int64(1), calls.Load(), "rapid writes must coalesce into single reload")
 }
 
-func TestWatcherIgnoresUnrelatedFiles(t *testing.T) {
+// Kubernetes mounts a ConfigMap as dir/outputs.yaml -> ..data/outputs.yaml
+// and ..data -> ..<timestamp>; an update swaps ..data only.
+func TestWatcherTriggersReloadOnConfigMapSwap(t *testing.T) {
 	dir := t.TempDir()
+	version := func(name, content string) {
+		require.NoError(t, os.Mkdir(filepath.Join(dir, name), 0o700))
+		writeFile(t, filepath.Join(dir, name, "outputs.yaml"), content)
+	}
+	version("..2026_11_05_v1", "outputs: {}")
+	require.NoError(t, os.Symlink("..2026_11_05_v1", filepath.Join(dir, "..data")))
 	path := filepath.Join(dir, "outputs.yaml")
-	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
+	require.NoError(t, os.Symlink(filepath.Join("..data", "outputs.yaml"), path))
+	calls := startWatcher(t, []string{path})
 
-	var calls atomic.Int64
-	w := NewWatcher([]string{path}, 50*time.Millisecond, func() error {
-		calls.Add(1)
-		return nil
-	}, slog.Default())
+	version("..2026_11_05_v2", "outputs:\n  slack: {}")
+	require.NoError(t, os.Symlink("..2026_11_05_v2", filepath.Join(dir, "..data_tmp")))
+	require.NoError(t, os.Rename(filepath.Join(dir, "..data_tmp"), filepath.Join(dir, "..data")))
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() { _ = w.Run(ctx) }()
-
-	time.Sleep(100 * time.Millisecond)
-
-	// Write to a different file in the same directory.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.txt"), []byte("noise"), 0o644))
-
-	time.Sleep(300 * time.Millisecond)
-
-	assert.Equal(t, int64(0), calls.Load(), "watcher must not trigger on unrelated files")
+	waitCalls(t, calls, 1, "a ConfigMap update must trigger a reload")
 }
 
 func TestWatcherStopsOnContextCancel(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "outputs.yaml")
-	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
-
-	w := NewWatcher([]string{path}, 50*time.Millisecond, func() error { return nil }, slog.Default())
+	path := filepath.Join(t.TempDir(), "outputs.yaml")
+	writeFile(t, path, "outputs: {}")
+	w := NewWatcher([]string{path}, testDebounce, func() error { return nil }, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- w.Run(ctx) }()
-
-	time.Sleep(50 * time.Millisecond)
+	<-w.Ready()
 	cancel()
 
 	select {
 	case err := <-done:
 		assert.ErrorIs(t, err, context.Canceled)
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("watcher did not stop on context cancel")
+	}
+}
+
+func TestWatcherFailsOnMissingDirectory(t *testing.T) {
+	w := NewWatcher([]string{filepath.Join(t.TempDir(), "missing", "outputs.yaml")}, testDebounce, func() error { return nil }, slog.Default())
+	require.Error(t, w.Run(context.Background()))
+	select {
+	case <-w.Ready():
+		t.Fatal("Ready must stay open when watching failed")
+	default:
+	}
+}
+
+// loopHarness drives the debounce loop with synthetic events under synctest.
+type loopHarness struct {
+	events chan fsnotify.Event
+	calls  atomic.Int64
+}
+
+func runLoop(t *testing.T, paths []string) (*loopHarness, context.CancelFunc) {
+	t.Helper()
+	h := &loopHarness{events: make(chan fsnotify.Event)}
+	w := NewWatcher(paths, testDebounce, func() error {
+		h.calls.Add(1)
+		return nil
+	}, slog.Default())
+	w.resolveTargets()
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { _ = w.loop(ctx, h.events, make(chan error)) }()
+	return h, cancel
+}
+
+func TestWatcherDebounceCoalesces(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "outputs.yaml")
+	writeFile(t, path, "outputs: {}")
+	synctest.Test(t, func(t *testing.T) {
+		h, cancel := runLoop(t, []string{path})
+		defer cancel()
+
+		for range 5 {
+			h.events <- fsnotify.Event{Name: path, Op: fsnotify.Write}
+			time.Sleep(testDebounce / 2)
+		}
+		synctest.Wait()
+		assert.Zero(t, h.calls.Load(), "no reload while writes keep arriving within the debounce")
+
+		time.Sleep(testDebounce)
+		synctest.Wait()
+		assert.Equal(t, int64(1), h.calls.Load(), "rapid writes coalesce into one reload")
+
+		h.events <- fsnotify.Event{Name: path, Op: fsnotify.Write}
+		time.Sleep(testDebounce)
+		synctest.Wait()
+		assert.Equal(t, int64(2), h.calls.Load(), "a later write reloads again")
+	})
+}
+
+func TestWatcherFiltersEvents(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "outputs.yaml")
+	writeFile(t, path, "outputs: {}")
+	tests := []struct {
+		name string
+		ev   fsnotify.Event
+		want int64
+	}{
+		{name: "write", ev: fsnotify.Event{Name: path, Op: fsnotify.Write}, want: 1},
+		{name: "create", ev: fsnotify.Event{Name: path, Op: fsnotify.Create}, want: 1},
+		{name: "rename", ev: fsnotify.Event{Name: path, Op: fsnotify.Rename}, want: 1},
+		{name: "chmod", ev: fsnotify.Event{Name: path, Op: fsnotify.Chmod}},
+		{name: "unrelated file", ev: fsnotify.Event{Name: filepath.Join(dir, "other.txt"), Op: fsnotify.Write}},
+		{name: "same name in another directory", ev: fsnotify.Event{Name: filepath.Join(dir, "sub", "outputs.yaml"), Op: fsnotify.Write}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				h, cancel := runLoop(t, []string{path})
+				defer cancel()
+				h.events <- tt.ev
+				time.Sleep(2 * testDebounce)
+				synctest.Wait()
+				assert.Equal(t, tt.want, h.calls.Load())
+			})
+		})
 	}
 }
