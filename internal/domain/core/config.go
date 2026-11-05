@@ -18,6 +18,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/utils"
@@ -31,11 +32,66 @@ type Config struct {
 	LogLevel      LogLevel           `json:"log_level" mapstructure:"log_level"`
 	ListenAddress string             `json:"listen_address" mapstructure:"listen_address"`
 	Database      DatabaseConfig     `json:"database" mapstructure:"database"`
+	Metrics       MetricsConfig      `json:"metrics" mapstructure:"metrics"`
 	UI            UIConfig           `json:"ui" mapstructure:"ui"`
 	Reload        ReloadConfig       `json:"reload" mapstructure:"reload"`
 	Provisioning  ProvisioningConfig `json:"provisioning" mapstructure:"provisioning"`
 	API           APIConfig          `json:"api" mapstructure:"api"`
 	ListenPort    int                `json:"listen_port" mapstructure:"listen_port"`
+}
+
+// MetricsConfig controls the Prometheus metrics on /metrics.
+//   - ExtraLabels: event output field names (for example k8s.ns.name)
+//     added as labels to the Falco events counter; dots become
+//     underscores. Each distinct value is a new series.
+type MetricsConfig struct {
+	ExtraLabels []string `json:"extra_labels" mapstructure:"extra_labels"`
+}
+
+// Validate rejects extra labels that are not valid Prometheus label names
+// once dots are replaced, or that collide with each other or with the
+// counter's own labels.
+func (c MetricsConfig) Validate() utils.ValidationErrors {
+	var errs utils.ValidationErrors
+	seen := map[string]string{"rule": "", "priority": "", "source": ""}
+	for _, field := range c.ExtraLabels {
+		label := MetricLabelName(field)
+		if !validMetricLabel(label) {
+			errs.Add("extra_labels", fmt.Sprintf("%q is not a valid label name", field))
+			continue
+		}
+		if prev, ok := seen[label]; ok {
+			if prev == "" {
+				errs.Add("extra_labels", fmt.Sprintf("%q collides with a built-in label", field))
+			} else {
+				errs.Add("extra_labels", fmt.Sprintf("%q and %q map to the same label", prev, field))
+			}
+			continue
+		}
+		seen[label] = field
+	}
+	if len(errs) > 0 {
+		return errs
+	}
+	return nil
+}
+
+// MetricLabelName turns an output field name into a label name.
+func MetricLabelName(field string) string { return strings.ReplaceAll(field, ".", "_") }
+
+func validMetricLabel(name string) bool {
+	if name == "" || strings.HasPrefix(name, "__") {
+		return false
+	}
+	for i, r := range name {
+		switch {
+		case r == '_', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // APIConfig controls the management API.
@@ -73,6 +129,7 @@ func (c *Config) Validate() utils.ValidationErrors {
 	errs.Merge("database", c.Database.Validate())
 	errs.Merge("ui", c.UI.Validate())
 	errs.Merge("reload", c.Reload.Validate())
+	errs.Merge("metrics", c.Metrics.Validate())
 
 	if len(errs) > 0 {
 		return errs

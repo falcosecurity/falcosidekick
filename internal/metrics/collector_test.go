@@ -138,10 +138,40 @@ func TestRecordEvent(t *testing.T) {
 	c := newTestCollector()
 	ctx := context.Background()
 
-	c.RecordEvent(ctx, "Write below binary dir", event.PriorityError, "syscall")
-	c.RecordEvent(ctx, "Read secret", event.PriorityWarning, "syscall")
+	c.RecordEvent(ctx, &event.Event{Rule: "Write below binary dir", Priority: event.PriorityError, Source: "syscall"})
+	c.RecordEvent(ctx, &event.Event{Rule: "Read secret", Priority: event.PriorityWarning, Source: "syscall"})
 
 	assert.Equal(t, 2.0, collectCounter(t, c.eventTotal))
+}
+
+// Extra labels come from event output fields, as v2 prometheus.extralabels.
+func TestRecordEventExtraLabels(t *testing.T) {
+	c := NewCollector("k8s.ns.name", "proc.pid")
+	ctx := context.Background()
+
+	c.RecordEvent(ctx, &event.Event{Rule: "r", Priority: event.PriorityWarning, Source: "syscall",
+		OutputFields: map[string]any{"k8s.ns.name": "prod", "proc.pid": 42}})
+	c.RecordEvent(ctx, &event.Event{Rule: "r", Priority: event.PriorityWarning, Source: "syscall"})
+
+	families, err := c.Registry().Gather()
+	require.NoError(t, err)
+	var series []map[string]string
+	for _, family := range families {
+		if family.GetName() != "falcosidekick_event_total" {
+			continue
+		}
+		for _, m := range family.GetMetric() {
+			labels := map[string]string{}
+			for _, l := range m.GetLabel() {
+				labels[l.GetName()] = l.GetValue()
+			}
+			series = append(series, labels)
+		}
+	}
+	assert.ElementsMatch(t, []map[string]string{
+		{"rule": "r", "priority": string(event.PriorityWarning), "source": "syscall", "k8s_ns_name": "prod", "proc_pid": "42"},
+		{"rule": "r", "priority": string(event.PriorityWarning), "source": "syscall", "k8s_ns_name": "", "proc_pid": ""},
+	}, series)
 }
 
 func TestCollectorImplementsInterface(t *testing.T) {
@@ -157,5 +187,5 @@ func TestNoopCollectorDoesNotPanic(t *testing.T) {
 	noop.RecordOutput(ctx, "test", "ok", time.Second)
 	noop.RecordDrop(ctx, "test")
 	noop.RecordError(ctx, "test", assert.AnError)
-	noop.RecordEvent(ctx, "rule", event.PriorityDebug, "test")
+	noop.RecordEvent(ctx, &event.Event{Rule: "rule", Priority: event.PriorityDebug, Source: "test"})
 }

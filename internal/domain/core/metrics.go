@@ -29,5 +29,5 @@ type MetricsCollector interface {
 	RecordOutput(ctx context.Context, output string, status string, duration time.Duration)
 	RecordDrop(ctx context.Context, output string)
 	RecordError(ctx context.Context, component string, err error)
-	RecordEvent(ctx context.Context, rule string, priority event.Priority, source string)
+	RecordEvent(ctx context.Context, evt *event.Event)
 }

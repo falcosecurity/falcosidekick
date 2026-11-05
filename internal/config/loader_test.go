@@ -78,6 +78,23 @@ func TestLoadEnvOverride(t *testing.T) {
 	assert.Equal(t, "error", string(cfg.LogLevel))
 }
 
+func TestLoadMetricsExtraLabels(t *testing.T) {
+	cfg, err := Load("")
+	require.NoError(t, err)
+	assert.Empty(t, cfg.Metrics.ExtraLabels)
+
+	cfgFile := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte("metrics:\n  extra_labels: [k8s.ns.name, proc.name]\n"), 0o600))
+	cfg, err = Load(cfgFile)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"k8s.ns.name", "proc.name"}, cfg.Metrics.ExtraLabels)
+
+	t.Setenv("FALCOSIDEKICK_METRICS_EXTRA_LABELS", "k8s.pod.name,container.id")
+	cfg, err = Load("")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"k8s.pod.name", "container.id"}, cfg.Metrics.ExtraLabels)
+}
+
 func TestLoadEnvOverridesFile(t *testing.T) {
 	cfgFile := filepath.Join(t.TempDir(), "config.yaml")
 	require.NoError(t, os.WriteFile(cfgFile, []byte(`listen_port: 3000`), 0o600))

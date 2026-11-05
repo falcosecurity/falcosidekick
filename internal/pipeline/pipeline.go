@@ -78,7 +78,7 @@ func (p *Pipeline) ProcessEvent(ctx context.Context, evt *event.Event) {
 	}
 
 	if p.metrics != nil {
-		p.metrics.RecordEvent(ctx, evt.Rule, evt.Priority, evt.Source)
+		p.metrics.RecordEvent(ctx, evt)
 	}
 
 	p.dispatcher.DispatchEvent(evt)

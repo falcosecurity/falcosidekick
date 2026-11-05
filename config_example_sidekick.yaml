@@ -52,6 +52,11 @@ database:
 #                                        # They have no authentication: enable only on a
 #                                        # trusted network or with listen_address 127.0.0.1.
 
+# metrics:
+#   extra_labels: []                     # output fields added as labels to
+#                                        # falcosidekick_event_total, e.g. [k8s.ns.name];
+#                                        # dots become underscores; each value is a new series
+
 # provisioning:
 #   allow_ui_updates: false              # allow API/UI changes to outputs defined in files;
 #                                        # the next file reload restores the file version

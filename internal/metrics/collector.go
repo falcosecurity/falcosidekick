@@ -18,10 +18,12 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 )
 
@@ -36,13 +38,24 @@ type Collector struct {
 	dropTotal     *prometheus.CounterVec
 	errorTotal    *prometheus.CounterVec
 	eventTotal    *prometheus.CounterVec
+	// extraFields are output field names whose values label eventTotal,
+	// in label order after rule, priority and source.
+	extraFields []string
 }
 
 // NewCollector creates a Collector with its own Prometheus registry.
-func NewCollector() *Collector {
+// extraFields are output field names, already validated by
+// core.MetricsConfig, added as labels to the Falco events counter.
+func NewCollector(extraFields ...string) *Collector {
 	reg := prometheus.NewRegistry()
+	eventLabels := make([]string, 0, 3+len(extraFields))
+	eventLabels = append(eventLabels, "rule", "priority", "source")
+	for _, field := range extraFields {
+		eventLabels = append(eventLabels, core.MetricLabelName(field))
+	}
 	c := &Collector{
-		reg: reg,
+		reg:         reg,
+		extraFields: extraFields,
 		inputTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "input_total",
@@ -72,8 +85,8 @@ func NewCollector() *Collector {
 		eventTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "event_total",
-			Help:      "Total events by rule, priority, and source.",
-		}, []string{"rule", "priority", "source"}),
+			Help:      "Total events by rule, priority, source and configured output fields.",
+		}, eventLabels),
 	}
 
 	reg.MustRegister(
@@ -116,7 +129,17 @@ func (c *Collector) RecordError(_ context.Context, component string, _ error) {
 	c.errorTotal.WithLabelValues(component).Inc()
 }
 
-// RecordEvent increments the event counter.
-func (c *Collector) RecordEvent(_ context.Context, rule string, priority event.Priority, source string) {
-	c.eventTotal.WithLabelValues(rule, string(priority), source).Inc()
+// RecordEvent increments the event counter. A configured field missing
+// from the event gets an empty label value.
+func (c *Collector) RecordEvent(_ context.Context, evt *event.Event) {
+	values := make([]string, 0, 3+len(c.extraFields))
+	values = append(values, evt.Rule, string(evt.Priority), evt.Source)
+	for _, field := range c.extraFields {
+		value := ""
+		if v, ok := evt.OutputFields[field]; ok && v != nil {
+			value = fmt.Sprint(v)
+		}
+		values = append(values, value)
+	}
+	c.eventTotal.WithLabelValues(values...).Inc()
 }

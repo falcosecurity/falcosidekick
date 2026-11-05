@@ -31,6 +31,17 @@ v3 splits every address into public and secret parts, so tokens in a URL never a
 | Elasticsearch | `hostport: https://proxy.example/es` | `host: https://proxy.example`, `base_path: /es` |
 | Alertmanager | `hostport: [https://am-1.example/alertmanager, https://am-2.example/alertmanager]` | `hosts: [https://am-1.example, https://am-2.example]`, `base_path: /alertmanager` |
 
+## Metrics
+
+| v2 | v3 |
+| --- | --- |
+| `falcosecurity_falcosidekick_inputs_total` | `falcosidekick_input_total{source,status}` |
+| `falcosecurity_falcosidekick_outputs_total{destination,status}` | `falcosidekick_output_total{output,status}` |
+| `falcosecurity_falcosidekick_falco_events_total{hostname,rule,priority,priority_raw,source,k8s_ns_name,k8s_pod_name,...}` | `falcosidekick_event_total{rule,priority,source,...}` |
+| `prometheus.extralabels: "k8s.ns.name,proc.name"` | `metrics.extra_labels: [k8s.ns.name, proc.name]` in the core file |
+
+v2 also added hostname, Kubernetes namespace and pod, custom fields and templated fields as event labels by default. v3 adds only the output fields listed in `metrics.extra_labels`: list `k8s.ns.name` and `k8s.pod.name` there to keep those series. The hostname label and `priority_raw` are not available in v3. Dashboards built on v2 names need updating.
+
 ## Behavior to check
 
 - Startup now fails when a destination rejects credentials, answers 404 on its probe or presents an untrusted certificate. v2 started anyway.
