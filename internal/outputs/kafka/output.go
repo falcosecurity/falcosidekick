@@ -249,7 +249,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil {
 		return fmt.Errorf("kafka: %w", core.ErrNotReady)
 	}
-	err := d.client.Ping(ctx)
+	err := d.ping(ctx)
 	if err == nil {
 		return nil
 	}
@@ -257,6 +257,21 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 		return fmt.Errorf("kafka: %w: %w", output.ErrMisconfigured, err)
 	}
 	return fmt.Errorf("kafka: %w", err)
+}
+
+// ping returns when ctx ends even if the broker accepted the connection and
+// never answers: franz-go Ping waits for the broker's request queue, which
+// does not observe ctx while the connection is being opened. The abandoned
+// Ping ends on the client's own timeouts or on Close.
+func (d *driver) ping(ctx context.Context) error {
+	done := make(chan error, 1)
+	go func() { done <- d.client.Ping(ctx) }()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // isMisconfiguration reports errors that no retry can fix: rejected SASL
