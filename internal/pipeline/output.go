@@ -95,9 +95,12 @@ type Output struct {
 	config         output.RuntimeConfig
 	rateWindow     rateWindow
 	workerDone     sync.WaitGroup
-	sentTotal      atomic.Int64
-	droppedTotal   atomic.Int64
-	failedTotal    atomic.Int64
+	// outcomeMu makes a delivery outcome atomic for readers: sent and
+	// failed counters change together with last error and last success.
+	outcomeMu    sync.RWMutex
+	sentTotal    atomic.Int64
+	droppedTotal atomic.Int64
+	failedTotal  atomic.Int64
 }
 
 const rateBuckets = 60
@@ -284,21 +287,27 @@ func (o *Output) waitDone() {
 	}
 }
 
-// GetStatus returns a snapshot of this output's counters and state.
+// GetStatus returns a snapshot of this output's counters and state. Sent
+// and failed counts are consistent with last error and last success.
 func (o *Output) GetStatus() OutputStatus {
-	circuit := o.circuitBreaker.GetState().String()
+	o.outcomeMu.RLock()
+	sent := int(o.sentTotal.Load())
+	failed := int(o.failedTotal.Load())
 	lastErr := o.lastError.Load().(string)
+	lastSuccess := o.lastSuccess.Load().(time.Time)
+	o.outcomeMu.RUnlock()
+	circuit := o.circuitBreaker.GetState().String()
 	warning := o.lastWarning()
 	return OutputStatus{
 		Name:            o.driver.Name(),
-		Status:          deriveStatusToken(circuit, lastErr, warning, int(o.sentTotal.Load())),
+		Status:          deriveStatusToken(circuit, lastErr, warning, sent),
 		QueueDepth:      len(o.queue),
 		QueueCapacity:   o.config.QueueSize,
-		SentTotal:       int(o.sentTotal.Load()),
+		SentTotal:       sent,
 		DroppedTotal:    int(o.droppedTotal.Load()),
-		FailedTotal:     int(o.failedTotal.Load()),
+		FailedTotal:     failed,
 		CircuitState:    circuit,
-		LastSuccess:     o.lastSuccess.Load().(time.Time),
+		LastSuccess:     lastSuccess,
 		LastError:       lastErr,
 		LastWarning:     warning,
 		EventsPerMinute: o.rateWindow.rate(time.Now().Unix()),
@@ -341,7 +350,9 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 			if lastErr != nil {
 				break
 			}
+			o.outcomeMu.Lock()
 			o.failedTotal.Add(count)
+			o.outcomeMu.Unlock()
 			if o.metrics != nil {
 				o.metrics.RecordOutput(ctx, o.driver.Name(), "circuit_open", 0)
 			}
@@ -354,10 +365,12 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 		complete(err == nil)
 
 		if err == nil {
-			o.sentTotal.Add(count)
 			now := time.Now()
+			o.outcomeMu.Lock()
 			o.lastSuccess.Store(now)
 			o.lastError.Store("")
+			o.sentTotal.Add(count)
+			o.outcomeMu.Unlock()
 			o.healthWarning.Store("")
 			o.rateWindow.record(count, now.Unix())
 			if o.metrics != nil {
@@ -373,8 +386,10 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 }
 
 func (o *Output) recordFailure(ctx context.Context, count int64, err error) {
-	o.failedTotal.Add(count)
+	o.outcomeMu.Lock()
 	o.lastError.Store(err.Error())
+	o.failedTotal.Add(count)
+	o.outcomeMu.Unlock()
 	if o.metrics != nil {
 		o.metrics.RecordOutput(ctx, o.driver.Name(), "error", 0)
 		o.metrics.RecordError(ctx, o.driver.Name(), err)
