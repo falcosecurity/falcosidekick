@@ -70,10 +70,12 @@ func (d *Dispatcher) DispatchEvent(evt *event.Event) {
 	}
 }
 
-// Shutdown drains all outputs bounded by ctx, then closes their drivers.
-// On deadline, stopWorkers is invoked to force-cancel worker contexts and
-// driver close is deferred until workers actually exit; if drivers ignore
-// cancellation, that cleanup completes asynchronously.
+// Shutdown drains all outputs bounded by ctx, then closes their drivers in
+// parallel, still bounded by ctx; a driver that is slow to close keeps
+// closing in the background. On drain deadline, stopWorkers is invoked to
+// force-cancel worker contexts and driver close is deferred until workers
+// actually exit; if drivers ignore cancellation, that cleanup completes
+// asynchronously.
 func (d *Dispatcher) Shutdown(ctx context.Context, stopWorkers context.CancelFunc) error {
 	d.mu.Lock()
 	if d.stopping {
@@ -98,10 +100,13 @@ func (d *Dispatcher) Shutdown(ctx context.Context, stopWorkers context.CancelFun
 
 	select {
 	case <-done:
-		for _, out := range snapshot {
-			_ = out.Close()
+		closed := closeAll(snapshot)
+		select {
+		case <-closed:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
 		}
-		return nil
 	case <-ctx.Done():
 	}
 
@@ -111,11 +116,24 @@ func (d *Dispatcher) Shutdown(ctx context.Context, stopWorkers context.CancelFun
 
 	go func() {
 		<-done
-		for _, out := range snapshot {
-			_ = out.Close()
-		}
+		<-closeAll(snapshot)
 	}()
 	return ctx.Err()
+}
+
+// closeAll closes every output concurrently and returns a channel closed
+// once all of them returned.
+func closeAll(outputs []*Output) <-chan struct{} {
+	closed := make(chan struct{})
+	go func() {
+		var wg sync.WaitGroup
+		for _, out := range outputs {
+			wg.Go(func() { _ = out.Close() })
+		}
+		wg.Wait()
+		close(closed)
+	}()
+	return closed
 }
 
 // AddOutput starts a new output and adds it to the dispatcher.

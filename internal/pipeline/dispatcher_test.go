@@ -22,6 +22,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -243,6 +244,45 @@ func TestDispatcherShutdownBoundedWithStuckSender(t *testing.T) {
 
 	assert.Error(t, err, "Shutdown must return error when deadline exceeded with stuck worker")
 	assert.Less(t, elapsed, 1*time.Second, "Shutdown must complete within deadline, not hang forever")
+}
+
+// A driver whose Close blocks (Kafka flushing to an unreachable broker) must
+// not push Shutdown past its deadline, and must not delay the other drivers.
+func TestDispatcherShutdownBoundsSlowDriverClose(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		release := make(chan struct{})
+		var fastClosed atomic.Bool
+		slow := NewOutput(&testutil.MockDriver{
+			DriverName: "slow",
+			CloseFunc: func() error {
+				<-release
+				return nil
+			},
+		}, defaultRuntimeDefaults(), nil)
+		fast := NewOutput(&testutil.MockDriver{
+			DriverName: "fast",
+			CloseFunc: func() error {
+				fastClosed.Store(true)
+				return nil
+			},
+		}, defaultRuntimeDefaults(), nil)
+
+		d := NewDispatcher([]*Output{slow, fast})
+		runCtx, stopWorkers := context.WithCancel(context.Background())
+		defer stopWorkers()
+		d.Start(runCtx)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		start := time.Now()
+		err := d.Shutdown(ctx, stopWorkers)
+		assert.ErrorIs(t, err, context.DeadlineExceeded)
+		assert.Equal(t, 10*time.Second, time.Since(start), "Shutdown returns at its deadline")
+		assert.True(t, fastClosed.Load(), "other drivers close without waiting for the slow one")
+
+		close(release)
+		synctest.Wait()
+	})
 }
 
 // --- Hot-reload lifecycle tests ---
