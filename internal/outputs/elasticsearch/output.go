@@ -281,14 +281,15 @@ func (d *driver) marshalEvent(evt *event.Event) ([]byte, error) {
 }
 
 func (d *driver) resolveIndex() string {
+	now := time.Now().UTC()
 	switch d.cfg.Suffix {
 	case "monthly":
-		return fmt.Sprintf("%s-%s", d.cfg.Index, time.Now().Format("2006.01"))
+		return fmt.Sprintf("%s-%s", d.cfg.Index, now.Format("2006.01"))
 	case "annually":
-		return fmt.Sprintf("%s-%s", d.cfg.Index, time.Now().Format("2006"))
+		return fmt.Sprintf("%s-%s", d.cfg.Index, now.Format("2006"))
 	case suffixNone:
 		return d.cfg.Index
 	default:
-		return fmt.Sprintf("%s-%s", d.cfg.Index, time.Now().Format("2006.01.02"))
+		return fmt.Sprintf("%s-%s", d.cfg.Index, now.Format("2006.01.02"))
 	}
 }
