@@ -92,15 +92,52 @@ type Output struct {
 	queue          chan *event.Event
 	cancel         context.CancelFunc
 	circuitBreaker *CircuitBreaker
-	config         output.RuntimeConfig
-	rateWindow     rateWindow
-	workerDone     sync.WaitGroup
-	// outcomeMu makes a delivery outcome atomic for readers: sent and
-	// failed counters change together with last error and last success.
+	// predecessor is the replaced output while it drains.
+	predecessor atomic.Pointer[Output]
+	config      output.RuntimeConfig
+	rateWindow  rateWindow
+	workerDone  sync.WaitGroup
+	// outcomeMu guards base* and keeps counters consistent with last error and last success.
 	outcomeMu    sync.RWMutex
+	baseSent     int64
+	baseFailed   int64
+	baseDropped  int64
 	sentTotal    atomic.Int64
 	droppedTotal atomic.Int64
 	failedTotal  atomic.Int64
+}
+
+// totals requires o.outcomeMu held for reading.
+func (o *Output) totals() (sent, failed, dropped int64) {
+	sent = o.baseSent + o.sentTotal.Load()
+	failed = o.baseFailed + o.failedTotal.Load()
+	dropped = o.baseDropped + o.droppedTotal.Load()
+	if p := o.predecessor.Load(); p != nil {
+		p.outcomeMu.RLock()
+		ps, pf, pd := p.totals()
+		p.outcomeMu.RUnlock()
+		sent, failed, dropped = sent+ps, failed+pf, dropped+pd
+	}
+	return sent, failed, dropped
+}
+
+func (o *Output) inherit(prev *Output) { o.predecessor.Store(prev) }
+
+// absorb folds the retired predecessor's final counts into base*.
+func (o *Output) absorb() {
+	o.outcomeMu.Lock()
+	defer o.outcomeMu.Unlock()
+	p := o.predecessor.Load()
+	if p == nil {
+		return
+	}
+	p.outcomeMu.RLock()
+	ps, pf, pd := p.totals()
+	p.outcomeMu.RUnlock()
+	o.baseSent += ps
+	o.baseFailed += pf
+	o.baseDropped += pd
+	o.predecessor.Store(nil)
 }
 
 const rateBuckets = 60
@@ -291,8 +328,8 @@ func (o *Output) waitDone() {
 // and failed counts are consistent with last error and last success.
 func (o *Output) GetStatus() OutputStatus {
 	o.outcomeMu.RLock()
-	sent := int(o.sentTotal.Load())
-	failed := int(o.failedTotal.Load())
+	sent64, failed64, dropped64 := o.totals()
+	sent, failed, dropped := int(sent64), int(failed64), int(dropped64)
 	lastErr := o.lastError.Load().(string)
 	lastSuccess := o.lastSuccess.Load().(time.Time)
 	o.outcomeMu.RUnlock()
@@ -304,7 +341,7 @@ func (o *Output) GetStatus() OutputStatus {
 		QueueDepth:      len(o.queue),
 		QueueCapacity:   o.config.QueueSize,
 		SentTotal:       sent,
-		DroppedTotal:    int(o.droppedTotal.Load()),
+		DroppedTotal:    dropped,
 		FailedTotal:     failed,
 		CircuitState:    circuit,
 		LastSuccess:     lastSuccess,

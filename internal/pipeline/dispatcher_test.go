@@ -285,6 +285,44 @@ func TestDispatcherShutdownBoundsSlowDriverClose(t *testing.T) {
 	})
 }
 
+func TestReplaceOutputKeepsCounters(t *testing.T) {
+	release := make(chan struct{})
+	var oldCalls atomic.Int64
+	oldOut := NewOutput(&testutil.MockDriver{
+		DriverName: "hook",
+		SendFunc: func(context.Context, *event.Event) error {
+			if oldCalls.Add(1) > 2 {
+				<-release
+			}
+			return nil
+		},
+	}, defaultRuntimeDefaults(), nil)
+	d := NewDispatcher([]*Output{oldOut})
+	runCtx, stopWorkers := context.WithCancel(context.Background())
+	defer stopWorkers()
+	d.Start(runCtx)
+
+	for range 3 {
+		d.DispatchEvent(newTestEvent())
+	}
+	require.Eventually(t, func() bool { return oldCalls.Load() == 3 }, 2*time.Second, time.Millisecond)
+
+	newOut := NewOutput(&testutil.MockDriver{DriverName: "hook"}, defaultRuntimeDefaults(), nil)
+	done := make(chan error, 1)
+	go func() { done <- d.ReplaceOutput(context.Background(), runCtx, "hook", newOut) }()
+	require.Eventually(t, func() bool { return newOut.predecessor.Load() != nil }, 2*time.Second, time.Millisecond)
+	assert.Equal(t, 2, newOut.GetStatus().SentTotal, "counts of the replaced output are visible during its drain")
+
+	close(release)
+	require.NoError(t, <-done)
+	assert.Nil(t, newOut.predecessor.Load(), "the retired output is folded in, not chained")
+
+	d.DispatchEvent(newTestEvent())
+	require.Eventually(t, func() bool { return newOut.GetStatus().SentTotal == 4 }, 2*time.Second, time.Millisecond,
+		"3 delivered by the old output, 1 by the new one")
+	assert.Zero(t, newOut.GetStatus().FailedTotal)
+}
+
 // --- Hot-reload lifecycle tests ---
 
 func TestAddOutputRoutesEvents(t *testing.T) {
