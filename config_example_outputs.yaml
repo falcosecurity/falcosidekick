@@ -168,3 +168,80 @@ outputs:
   #     # async: true does not wait for the broker: events count as sent once
   #     # buffered, and a later broker error also counts as failed. Keep it false
   #     # for exact metrics.
+
+  # ===========================================================================
+  # Microsoft Teams (Workflows webhook, Adaptive Card)
+  # ===========================================================================
+
+  # teams:
+  #   host: "https://prod-00.westeurope.logic.azure.com"
+  #   secret_endpoint: /workflows/WORKFLOW_ID/triggers/manual/paths/invoke
+  #   query_params:
+  #     api-version:
+  #       values: ["2016-06-01"]
+  #     sig:                             # a credential: secrets or files, never values
+  #       secrets: ["SIGNATURE"]         # or files: [/run/secrets/teams-sig]
+  #   output_format: all                 # all, fields, text
+
+  # ===========================================================================
+  # Discord
+  # ===========================================================================
+
+  # discord:
+  #   # host: "https://discord.com"      # default
+  #   secret_endpoint: /api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+  #   # icon: "https://example.com/falco.png"
+
+  # ===========================================================================
+  # Grafana OnCall / Grafana Cloud IRM (formatted webhook)
+  # ===========================================================================
+
+  # grafanaoncall:
+  #   host: "https://oncall-prod-eu-west-0.grafana.net"
+  #   secret_endpoint: /oncall/integrations/v1/formatted_webhook/TOKEN/
+
+  # ===========================================================================
+  # PagerDuty (Events API v2)
+  # ===========================================================================
+
+  # pagerduty:
+  #   region: us                         # us, eu; selects the default host
+  #   routing_key_file: /run/secrets/pagerduty-routing-key
+
+  # ===========================================================================
+  # Opsgenie (Alert API v2). Atlassian ends Opsgenie on 2027-04-05.
+  # ===========================================================================
+
+  # opsgenie:
+  #   region: us                         # us, eu; selects the default host
+  #   api_key_file: /run/secrets/opsgenie-api-key
+
+  # ===========================================================================
+  # Datadog (Events API)
+  # ===========================================================================
+
+  # datadog:
+  #   site: datadoghq.com                # datadoghq.eu, us3.datadoghq.com, ...; selects the hosts
+  #   api_key_file: /run/secrets/datadog-api-key
+  #   # Without app_key events go to Events API v1, deprecated and kept for
+  #   # organizations that already use it. With app_key they go to v2.
+  #   # app_key_file: /run/secrets/datadog-app-key
+
+  # ===========================================================================
+  # Falco Talon
+  # ===========================================================================
+
+  # talon:
+  #   host: "http://falco-talon:2803"
+  #   # endpoint: /                      # default; health check uses /healthz
+
+  # ===========================================================================
+  # CloudEvents (HTTP binary mode)
+  # ===========================================================================
+
+  # cloudevents:
+  #   host: "http://broker-ingress.knative-eventing.svc"
+  #   endpoint: /default/default
+  #   # source: "https://falco.org"      # default
+  #   extensions:
+  #     cluster: prod

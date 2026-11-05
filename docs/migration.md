@@ -30,6 +30,16 @@ v3 splits every address into public and secret parts, so tokens in a URL never a
 | Loki | `hostport: https://loki.example/tenant-a`, `endpoint: /loki/api/v1/push` | `host: https://loki.example`, `base_path: /tenant-a`, `endpoint: /loki/api/v1/push` |
 | Elasticsearch | `hostport: https://proxy.example/es` | `host: https://proxy.example`, `base_path: /es` |
 | Alertmanager | `hostport: [https://am-1.example/alertmanager, https://am-2.example/alertmanager]` | `hosts: [https://am-1.example, https://am-2.example]`, `base_path: /alertmanager` |
+| Teams | `webhookurl:` an Office 365 connector URL | create a Workflows webhook; `host`, `secret_endpoint` (workflow path), `query_params.sig.secrets` |
+| Discord | `webhookurl: https://discord.com/api/webhooks/ID/TOKEN` | `secret_endpoint: /api/webhooks/ID/TOKEN` |
+| Grafana OnCall | `webhookurl: https://oncall.example/integrations/v1/formatted_webhook/TOKEN/` | `host: https://oncall.example`, `secret_endpoint: /integrations/v1/formatted_webhook/TOKEN/` |
+| Talon | `address: http://falco-talon:2803` | `host: http://falco-talon:2803` |
+| CloudEvents | `address: http://broker/path` | `host: http://broker`, `endpoint: /path` |
+| PagerDuty | `routingkey`, `region` | `routing_key` (secret), `region` |
+| Opsgenie | `apikey`, `region` | `api_key` (secret), `region` |
+| Datadog | `apikey`, `host` | `api_key` (secret), `site` or `host`; optional `app_key` for Events API v2 |
+
+`customheaders` becomes `headers` with `values`, `secrets` or `files`; `checkcert: false` becomes `tls.insecure_skip_verify: true`; `minimumpriority` becomes `runtime.minimum_priority`.
 
 ## Metrics
 
@@ -47,4 +57,10 @@ v2 also added hostname, Kubernetes namespace and pod, custom fields and template
 - Startup now fails when a destination rejects credentials, answers 404 on its probe or presents an untrusted certificate. v2 started anyway.
 - Alertmanager label values, including `alertname` and `rule`, are sent unchanged, as in v2.
 - Elasticsearch documents use the event UUID as id.
+- Teams sends Adaptive Cards to Workflows webhooks; the retired MessageCard format is gone. `output_format: facts` is now `fields`.
+- PagerDuty: severity follows the Falco priority (v2 always sent `critical`), `source` is the hostname, the event details are sent (v2 built them but dropped them), and `region: eu` now reaches the EU host (v2 always used the US host).
+- Opsgenie: the event UUID is the alert `alias`, so a retried event updates the same alert; Falco tags become Opsgenie tags.
+- Datadog: the API key travels in the `DD-API-KEY` header instead of the URL.
+- Discord: the embed color is an integer and payloads are trimmed to Discord limits.
+- CloudEvents: any non-2xx answer counts as failed.
 - The management API and the UI are new. Writes through the API are off unless `api.allow_writes: true`.

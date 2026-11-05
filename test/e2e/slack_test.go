@@ -101,7 +101,7 @@ func (s *slackWebhook) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		reject(http.StatusMethodNotAllowed, "invalid_method", "method not allowed")
 		return
 	}
-	if mediaType, _, err := mime.ParseMediaType(req.Header.Get("Content-Type")); err != nil || mediaType != "application/json" {
+	if mediaType, _, err := mime.ParseMediaType(req.Header.Get("Content-Type")); err != nil || mediaType != contentTypeJSON {
 		reject(http.StatusBadRequest, "invalid_payload", "content type "+req.Header.Get("Content-Type"))
 		return
 	}
