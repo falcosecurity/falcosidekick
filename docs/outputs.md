@@ -11,6 +11,12 @@ Fields, defaults and comments for every output are in [`config_example_outputs.y
 | Kafka | 4.4.0, 3.9.2 |
 | Elasticsearch | 7.17.28, 8.19.23, 9.5.5 |
 | OpenSearch | 2.19.7, 3.9.0 |
+| AWS S3, SQS, SNS | LocalStack 4.14.0 |
+| Google Cloud Pub/Sub | emulator from google-cloud-cli 592.0.0 |
+| Redis | 7.4, 8 |
+| OpenTelemetry Collector | contrib 0.164.0 |
+| SMTP | Mailpit v1.33.0 |
+| PolicyReport | openreports.io v0.2.1 CRDs on kind v0.30.0 |
 
 Older servers may work but are not tested.
 
@@ -83,3 +89,42 @@ Posts the Falco event as Falco sends it to `/` (configurable). Startup calls `GE
 ## CloudEvents
 
 CloudEvents 1.0 over HTTP in binary mode: `ce-specversion`, `ce-id` (event UUID), `ce-source` (`source`, default `https://falco.org`), `ce-type` (`falco.rule.output.v1`), `ce-time`, plus `ce-priority`, `ce-rule`, `ce-eventsource`, `ce-hostname` and the configured `extensions` (names `[a-z0-9]+`). The body is the event JSON. Not probed at startup.
+
+## AWS S3, SQS and SNS
+
+- Credentials: static keys when set, otherwise the AWS SDK default chain (environment, shared files, EKS IRSA and Pod Identity, ECS and EC2 roles); `role_arn` is then assumed through STS. Instance metadata is not used to find the region.
+- `endpoint` replaces the service endpoint (LocalStack, S3-compatible stores, VPC endpoints). Each call is attempted once and bounded to 30s; the pipeline retries.
+- Startup stops when AWS rejects the credentials or the bucket, queue or topic does not exist. The probe reads the resource (`s3:ListBucket`, `sqs:GetQueueAttributes`, `sns:GetTopicAttributes`); without that permission the output starts degraded.
+- S3 writes one object per event, `<prefix>/<YYYY-MM-DD>/<event time>_<uuid>.json`, or one NDJSON object per batch. A retry overwrites the same key.
+- SQS sends batches with `SendMessageBatch`, 10 messages and 1 MiB per request; the batch fails when any message fails. FIFO queues are not supported.
+- SNS sends the output text with the event as message attributes, or the event JSON with `raw_json: true`. Attribute names SNS rejects are left out.
+
+## Google Cloud Pub/Sub
+
+Publishes the event JSON to `topic` in `project_id`, with `custom_attributes` as message attributes. Without `credentials` the output uses Application Default Credentials, which covers GKE Workload Identity. Startup reads the topic: a missing topic or rejected credentials stop startup; without `pubsub.topics.get` the output starts degraded. `emulator_host` targets the emulator without TLS or authentication. The `PUBSUB_EMULATOR_HOST` environment variable, when set in the process, overrides the client for every Pub/Sub output.
+
+## Syslog
+
+RFC 5424 messages over UDP, TCP or TLS; TCP and TLS use octet-counting framing (RFC 6587). `format` is `json` (the event) or `cef`. `facility` defaults to `local0`; the severity follows the Falco priority. TCP and TLS keep one connection and reconnect when the receiver closes it. Startup dials TCP and TLS receivers; an untrusted certificate stops startup.
+
+## SMTP
+
+One email per event, HTML or text. `tls_mode` is `starttls` (default, required), `implicit`, `opportunistic` or `none`. Credentials are sent only over TLS or to localhost. Startup connects, negotiates TLS and authenticates without sending mail: rejected credentials, a missing STARTTLS or an untrusted certificate stop startup.
+
+## Redis
+
+Stores the event JSON with `storage_type` `list` (`RPUSH`, default), `hashmap` (`HSET`, field = event UUID) or `stream` (`XADD`, optional `max_len`). A batch goes out in one pipeline. Startup sends `PING`: rejected credentials, a missing ACL permission or an unknown database stop startup.
+
+## OTLP
+
+One output for traces, logs and metrics; each section present enables that signal, with its own `endpoint`, `protocol` (`http/protobuf` default, or `grpc`), headers, TLS, `timeout` and `compression`. `OTEL_*` environment variables have no effect.
+
+- Traces: one span per event, kind `INTERNAL`, zero length unless `duration` is set.
+- Logs: one record per event, event name `falco.alert`, severity from the priority.
+- Metrics: the cumulative counter `falcosecurity.falco.rules.matches` by rule, priority, source and hostname, plus `extra_attributes`; a retried event is not counted twice.
+- Resource `service.name` is `falcosidekick`. Attributes use the `falco.` prefix; output fields keep their names.
+- Not probed at startup: OTLP has no request that exports nothing.
+
+## PolicyReport
+
+Writes openreports.io `v1alpha1` reports, which Kyverno and Policy Reporter read. Events with a namespace (`k8s.ns.name`, else `ka.target.namespace`) go to the `Report` named `falcosidekick` in that namespace, others to the `ClusterReport` `falcosidekick`; an event whose namespace does not exist goes to `falco_namespace`. Each report keeps `max_events` results (default 1000) and drops the oldest, or with `prune_by_priority` the oldest with the lowest severity. Writes to one report are serialized and retried on conflict. The CRDs must be installed (`kubectl apply -f https://github.com/openreports/reports-api/releases/download/v0.2.1/install.yaml`); the service account needs `get`, `create` and `update` on `reports` and `clusterreports`. Startup checks the API serves both resources and the cluster report is readable.

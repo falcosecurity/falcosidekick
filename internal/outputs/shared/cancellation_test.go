@@ -18,13 +18,10 @@ package shared_test
 
 import (
 	"context"
+	"maps"
 	"net"
-	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -32,88 +29,27 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
-const (
-	cancelAfter  = 200 * time.Millisecond
-	returnWithin = 2 * time.Second
-)
-
-// hangingHTTPServer accepts every request and never answers until the test
-// ends, like a destination that stopped responding.
-func hangingHTTPServer(t *testing.T) *httptest.Server {
-	t.Helper()
-	release := make(chan struct{})
-	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-		select {
-		case <-release:
-		case <-r.Context().Done():
-		}
-	}))
-	t.Cleanup(func() {
-		close(release)
-		server.Close()
-	})
-	return server
+func awsConfig(endpoint string, extra map[string]any) map[string]any {
+	cfg := map[string]any{"region": "us-east-1", "access_key_id": "a", "secret_access_key": "s", "endpoint": endpoint}
+	maps.Copy(cfg, extra)
+	return cfg
 }
 
-// hangingTCPServer accepts connections and never writes, like a Kafka broker
-// that stopped responding.
-func hangingTCPServer(t *testing.T) string {
-	t.Helper()
-	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	done := make(chan struct{})
-	conns := make(chan net.Conn, 64)
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			conns <- conn
-		}
-	}()
-	t.Cleanup(func() {
-		close(done)
-		_ = ln.Close()
-		for {
-			select {
-			case conn := <-conns:
-				_ = conn.Close()
-			default:
-				return
-			}
-		}
-	})
-	return ln.Addr().String()
+func hostPort(addr string) map[string]any {
+	host, port, _ := net.SplitHostPort(addr)
+	return map[string]any{"host": host, "port": port}
 }
 
-// requireReturnsOnCancel runs call with a context that expires after
-// cancelAfter and requires it to fail within returnWithin.
-func requireReturnsOnCancel(t *testing.T, name string, call func(context.Context) error) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), cancelAfter)
-	defer cancel()
-	done := make(chan error, 1)
-	start := time.Now()
-	go func() { done <- call(ctx) }()
-	select {
-	case err := <-done:
-		assert.Error(t, err, "%s must fail when its context expires", name)
-		assert.Less(t, time.Since(start), returnWithin, name)
-	case <-time.After(returnWithin):
-		t.Fatalf("%s did not return within %s of a %s context", name, returnWithin, cancelAfter)
-	}
-}
-
-// Every driver must stop waiting on a silent destination once its context
-// ends, or retire and shutdown deadlines cannot hold.
+// Every registered driver must stop waiting on a silent destination once its
+// context ends, or retire and shutdown deadlines cannot hold.
 func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
 	tests := []struct {
-		config  func(host string) map[string]any
-		name    string
-		typ     string // output type when it differs from name
-		tcp     bool
-		noProbe bool
+		config     func(host string) map[string]any
+		name       string
+		typ        string // output type when it differs from name
+		tcp        bool
+		noProbe    bool
+		kubeconfig bool // host is a kubeconfig for the silent API server
 	}{
 		{name: "webhook", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h} }},
 		{name: "slack", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h, "secret_endpoint": "/services/T/B/X"} }},
@@ -136,14 +72,54 @@ func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
 		{name: "opsgenie", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k"} }},
 		{name: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k"} }},
 		{name: "datadog v2", typ: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k", "app_key": "a"} }},
+		{name: "awss3", config: func(h string) map[string]any {
+			return awsConfig(h, map[string]any{"bucket": "falco", "use_path_style": true})
+		}},
+		{name: "awssqs", config: func(h string) map[string]any {
+			return awsConfig(h, map[string]any{"queue_url": "https://sqs.us-east-1.amazonaws.com/1/q"})
+		}},
+		{name: "awssns", config: func(h string) map[string]any {
+			return awsConfig(h, map[string]any{"topic_arn": "arn:aws:sns:us-east-1:1:t"})
+		}},
+		{name: "gcppubsub", tcp: true, config: func(h string) map[string]any {
+			return map[string]any{"project_id": "p", "topic": "falco", "emulator_host": h}
+		}},
+		{name: "syslog", tcp: true, config: func(h string) map[string]any {
+			cfg := hostPort(h)
+			cfg["protocol"] = "tls"
+			return cfg
+		}},
+		{name: "smtp", tcp: true, config: func(h string) map[string]any {
+			cfg := hostPort(h)
+			cfg["from"], cfg["to"], cfg["auth_mechanism"] = "f@example.com", []string{"t@example.com"}, "none"
+			return cfg
+		}},
+		{name: "redis", tcp: true, config: func(h string) map[string]any { return map[string]any{"address": h} }},
+		{name: "otlp", noProbe: true, config: func(h string) map[string]any {
+			signal := map[string]any{"endpoint": h}
+			return map[string]any{"traces": signal, "logs": signal, "metrics": signal}
+		}},
+		{name: "policyreport", kubeconfig: true, config: func(h string) map[string]any {
+			return map[string]any{"kubeconfig": h, "falco_namespace": "falco"}
+		}},
+	}
+	covered := map[string]bool{"inmemory": true} // stores in process, no destination
+	for _, tt := range tests {
+		covered[tt.name] = true
+	}
+	for name := range outputTypes {
+		require.True(t, covered[name], "output %s has no silent-destination case", name)
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var host string
-			if tt.tcp {
-				host = hangingTCPServer(t)
-			} else {
-				host = hangingHTTPServer(t).URL
+			switch {
+			case tt.tcp:
+				host = testutil.HangingTCPServer(t)
+			case tt.kubeconfig:
+				host = testutil.WriteKubeconfig(t, testutil.HangingHTTPServer(t).URL, "", "token")
+			default:
+				host = testutil.HangingHTTPServer(t).URL
 			}
 			typ := tt.name
 			if tt.typ != "" {
@@ -154,16 +130,16 @@ func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
 			require.NoError(t, driver.Init(context.Background()))
 			t.Cleanup(func() { _ = driver.Close() })
 
-			requireReturnsOnCancel(t, "Send", func(ctx context.Context) error {
+			_ = testutil.RequireReturnsOnCancel(t, "Send", func(ctx context.Context) error {
 				return driver.Send(ctx, testutil.CreateValidEvent())
 			})
 			if batch, ok := driver.(output.BatchSender); ok {
-				requireReturnsOnCancel(t, "SendBatch", func(ctx context.Context) error {
+				_ = testutil.RequireReturnsOnCancel(t, "SendBatch", func(ctx context.Context) error {
 					return batch.SendBatch(ctx, []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent()})
 				})
 			}
 			if !tt.noProbe {
-				requireReturnsOnCancel(t, "HealthCheck", driver.HealthCheck)
+				_ = testutil.RequireReturnsOnCancel(t, "HealthCheck", driver.HealthCheck)
 			}
 		})
 	}

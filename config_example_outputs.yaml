@@ -245,3 +245,199 @@ outputs:
   #   # source: "https://falco.org"      # default
   #   extensions:
   #     cluster: prod
+
+  # ===========================================================================
+  # Google Cloud Pub/Sub
+  # ===========================================================================
+
+  # gcppubsub:
+  #   project_id: "my-project"
+  #   topic: "falco-events"              # topic ID; the topic must exist
+  #   # Without credentials the output uses Application Default Credentials:
+  #   # GOOGLE_APPLICATION_CREDENTIALS, GKE Workload Identity or the metadata server.
+  #   # credentials_file: /run/secrets/gcp-credentials.json  # JSON key, raw or base64
+  #   custom_attributes:                 # added to every message
+  #     cluster: prod
+  #   # endpoint: "europe-west1-pubsub.googleapis.com:443"   # gRPC host:port, TLS
+  #   # emulator_host: "localhost:8085"  # plaintext, no authentication; not with endpoint or credentials
+  #   # The health check reads the topic: it needs pubsub.topics.get (for example
+  #   # roles/pubsub.viewer) besides pubsub.topics.publish. Without it the output
+  #   # starts degraded; a missing topic or rejected credentials stop startup.
+
+  # ===========================================================================
+  # PolicyReport (openreports.io/v1alpha1 Report and ClusterReport)
+  # ===========================================================================
+
+  # policyreport:
+  #   # kubeconfig: /etc/falcosidekick/kubeconfig  # in-cluster configuration when empty
+  #   # falco_namespace: falco             # default: the pod namespace, else "default"
+  #   max_events: 1000                   # results per report, also set as configuration.limits.maxResults
+  #   prune_by_priority: false           # true removes the oldest lowest-severity result first
+  #   # Events with k8s.ns.name (or ka.target.namespace) go to the Report
+  #   # "falcosidekick" of that namespace, others to the ClusterReport
+  #   # "falcosidekick". A namespace that does not exist uses falco_namespace.
+  #   # The openreports.io CRDs must be installed. RBAC: get, create and update
+  #   # on reports and clusterreports.openreports.io. The health check stops
+  #   # startup when the API is not served or access is rejected.
+
+  # ===========================================================================
+  # AWS outputs (S3, SQS, SNS): shared fields
+  # ===========================================================================
+  #
+  #   region: "eu-west-1"              # else AWS_REGION, the shared config files, then
+  #                                    # the region in the queue URL or topic ARN
+  #   access_key_id_file: /run/secrets/aws-access-key-id
+  #   secret_access_key_file: /run/secrets/aws-secret-access-key
+  #   session_token_file: ...          # optional, with temporary keys
+  #   # Without static keys the SDK default chain applies: environment, shared
+  #   # files, web identity (EKS IRSA), EKS Pod Identity, ECS and EC2 roles.
+  #   role_arn: "arn:aws:iam::123456789012:role/falcosidekick"  # assumed with STS
+  #   external_id: "..."               # only with role_arn
+  #   endpoint: "http://localstack:4566"  # scheme, host and port; replaces the
+  #                                    # service endpoint (LocalStack, S3-compatible
+  #                                    # stores, VPC endpoints). STS keeps its own
+  #                                    # endpoint; set AWS_ENDPOINT_URL_STS to change it.
+  #   tls:                             # for the custom endpoint: ca_file, client cert
+  #   # Each API call is attempted once and bounded to 30s; runtime.retry retries.
+  #   # The health check stops startup when AWS rejects the credentials or the
+  #   # bucket, queue or topic does not exist. It reads the resource: without
+  #   # that read permission (AccessDenied) the output starts degraded.
+
+  # ===========================================================================
+  # AWS S3
+  # ===========================================================================
+
+  # awss3:
+  #   region: "eu-west-1"
+  #   bucket: "falco-events"
+  #   prefix: falco                      # default
+  #   object_canned_acl: bucket-owner-full-control  # default; private, public-read, ...
+  #   # use_path_style: true             # path-style URLs, for most S3-compatible stores
+  #   # One object per event: <prefix>/<YYYY-MM-DD>/<event time>_<uuid>.json, in UTC.
+  #   # With runtime.batching one object per batch, one JSON event per line:
+  #   # <prefix>/<YYYY-MM-DD>/<first event time>_<first uuid>.ndjson.
+  #   # A retry writes the same key. The health check (HeadBucket) needs s3:ListBucket.
+  #   runtime:
+  #     batching:
+  #       enabled: true
+  #       batch_size: 500
+  #       flush_interval: 10s
+
+  # ===========================================================================
+  # AWS SQS
+  # ===========================================================================
+
+  # awssqs:
+  #   queue_url: "https://sqs.eu-west-1.amazonaws.com/123456789012/falco"
+  #   # The message body is the event JSON. With runtime.batching events go
+  #   # through SendMessageBatch, 10 messages and 1 MiB per request; the batch
+  #   # fails when any message fails. FIFO queues are not supported. The health
+  #   # check (GetQueueAttributes) needs sqs:GetQueueAttributes.
+
+  # ===========================================================================
+  # AWS SNS
+  # ===========================================================================
+
+  # awssns:
+  #   topic_arn: "arn:aws:sns:eu-west-1:123456789012:falco"
+  #   raw_json: false                    # true: the message is the event JSON, no attributes
+  #   # With raw_json false the message is the event output text, with the
+  #   # attributes priority, rule, source, tags, hostname and every output field
+  #   # with a string or number value (proc.aname[2] becomes proc.aname.2).
+  #   # Names SNS rejects and empty values are left out; numbers beyond +-10^9
+  #   # are sent as strings. Raw delivery to SQS drops messages with more than
+  #   # 10 attributes. The health check (GetTopicAttributes) needs
+  #   # sns:GetTopicAttributes.
+
+  # ===========================================================================
+  # Syslog (RFC 5424 over UDP, TCP or TLS)
+  # ===========================================================================
+
+  # syslog:
+  #   host: "syslog.example.com"
+  #   # port: 514                        # default 514, 6514 with protocol tls
+  #   protocol: tcp                      # tcp (default), udp, tls
+  #   format: json                       # json (default) or cef
+  #   facility: local0                   # kern, user, ..., local0 (default) to local7
+  #   # tls:                             # only with protocol tls
+  #   #   ca_file: /etc/ssl/syslog-ca.pem
+  #   # Each event is one RFC 5424 message: PRI from facility and Falco priority,
+  #   # HOSTNAME from the event (else this host), APP-NAME "falco". TCP and TLS
+  #   # frame messages with octet counting (RFC 6587) and keep one connection,
+  #   # reconnecting when the receiver closes it. The health check dials TCP and
+  #   # TLS receivers (an untrusted certificate stops startup); UDP has no probe.
+
+  # ===========================================================================
+  # SMTP (one email per event)
+  # ===========================================================================
+
+  # smtp:
+  #   host: "smtp.example.com"
+  #   # port: 587                        # default 587, 465 with implicit, 25 with none
+  #   tls_mode: starttls                 # starttls (default, required), implicit,
+  #                                      # opportunistic (STARTTLS when offered), none
+  #   auth_mechanism: plain              # plain (default), xoauth2, none
+  #   user: falcosidekick
+  #   password_file: /run/secrets/smtp-password
+  #   # token_file: /run/secrets/smtp-token  # OAuth 2.0 access token for xoauth2
+  #   from: "Falco <falco@example.com>"
+  #   to:
+  #     - "secops@example.com"
+  #   output_format: html                # html (multipart with a text part, default) or text
+  #   # Credentials are sent only over TLS, or in clear to localhost; xoauth2
+  #   # needs tls_mode starttls or implicit. The health check connects,
+  #   # negotiates TLS and authenticates without sending mail: rejected
+  #   # credentials, a missing STARTTLS, AUTH or mechanism, or an untrusted
+  #   # certificate stop startup.
+
+  # ===========================================================================
+  # Redis
+  # ===========================================================================
+
+  # redis:
+  #   address: "redis:6379"              # host:port
+  #   # username: falcosidekick          # ACL user; default user when empty
+  #   password_file: /run/secrets/redis-password
+  #   database: 0
+  #   storage_type: list                 # list (RPUSH, default), hashmap (HSET field = event UUID),
+  #                                      # stream (XADD, field "event")
+  #   key: falco                         # default
+  #   # max_len: 100000                  # stream only: approximate cap (MAXLEN ~), 0 = unbounded
+  #   # tls_enabled: true
+  #   # tls:
+  #   #   ca_file: /etc/ssl/redis-ca.pem
+  #   # Values are the event JSON. Batches are sent in one pipeline. The health
+  #   # check sends PING: rejected credentials (WRONGPASS, NOAUTH), missing ACL
+  #   # permissions, an unknown database or an untrusted certificate stop startup.
+
+  # ===========================================================================
+  # OpenTelemetry (OTLP traces, logs and metrics)
+  # ===========================================================================
+
+  # otlp:
+  #   traces:                            # each section present enables its signal
+  #     endpoint: "http://otel-collector:4318"  # http/protobuf: path defaults to /v1/traces
+  #     protocol: http/protobuf          # http/protobuf (default) or grpc (no path)
+  #     # timeout: 10s                   # per export, also bounds shutdown
+  #     # compression: none              # none (default) or gzip
+  #     # duration: 0s                   # span length; spans start at the event time
+  #     headers:
+  #       Authorization:
+  #         secrets: ["Bearer TOKEN"]    # or files: [/run/secrets/otlp-auth]
+  #   logs:
+  #     endpoint: "https://otel-collector:4317"
+  #     protocol: grpc
+  #     # tls:                           # https endpoints only
+  #     #   ca_file: /etc/ssl/otel-ca.pem
+  #   metrics:
+  #     endpoint: "http://otel-collector:4318"
+  #     extra_attributes:                # output fields added to every data point
+  #       - k8s.ns.name
+  #   # One span (name = rule, kind internal), one log record (event name
+  #   # falco.alert, severity from priority, body = output) and one count on the
+  #   # falcosecurity.falco.rules.matches counter per event, with falco.* and
+  #   # output field attributes. Each delivery exports synchronously; OTEL_*
+  #   # environment variables are ignored. Events of one pod, container or host
+  #   # share a trace ID. Metrics are cumulative and exported on every delivery;
+  #   # enable runtime.batching to reduce requests. No health check: OTLP has no
+  #   # request that exports nothing. Header files are read at startup.

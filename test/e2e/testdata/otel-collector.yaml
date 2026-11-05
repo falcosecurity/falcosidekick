@@ -1,0 +1,33 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  file/traces:
+    path: /out/traces.json
+    format: json
+    flush_interval: 100ms
+  file/logs:
+    path: /out/logs.json
+    format: json
+    flush_interval: 100ms
+  file/metrics:
+    path: /out/metrics.json
+    format: json
+    flush_interval: 100ms
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [file/traces]
+    logs:
+      receivers: [otlp]
+      exporters: [file/logs]
+    metrics:
+      receivers: [otlp]
+      exporters: [file/metrics]
