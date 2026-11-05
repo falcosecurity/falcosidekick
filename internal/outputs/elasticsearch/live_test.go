@@ -149,6 +149,39 @@ func TestLiveElasticsearch(t *testing.T) {
 		assert.Contains(t, mustJSON(t, body), `"uuid":{"type":"keyword"}`)
 	})
 
+	t.Run("template indexes dotted output fields", func(t *testing.T) {
+		d := liveDriver(t, map[string]any{"host": base, "index": "fsk-live-tpl"})
+		index := d.(*driver).resolveIndex()
+		liveRequest(t, base, http.MethodDelete, "/"+index, "")
+		evt := liveEvent("dotted-1", nil)
+		evt.OutputFields = map[string]any{"proc.name": "bash", "proc.pid": 4242}
+		require.NoError(t, d.(output.BatchSender).SendBatch(ctx, []*event.Event{evt}))
+		evt.UUID = "dotted-2"
+		require.NoError(t, d.Send(ctx, evt))
+		assert.Equal(t, 2.0, liveCount(t, base, index))
+
+		_, body := liveRequest(t, base, http.MethodGet, "/"+index+"/_mapping", "")
+		var mapping struct {
+			Mappings struct {
+				Properties struct {
+					OutputFields struct {
+						Properties struct {
+							Proc struct {
+								Properties map[string]struct {
+									Type string `json:"type"`
+								} `json:"properties"`
+							} `json:"proc"`
+						} `json:"properties"`
+					} `json:"output_fields"`
+				} `json:"properties"`
+			} `json:"mappings"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(mustJSON(t, body[index])), &mapping))
+		proc := mapping.Mappings.Properties.OutputFields.Properties.Proc.Properties
+		assert.Equal(t, "text", proc["name"].Type, "strings use the template mapping")
+		assert.Equal(t, "long", proc["pid"].Type, "numbers keep their dynamic type")
+	})
+
 	t.Run("partial bulk failure and idempotent retry", func(t *testing.T) {
 		liveRequest(t, base, http.MethodDelete, "/fsk-live", "")
 		status, body := liveRequest(t, base, http.MethodPut, "/fsk-live",

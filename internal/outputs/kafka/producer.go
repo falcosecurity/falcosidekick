@@ -17,7 +17,9 @@
 package kafka
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -27,11 +29,12 @@ import (
 
 const configNone = "none"
 
-func buildClientOpts(cfg *config) ([]kgo.Opt, error) {
+func buildClientOpts(cfg *config, logger *slog.Logger) ([]kgo.Opt, error) {
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.DefaultProduceTopic(cfg.Topic),
 		kgo.RecordDeliveryTimeout(cfg.Producer.DeliveryTimeout),
+		kgo.WithLogger(clientLogger{logger: logger}),
 	}
 
 	if cfg.Producer.TopicCreation {
@@ -41,7 +44,8 @@ func buildClientOpts(cfg *config) ([]kgo.Opt, error) {
 		opts = append(opts, kgo.ClientID(cfg.Producer.ClientID))
 	}
 
-	opts = append(opts, kgo.RequiredAcks(resolveACKs(cfg.Producer.RequiredACKs)))
+	acks := resolveACKs(cfg.Producer.RequiredACKs)
+	opts = append(opts, kgo.RequiredAcks(acks))
 	opts = append(opts, resolveCompression(cfg.Producer.Compression)...)
 	opts = append(opts, resolveBalancer(cfg.Producer.Balancer)...)
 
@@ -61,7 +65,8 @@ func buildClientOpts(cfg *config) ([]kgo.Opt, error) {
 		opts = append(opts, saslOpt)
 	}
 
-	if cfg.Producer.Async {
+	// Idempotent writes require acks=all.
+	if cfg.Producer.Async || acks != kgo.AllISRAcks() {
 		opts = append(opts, kgo.DisableIdempotentWrite())
 	}
 
@@ -104,5 +109,30 @@ func resolveBalancer(b string) []kgo.Opt {
 		return []kgo.Opt{kgo.RecordPartitioner(kgo.StickyPartitioner())}
 	default:
 		return nil
+	}
+}
+
+// clientLogger routes franz-go warnings and errors, such as broker dial, TLS
+// and SASL failures, to the output logger. Debug and info are not forwarded.
+type clientLogger struct {
+	logger *slog.Logger
+}
+
+func (clientLogger) Level() kgo.LogLevel { return kgo.LogLevelWarn }
+
+func (l clientLogger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
+	l.logger.Log(context.Background(), slogLevel(level), msg, keyvals...)
+}
+
+func slogLevel(level kgo.LogLevel) slog.Level {
+	switch level {
+	case kgo.LogLevelError:
+		return slog.LevelError
+	case kgo.LogLevelWarn:
+		return slog.LevelWarn
+	case kgo.LogLevelInfo:
+		return slog.LevelInfo
+	default:
+		return slog.LevelDebug
 	}
 }
