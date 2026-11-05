@@ -411,7 +411,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { awsClient.PutRecord(p) })
 	}
 
-	if config.SMTP.HostPort != "" && (falcopayload.Priority >= types.Priority(config.SMTP.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.SMTP.HostPort != "" && smtpClient != nil && (falcopayload.Priority >= types.Priority(config.SMTP.MinimumPriority) || falcopayload.Rule == testRule) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { smtpClient.SendMail(p) })
 	}
 
@@ -447,7 +447,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { gcpClient.GCPCallCloudFunction(p) })
 	}
 
-	if config.GCP.CloudRun.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.GCP.CloudRun.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.GCP.CloudRun.Endpoint != "" && gcpCloudRunClient != nil && (falcopayload.Priority >= types.Priority(config.GCP.CloudRun.MinimumPriority) || falcopayload.Rule == testRule) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { gcpCloudRunClient.CloudRunFunctionPost(p) })
 	}
 
@@ -463,7 +463,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { googleChatClient.GooglechatPost(p) })
 	}
 
-	if config.Kafka.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Kafka.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.Kafka.HostPort != "" && kafkaClient != nil && (falcopayload.Priority >= types.Priority(config.Kafka.MinimumPriority) || falcopayload.Rule == testRule) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { kafkaClient.KafkaProduce(p) })
 	}
 
@@ -495,7 +495,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { wavefrontClient.WavefrontPost(p) })
 	}
 
-	if config.Grafana.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Grafana.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.Grafana.HostPort != "" && grafanaClient != nil && (falcopayload.Priority >= types.Priority(config.Grafana.MinimumPriority) || falcopayload.Rule == testRule) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { grafanaClient.GrafanaPost(p) })
 	}
 
