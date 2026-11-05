@@ -322,3 +322,14 @@ func (b *diagnosticResponseBody) Close() error {
 type diagnosticPayload struct{}
 
 func (diagnosticPayload) MarshalJSON() ([]byte, error) { return nil, errors.New("private-token") }
+
+func TestHTTPStatus(t *testing.T) {
+	response := &DeliveryError{name: "x", operation: "response", status: http.StatusConflict}
+	assert.Equal(t, http.StatusConflict, HTTPStatus(response))
+	assert.Equal(t, http.StatusConflict, HTTPStatus(fmt.Errorf("wrapped: %w", response)))
+	assert.Equal(t, http.StatusConflict, HTTPStatus(WrapDeliveryError("y", "send", response)))
+	assert.Equal(t, http.StatusConflict, response.StatusCode())
+	assert.Zero(t, HTTPStatus(WrapDeliveryError("x", "send", io.EOF)))
+	assert.Zero(t, HTTPStatus(io.EOF))
+	assert.Zero(t, HTTPStatus(nil))
+}

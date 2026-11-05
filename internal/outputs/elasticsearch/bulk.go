@@ -17,47 +17,53 @@
 package elasticsearch
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-// bulkFilterPath minimizes the ES bulk response payload by requesting only
-// the fields needed for error handling.
-const bulkFilterPath = "items.*.status,items.*.error.type,items.*.error.reason"
+// bulkFilterPath keeps only the fields needed to account for every item.
+const bulkFilterPath = "errors,items.*.status,items.*.error.type"
+
+// conflictError is the bulk error type for a document that already exists.
+const conflictError = "version_conflict_engine_exception"
 
 // bulkResponse represents the Elasticsearch _bulk API response.
 type bulkResponse struct {
+	Errors *bool            `json:"errors"`
 	Items  []bulkItemAction `json:"items"`
-	Errors bool             `json:"errors"`
 }
 
 // bulkItemAction wraps a single bulk response item.
 // Uses "create" because we send append-only events (not "index").
 type bulkItemAction struct {
-	Create bulkItemResult `json:"create"`
+	Create *bulkItemResult `json:"create"`
 }
 
-// bulkItemResult holds the status and error for a single bulk item.
+// bulkItemResult holds the status and error type for a single bulk item.
+// The error reason is not requested because it can echo document content.
 type bulkItemResult struct {
 	Error struct {
-		Type   string `json:"type"`
-		Reason string `json:"reason"`
+		Type string `json:"type"`
 	} `json:"error"`
 	Status int `json:"status"`
 }
 
 // buildBulkBody encodes events as NDJSON for the _bulk API.
-// Uses "create" action (append-only, required for data streams).
+// Uses "create" action (append-only, required for data streams). The event
+// UUID becomes the document _id so a retried batch cannot index an event twice.
 func (d *driver) buildBulkBody(events []*event.Event) ([]byte, error) {
 	var body []byte
 	index := d.resolveIndex()
 
 	for _, evt := range events {
-		action := fmt.Sprintf(`{"create":{"_index":%q}}`, index)
+		action, err := bulkAction(index, evt.UUID)
+		if err != nil {
+			return nil, shared.WrapDeliveryError("elasticsearch", "marshal", err)
+		}
 		data, err := d.marshalEvent(evt)
 		if err != nil {
 			return nil, shared.WrapDeliveryError("elasticsearch", "marshal", err)
@@ -71,34 +77,47 @@ func (d *driver) buildBulkBody(events []*event.Event) ([]byte, error) {
 	return body, nil
 }
 
-// parseBulkResponse inspects the per-item results from a bulk response.
-// Fast-path: skips JSON parsing when no errors are present.
-// Item-level inspection: success is status <= 201 with no error.type.
+func bulkAction(index, id string) ([]byte, error) {
+	type meta struct {
+		Index string `json:"_index"`
+		ID    string `json:"_id,omitempty"`
+	}
+	return json.Marshal(map[string]meta{"create": {Index: index, ID: id}})
+}
+
+// parseBulkResponse accounts for every item of a bulk response.
+// An item succeeds when it is created, or when it already exists from an
+// earlier attempt of the same batch. Any other item fails the whole batch.
 func (d *driver) parseBulkResponse(body []byte, expectedItems int) error {
-	if len(body) == 0 {
-		return nil
-	}
-
-	// Fast path: no errors in response, skip JSON parsing entirely.
-	if !bytes.Contains(body, []byte(`"errors":true`)) {
-		return nil
-	}
-
 	var resp bulkResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return shared.WrapDeliveryError("elasticsearch", "response", err)
 	}
+	if resp.Errors == nil || len(resp.Items) != expectedItems {
+		d.logger.Error("bulk response incomplete", "expected", expectedItems, "items", len(resp.Items))
+		return shared.NewProtocolError("elasticsearch", "incomplete bulk response")
+	}
 
-	var failed int
+	var failed, existing int
 	for _, item := range resp.Items {
 		r := item.Create
-		if r.Status > 201 || r.Error.Type != "" {
+		switch {
+		case r == nil:
+			failed++
+			d.logger.Warn("bulk item failed", "status", 0, "error_type", "unknown error")
+		case r.Status == http.StatusConflict && r.Error.Type == conflictError:
+			existing++
+		case r.Status >= 200 && r.Status < 300 && r.Error.Type == "":
+		default:
 			failed++
 			d.logger.Warn("bulk item failed",
 				"status", r.Status,
 				"error_type", classifyBulkError(r.Error.Type),
 			)
 		}
+	}
+	if existing > 0 {
+		d.logger.Debug("bulk items already indexed", "count", existing)
 	}
 
 	if failed == 0 {

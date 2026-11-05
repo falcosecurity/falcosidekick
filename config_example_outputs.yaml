@@ -104,8 +104,10 @@ outputs:
   #   host: "https://elasticsearch:9200"
   #   # base_path: /es                   # routes are set by the output
   #   # filter_path and pipeline are not allowed in query_params
+  #   # Use either username/password_file or api_key_file, not both.
   #   # password_file: /run/secrets/es-password
   #   # api_key_file: /run/secrets/es-api-key
+  #   # Documents use the event UUID as _id: retries never index an event twice.
   #   index: falco
   #   index_suffix: daily                # daily, monthly, annually, none
   #   runtime:

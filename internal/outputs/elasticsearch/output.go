@@ -27,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/http/httpguts"
+
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
@@ -71,7 +73,7 @@ var OutputType = output.Type{
 			{Name: "index", Type: "string", Default: "falco", Label: "Index"},
 			{Name: "index_suffix", Type: "enum", Values: []string{"daily", "monthly", "annually", suffixNone}, Default: "daily", Label: "Index Suffix"},
 			{Name: "pipeline", Type: "string", Label: "Ingest Pipeline"},
-			{Name: "api_key", Type: "string", Secret: true, Label: "API Key (overrides basic auth)"},
+			{Name: "api_key", Type: "string", Secret: true, Label: "API Key"},
 			{Name: "flatten_fields", Type: "bool", Default: false, Label: "Flatten Fields"},
 			{Name: "create_index_template", Type: "bool", Default: false, Label: "Create Index Template"},
 			{Name: "number_of_shards", Type: "int", Default: 3, Label: "Number of Shards"},
@@ -115,10 +117,30 @@ func (c *config) validate() utils.ValidationErrors {
 			errs.Add("number_of_replicas", fmt.Sprintf("must be >= 0 when create_index_template is true, got %d", c.NumberOfReplicas))
 		}
 	}
+	errs.Merge("", c.validateAPIKey())
 	if len(errs) > 0 {
 		return errs
 	}
 	return nil
+}
+
+func (c *config) validateAPIKey() utils.ValidationErrors {
+	var errs utils.ValidationErrors
+	if c.APIKey == "" {
+		return nil
+	}
+	if !httpguts.ValidHeaderFieldValue(c.APIKey) {
+		errs.Add("api_key", "invalid header value")
+	}
+	if c.Username != "" || c.Password != "" || c.BearerToken != "" {
+		errs.Add("api_key", "cannot combine api_key with basic auth or bearer_token")
+	}
+	for name := range c.Headers {
+		if strings.EqualFold(name, "Authorization") {
+			errs.Add("api_key", "cannot combine api_key with an authorization header")
+		}
+	}
+	return errs
 }
 
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
@@ -155,24 +177,34 @@ func (d *driver) Init(ctx context.Context) error {
 	return nil
 }
 
-// Send delivers a single event to Elasticsearch using the _doc API.
+// Send delivers a single event to Elasticsearch.
+// With a UUID it uses the _create API, so a retry of an indexed event is a no-op.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	body, err := d.marshalEvent(evt)
 	if err != nil {
 		return shared.WrapDeliveryError("elasticsearch", "marshal", err)
 	}
 
-	target, err := d.cfg.URL(d.cfg.Host, "/"+d.resolveIndex()+"/_doc", d.pipelineQuery())
+	method, route := http.MethodPost, "/"+d.resolveIndex()+"/_doc"
+	if evt.UUID != "" {
+		method, route = http.MethodPut, "/"+d.resolveIndex()+"/_create/"+url.PathEscape(evt.UUID)
+	}
+	target, err := d.cfg.URL(d.cfg.Host, route, d.pipelineQuery())
 	if err != nil {
 		return shared.WrapDeliveryError("elasticsearch", "target", err)
 	}
 
-	return d.sender.SendRaw(ctx, http.MethodPost, target, body, "application/json")
+	err = d.sender.SendRaw(ctx, method, target, body, "application/json")
+	if evt.UUID != "" && shared.HTTPStatus(err) == http.StatusConflict {
+		d.logger.Debug("event already indexed")
+		return nil
+	}
+	return err
 }
 
 // SendBatch delivers multiple events using the Elasticsearch bulk API.
-// Uses "create" action (append-only, required for data streams).
-// Parses per-item response to report accurate success/failure counts.
+// Any failed item fails the batch; items already indexed by an earlier
+// attempt are reported as conflicts and count as delivered.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	body, err := d.buildBulkBody(events)
 	if err != nil {

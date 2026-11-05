@@ -56,6 +56,18 @@ func (e *DeliveryError) Error() string {
 // Unwrap returns the original failure for programmatic inspection.
 func (e *DeliveryError) Unwrap() error { return e.cause }
 
+// StatusCode returns the HTTP response status, or 0 when no response was received.
+func (e *DeliveryError) StatusCode() int { return e.status }
+
+// HTTPStatus returns the HTTP status carried by err, or 0 when there is none.
+func HTTPStatus(err error) int {
+	var diagnostic *DeliveryError
+	if errors.As(err, &diagnostic) && diagnostic != nil {
+		return diagnostic.status
+	}
+	return 0
+}
+
 // Format keeps diagnostic formatting from exposing the wrapped cause.
 func (e *DeliveryError) Format(state fmt.State, verb rune) {
 	if verb == 'q' {

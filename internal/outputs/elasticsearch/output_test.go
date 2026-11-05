@@ -95,11 +95,12 @@ func TestElasticsearchPayloadFormat(t *testing.T) {
 			},
 		},
 		{
-			Name:         "sends to _doc endpoint",
+			Name:         "creates the document with the event UUID as id",
 			AddressField: "host",
 			Config:       map[string]any{"index": "security", "index_suffix": "none"},
 			ValidateReq: func(t *testing.T, req *http.Request, _ []byte) {
-				assert.Contains(t, req.URL.Path, "/security/_doc")
+				assert.Equal(t, http.MethodPut, req.Method)
+				assert.Equal(t, "/security/_create/test-uuid-001", req.URL.Path)
 			},
 		},
 		{
@@ -219,4 +220,62 @@ func TestFlattenFieldsReplacesDotsAndPreservesValues(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestElasticsearchSendStatus(t *testing.T) {
+	for _, tc := range []struct {
+		name, uuid, wantRequest string
+		status                  int
+		wantErr                 bool
+	}{
+		{name: "created", uuid: "id-1", status: http.StatusCreated, wantRequest: "PUT /falco/_create/id-1"},
+		{name: "already indexed", uuid: "id-1", status: http.StatusConflict, wantRequest: "PUT /falco/_create/id-1"},
+		{name: "rejected", uuid: "id-1", status: http.StatusBadRequest, wantRequest: "PUT /falco/_create/id-1", wantErr: true},
+		{name: "escaped id", uuid: "a/b", status: http.StatusCreated, wantRequest: "PUT /falco/_create/a%2Fb"},
+		{name: "without uuid", status: http.StatusCreated, wantRequest: "POST /falco/_doc"},
+		{name: "conflict without uuid", status: http.StatusConflict, wantRequest: "POST /falco/_doc", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var request string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				request = r.Method + " " + r.URL.EscapedPath()
+				w.WriteHeader(tc.status)
+			}))
+			t.Cleanup(server.Close)
+			d, err := createOutput(map[string]any{"host": server.URL, "index_suffix": "none"}, output.Deps{})
+			require.NoError(t, err)
+			evt := testutil.CreateValidEvent()
+			evt.UUID = tc.uuid
+
+			err = d.Send(context.Background(), evt)
+			assert.Equal(t, tc.wantRequest, request)
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestElasticsearchAPIKeyValidation(t *testing.T) {
+	for _, tc := range []struct {
+		config map[string]any
+		name   string
+		want   string
+	}{
+		{name: "with username", config: map[string]any{"api_key": "k", "username": "u"}, want: "cannot combine api_key with basic auth or bearer_token"},
+		{name: "with password", config: map[string]any{"api_key": "k", "password": "p"}, want: "cannot combine api_key with basic auth or bearer_token"},
+		{name: "with bearer token", config: map[string]any{"api_key": "k", "bearer_token": "t"}, want: "cannot combine api_key with basic auth or bearer_token"},
+		{name: "with authorization header", config: map[string]any{"api_key": "k", "headers": map[string]any{"authorization": map[string]any{"secrets": []any{"x"}}}}, want: "cannot combine api_key with an authorization header"},
+		{name: "invalid header value", config: map[string]any{"api_key": "k\nX-Injected: 1"}, want: "invalid header value"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.config["host"] = "https://es.example"
+			_, err := createOutput(tc.config, output.Deps{})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+			assert.NotContains(t, err.Error(), "X-Injected")
+		})
+	}
 }
