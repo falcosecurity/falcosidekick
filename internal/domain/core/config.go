@@ -34,7 +34,15 @@ type Config struct {
 	UI            UIConfig           `json:"ui" mapstructure:"ui"`
 	Reload        ReloadConfig       `json:"reload" mapstructure:"reload"`
 	Provisioning  ProvisioningConfig `json:"provisioning" mapstructure:"provisioning"`
+	API           APIConfig          `json:"api" mapstructure:"api"`
 	ListenPort    int                `json:"listen_port" mapstructure:"listen_port"`
+}
+
+// APIConfig controls the management API.
+//   - AllowWrites: when false (default), routes that change the running
+//     configuration answer 403. There is no authentication on these routes.
+type APIConfig struct {
+	AllowWrites bool `json:"allow_writes" mapstructure:"allow_writes"`
 }
 
 // ProvisioningConfig controls the interaction between file-based

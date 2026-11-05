@@ -34,6 +34,7 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, "info", string(cfg.LogLevel))
 	assert.Equal(t, "text", string(cfg.LogFormat))
 	assert.False(t, cfg.UI.Enabled)
+	assert.False(t, cfg.API.AllowWrites, "API writes are off unless enabled")
 	assert.Equal(t, "inmemory", cfg.UI.EventSource)
 	assert.Equal(t, 1000, cfg.RuntimeDefaults.QueueSize)
 	assert.Equal(t, 2, cfg.RuntimeDefaults.Workers)
@@ -46,6 +47,8 @@ listen_port: 3000
 log_level: debug
 ui:
   enabled: true
+api:
+  allow_writes: true
 runtime_defaults:
   queue_size: 5000
 enricher:
@@ -58,6 +61,7 @@ enricher:
 	assert.Equal(t, 3000, cfg.ListenPort)
 	assert.Equal(t, "debug", string(cfg.LogLevel))
 	assert.True(t, cfg.UI.Enabled)
+	assert.True(t, cfg.API.AllowWrites)
 	assert.Equal(t, 5000, cfg.RuntimeDefaults.QueueSize)
 	assert.Equal(t, "0.0.0.0", cfg.ListenAddress)
 	assert.Equal(t, 8192, cfg.Enricher.TruncateEventThreshold)
