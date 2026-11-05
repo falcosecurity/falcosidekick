@@ -258,6 +258,21 @@ func TestBuildOutputs_FailureClosesTheOthers(t *testing.T) {
 	assert.Equal(t, int32(3), closed.Load(), "the failed driver and both built outputs are closed")
 }
 
+func TestBuildOutput_MisconfiguredInitIsInvalidConfig(t *testing.T) {
+	driver := &testutil.MockDriver{
+		DriverName: "slack",
+		InitFunc: func(context.Context) error {
+			return fmt.Errorf("%w: HTTP 403", output.ErrMisconfigured)
+		},
+	}
+	cat, err := catalog.New([]output.Type{newMockDriverType(driver)})
+	require.NoError(t, err)
+
+	_, err = pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{}, testutil.DefaultRuntimeConfig(), output.Deps{})
+	require.ErrorIs(t, err, pipeline.ErrInvalidOutputConfig)
+	assert.Contains(t, err.Error(), "init:")
+}
+
 func TestBuildOutput_HealthCheckDisabled(t *testing.T) {
 	var probes atomic.Int32
 	driver := &testutil.MockDriver{

@@ -167,7 +167,12 @@ func (s *Sender) HealthCheck(ctx context.Context, url string, transient ...int) 
 	if err != nil {
 		return WrapDeliveryError(s.name, "healthcheck", err)
 	}
-	err = s.Do(ctx, req)
+	return ClassifyMisconfiguration(s.Do(ctx, req), transient...)
+}
+
+// ClassifyMisconfiguration wraps err with output.ErrMisconfigured when it is
+// a 401, 403 or 404 not listed in transient, or an untrusted certificate.
+func ClassifyMisconfiguration(err error, transient ...int) error {
 	if isMisconfiguration(err, transient) {
 		return fmt.Errorf("%w: %w", output.ErrMisconfigured, err)
 	}

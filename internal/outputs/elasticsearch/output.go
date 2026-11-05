@@ -19,12 +19,15 @@ package elasticsearch
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -83,9 +86,11 @@ var OutputType = output.Type{
 }
 
 type driver struct {
-	sender *shared.Sender
-	logger *slog.Logger
-	cfg    config
+	sender        *shared.Sender
+	logger        *slog.Logger
+	cfg           config
+	templateMu    sync.Mutex
+	templateReady atomic.Bool
 }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
@@ -152,16 +157,45 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 func (d *driver) Name() string { return "elasticsearch" }
 
 // Init creates the index template if configured.
+// Init creates the index template when configured. A configuration error
+// fails; any other error leaves the template to the first delivery.
 func (d *driver) Init(ctx context.Context) error {
-	if d.cfg.CreateIndexTemplate {
-		return d.createIndexTemplate(ctx)
+	ctx, cancel := context.WithTimeout(ctx, templateInitTimeout)
+	defer cancel()
+	err := d.ensureTemplate(ctx)
+	if err == nil || errors.Is(err, output.ErrMisconfigured) {
+		return err
 	}
+	d.logger.Warn("index template not created yet, retried before the first delivery", "error", err)
+	return nil
+}
+
+const templateInitTimeout = 5 * time.Second
+
+// ensureTemplate creates the index template once. Deliveries wait for it:
+// an index created without it would keep the wrong mapping.
+func (d *driver) ensureTemplate(ctx context.Context) error {
+	if !d.cfg.CreateIndexTemplate || d.templateReady.Load() {
+		return nil
+	}
+	d.templateMu.Lock()
+	defer d.templateMu.Unlock()
+	if d.templateReady.Load() {
+		return nil
+	}
+	if err := d.createIndexTemplate(ctx); err != nil {
+		return shared.ClassifyMisconfiguration(err)
+	}
+	d.templateReady.Store(true)
 	return nil
 }
 
 // Send delivers a single event to Elasticsearch.
 // With a UUID it uses the _create API, so a retry of an indexed event is a no-op.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
+	if err := d.ensureTemplate(ctx); err != nil {
+		return err
+	}
 	body, err := d.marshalEvent(evt)
 	if err != nil {
 		return shared.WrapDeliveryError("elasticsearch", "marshal", err)
@@ -188,6 +222,9 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 // Any failed item fails the batch; items already indexed by an earlier
 // attempt are reported as conflicts and count as delivered.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
+	if err := d.ensureTemplate(ctx); err != nil {
+		return err
+	}
 	body, err := d.buildBulkBody(events)
 	if err != nil {
 		return err
