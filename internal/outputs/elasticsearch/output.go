@@ -27,8 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/http/httpguts"
-
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
@@ -119,30 +117,11 @@ func (c *config) validate() utils.ValidationErrors {
 			errs.Add("number_of_replicas", fmt.Sprintf("must be >= 0 when create_index_template is true, got %d", c.NumberOfReplicas))
 		}
 	}
-	errs.Merge("", c.validateAPIKey())
+	errs.Merge("", c.ValidateCredential(shared.CredentialHeader{Field: "api_key", Header: "Authorization"}, c.APIKey))
 	if len(errs) > 0 {
 		return errs
 	}
 	return nil
-}
-
-func (c *config) validateAPIKey() utils.ValidationErrors {
-	var errs utils.ValidationErrors
-	if c.APIKey == "" {
-		return nil
-	}
-	if !httpguts.ValidHeaderFieldValue(c.APIKey) {
-		errs.Add("api_key", "invalid header value")
-	}
-	if c.Username != "" || c.Password != "" || c.BearerToken != "" {
-		errs.Add("api_key", "cannot combine api_key with basic auth or bearer_token")
-	}
-	for name := range c.Headers {
-		if strings.EqualFold(name, "Authorization") {
-			errs.Add("api_key", "cannot combine api_key with an authorization header")
-		}
-	}
-	return errs
 }
 
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
