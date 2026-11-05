@@ -1,0 +1,141 @@
+# Install Falcosidekick v3
+
+Falcosidekick v3 is in beta. It reads two kinds of files:
+
+- one core file (`-c sidekick.yaml`): listener, logging, UI, API, runtime defaults;
+- one or more output files (`-o outputs.yaml`, repeatable): where events go.
+
+Start from [`config_example_sidekick.yaml`](../config_example_sidekick.yaml) and [`config_example_outputs.yaml`](../config_example_outputs.yaml).
+
+## Images
+
+| Image | Content |
+| --- | --- |
+| `falcosecurity/falcosidekick:v3-<version>` | binary with the built-in web UI |
+| `falcosecurity/falcosidekick:v3-<version>-slim` | binary without the UI |
+| `v3-latest`, `v3-latest-slim` | latest v3 release |
+
+The same tags are published to `public.ecr.aws/falcosecurity/falcosidekick`. `latest` is still v2.
+
+The container runs as user 1234 and listens on port 2801.
+
+## Container
+
+Write a minimal `outputs.yaml`:
+
+```yaml
+outputs:
+  webhook:
+    host: "http://receiver.example:8080"
+    endpoint: /falco
+```
+
+Run:
+
+```sh
+docker run -d --name falcosidekick -p 2801:2801 \
+  -v "$PWD/sidekick.yaml:/etc/falcosidekick/sidekick.yaml:ro" \
+  -v "$PWD/outputs.yaml:/etc/falcosidekick/outputs.yaml:ro" \
+  falcosecurity/falcosidekick:v3-latest \
+  -c /etc/falcosidekick/sidekick.yaml -o /etc/falcosidekick/outputs.yaml
+```
+
+Check it:
+
+```sh
+curl -s localhost:2801/healthz
+curl -s localhost:2801/api/v1/pipeline/status
+```
+
+At startup each output probes its destination. A configuration error (rejected credentials, wrong path, untrusted certificate) stops the process with the reason in the log. An unreachable destination does not: the output starts as `degraded` (see [configuration](configuration.md#output-status)).
+
+## Kubernetes
+
+Mount both files from a ConfigMap. Output files are watched: editing the ConfigMap reloads outputs without a restart, once the kubelet has propagated it (about a minute). Put secrets in a Secret and point to them with the `_file` fields, for example `password_file`.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falcosidekick
+data:
+  sidekick.yaml: |
+    listen_port: 2801
+    log_format: json
+  outputs.yaml: |
+    outputs:
+      webhook:
+        host: "http://receiver.default.svc:8080"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: falcosidekick
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: falcosidekick}
+  template:
+    metadata:
+      labels: {app: falcosidekick}
+    spec:
+      containers:
+        - name: falcosidekick
+          image: falcosecurity/falcosidekick:v3-latest
+          args: ["-c", "/etc/falcosidekick/sidekick.yaml", "-o", "/etc/falcosidekick/outputs.yaml"]
+          ports:
+            - containerPort: 2801
+          readinessProbe:
+            httpGet: {path: /healthz, port: 2801}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/falcosidekick
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: falcosidekick
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: falcosidekick
+spec:
+  selector: {app: falcosidekick}
+  ports:
+    - port: 2801
+      targetPort: 2801
+```
+
+## Point Falco to Falcosidekick
+
+In `falco.yaml`:
+
+```yaml
+json_output: true
+json_include_output_property: true
+http_output:
+  enabled: true
+  url: "http://falcosidekick:2801/"
+```
+
+## Web UI
+
+The UI is off by default, also in the UI image. To enable it, add an `inmemory` output, which stores recent events for the UI, and in `sidekick.yaml`:
+
+```yaml
+ui:
+  enabled: true
+  event_source: inmemory
+```
+
+The UI is served on the same port. Editing outputs from the UI also needs `api.allow_writes: true`. The API has no authentication: enable writes only on a trusted network.
+
+## Build from source
+
+Requires Go and [Bun](https://bun.sh).
+
+```sh
+make falcosidekick-v3       # binary with the UI
+make falcosidekick-v3-slim  # binary without the UI
+```

@@ -17,6 +17,14 @@ This branch holds Falcosidekick v3, currently in beta. The v3 image includes a b
 
 v2 configuration is not compatible with v3.
 
+## Documentation
+
+- [Install](docs/install.md)
+- [Configuration](docs/configuration.md)
+- [Outputs and tested versions](docs/outputs.md)
+- [Migrate from v2](docs/migration.md)
+- [Known limits of the beta](docs/known-limits.md)
+
 ## Outputs
 
 Webhook, Slack, Loki, Elasticsearch, Alertmanager and Kafka.
