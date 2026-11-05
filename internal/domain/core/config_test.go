@@ -22,6 +22,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMetricsConfigValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr string
+		labels  []string
+	}{
+		{name: "none"},
+		{name: "field names", labels: []string{"k8s.ns.name", "proc.name", "container_id"}},
+		{name: "invalid character", labels: []string{"evt.arg[0]"}, wantErr: "not a valid label name"},
+		{name: "leading digit", labels: []string{"1field"}, wantErr: "not a valid label name"},
+		{name: "reserved prefix", labels: []string{"__name"}, wantErr: "not a valid label name"},
+		{name: "empty", labels: []string{""}, wantErr: "not a valid label name"},
+		{name: "built-in label", labels: []string{"rule"}, wantErr: "collides with a built-in label"},
+		{name: "same label twice", labels: []string{"k8s.ns.name", "k8s_ns_name"}, wantErr: "map to the same label"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := MetricsConfig{ExtraLabels: tt.labels}.Validate()
+			if tt.wantErr == "" {
+				assert.Empty(t, errs)
+				return
+			}
+			assert.Contains(t, errs.Error(), tt.wantErr)
+		})
+	}
+}
+
 func TestLogLevelValidate(t *testing.T) {
 	tests := []struct {
 		name    string

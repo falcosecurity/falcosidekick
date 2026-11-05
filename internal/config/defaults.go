@@ -55,4 +55,6 @@ func applyDefaults(v *viper.Viper) {
 
 	v.SetDefault("reload.poll_interval", 30*time.Second)
 	v.SetDefault("reload.retire_timeout", 10*time.Second)
+
+	v.SetDefault("metrics.extra_labels", []string{})
 }

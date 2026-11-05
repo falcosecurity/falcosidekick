@@ -39,4 +39,4 @@ func (NoopCollector) RecordDrop(_ context.Context, _ string) {}
 func (NoopCollector) RecordError(_ context.Context, _ string, _ error) {}
 
 // RecordEvent is a no-op.
-func (NoopCollector) RecordEvent(_ context.Context, _ string, _ event.Priority, _ string) {}
+func (NoopCollector) RecordEvent(_ context.Context, _ *event.Event) {}

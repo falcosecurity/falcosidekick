@@ -50,7 +50,7 @@ Elasticsearch treats 403 as transient, because its probe (`GET /`) needs the `mo
 | --- | --- |
 | `POST /` | Falco events (JSON) |
 | `GET /healthz` | liveness and readiness |
-| `GET /metrics` | Prometheus metrics, prefix `falcosidekick_` |
+| `GET /metrics` | Prometheus metrics, prefix `falcosidekick_`; `metrics.extra_labels` adds output fields as labels of `falcosidekick_event_total` |
 | `GET /version`, `GET /api/v1/version` | build version |
 | `/api/v1/...` | events, pipeline status, output config and types, UI layout |
 
