@@ -18,12 +18,14 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
@@ -247,7 +249,24 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil {
 		return fmt.Errorf("kafka: %w", core.ErrNotReady)
 	}
-	return d.client.Ping(ctx)
+	err := d.client.Ping(ctx)
+	if err == nil {
+		return nil
+	}
+	if isMisconfiguration(err) {
+		return fmt.Errorf("kafka: %w: %w", output.ErrMisconfigured, err)
+	}
+	return fmt.Errorf("kafka: %w", err)
+}
+
+// isMisconfiguration reports errors that no retry can fix: rejected SASL
+// credentials or mechanism, and a broker certificate the client does not
+// trust.
+func isMisconfiguration(err error) bool {
+	return errors.Is(err, kerr.SaslAuthenticationFailed) ||
+		errors.Is(err, kerr.UnsupportedSaslMechanism) ||
+		errors.Is(err, kerr.IllegalSaslState) ||
+		shared.IsTLSVerificationError(err)
 }
 
 // Close delivers buffered records for at most the delivery timeout, then

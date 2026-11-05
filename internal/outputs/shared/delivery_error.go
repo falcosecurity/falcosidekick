@@ -102,6 +102,19 @@ func NewProtocolError(name, code string) error {
 	return &DeliveryError{name: name, operation: "response", reason: code}
 }
 
+// IsTLSVerificationError reports whether err is a server certificate the
+// client does not trust.
+func IsTLSVerificationError(err error) bool {
+	var (
+		certificate *tls.CertificateVerificationError
+		authority   x509.UnknownAuthorityError
+		hostname    x509.HostnameError
+		invalidCert x509.CertificateInvalidError
+	)
+	return errors.As(err, &certificate) || errors.As(err, &authority) ||
+		errors.As(err, &hostname) || errors.As(err, &invalidCert)
+}
+
 func classifyDeliveryError(err error, operation string) string {
 	var (
 		redirect    *redirectError

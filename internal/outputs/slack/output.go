@@ -149,14 +149,9 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSONCheckBody(ctx, http.MethodPost, target, d.buildPayload(evt), checkSlackResponse)
 }
 
-// HealthCheck verifies connectivity to the Slack webhook.
-func (d *driver) HealthCheck(ctx context.Context) error {
-	target, err := d.cfg.DeliveryURL()
-	if err != nil {
-		return shared.WrapDeliveryError("slack", "target", err)
-	}
-	return d.sender.HealthCheck(ctx, target)
-}
+// HealthCheck is a no-op: the endpoint only accepts POST, so no request can
+// probe it without delivering a message.
+func (d *driver) HealthCheck(context.Context) error { return nil }
 
 func (d *driver) Close() error { return nil }
 

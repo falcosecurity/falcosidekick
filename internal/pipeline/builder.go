@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/config"
@@ -63,5 +64,24 @@ func BuildOutput(
 		return nil, fmt.Errorf("runtime merge: %w", invalidOutputConfigError{cause: err})
 	}
 
-	return NewOutput(driver, &merged, deps.Metrics), nil
+	healthCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
+	healthErr := driver.HealthCheck(healthCtx)
+	cancel()
+	if errors.Is(healthErr, output.ErrMisconfigured) {
+		_ = driver.Close()
+		return nil, fmt.Errorf("health check: %w", invalidOutputConfigError{cause: healthErr})
+	}
+
+	out := NewOutput(driver, &merged, deps.Metrics)
+	if healthErr != nil {
+		warning := "health check failed before start: " + healthErr.Error()
+		out.SetHealthWarning(warning)
+		if deps.Logger != nil {
+			deps.Logger.Warn("output starts degraded", "output", name, "warning", warning)
+		}
+	}
+	return out, nil
 }
+
+// healthCheckTimeout bounds the destination probe made before an output starts.
+const healthCheckTimeout = 5 * time.Second

@@ -92,26 +92,26 @@ func TestDriversDeliverToExactTargets(t *testing.T) {
 		{
 			name: "webhook default endpoint", kind: webhook.OutputType,
 			config: func(h string) map[string]any { return map[string]any{"host": h} },
-			send:   "POST /", health: "GET /",
+			send:   "POST /",
 		},
 		{
 			name: "webhook base and endpoint", kind: webhook.OutputType,
 			config: func(h string) map[string]any {
 				return map[string]any{"host": h, "base_path": "/gw/", "endpoint": "/events", "query_params": secretQuery()}
 			},
-			send: "POST /gw/events?" + wantQuery, health: "GET /gw/events?" + wantQuery,
+			send: "POST /gw/events?" + wantQuery,
 		},
 		{
 			name: "webhook secret endpoint", kind: webhook.OutputType,
 			config: func(h string) map[string]any { return map[string]any{"host": h, "secret_endpoint": "/hook/abc"} },
-			send:   "POST /hook/abc", health: "GET /hook/abc",
+			send:   "POST /hook/abc",
 		},
 		{
 			name: "slack", kind: slack.OutputType,
 			config: func(h string) map[string]any {
 				return map[string]any{"host": h, "base_path": "/proxy", "secret_endpoint": "/services/T/B/X", "query_params": secretQuery()}
 			},
-			send: "POST /proxy/services/T/B/X?" + wantQuery, health: "GET /proxy/services/T/B/X?" + wantQuery,
+			send: "POST /proxy/services/T/B/X?" + wantQuery,
 		},
 		{
 			name: "loki default endpoint", kind: loki.OutputType,
@@ -156,7 +156,11 @@ func TestDriversDeliverToExactTargets(t *testing.T) {
 
 			require.NoError(t, driver.Send(context.Background(), testutil.CreateValidEvent()))
 			require.NoError(t, driver.HealthCheck(context.Background()))
-			assert.Equal(t, []string{tt.send, tt.health}, log.uris)
+			want := []string{tt.send}
+			if tt.health != "" {
+				want = append(want, tt.health)
+			}
+			assert.Equal(t, want, log.uris)
 		})
 	}
 }
@@ -284,12 +288,8 @@ func TestDriverTargetFailureStaysSafe(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.Remove(path))
 
-	for _, err := range []error{
-		driver.Send(context.Background(), testutil.CreateValidEvent()),
-		driver.HealthCheck(context.Background()),
-	} {
-		require.EqualError(t, err, "webhook target: cannot resolve target")
-	}
+	require.EqualError(t, driver.Send(context.Background(), testutil.CreateValidEvent()),
+		"webhook target: cannot resolve target")
 }
 
 var commentedBlock = regexp.MustCompile(`(?m)^ {2}# ([a-z]+):\n((?: {2}# {2}.*\n)+)`)

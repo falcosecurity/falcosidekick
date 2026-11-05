@@ -18,6 +18,10 @@ package kafka
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"testing"
@@ -25,6 +29,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -606,6 +611,40 @@ func TestAsyncFailureReachesLateFailureHandler(t *testing.T) {
 	for _, err := range failures {
 		assert.ErrorContains(t, err, "kafka async produce")
 	}
+}
+
+func TestHealthCheckClassification(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		name string
+		want bool
+	}{
+		{name: "sasl authentication failed", err: fmt.Errorf("sasl: %w", kerr.SaslAuthenticationFailed), want: true},
+		{name: "unsupported sasl mechanism", err: kerr.UnsupportedSaslMechanism, want: true},
+		{name: "illegal sasl state", err: kerr.IllegalSaslState, want: true},
+		{name: "unknown authority", err: &tls.CertificateVerificationError{Err: x509.UnknownAuthorityError{}}, want: true},
+		{name: "connection refused", err: &net.OpError{Op: "dial", Err: errors.New("connection refused")}},
+		{name: "deadline", err: context.DeadlineExceeded},
+		{name: "broker not available", err: kerr.BrokerNotAvailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, isMisconfiguration(tc.err))
+		})
+	}
+}
+
+func TestHealthCheckUnreachableBrokerIsTransient(t *testing.T) {
+	d, err := createOutput(map[string]any{"brokers": []string{"127.0.0.1:1"}, "topic": "falco"}, output.Deps{})
+	require.NoError(t, err)
+	require.NoError(t, d.Init(context.Background()))
+	t.Cleanup(func() { _ = d.Close() })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	err = d.HealthCheck(ctx)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, output.ErrMisconfigured)
+	assert.Contains(t, err.Error(), "kafka:")
 }
 
 func TestAsyncFailureWithoutHandlerOnlyLogs(t *testing.T) {

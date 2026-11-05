@@ -28,18 +28,33 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
+// Health is the coarse state of an output shown by the API and the UI.
+type Health string
+
+// Output health values, ordered from worst to best.
+const (
+	// HealthError: the last delivery failed.
+	HealthError Health = "error"
+	// HealthDegraded: delivering, but the circuit breaker is not closed or a
+	// warning is set.
+	HealthDegraded Health = "degraded"
+	// HealthIdle: nothing delivered yet and nothing wrong.
+	HealthIdle Health = "idle"
+	// HealthOK: the last delivery succeeded.
+	HealthOK Health = "ok"
+)
+
 // OutputStatus holds observable counters and state for one output.
 //
-// Status is a coarse health token derived from LastError and CircuitState:
-// "error" when LastError is non-empty, "degraded" when the circuit breaker is
-// open or half-open, "idle" when closed and never sent, "ok" otherwise.
+// Status is derived from LastError, CircuitState and LastWarning; see Health.
 // EventsPerMinute is a rolling 60-second success rate.
 type OutputStatus struct {
 	LastSuccess     time.Time `json:"last_success"`
 	Name            string    `json:"name"`
-	Status          string    `json:"status"`
+	Status          Health    `json:"status"`
 	CircuitState    string    `json:"circuit_state"`
 	LastError       string    `json:"last_error"`
+	LastWarning     string    `json:"last_warning"`
 	QueueDepth      int       `json:"queue_depth"`
 	QueueCapacity   int       `json:"queue_capacity"`
 	SentTotal       int       `json:"sent_total"`
@@ -48,23 +63,28 @@ type OutputStatus struct {
 	EventsPerMinute float64   `json:"events_per_minute"`
 }
 
-func deriveStatusToken(circuit, lastError string, sentTotal int) string {
+func deriveStatusToken(circuit, lastError, lastWarning string, sentTotal int) Health {
 	if lastError != "" {
-		return "error"
+		return HealthError
 	}
 	switch circuit {
 	case CircuitOpen.String(), CircuitHalfOpen.String():
-		return "degraded"
+		return HealthDegraded
+	}
+	if lastWarning != "" {
+		return HealthDegraded
 	}
 	if sentTotal == 0 {
-		return "idle"
+		return HealthIdle
 	}
-	return "ok"
+	return HealthOK
 }
 
 // Output is the runtime delivery unit for one output destination.
 type Output struct {
 	lastError      atomic.Value
+	driverWarning  atomic.Value
+	healthWarning  atomic.Value
 	batchSender    output.BatchSender
 	metrics        core.MetricsCollector
 	driver         output.Driver
@@ -145,6 +165,11 @@ func NewOutput(driver output.Driver, cfg *output.RuntimeConfig, metrics core.Met
 	}
 	o.lastSuccess.Store(time.Time{})
 	o.lastError.Store("")
+	o.driverWarning.Store("")
+	o.healthWarning.Store("")
+	if reporter, ok := driver.(output.WarningReporter); ok {
+		reporter.SetWarningHandler(func(warning string) { o.driverWarning.Store(warning) })
+	}
 	if reporter, ok := driver.(output.LateFailureReporter); ok {
 		reporter.SetLateFailureHandler(o.recordLateFailure)
 	}
@@ -263,9 +288,10 @@ func (o *Output) waitDone() {
 func (o *Output) GetStatus() OutputStatus {
 	circuit := o.circuitBreaker.GetState().String()
 	lastErr := o.lastError.Load().(string)
+	warning := o.lastWarning()
 	return OutputStatus{
 		Name:            o.driver.Name(),
-		Status:          deriveStatusToken(circuit, lastErr, int(o.sentTotal.Load())),
+		Status:          deriveStatusToken(circuit, lastErr, warning, int(o.sentTotal.Load())),
 		QueueDepth:      len(o.queue),
 		QueueCapacity:   o.config.QueueSize,
 		SentTotal:       int(o.sentTotal.Load()),
@@ -274,8 +300,24 @@ func (o *Output) GetStatus() OutputStatus {
 		CircuitState:    circuit,
 		LastSuccess:     o.lastSuccess.Load().(time.Time),
 		LastError:       lastErr,
+		LastWarning:     warning,
 		EventsPerMinute: o.rateWindow.rate(time.Now().Unix()),
 	}
+}
+
+// SetHealthWarning records a destination problem found before any delivery,
+// such as an unreachable host at startup. The first successful delivery
+// clears it.
+func (o *Output) SetHealthWarning(warning string) {
+	o.healthWarning.Store(warning)
+}
+
+// lastWarning prefers the driver's current warning over the startup one.
+func (o *Output) lastWarning() string {
+	if warning := o.driverWarning.Load().(string); warning != "" {
+		return warning
+	}
+	return o.healthWarning.Load().(string)
 }
 
 // executeWithRetry runs fn with circuit breaker and retry. On success it adds
@@ -316,6 +358,7 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 			now := time.Now()
 			o.lastSuccess.Store(now)
 			o.lastError.Store("")
+			o.healthWarning.Store("")
 			o.rateWindow.record(count, now.Unix())
 			if o.metrics != nil {
 				o.metrics.RecordOutput(ctx, o.driver.Name(), "ok", duration)

@@ -235,7 +235,9 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	if err != nil {
 		return shared.WrapDeliveryError("elasticsearch", "target", err)
 	}
-	return d.sender.HealthCheck(ctx, target)
+	// GET / needs the cluster monitor privilege, which a user that may only
+	// index can lack, so 403 is not proof of a wrong configuration.
+	return d.sender.HealthCheck(ctx, target, http.StatusForbidden)
 }
 
 func (d *driver) Close() error { return nil }

@@ -19,6 +19,7 @@ package shared
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,6 +28,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
 func TestSenderSendJSON(t *testing.T) {
@@ -197,6 +200,70 @@ func TestSenderHealthCheckFailure(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "myoutput")
+}
+
+func TestSenderHealthCheckClassifiesMisconfiguration(t *testing.T) {
+	for _, tc := range []struct {
+		status        int
+		misconfigured bool
+	}{
+		{status: http.StatusUnauthorized, misconfigured: true},
+		{status: http.StatusForbidden, misconfigured: true},
+		{status: http.StatusNotFound, misconfigured: true},
+		{status: http.StatusInternalServerError},
+		{status: http.StatusServiceUnavailable},
+		{status: http.StatusTooManyRequests},
+	} {
+		t.Run(http.StatusText(tc.status), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.status)
+			}))
+			t.Cleanup(server.Close)
+			s, err := NewSender("probe", &HTTPConfig{})
+			require.NoError(t, err)
+			err = s.HealthCheck(context.Background(), server.URL)
+			require.Error(t, err)
+			assert.Equal(t, tc.misconfigured, errors.Is(err, output.ErrMisconfigured))
+			assert.Equal(t, tc.status, HTTPStatus(err))
+		})
+	}
+}
+
+func TestSenderHealthCheckTransientStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(server.Close)
+	s, err := NewSender("probe", &HTTPConfig{})
+	require.NoError(t, err)
+	err = s.HealthCheck(context.Background(), server.URL, http.StatusForbidden)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, output.ErrMisconfigured)
+	assert.Equal(t, http.StatusForbidden, HTTPStatus(err))
+}
+
+func TestSenderHealthCheckUntrustedCertificateIsMisconfiguration(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	s, err := NewSender("probe", &HTTPConfig{})
+	require.NoError(t, err)
+	err = s.HealthCheck(context.Background(), server.URL)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, output.ErrMisconfigured)
+	assert.True(t, IsTLSVerificationError(err))
+}
+
+func TestSenderHealthCheckUnreachableIsTransient(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	target := server.URL
+	server.Close()
+	s, err := NewSender("probe", &HTTPConfig{})
+	require.NoError(t, err)
+	err = s.HealthCheck(context.Background(), target)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, output.ErrMisconfigured)
 }
 
 func TestSenderEachInstanceIsIsolated(t *testing.T) {

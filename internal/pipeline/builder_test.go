@@ -19,8 +19,11 @@ package pipeline_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -136,6 +139,71 @@ func TestBuildOutput_RuntimeMergeError(t *testing.T) {
 	assert.ErrorIs(t, err, pipeline.ErrInvalidOutputConfig)
 	assert.Contains(t, err.Error(), "runtime merge:")
 	assert.Equal(t, int32(1), closeCalls.Load(), "driver must be closed on merge failure")
+}
+
+func TestBuildOutput_MisconfiguredDestinationIsRejected(t *testing.T) {
+	var closeCalls atomic.Int32
+	driver := &testutil.MockDriver{
+		DriverName: "slack",
+		HealthCheckFunc: func(context.Context) error {
+			return fmt.Errorf("%w: slack response: HTTP 404 Not Found", output.ErrMisconfigured)
+		},
+		CloseFunc: func() error {
+			closeCalls.Add(1)
+			return nil
+		},
+	}
+	cat, err := catalog.New([]output.Type{newMockDriverType(driver)})
+	require.NoError(t, err)
+
+	out, err := pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{}, testutil.DefaultRuntimeConfig(), output.Deps{})
+	require.Error(t, err)
+	assert.Nil(t, out)
+	assert.ErrorIs(t, err, pipeline.ErrInvalidOutputConfig)
+	assert.ErrorIs(t, err, output.ErrMisconfigured)
+	assert.Contains(t, err.Error(), "health check:")
+	assert.Contains(t, err.Error(), "HTTP 404")
+	assert.Equal(t, int32(1), closeCalls.Load(), "driver must be closed when the destination rejects the config")
+}
+
+func TestBuildOutput_UnreachableDestinationStartsDegraded(t *testing.T) {
+	driver := &testutil.MockDriver{
+		DriverName: "slack",
+		HealthCheckFunc: func(context.Context) error {
+			return errors.New("connection refused")
+		},
+	}
+	cat, err := catalog.New([]output.Type{newMockDriverType(driver)})
+	require.NoError(t, err)
+
+	out, err := pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{}, testutil.DefaultRuntimeConfig(), output.Deps{})
+	require.NoError(t, err)
+	status := out.GetStatus()
+	assert.Equal(t, pipeline.HealthDegraded, status.Status)
+	assert.Equal(t, "health check failed before start: connection refused", status.LastWarning)
+}
+
+// A destination that never answers must not hold startup or a reload: the
+// probe is bounded by healthCheckTimeout (5s).
+func TestBuildOutput_HealthCheckIsBounded(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		driver := &testutil.MockDriver{
+			DriverName: "slack",
+			HealthCheckFunc: func(ctx context.Context) error {
+				<-ctx.Done()
+				return ctx.Err()
+			},
+		}
+		cat, err := catalog.New([]output.Type{newMockDriverType(driver)})
+		require.NoError(t, err)
+
+		start := time.Now()
+		out, err := pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{}, testutil.DefaultRuntimeConfig(), output.Deps{})
+		require.NoError(t, err)
+		assert.Equal(t, 5*time.Second, time.Since(start))
+		assert.Equal(t, pipeline.HealthDegraded, out.GetStatus().Status)
+		assert.Contains(t, out.GetStatus().LastWarning, "deadline exceeded")
+	})
 }
 
 func TestBuildOutput_AppliesRuntimeDefaults(t *testing.T) {

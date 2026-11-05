@@ -19,10 +19,12 @@ package alertmanager
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -68,9 +70,10 @@ var OutputType = output.Type{
 }
 
 type driver struct {
-	sender *shared.Sender
-	logger *slog.Logger
-	cfg    config
+	sender  *shared.Sender
+	logger  *slog.Logger
+	warning atomic.Pointer[func(string)]
+	cfg     config
 }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
@@ -176,22 +179,62 @@ func (d *driver) fanOut(ctx context.Context, targets []string, body []byte) erro
 	failed := len(targets) - success
 	if failed > 0 {
 		d.logger.Warn("partial fan-out", "succeeded", success, "failed", failed, "total", len(targets))
+		d.reportWarning(fmt.Sprintf("%d of %d hosts failed: %v", failed, len(targets), lastErr))
+		return nil
 	}
 
+	d.reportWarning("")
 	return nil
 }
 
-// HealthCheck verifies connectivity to the first Alertmanager host.
+// SetWarningHandler receives the pipeline handler for partial fan-out.
+func (d *driver) SetWarningHandler(handler func(warning string)) {
+	d.warning.Store(&handler)
+}
+
+func (d *driver) reportWarning(warning string) {
+	if handler := d.warning.Load(); handler != nil {
+		(*handler)(warning)
+	}
+}
+
+// HealthCheck probes every host concurrently, so a slow host does not use up
+// the budget of the others. A configuration error on any host is returned
+// as such; otherwise any unreachable host is reported.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if len(d.cfg.Hosts) == 0 {
 		return fmt.Errorf("alertmanager: no hosts configured")
 	}
-	// TODO: consider checking all hosts.
-	target, err := d.cfg.URL(d.cfg.Hosts[0], healthRoute, nil)
-	if err != nil {
-		return shared.WrapDeliveryError("alertmanager", "target", err)
+	targets := make([]string, len(d.cfg.Hosts))
+	for i, host := range d.cfg.Hosts {
+		target, err := d.cfg.URL(host, healthRoute, nil)
+		if err != nil {
+			return shared.WrapDeliveryError("alertmanager", "target", err)
+		}
+		targets[i] = target
 	}
-	return d.sender.HealthCheck(ctx, target)
+	errs := make([]error, len(targets))
+	var wg sync.WaitGroup
+	for i, target := range targets {
+		wg.Go(func() { errs[i] = d.sender.HealthCheck(ctx, target) })
+	}
+	wg.Wait()
+
+	var unreachable error
+	failed := 0
+	for _, err := range errs {
+		if errors.Is(err, output.ErrMisconfigured) {
+			return err
+		}
+		if err != nil {
+			failed++
+			unreachable = err
+		}
+	}
+	if failed > 0 {
+		return fmt.Errorf("alertmanager: %d of %d hosts: %w", failed, len(d.cfg.Hosts), unreachable)
+	}
+	return nil
 }
 
 func (d *driver) Close() error { return nil }

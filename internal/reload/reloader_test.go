@@ -398,6 +398,71 @@ func TestReloaderInitFailureClosesPartialOutputs(t *testing.T) {
 	assert.Empty(t, env.d.OutputNames(), "no outputs must be added on partial failure")
 }
 
+// A file reload whose new config fails the destination health check with a
+// configuration error is rejected, and the running output keeps delivering
+// with its previous config.
+func TestReloaderMisconfiguredDestinationKeepsOldOutput(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "outputs.yaml")
+
+	var delivered, closedRejected atomic.Int64
+	slackType := output.Type{
+		Name:   "slack",
+		Schema: output.Schema{Fields: []output.SchemaField{{Name: "secret_endpoint", Type: "string"}}},
+		New: func(cfg map[string]any, _ output.Deps) (output.Driver, error) {
+			wrong := cfg["secret_endpoint"] == "wrong"
+			return &testutil.MockDriver{
+				DriverName: "slack",
+				SendFunc: func(context.Context, *event.Event) error {
+					delivered.Add(1)
+					return nil
+				},
+				HealthCheckFunc: func(context.Context) error {
+					if wrong {
+						return fmt.Errorf("%w: slack response: HTTP 404 Not Found", output.ErrMisconfigured)
+					}
+					return nil
+				},
+				CloseFunc: func() error {
+					if wrong {
+						closedRejected.Add(1)
+					}
+					return nil
+				},
+			}, nil
+		},
+	}
+	cat, err := catalog.New([]output.Type{slackType})
+	require.NoError(t, err)
+
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: good\n")
+	r := NewReloader(&ReloaderConfig{
+		OutputPaths:     []string{path},
+		Catalog:         cat,
+		Dispatcher:      env.d,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
+		Deps:            output.Deps{Logger: slog.Default()},
+		Logger:          slog.Default(),
+		InitialOutputs:  map[string]map[string]any{},
+	})
+	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
+
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: wrong\n")
+	err = r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "health check")
+	assert.Equal(t, int64(1), closedRejected.Load(), "the rejected driver is closed")
+
+	env.d.DispatchEvent(&event.Event{Priority: event.PriorityError, Rule: "test", Source: "test"})
+	assert.Eventually(t, func() bool { return delivered.Load() == 1 }, 5*time.Second, 10*time.Millisecond,
+		"the previous output still delivers")
+}
+
 const (
 	metricReloadTotal       = "falcosidekick_reload_total"
 	metricReloadFailures    = "falcosidekick_reload_failures_total"

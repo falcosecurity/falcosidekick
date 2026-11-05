@@ -22,6 +22,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +30,9 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/database"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	lokiout "github.com/falcosecurity/falcosidekick/internal/outputs/loki"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/slack"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 )
 
@@ -78,6 +81,52 @@ func TestTargetSecretsStayOutOfAPIAndSurvivePartialPUT(t *testing.T) {
 	assert.Equal(t, "/hook/"+pathSecret, stored.Config["secret_endpoint"])
 	assert.Equal(t, []any{querySecret}, stored.Config["query_params"].(map[string]any)["token"].(map[string]any)["secrets"])
 	assert.Equal(t, "PUT", stored.Config["method"])
+}
+
+// A destination that answers its health probe with 404 is misconfigured: the
+// PUT is rejected with the reason and the running output keeps its config.
+func TestPUTRejectsMisconfiguredDestination(t *testing.T) {
+	pushes := make(chan string, 4)
+	loki := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/ready":
+			w.WriteHeader(http.StatusOK)
+		case "/loki/api/v1/push":
+			pushes <- r.URL.Path
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(loki.Close)
+	cat, err := catalog.New([]output.Type{lokiout.OutputType})
+	require.NoError(t, err)
+	db := database.NewMemory()
+	rig := buildMutationRig(t, db, cat, true)
+
+	status, body := putOutput(t, rig, "loki", `{"config":{"host":"`+loki.URL+`"}}`)
+	require.Equal(t, http.StatusOK, status, body)
+
+	status, body = putOutput(t, rig, "loki", `{"config":{"base_path":"/missing"}}`)
+	assert.Equal(t, http.StatusBadRequest, status, body)
+	assert.Contains(t, body, "health check")
+	assert.Contains(t, body, "HTTP 404")
+
+	stored, err := db.GetOutputConfig(t.Context(), "loki")
+	require.NoError(t, err)
+	require.NotNil(t, stored)
+	assert.NotContains(t, stored.Config, "base_path", "a rejected PUT is not persisted")
+	statuses := rig.Dispatcher.CollectStatus()
+	require.Len(t, statuses, 1, "the previous output keeps running")
+	assert.Equal(t, "loki", statuses[0].Name)
+
+	rig.Server.pipeline.ProcessEvent(t.Context(), testutil.CreateValidEvent())
+	select {
+	case path := <-pushes:
+		assert.Equal(t, "/loki/api/v1/push", path, "the previous config still delivers")
+	case <-time.After(5 * time.Second):
+		t.Fatal("the previous output did not deliver after the rejected PUT")
+	}
 }
 
 func TestPUTRejectsTargetViolationsAs400(t *testing.T) {

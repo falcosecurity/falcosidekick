@@ -34,11 +34,12 @@ import (
 
 func TestDeriveStatusToken(t *testing.T) {
 	tests := []struct {
-		name      string
-		circuit   string
-		lastError string
-		want      string
-		sentTotal int
+		name        string
+		circuit     string
+		lastError   string
+		lastWarning string
+		want        Health
+		sentTotal   int
 	}{
 		{name: "idle", circuit: "closed", want: "idle"},
 		{name: "ok", circuit: "closed", sentTotal: 3, want: "ok"},
@@ -50,10 +51,13 @@ func TestDeriveStatusToken(t *testing.T) {
 		{name: "error overrides ok", circuit: "closed", lastError: "send failed", sentTotal: 3, want: "error"},
 		{name: "error overrides open", circuit: "open", lastError: "send failed", sentTotal: 3, want: "error"},
 		{name: "error overrides half-open", circuit: "half-open", lastError: "send failed", sentTotal: 3, want: "error"},
+		{name: "warning degrades ok", circuit: "closed", lastWarning: "1 of 2 hosts failed", sentTotal: 3, want: "degraded"},
+		{name: "warning degrades idle", circuit: "closed", lastWarning: "health check failed before start", want: "degraded"},
+		{name: "error overrides warning", circuit: "closed", lastError: "send failed", lastWarning: "w", want: "error"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, deriveStatusToken(tt.circuit, tt.lastError, tt.sentTotal))
+			assert.Equal(t, tt.want, deriveStatusToken(tt.circuit, tt.lastError, tt.lastWarning, tt.sentTotal))
 		})
 	}
 }
@@ -193,11 +197,11 @@ func TestOutputEventsPerMinuteDelivery(t *testing.T) {
 				if tt.err != nil {
 					assert.Zero(t, status.SentTotal)
 					assert.Equal(t, tt.batchSize, status.FailedTotal)
-					assert.Equal(t, "error", status.Status)
+					assert.Equal(t, HealthError, status.Status)
 				} else {
 					assert.Equal(t, tt.batchSize, status.SentTotal)
 					assert.Zero(t, status.FailedTotal)
-					assert.Equal(t, "ok", status.Status)
+					assert.Equal(t, HealthOK, status.Status)
 					wantRate = float64(tt.batchSize)
 				}
 				assert.Equal(t, wantRate, status.EventsPerMinute)
@@ -246,4 +250,48 @@ func TestRateWindowConcurrentReadersAndWriters(t *testing.T) {
 	callers.Wait()
 	assert.Equal(t, float64(total), window.rate(second))
 	assert.Zero(t, window.rate(second+60))
+}
+
+type warningDriver struct {
+	handler func(string)
+	testutil.MockDriver
+}
+
+func (d *warningDriver) SetWarningHandler(handler func(string)) { d.handler = handler }
+
+func TestDriverWarningDegradesUntilCleared(t *testing.T) {
+	driver := &warningDriver{MockDriver: testutil.MockDriver{DriverName: "fanout"}}
+	out := NewOutput(driver, defaultRuntimeDefaults(), nil)
+	require.NotNil(t, driver.handler)
+
+	driver.handler("1 of 2 hosts failed")
+	status := out.GetStatus()
+	assert.Equal(t, HealthDegraded, status.Status)
+	assert.Equal(t, "1 of 2 hosts failed", status.LastWarning)
+
+	driver.handler("")
+	status = out.GetStatus()
+	assert.Equal(t, HealthIdle, status.Status)
+	assert.Empty(t, status.LastWarning)
+}
+
+func TestHealthWarningClearsOnFirstDelivery(t *testing.T) {
+	out := NewOutput(&testutil.MockDriver{DriverName: "late"}, defaultRuntimeDefaults(), nil)
+	out.SetHealthWarning("health check failed before start: connection refused")
+	assert.Equal(t, HealthDegraded, out.GetStatus().Status)
+
+	out.executeWithRetry(context.Background(), 1, func(context.Context) error { return nil })
+
+	status := out.GetStatus()
+	assert.Equal(t, HealthOK, status.Status)
+	assert.Empty(t, status.LastWarning)
+}
+
+func TestHealthWarningSurvivesFailedDelivery(t *testing.T) {
+	out := NewOutput(&testutil.MockDriver{DriverName: "late"}, defaultRuntimeDefaults(), nil)
+	out.SetHealthWarning("not reachable")
+	out.executeWithRetry(context.Background(), 1, func(context.Context) error { return errDelivery })
+	status := out.GetStatus()
+	assert.Equal(t, HealthError, status.Status)
+	assert.Equal(t, "not reachable", status.LastWarning)
 }
