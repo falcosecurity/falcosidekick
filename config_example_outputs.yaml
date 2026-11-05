@@ -118,7 +118,7 @@ outputs:
   #   # api_key_file: /run/secrets/es-api-key
   #   # Documents use the event UUID as _id: retries never index an event twice.
   #   index: falco
-  #   index_suffix: daily                # daily, monthly, annually, none
+  #   index_suffix: daily                # daily, monthly, annually, none; dates in UTC
   #   runtime:
   #     queue_size: 5000
   #     workers: 3
