@@ -86,6 +86,26 @@ func TestTruncateRunes(t *testing.T) {
 	}
 }
 
+func TestTruncateBytes(t *testing.T) {
+	tests := []struct {
+		name, input, want string
+		max               int
+	}{
+		{name: "fits", input: "short", max: 10, want: "short"},
+		{name: "ascii", input: "this is a long string", max: 10, want: "this is..."},
+		{name: "never splits a rune", input: "aaa🔥🔥", max: 9, want: "aaa..."},
+		{name: "keeps whole runes", input: "🔥🔥🔥", max: 11, want: "🔥🔥..."},
+		{name: "below marker", input: "abcdef", max: 2, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := TruncateBytes(tt.input, tt.max)
+			assert.Equal(t, tt.want, got)
+			assert.LessOrEqual(t, len(got), tt.max)
+		})
+	}
+}
+
 func TestFormatTagsDoesNotMutateInput(t *testing.T) {
 	input := []string{"z", "a", "m"}
 	_ = FormatTags(input, ",")

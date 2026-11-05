@@ -17,9 +17,20 @@
 package shared
 
 import (
+	"net/url"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
+
+// FalcosidekickIconURL is the default avatar or image of chat outputs.
+const FalcosidekickIconURL = "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png"
+
+// IsAbsoluteHTTPURL reports whether raw is an absolute http or https URL.
+func IsAbsoluteHTTPURL(raw string) bool {
+	u, err := url.Parse(raw)
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+}
 
 // SortMapKeys returns the keys of a string-keyed map sorted alphabetically.
 func SortMapKeys[V any](m map[string]V) []string {
@@ -42,6 +53,23 @@ func TruncateRunes(s string, maxRunes int) string {
 		return string(runes[:maxRunes])
 	}
 	return string(runes[:maxRunes-3]) + "..."
+}
+
+// TruncateBytes truncates s to at most maxBytes bytes on a UTF-8 boundary,
+// ending with "..." when it cuts.
+func TruncateBytes(s string, maxBytes int) string {
+	if len(s) <= maxBytes {
+		return s
+	}
+	const marker = "..."
+	if maxBytes < len(marker) {
+		return ""
+	}
+	cut := maxBytes - len(marker)
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut] + marker
 }
 
 // FormatTags sorts tags alphabetically and joins them with the given separator.
