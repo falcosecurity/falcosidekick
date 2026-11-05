@@ -149,6 +149,8 @@ func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
 			}
 			publish := workflow.Jobs[publishID]
 			require.Contains(t, publish.Needs, "checks")
+			require.Contains(t, publish.If, "github.repository == 'falcosecurity/falcosidekick' && ",
+				"forks must never publish")
 			require.Contains(t, publish.If, refGuard)
 			require.NotContains(t, publish.If, "always()")
 			for _, step := range publish.Steps {
