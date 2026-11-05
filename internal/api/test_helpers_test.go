@@ -264,6 +264,7 @@ func buildMutationRig(t *testing.T, db core.Database, cat *catalog.Catalog, bind
 		Database: db,
 		Catalog:  cat,
 		Reloader: r,
+		Config:   writableConfig(),
 	})
 	require.NoError(t, err)
 	return &mutationTestRig{Server: srv, Reloader: r, Dispatcher: dispatcher}
@@ -279,6 +280,7 @@ func buildMutationRigWithProvisioning(t *testing.T, db core.Database, cat *catal
 		Reloader: rig.Reloader,
 		Config: &core.Config{
 			Provisioning: prov,
+			API:          core.APIConfig{AllowWrites: true},
 		},
 	})
 	require.NoError(t, err)
@@ -306,7 +308,13 @@ func buildMutationTestServerNilReloader(t *testing.T, db core.Database) *Server 
 		Database: db,
 		Catalog:  newMutationTestCatalog(t),
 		Reloader: nil,
+		Config:   writableConfig(),
 	})
 	require.NoError(t, err)
 	return srv
+}
+
+// writableConfig enables the mutating routes, which are off by default.
+func writableConfig() *core.Config {
+	return &core.Config{API: core.APIConfig{AllowWrites: true}}
 }

@@ -47,6 +47,11 @@ database:
 # event_source selects which output serves event queries for the UI.
 # =============================================================================
 
+# api:
+#   allow_writes: false                  # allow API routes that change outputs and layout.
+#                                        # They have no authentication: enable only on a
+#                                        # trusted network or with listen_address 127.0.0.1.
+
 # ui:
 #   enabled: false                       # enable the web UI
 #   event_source: inmemory               # output name implementing ReadableStore

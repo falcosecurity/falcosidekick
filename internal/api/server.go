@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/adaptor"
@@ -63,6 +64,7 @@ type Server struct {
 	address      string
 	eventSource  string
 	provisioning core.ProvisioningConfig
+	allowWrites  bool
 }
 
 // NewServer creates a Fiber-based HTTP Server.
@@ -70,6 +72,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 	var tls *core.TLSConfig
 	var eventSource string
 	var provisioning core.ProvisioningConfig
+	var allowWrites bool
 	address := "0.0.0.0"
 	port := 2801
 
@@ -83,6 +86,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 		tls = cfg.Config.TLS
 		eventSource = cfg.Config.UI.EventSource
 		provisioning = cfg.Config.Provisioning
+		allowWrites = cfg.Config.API.AllowWrites
 		if cfg.Config.ListenAddress != "" {
 			address = cfg.Config.ListenAddress
 		}
@@ -107,7 +111,13 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 		address:      fmt.Sprintf("%s:%d", address, port),
 		eventSource:  eventSource,
 		provisioning: provisioning,
+		allowWrites:  allowWrites,
 		tls:          tls,
+	}
+
+	if allowWrites && !isLoopback(address) {
+		logger.Warn("API writes are enabled without authentication on a non-loopback address",
+			"listen_address", address)
 	}
 
 	s.app = s.mountRoutes(cfg.Registry)
@@ -140,15 +150,15 @@ func (s *Server) mountRoutes(registry *prometheus.Registry) *fiber.App {
 	pipe.Get("/status", s.handlePipelineStatus)
 	pipe.Get("/status/:name", s.handlePipelineStatusByName)
 
-	pipe.Put("/layout", s.handlePipelineLayoutPut)
+	pipe.Put("/layout", s.requireWrites, s.handlePipelineLayoutPut)
 
 	outputs := pipe.Group("/outputs")
 	outputs.Get("", s.handlePipelineOutputs)
 	outputs.Get("/types", s.handlePipelineOutputTypes)
 	outputs.Get("/types/:name", s.handlePipelineOutputTypeByName)
 	outputs.Get("/:name", s.handlePipelineOutputByName)
-	outputs.Put("/:name", s.handlePipelineOutputPut)
-	outputs.Delete("/:name", s.handlePipelineOutputDelete)
+	outputs.Put("/:name", s.requireWrites, s.handlePipelineOutputPut)
+	outputs.Delete("/:name", s.requireWrites, s.handlePipelineOutputDelete)
 
 	v1.Get("/config", s.handleGetConfig)
 	v1.Get("/version", s.handleGetVersion)
@@ -191,4 +201,24 @@ func (s *Server) Start() error {
 // Shutdown gracefully stops the server, bounded by the caller's context.
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.app.ShutdownWithContext(ctx)
+}
+
+// isLoopback reports whether address only accepts local connections.
+func isLoopback(address string) bool {
+	if address == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(address)
+	return ip != nil && ip.IsLoopback()
+}
+
+// errWritesDisabled is the response body of a mutating route while writes are off.
+const errWritesDisabled = "API writes are disabled (set api.allow_writes to enable)"
+
+// requireWrites guards routes that change the running configuration.
+func (s *Server) requireWrites(c fiber.Ctx) error {
+	if !s.allowWrites {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": errWritesDisabled})
+	}
+	return c.Next()
 }

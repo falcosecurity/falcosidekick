@@ -11,6 +11,8 @@ ui:
 database:
   backend: inmemory
 
+api:
+  allow_writes: true
 provisioning:
   allow_ui_updates: true
 
