@@ -61,7 +61,7 @@ func TestValidatorsNeverEchoValues(t *testing.T) {
 		{
 			name: "brokers without port keep index",
 			run:  func() string { return ValidateBrokers([]string{sentinel}).Error() },
-			want: ": entry [0] must be host:port without a scheme (e.g. kafka:9092)",
+			want: ": entry [0] must be host:port without a scheme (e.g. server.example:9092)",
 		},
 		{
 			name: "http hosts unsupported scheme keeps index",

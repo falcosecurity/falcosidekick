@@ -111,7 +111,7 @@ func parseHost(value string) (host *url.URL, problem string) {
 func brokerProblem(value string) string {
 	host, port, err := net.SplitHostPort(value)
 	if err != nil || host == "" || strings.ContainsAny(host, "/?#@") {
-		return "must be host:port without a scheme (e.g. kafka:9092)"
+		return "must be host:port without a scheme (e.g. server.example:9092)"
 	}
 	if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
 		return "port must be between 1 and 65535"
