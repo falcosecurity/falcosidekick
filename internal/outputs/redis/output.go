@@ -148,8 +148,7 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 
-// clientLogger sends the go-redis process-wide log to slog at debug level:
-// the failures it reports also reach the output status.
+// clientLogger logs the process-wide go-redis log at debug: its failures also reach the output status.
 type clientLogger struct{}
 
 func (clientLogger) Printf(ctx context.Context, format string, v ...any) {
@@ -165,12 +164,10 @@ func (d *driver) Init(_ context.Context) error {
 	return nil
 }
 
-// Send stores one event.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.SendBatch(ctx, []*event.Event{evt})
 }
 
-// SendBatch stores events in one pipeline round trip.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if d.client == nil {
 		return fmt.Errorf("redis: %w", core.ErrNotReady)
@@ -224,9 +221,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	return wrap(err)
 }
 
-// isMisconfiguration reports errors that no retry can fix: rejected
-// credentials, missing ACL permissions, an unknown database and an untrusted
-// server certificate.
+// isMisconfiguration reports errors that no retry can fix.
 func isMisconfiguration(err error) bool {
 	return goredis.IsAuthError(err) ||
 		goredis.IsPermissionError(err) ||

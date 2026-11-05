@@ -25,12 +25,10 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-// ErrDispatcherStopped is returned when a lifecycle mutation is attempted
-// after Shutdown has started. The caller must close any orphaned resources.
+// ErrDispatcherStopped is returned by lifecycle mutations after Shutdown has started.
 var ErrDispatcherStopped = errors.New("dispatcher: stopped")
 
-// Dispatcher manages outputs and routes events with priority filtering.
-// Thread-safe for concurrent dispatch and hot-reload lifecycle operations.
+// Dispatcher routes events to outputs by priority; it is safe for concurrent dispatch and reload.
 type Dispatcher struct {
 	outputs  map[string]*Output
 	mu       sync.RWMutex
@@ -56,7 +54,6 @@ func (d *Dispatcher) Start(ctx context.Context) {
 }
 
 // DispatchEvent sends an event to all outputs that accept its priority.
-// Returns immediately without enqueuing if the dispatcher is stopping.
 func (d *Dispatcher) DispatchEvent(evt *event.Event) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -70,12 +67,8 @@ func (d *Dispatcher) DispatchEvent(evt *event.Event) {
 	}
 }
 
-// Shutdown drains all outputs bounded by ctx, then closes their drivers in
-// parallel, still bounded by ctx; a driver that is slow to close keeps
-// closing in the background. On drain deadline, stopWorkers is invoked to
-// force-cancel worker contexts and driver close is deferred until workers
-// actually exit; if drivers ignore cancellation, that cleanup completes
-// asynchronously.
+// Shutdown drains all outputs, then closes their drivers in parallel, both bounded by ctx.
+// On deadline it calls stopWorkers and closes drivers in the background once workers exit.
 func (d *Dispatcher) Shutdown(ctx context.Context, stopWorkers context.CancelFunc) error {
 	d.mu.Lock()
 	if d.stopping {
@@ -121,8 +114,6 @@ func (d *Dispatcher) Shutdown(ctx context.Context, stopWorkers context.CancelFun
 	return ctx.Err()
 }
 
-// closeAll closes every output concurrently and returns a channel closed
-// once all of them returned.
 func closeAll(outputs []*Output) <-chan struct{} {
 	closed := make(chan struct{})
 	go func() {
@@ -136,9 +127,7 @@ func closeAll(outputs []*Output) <-chan struct{} {
 	return closed
 }
 
-// AddOutput starts a new output and adds it to the dispatcher.
-// Returns ErrDispatcherStopped if shutdown has started. The caller must
-// close any orphaned output on error.
+// AddOutput starts a new output and adds it; on error the caller still owns out and must close it.
 func (d *Dispatcher) AddOutput(runCtx context.Context, out *Output) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -150,8 +139,7 @@ func (d *Dispatcher) AddOutput(runCtx context.Context, out *Output) error {
 	return nil
 }
 
-// RemoveOutput retires the named output using the given deadline context.
-// Returns ErrDispatcherStopped if shutdown has started.
+// RemoveOutput retires the named output bounded by retireCtx.
 func (d *Dispatcher) RemoveOutput(retireCtx context.Context, name string) error {
 	d.mu.Lock()
 	if d.stopping {
@@ -169,10 +157,8 @@ func (d *Dispatcher) RemoveOutput(retireCtx context.Context, name string) error 
 	return out.Retire(retireCtx)
 }
 
-// ReplaceOutput atomically swaps an output: the new output starts receiving
-// events immediately with runCtx while the old output retires using retireCtx.
-// Returns ErrDispatcherStopped if shutdown has started. The caller must
-// close any orphaned output on error.
+// ReplaceOutput atomically swaps in newOut on runCtx while the old output retires on retireCtx.
+// On ErrDispatcherStopped the caller still owns newOut and must close it.
 func (d *Dispatcher) ReplaceOutput(retireCtx, runCtx context.Context, name string, newOut *Output) error {
 	d.mu.Lock()
 	if d.stopping {
@@ -197,9 +183,7 @@ func (d *Dispatcher) ReplaceOutput(retireCtx, runCtx context.Context, name strin
 	return nil
 }
 
-// GetReadableStore looks up the named output and returns its ReadableStore
-// implementation. Returns false if the output does not exist or does not
-// implement ReadableStore.
+// GetReadableStore returns the named output's ReadableStore, if it has one.
 func (d *Dispatcher) GetReadableStore(name string) (output.ReadableStore, bool) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()

@@ -27,8 +27,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-// apiError describes a Kubernetes API failure by status code only: the
-// server message names users and objects and is not copied.
+// apiError keeps only the status code: the server message names users and objects.
 type apiError struct {
 	cause     error
 	operation string

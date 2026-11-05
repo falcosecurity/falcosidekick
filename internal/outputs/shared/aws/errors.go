@@ -32,13 +32,11 @@ import (
 
 const (
 	maxMessageRunes = 256
-	// credentialFailure prefixes SDK errors raised while resolving the
-	// credentials of a request, before anything is sent.
+	// credentialFailure prefixes SDK errors raised while resolving credentials, before sending.
 	credentialFailure = "get identity:"
 )
 
-// misconfigurationCodes are AWS error codes that no retry can fix: rejected
-// credentials, and a bucket, queue or topic that does not exist.
+// misconfigurationCodes are AWS error codes that no retry can fix.
 var misconfigurationCodes = []string{
 	"AuthorizationHeaderMalformed", "ExpiredToken", "ExpiredTokenException", "InvalidAccessKeyId",
 	"InvalidClientTokenId", "InvalidSecurity", "InvalidToken", "SignatureDoesNotMatch",
@@ -47,16 +45,13 @@ var misconfigurationCodes = []string{
 	"QueueDoesNotExist", "AWS.SimpleQueueService.NonExistentQueue",
 }
 
-// permissionCodes are AWS error codes for a request the credentials may not
-// make. They fail delivery; a health check reports them as transient, since
-// the probe needs a read permission that delivery does not.
+// permissionCodes fail delivery but are transient for a probe, which needs a read permission delivery does not.
 var permissionCodes = []string{
 	"AccessDenied", "AccessDeniedException", "AuthorizationError",
 	"KMSAccessDenied", "KmsAccessDenied", "KMS.AccessDeniedException",
 }
 
-// misconfigurationStatus are HTTP statuses that no retry can fix. Responses
-// to HEAD requests carry no error code, only the status.
+// misconfigurationStatus covers HEAD responses, which carry no error code.
 var misconfigurationStatus = map[int]bool{
 	http.StatusMovedPermanently: true,
 	http.StatusUnauthorized:     true,
@@ -73,15 +68,12 @@ func (e *apiError) Error() string { return e.text }
 
 func (e *apiError) Unwrap() error { return e.cause }
 
-// WrapError turns an AWS SDK error into an error that names the output and
-// operation and never carries the configured credentials. Errors that no
-// retry can fix, permission denials included, wrap output.ErrMisconfigured.
+// WrapError names the output and operation without the credentials and marks unfixable errors misconfigured.
 func (c *Config) WrapError(name, operation string, err error) error {
 	return c.wrap(name, operation, err, true)
 }
 
-// WrapProbeError is WrapError for health checks: a permission denial, or a
-// bare 403 from a HEAD request, stays transient.
+// WrapProbeError is WrapError for health checks: a permission denial or a bare HEAD 403 stays transient.
 func (c *Config) WrapProbeError(name, operation string, err error) error {
 	return c.wrap(name, operation, err, false)
 }

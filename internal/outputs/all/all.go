@@ -14,8 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package all provides the explicit list of all available output types.
-// Adding a new output: import the package and add its Type to the slice.
+// Package all lists the available output types.
 package all
 
 import (

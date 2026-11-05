@@ -159,7 +159,6 @@ func TestTLSClientConfigValidateValidFiles(t *testing.T) {
 	assert.Empty(t, cfg.Validate())
 }
 
-// generateSelfSignedCA writes a self-signed CA certificate to path.
 func generateSelfSignedCA(t *testing.T, path string) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -182,7 +181,6 @@ func generateSelfSignedCA(t *testing.T, path string) {
 	require.NoError(t, pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: certBytes}))
 }
 
-// generateSelfSignedCert writes a self-signed certificate and key to the given paths.
 func generateSelfSignedCert(t *testing.T, certPath, keyPath string) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

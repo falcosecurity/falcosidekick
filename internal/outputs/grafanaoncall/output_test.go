@@ -38,8 +38,7 @@ const (
 	testEndpoint = "/integrations/v1/formatted_webhook/" + testToken + "/"
 )
 
-// startServer answers with a body that reflects the token, to prove errors
-// never echo it.
+// startServer reflects the token in its body to prove errors never echo it.
 func startServer(t *testing.T, status int) (server *httptest.Server, received <-chan testutil.CapturedRequest) {
 	t.Helper()
 	return testutil.StartCaptureServer(t, status, "response body "+testToken)

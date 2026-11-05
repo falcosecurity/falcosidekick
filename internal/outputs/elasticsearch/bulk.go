@@ -31,20 +31,16 @@ const bulkFilterPath = "errors,items.*.status,items.*.error.type"
 // conflictError is the bulk error type for a document that already exists.
 const conflictError = "version_conflict_engine_exception"
 
-// bulkResponse represents the Elasticsearch _bulk API response.
 type bulkResponse struct {
 	Errors *bool            `json:"errors"`
 	Items  []bulkItemAction `json:"items"`
 }
 
-// bulkItemAction wraps a single bulk response item.
-// Uses "create" because we send append-only events (not "index").
 type bulkItemAction struct {
 	Create *bulkItemResult `json:"create"`
 }
 
-// bulkItemResult holds the status and error type for a single bulk item.
-// The error reason is not requested because it can echo document content.
+// bulkItemResult omits the error reason because it can echo document content.
 type bulkItemResult struct {
 	Error struct {
 		Type string `json:"type"`
@@ -52,9 +48,7 @@ type bulkItemResult struct {
 	Status int `json:"status"`
 }
 
-// buildBulkBody encodes events as NDJSON for the _bulk API.
-// Uses "create" action (append-only, required for data streams). The event
-// UUID becomes the document _id so a retried batch cannot index an event twice.
+// buildBulkBody uses create, required by data streams, and the event UUID as _id so a retry cannot index twice.
 func (d *driver) buildBulkBody(events []*event.Event) ([]byte, error) {
 	var body []byte
 	index := d.resolveIndex()
@@ -85,9 +79,7 @@ func bulkAction(index, id string) ([]byte, error) {
 	return json.Marshal(map[string]meta{"create": {Index: index, ID: id}})
 }
 
-// parseBulkResponse accounts for every item of a bulk response.
-// An item succeeds when it is created, or when it already exists from an
-// earlier attempt of the same batch. Any other item fails the whole batch.
+// parseBulkResponse counts an item that already exists from an earlier attempt as delivered.
 func (d *driver) parseBulkResponse(body []byte, expectedItems int) error {
 	var resp bulkResponse
 	if err := json.Unmarshal(body, &resp); err != nil {

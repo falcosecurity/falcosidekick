@@ -43,7 +43,6 @@ func SortMapKeys[V any](m map[string]V) []string {
 }
 
 // TruncateRunes truncates a string to maxRunes and appends an ellipsis marker if truncated.
-// Used by chat outputs (Slack, Teams, Discord) to enforce API field limits.
 func TruncateRunes(s string, maxRunes int) string {
 	runes := []rune(s)
 	if len(runes) <= maxRunes {
@@ -55,8 +54,7 @@ func TruncateRunes(s string, maxRunes int) string {
 	return string(runes[:maxRunes-3]) + "..."
 }
 
-// TruncateBytes truncates s to at most maxBytes bytes on a UTF-8 boundary,
-// ending with "..." when it cuts.
+// TruncateBytes truncates s to at most maxBytes bytes on a UTF-8 boundary, ending with "..." when it cuts.
 func TruncateBytes(s string, maxBytes int) string {
 	if len(s) <= maxBytes {
 		return s
@@ -73,7 +71,6 @@ func TruncateBytes(s string, maxBytes int) string {
 }
 
 // FormatTags sorts tags alphabetically and joins them with the given separator.
-// Returns an empty string for nil or empty slices.
 func FormatTags(tags []string, sep string) string {
 	if len(tags) == 0 {
 		return ""

@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package awssns implements the AWS SNS output driver: one Publish per
-// event, with the event JSON or the output text and message attributes.
+// Package awssns implements the AWS SNS output driver: one Publish per event.
 package awssns

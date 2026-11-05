@@ -49,9 +49,7 @@ type onCallAlert struct {
 	Message               string `json:"message"`
 }
 
-// onCallIntegration is a strict fake of a formatted webhook integration.
-// With bearer set it rejects requests without that service account token
-// with 403, as the integration does when bearer token security is enabled.
+// onCallIntegration is a strict fake; with bearer set it answers 403 without that token, as OnCall does.
 type onCallIntegration struct {
 	bearer   string
 	alerts   []onCallAlert
@@ -139,8 +137,7 @@ func TestGrafanaOnCallDeliversEvent(t *testing.T) {
 	assert.NotContains(t, sk.logs.String(), onCallBearerToken)
 }
 
-// The integration answers 403 to a missing or wrong service account token.
-// The failure is reported without the integration or bearer token.
+// A 403 for a wrong token is reported without leaking the integration URL or the token.
 func TestGrafanaOnCallReportsRejectedToken(t *testing.T) {
 	integration := &onCallIntegration{status: http.StatusOK, bearer: onCallBearerToken}
 	sk := startOnCall(t, integration, "  bearer_token: glsa_wrongE2EToken\n")
@@ -172,8 +169,7 @@ func TestGrafanaOnCallReportsUnknownIntegration(t *testing.T) {
 	assert.NotContains(t, sk.logs.String(), onCallToken)
 }
 
-// No request can probe the integration without creating an alert, so an
-// unreachable host is only visible on delivery.
+// Probing the integration would create an alert, so an unreachable host fails only on delivery.
 func TestGrafanaOnCallUnreachableAtStartup(t *testing.T) {
 	sk := startSidekick(t, fmt.Sprintf("grafanaoncall:\n  host: \"http://127.0.0.1:1\"\n  secret_endpoint: %q\n", onCallSecretPath))
 	assert.Equal(t, "idle", sk.status(t, "grafanaoncall").Status, "no probe, so not degraded")

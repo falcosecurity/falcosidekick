@@ -33,21 +33,17 @@ type Health string
 
 // Output health values, ordered from worst to best.
 const (
-	// HealthError: the last delivery failed.
+	// HealthError means the last delivery failed.
 	HealthError Health = "error"
-	// HealthDegraded: delivering, but the circuit breaker is not closed or a
-	// warning is set.
+	// HealthDegraded means delivering with the circuit not closed or a warning set.
 	HealthDegraded Health = "degraded"
-	// HealthIdle: nothing delivered yet and nothing wrong.
+	// HealthIdle means nothing delivered yet and nothing wrong.
 	HealthIdle Health = "idle"
-	// HealthOK: the last delivery succeeded.
+	// HealthOK means the last delivery succeeded.
 	HealthOK Health = "ok"
 )
 
 // OutputStatus holds observable counters and state for one output.
-//
-// Status is derived from LastError, CircuitState and LastWarning; see Health.
-// EventsPerMinute is a rolling 60-second success rate.
 type OutputStatus struct {
 	LastSuccess     time.Time `json:"last_success"`
 	Name            string    `json:"name"`
@@ -123,7 +119,6 @@ func (o *Output) totals() (sent, failed, dropped int64) {
 
 func (o *Output) inherit(prev *Output) { o.predecessor.Store(prev) }
 
-// absorb folds the retired predecessor's final counts into base*.
 func (o *Output) absorb() {
 	o.outcomeMu.Lock()
 	defer o.outcomeMu.Unlock()
@@ -142,9 +137,7 @@ func (o *Output) absorb() {
 
 const rateBuckets = 60
 
-// rateWindow maintains a 60-slot ring of per-second sent-event counters so
-// GetStatus can report a rolling events-per-minute rate without relying on
-// start time or a separate goroutine.
+// rateWindow is a ring of per-second sent counts covering the last minute.
 type rateWindow struct {
 	mu      sync.Mutex
 	buckets [rateBuckets]int64
@@ -216,8 +209,7 @@ func NewOutput(driver output.Driver, cfg *output.RuntimeConfig, metrics core.Met
 	return o
 }
 
-// recordLateFailure counts an event that the driver reported as sent and
-// later learned was not delivered.
+// recordLateFailure counts an event that Send accepted but the destination later rejected.
 func (o *Output) recordLateFailure(err error) {
 	o.recordFailure(context.Background(), 1, err)
 }
@@ -232,8 +224,7 @@ func (o *Output) Driver() output.Driver {
 	return o.driver
 }
 
-// Start launches the worker goroutines. A child context is derived from ctx
-// so that Retire can cancel this output's workers independently.
+// Start launches the workers under a child context that Retire cancels.
 func (o *Output) Start(ctx context.Context) {
 	workerCtx, cancel := context.WithCancel(ctx) //nolint:gosec // cancel is stored in o.cancel and called by Retire
 	o.cancel = cancel
@@ -251,7 +242,7 @@ func (o *Output) Start(ctx context.Context) {
 	}
 }
 
-// Enqueue adds an event to the output queue. Drops the event if the queue is full.
+// Enqueue adds an event to the output queue, dropping it when the queue is full.
 func (o *Output) Enqueue(evt *event.Event) {
 	select {
 	case o.queue <- evt:
@@ -267,17 +258,13 @@ func (o *Output) recordDrop() {
 	}
 }
 
-// Close releases the underlying driver resources without draining.
-// Use Retire for a graceful stop that drains the queue first.
+// Close releases the driver without draining; Retire drains first.
 func (o *Output) Close() error {
 	return o.driver.Close()
 }
 
 // Retire closes the queue, drains bounded by ctx, then closes the driver.
-// On deadline it cancels the worker context and returns; the driver close
-// is deferred until workers actually exit. driver.Close is never invoked
-// while a worker may still be in Send. Events left in the queue when workers
-// exit count as dropped.
+// On deadline it cancels the workers and closes the driver only after they exit, never during Send.
 func (o *Output) Retire(ctx context.Context) error {
 	if o.cancel != nil {
 		defer o.cancel()
@@ -308,7 +295,7 @@ func (o *Output) closeQueue() {
 	close(o.queue)
 }
 
-// waitDone blocks until workers exit, then counts events they left queued.
+// waitDone blocks until workers exit, then counts events left queued as dropped.
 func (o *Output) waitDone() {
 	o.workerDone.Wait()
 	for {
@@ -324,8 +311,7 @@ func (o *Output) waitDone() {
 	}
 }
 
-// GetStatus returns a snapshot of this output's counters and state. Sent
-// and failed counts are consistent with last error and last success.
+// GetStatus returns a snapshot of this output's counters and state.
 func (o *Output) GetStatus() OutputStatus {
 	o.outcomeMu.RLock()
 	sent64, failed64, dropped64 := o.totals()
@@ -351,14 +337,11 @@ func (o *Output) GetStatus() OutputStatus {
 	}
 }
 
-// SetHealthWarning records a destination problem found before any delivery,
-// such as an unreachable host at startup. The first successful delivery
-// clears it.
+// SetHealthWarning records a destination problem found before the first successful delivery.
 func (o *Output) SetHealthWarning(warning string) {
 	o.healthWarning.Store(warning)
 }
 
-// lastWarning prefers the driver's current warning over the startup one.
 func (o *Output) lastWarning() string {
 	if warning := o.driverWarning.Load().(string); warning != "" {
 		return warning
@@ -366,9 +349,7 @@ func (o *Output) lastWarning() string {
 	return o.healthWarning.Load().(string)
 }
 
-// executeWithRetry runs fn with circuit breaker and retry. On success it adds
-// count to sentTotal; on final failure, including cancellation during backoff,
-// it adds count to failedTotal.
+// executeWithRetry counts cancellation during backoff as a failure.
 func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc func(ctx context.Context) error) {
 	var lastErr error
 	for attempt := 0; attempt < o.config.Retry.MaxAttempts; attempt++ {

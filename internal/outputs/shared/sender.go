@@ -44,10 +44,7 @@ type Sender struct {
 	name      string
 }
 
-// NewSender creates a Sender with a pre-configured HTTP client.
-// Auth from HTTPConfig (basic auth, bearer token) is auto-configured.
-// Returns an error if headers, authentication, or TLS configuration is invalid.
-// Header value files are checked even if the driver has already validated its config.
+// NewSender creates a Sender and rechecks headers, header files, authentication and TLS.
 func NewSender(name string, cfg *HTTPConfig) (*Sender, error) {
 	if errs := cfg.Validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("%s: %s", name, errs.Error())
@@ -133,8 +130,7 @@ func (s *Sender) SendGzipRaw(ctx context.Context, method, url string, body []byt
 	return s.Do(ctx, req)
 }
 
-// SendJSONCheckBody marshals, sends, and validates the response body.
-// Non-2xx responses always fail; a bounded body check may add a safe DeliveryError code.
+// SendJSONCheckBody fails on non-2xx; check may reject a 2xx body with a safe DeliveryError code.
 func (s *Sender) SendJSONCheckBody(ctx context.Context, method, url string, payload any, check func(body []byte) error) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -149,7 +145,6 @@ func (s *Sender) SendJSONCheckBody(ctx context.Context, method, url string, payl
 }
 
 // SendRawReadBody sends bytes and returns the response body on success.
-// For APIs where the response body contains per-item results (ES bulk).
 func (s *Sender) SendRawReadBody(ctx context.Context, method, url string, body []byte, contentType string) ([]byte, error) {
 	req, err := s.buildRequest(ctx, method, url, body, contentType)
 	if err != nil {
@@ -158,10 +153,7 @@ func (s *Sender) SendRawReadBody(ctx context.Context, method, url string, body [
 	return s.DoReadBody(ctx, req)
 }
 
-// HealthCheck sends GET url. Rejected credentials (401, 403), a missing path
-// (404) and an untrusted certificate wrap output.ErrMisconfigured, except
-// the statuses listed in transient; other failures are returned as they
-// are, since they may pass once the destination is up.
+// HealthCheck sends GET url and classifies the failure with ClassifyMisconfiguration.
 func (s *Sender) HealthCheck(ctx context.Context, url string, transient ...int) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
@@ -170,8 +162,7 @@ func (s *Sender) HealthCheck(ctx context.Context, url string, transient ...int) 
 	return ClassifyMisconfiguration(s.Do(ctx, req), transient...)
 }
 
-// ClassifyMisconfiguration wraps err with output.ErrMisconfigured when it is
-// a 401, 403 or 404 not listed in transient, or an untrusted certificate.
+// ClassifyMisconfiguration marks a 401, 403 or 404 not in transient, or an untrusted certificate, as misconfigured.
 func ClassifyMisconfiguration(err error, transient ...int) error {
 	if isMisconfiguration(err, transient) {
 		return fmt.Errorf("%w: %w", output.ErrMisconfigured, err)
@@ -249,7 +240,6 @@ func (s *Sender) responseError(resp *http.Response, check func([]byte) error) er
 	return diagnostic
 }
 
-// execute applies headers, auth, and runs the HTTP request.
 func (s *Sender) execute(req *http.Request) (*http.Response, error) {
 	req = req.Clone(req.Context())
 	if req.Header == nil {
@@ -270,7 +260,6 @@ func (s *Sender) execute(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-// buildRequest creates an HTTP request with content type set.
 func (s *Sender) buildRequest(ctx context.Context, method, url string, body []byte, contentType string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 	if err != nil {
@@ -292,8 +281,7 @@ func gzipCompress(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// drain reads the response body to EOF and closes it.
-// Reading to EOF enables HTTP/1.1 keep-alive connection reuse.
+// drain reads the body to EOF so HTTP/1.1 can reuse the connection.
 func drain(resp *http.Response) {
 	_, _ = io.Copy(io.Discard, resp.Body)
 	_ = resp.Body.Close()

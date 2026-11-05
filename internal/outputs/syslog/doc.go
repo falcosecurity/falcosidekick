@@ -14,7 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package syslog implements the Syslog output driver. It writes RFC 5424
-// messages over UDP (RFC 5426), TCP (RFC 6587 octet counting) or TLS
-// (RFC 5425).
+// Package syslog implements the Syslog output driver: RFC 5424 over UDP (RFC 5426), TCP (RFC 6587) or TLS (RFC 5425).
 package syslog

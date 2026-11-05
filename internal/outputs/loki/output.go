@@ -124,7 +124,6 @@ func (d *driver) Name() string { return "loki" }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
-// Send delivers a single event to Loki with gzip compression.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
@@ -134,9 +133,6 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendGzipJSON(ctx, http.MethodPost, target, payload)
 }
 
-// SendBatch delivers multiple events to Loki in a single push request.
-// Events with identical label sets are grouped into the same stream.
-// Entries within each stream are ordered by timestamp.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
@@ -146,7 +142,6 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	return d.sender.SendGzipJSON(ctx, http.MethodPost, target, payload)
 }
 
-// HealthCheck verifies connectivity to Loki.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	target, err := d.cfg.URL(d.cfg.Host, readyRoute, nil)
 	if err != nil {

@@ -38,8 +38,7 @@ type reloadMetrics struct {
 	lastSuccess prometheus.Gauge
 }
 
-// newReloadMetrics constructs and optionally registers the reload metrics.
-// A nil registerer skips registration.
+// newReloadMetrics registers the metrics unless reg is nil.
 func newReloadMetrics(reg prometheus.Registerer) *reloadMetrics {
 	m := &reloadMetrics{
 		total: prometheus.NewCounterVec(prometheus.CounterOpts{

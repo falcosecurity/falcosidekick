@@ -131,7 +131,7 @@ func (c *signalConfig) endpointProblem() string {
 	return ""
 }
 
-// target splits the endpoint; defaultPath applies to http/protobuf without a path.
+// target applies defaultPath to an http/protobuf endpoint without a path.
 func (c *signalConfig) target(defaultPath string) target {
 	u, _ := url.Parse(c.Endpoint)
 	path := u.Path

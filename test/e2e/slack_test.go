@@ -74,9 +74,7 @@ type slackField struct {
 	Short bool   `json:"short"`
 }
 
-// slackWebhook is a strict fake of a Slack incoming webhook. Valid payloads
-// are recorded and answered with status and reply; any request Slack would
-// reject is recorded with its reason and answered the way Slack answers it.
+// slackWebhook is a strict fake that answers rejected requests the way Slack does.
 type slackWebhook struct {
 	reply    string
 	messages []slackMessage

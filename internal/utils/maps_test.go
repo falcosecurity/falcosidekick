@@ -28,7 +28,6 @@ func TestDeepCopyMapShallowFields(t *testing.T) {
 
 	assert.Equal(t, src, cp)
 
-	// Mutate copy, original must be unchanged.
 	cp["url"] = "http://changed.com"
 	assert.Equal(t, "http://example.com", src["url"])
 }
@@ -39,7 +38,6 @@ func TestDeepCopyMapNestedMap(t *testing.T) {
 	}
 	cp := DeepCopyMap(src)
 
-	// Mutate nested copy, original must be unchanged.
 	nested := cp["tls"].(map[string]any)
 	nested["ca_file"] = "/new/ca.crt"
 

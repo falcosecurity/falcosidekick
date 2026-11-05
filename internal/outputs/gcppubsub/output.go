@@ -163,8 +163,7 @@ func validateAttributes(attrs map[string]string) utils.ValidationErrors {
 	return errs
 }
 
-// parseCredentials accepts a credentials JSON document, raw or base64-encoded.
-// Errors never include the value.
+// parseCredentials accepts raw or base64 JSON; errors never include the value.
 func parseCredentials(value string) (data []byte, typ option.CredentialsType, err error) {
 	invalid := errors.New("must be a credentials JSON document, raw or base64-encoded")
 	data = []byte(strings.TrimSpace(value))
@@ -220,9 +219,7 @@ func (d *driver) clientOptions() []option.ClientOption {
 
 func (d *driver) Name() string { return name }
 
-// Init creates the client and the topic publisher. It fails when the
-// credentials cannot be loaded; the cause is not returned, as it may quote
-// the credentials.
+// Init drops the credential load cause, which may quote the credentials.
 func (d *driver) Init(ctx context.Context) error {
 	client, err := pubsub.NewClient(ctx, d.cfg.ProjectID, d.clientOptions()...)
 	if err != nil {
@@ -248,13 +245,10 @@ func (d *driver) message(evt *event.Event) (*pubsub.Message, error) {
 	return &pubsub.Message{Data: data, Attributes: d.cfg.CustomAttributes}, nil
 }
 
-// Send publishes one event and waits for the server acknowledgement.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.SendBatch(ctx, []*event.Event{evt})
 }
 
-// SendBatch publishes every event and waits for each result. Any failure
-// fails the batch.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if d.publisher == nil {
 		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
@@ -286,10 +280,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	return fmt.Errorf("%d of %d messages failed: %w", failed, len(results), first)
 }
 
-// HealthCheck reads the topic metadata. A missing topic, a rejected
-// credential or an invalid name is a misconfiguration. PermissionDenied is
-// transient: the Pub/Sub Publisher role grants pubsub.topics.publish but not
-// pubsub.topics.get.
+// HealthCheck treats PermissionDenied as transient: the Publisher role lacks pubsub.topics.get.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil {
 		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
@@ -307,8 +298,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	}
 }
 
-// safeError describes a failure by its gRPC code or class, never by its
-// message, which can quote credentials or token responses.
+// safeError omits the message, which can quote credentials or token responses.
 func safeError(operation string, err error) error {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return shared.WrapDeliveryError(name, operation, err)
@@ -329,8 +319,7 @@ func safeError(operation string, err error) error {
 	return shared.WrapDeliveryError(name, operation, err)
 }
 
-// Close flushes buffered messages for at most closeTimeout, then closes the
-// client. Messages still pending fail when the connection closes.
+// Close flushes for at most closeTimeout; messages still pending then fail.
 func (d *driver) Close() error {
 	if d.client == nil {
 		return nil

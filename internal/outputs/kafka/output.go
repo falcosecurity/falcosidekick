@@ -100,7 +100,6 @@ type driver struct {
 	inflight    sync.WaitGroup
 }
 
-// SetLateFailureHandler receives the pipeline counter for async failures.
 func (d *driver) SetLateFailureHandler(handler func(err error)) {
 	d.lateFailure.Store(&handler)
 }
@@ -190,7 +189,6 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 
 func (d *driver) Name() string { return "kafka" }
 
-// Init creates the Kafka client connection.
 func (d *driver) Init(_ context.Context) error {
 	client, err := kgo.NewClient(d.opts...)
 	if err != nil {
@@ -200,7 +198,6 @@ func (d *driver) Init(_ context.Context) error {
 	return nil
 }
 
-// Send delivers a single event to Kafka.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	if d.client == nil {
 		return fmt.Errorf("kafka: %w", core.ErrNotReady)
@@ -219,7 +216,6 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.client.ProduceSync(ctx, record).FirstErr()
 }
 
-// SendBatch delivers multiple events to Kafka.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if d.client == nil {
 		return fmt.Errorf("kafka: %w", core.ErrNotReady)
@@ -244,7 +240,6 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	return d.client.ProduceSync(ctx, records...).FirstErr()
 }
 
-// HealthCheck tests the Kafka broker connection.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil {
 		return fmt.Errorf("kafka: %w", core.ErrNotReady)
@@ -259,10 +254,8 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	return fmt.Errorf("kafka: %w", err)
 }
 
-// ping returns when ctx ends even if the broker accepted the connection and
-// never answers: franz-go Ping waits for the broker's request queue, which
-// does not observe ctx while the connection is being opened. The abandoned
-// Ping ends on the client's own timeouts or on Close.
+// ping returns when ctx ends: franz-go Ping ignores ctx while the connection opens.
+// The abandoned Ping ends on the client's own timeouts or on Close.
 func (d *driver) ping(ctx context.Context) error {
 	done := make(chan error, 1)
 	go func() { done <- d.client.Ping(ctx) }()
@@ -274,9 +267,7 @@ func (d *driver) ping(ctx context.Context) error {
 	}
 }
 
-// isMisconfiguration reports errors that no retry can fix: rejected SASL
-// credentials or mechanism, and a broker certificate the client does not
-// trust.
+// isMisconfiguration reports errors that no retry can fix.
 func isMisconfiguration(err error) bool {
 	return errors.Is(err, kerr.SaslAuthenticationFailed) ||
 		errors.Is(err, kerr.UnsupportedSaslMechanism) ||
@@ -284,8 +275,7 @@ func isMisconfiguration(err error) bool {
 		shared.IsTLSVerificationError(err)
 }
 
-// Close delivers buffered records for at most the delivery timeout, then
-// closes the client. Records still pending fail through their callbacks.
+// Close flushes for at most the delivery timeout; records still pending fail through their callbacks.
 func (d *driver) Close() error {
 	if d.client == nil {
 		return nil
@@ -311,8 +301,7 @@ func hasKey(raw map[string]any, section, key string) bool {
 	return ok
 }
 
-// asyncCallback handles produce results for async mode. The event was
-// already counted as sent; a failure is counted again as failed.
+// asyncCallback counts a failure as late: the event was already counted as sent.
 func (d *driver) asyncCallback(_ *kgo.Record, err error) {
 	defer d.inflight.Done()
 	if err == nil {

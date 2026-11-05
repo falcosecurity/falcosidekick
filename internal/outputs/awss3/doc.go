@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package awss3 implements the AWS S3 output driver: one object per event,
-// or one newline-delimited JSON object per batch.
+// Package awss3 implements the AWS S3 output driver: one object per event, one NDJSON object per batch.
 package awss3

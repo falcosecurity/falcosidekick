@@ -36,8 +36,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Environment contract: a Mailpit server with SMTP authentication and
-// STARTTLS, its certificate issued for the host of the SMTP address.
+// Mailpit with SMTP auth and STARTTLS, its certificate issued for the SMTP host.
 const (
 	envSMTPAddr     = "FALCOSIDEKICK_E2E_SMTP_ADDR"
 	envSMTPUser     = "FALCOSIDEKICK_E2E_SMTP_USER"
@@ -72,8 +71,7 @@ func mailpit(t *testing.T) *mailpitTarget {
 	}
 }
 
-// serverCertificate fetches the certificate the server presents after
-// STARTTLS and writes it as a trust anchor.
+// serverCertificate writes the STARTTLS certificate as a trust anchor.
 func serverCertificate(t *testing.T, addr, host string) string {
 	t.Helper()
 	client, err := smtp.Dial(addr)
@@ -118,7 +116,6 @@ func (m *mailpitTarget) get(t *testing.T, path string, into any) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(into))
 }
 
-// waitMessage waits for the one message that contains marker.
 func (m *mailpitTarget) waitMessage(t *testing.T, marker string) mailpitMessage {
 	t.Helper()
 	var search struct {

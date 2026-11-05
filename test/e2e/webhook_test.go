@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// webhookReceiver records every request it receives and answers with status.
 type webhookReceiver struct {
 	bodies  [][]byte
 	headers []http.Header

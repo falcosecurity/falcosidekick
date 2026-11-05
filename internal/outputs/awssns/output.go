@@ -95,7 +95,6 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(context.Context) error { return nil }
 
-// Send publishes the event to the topic.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	input, err := d.publishInput(evt)
 	if err != nil {
@@ -124,9 +123,7 @@ func (d *driver) publishInput(evt *event.Event) (*sns.PublishInput, error) {
 	return input, nil
 }
 
-// HealthCheck reads the topic with GetTopicAttributes, which needs
-// sns:GetTopicAttributes. A missing topic, rejected credentials or a denied
-// request wrap output.ErrMisconfigured.
+// HealthCheck sends GetTopicAttributes, which needs sns:GetTopicAttributes.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	_, err := d.client.GetTopicAttributes(ctx, &sns.GetTopicAttributesInput{TopicArn: sdkaws.String(d.cfg.TopicARN)})
 	return d.cfg.WrapProbeError(name, "GetTopicAttributes", err)

@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package catalog provides an output type catalog for creating configured
-// outputs and listing available types for the UI.
+// Package catalog creates configured outputs and lists the available output types.
 package catalog

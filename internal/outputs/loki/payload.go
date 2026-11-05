@@ -36,7 +36,6 @@ type lokiStream struct {
 	Values [][]string        `json:"values"`
 }
 
-// buildPayload creates a Loki push payload for a single event.
 func buildPayload(logFormat string, extraLabels []string, evt *event.Event) lokiPayload {
 	labels := extractLabels(extraLabels, evt)
 	entry := formatEntry(logFormat, evt)
@@ -48,9 +47,7 @@ func buildPayload(logFormat string, extraLabels []string, evt *event.Event) loki
 	}
 }
 
-// buildBatchPayload creates a Loki push payload for multiple events.
-// Events with identical label sets are grouped into the same stream.
-// Entries within each stream are sorted by timestamp (Loki requirement).
+// buildBatchPayload sorts the entries of each stream by timestamp, as Loki requires.
 func buildBatchPayload(logFormat string, extraLabels []string, events []*event.Event) lokiPayload {
 	streamMap := make(map[string]*lokiStream)
 	streamOrder := make([]string, 0)
@@ -78,7 +75,6 @@ func buildBatchPayload(logFormat string, extraLabels []string, events []*event.E
 	return lokiPayload{Streams: streams}
 }
 
-// formatEntry creates a Loki entry [timestamp, line] pair.
 func formatEntry(logFormat string, evt *event.Event) []string {
 	ts := strconv.FormatInt(evt.Time.UnixNano(), 10)
 

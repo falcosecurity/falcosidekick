@@ -139,8 +139,7 @@ func (d *driver) Name() string { return "slack" }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
-// Send delivers an event as a Slack attachment.
-// Checks the response body because Slack returns HTTP 200 with error text on failure.
+// Send checks the body because Slack answers 200 with error text on failure.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
@@ -149,15 +148,11 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSONCheckBody(ctx, http.MethodPost, target, d.buildPayload(evt), checkSlackResponse)
 }
 
-// HealthCheck is a no-op: the endpoint only accepts POST, so no request can
-// probe it without delivering a message.
+// HealthCheck is a no-op: the endpoint only accepts POST, which delivers a message.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
 func (d *driver) Close() error { return nil }
 
-// checkSlackResponse validates the Slack webhook response body.
-// Slack returns HTTP 200 with body "ok" on success, or error text like
-// "invalid_payload", "channel_not_found", "no_service" on failure.
 func checkSlackResponse(body []byte) error {
 	body = bytes.TrimSpace(body)
 	if len(body) == 0 || bytes.Equal(body, []byte("ok")) {

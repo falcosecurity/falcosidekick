@@ -24,7 +24,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-// extractLabels builds the label set for a Falco event.
 func extractLabels(extraLabels []string, evt *event.Event) map[string]string {
 	labels := map[string]string{
 		"rule":     evt.Rule,

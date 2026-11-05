@@ -63,8 +63,6 @@ type pagerdutyPayload struct {
 var pagerdutySeverities = map[string]bool{"critical": true, "error": true, "warning": true, "info": true}
 
 // pagerdutyEvents is a strict fake of the Events API v2 enqueue endpoint.
-// Requests PagerDuty would reject are recorded with their reason and answered
-// the way PagerDuty answers them.
 type pagerdutyEvents struct {
 	events   []pagerdutyEvent
 	rejected []string
@@ -130,8 +128,7 @@ func (p *pagerdutyEvents) snapshot() (events []pagerdutyEvent, rejected []string
 	return append([]pagerdutyEvent(nil), p.events...), append([]string(nil), p.rejected...)
 }
 
-// startPagerDuty reads the routing key from a file so the _file variant is
-// covered end to end.
+// startPagerDuty reads the routing key from a file to cover the _file variant.
 func startPagerDuty(t *testing.T, status int) (*pagerdutyEvents, *sidekick) {
 	t.Helper()
 	fake := &pagerdutyEvents{status: status}

@@ -26,8 +26,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// TLSClientConfig holds per-output TLS settings. Used by both HTTP and TCP outputs.
-// YAML structure is always under a tls: sub-key per output.
+// TLSClientConfig holds the per-output TLS settings of HTTP and TCP outputs.
 type TLSClientConfig struct {
 	CAFile             string `mapstructure:"ca_file"`
 	CertFile           string `mapstructure:"cert_file"`

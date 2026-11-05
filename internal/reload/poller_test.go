@@ -45,10 +45,9 @@ func TestPollerDetectsContentChange(t *testing.T) {
 
 	go func() { _ = p.Run(ctx) }()
 
-	// Wait for initial hash computation + first tick.
+	// The first tick only records hashes.
 	time.Sleep(50 * time.Millisecond)
 
-	// Modify file content.
 	require.NoError(t, os.WriteFile(path, []byte("outputs:\n  slack: {}"), 0o644))
 
 	assert.Eventually(t, func() bool {
@@ -72,7 +71,6 @@ func TestPollerSkipsWhenUnchanged(t *testing.T) {
 
 	go func() { _ = p.Run(ctx) }()
 
-	// Wait for several poll cycles without changing the file.
 	time.Sleep(500 * time.Millisecond)
 
 	assert.Equal(t, int64(0), calls.Load(), "poller must not trigger reload when content unchanged")

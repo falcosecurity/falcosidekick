@@ -26,15 +26,8 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
-// registerStaticUI installs the static-asset middleware on app when assets
-// is non-nil. API and operator paths (/api/**, /healthz, /version, /metrics)
-// are always skipped so they remain served by their explicit handlers.
-// A non-asset GET whose path does not match a file falls back to index.html
-// so client-side router paths such as /events or /pipeline resolve on hard
-// refresh. Response compression is handled globally by compress.New in
-// mountRoutes; static.Config.Compress is left off because it requires
-// pre-compressed files on disk (.gz/.br/.zst) which the embedded FS does
-// not provide.
+// registerStaticUI falls back to index.html so client-side routes survive a refresh.
+// static.Config.Compress stays off: it needs pre-compressed files the embedded FS lacks.
 func registerStaticUI(app *fiber.App, assets fs.FS) {
 	if assets == nil {
 		return

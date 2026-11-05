@@ -32,8 +32,7 @@ import (
 
 const replyOK = "+OK\r\n"
 
-// fakeRedis speaks enough RESP2 for the driver: HELLO is refused, so the
-// client falls back to AUTH and SELECT.
+// fakeRedis refuses HELLO so the client falls back to RESP2 AUTH and SELECT.
 type fakeRedis struct {
 	replies  map[string]string
 	password string

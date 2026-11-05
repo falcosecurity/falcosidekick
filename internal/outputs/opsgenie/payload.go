@@ -46,7 +46,6 @@ type alert struct {
 	Tags        []string          `json:"tags,omitempty"`
 }
 
-// priority maps Falco priorities to Opsgenie P1-P5 as v2 did.
 func priority(p event.Priority) string {
 	switch p {
 	case event.PriorityEmergency, event.PriorityAlert:
@@ -62,10 +61,7 @@ func priority(p event.Priority) string {
 	}
 }
 
-// buildDetails fills the alert details within the 8000-character budget
-// Opsgenie applies to keys and values together: event metadata first, then
-// output fields in key order; the field that crosses the budget is
-// truncated and the rest are left out.
+// buildDetails keeps keys and values together within maxDetailsRunes, as Opsgenie counts both.
 func buildDetails(evt *event.Event) map[string]string {
 	details := make(map[string]string, len(evt.OutputFields)+5)
 	budget := maxDetailsRunes
@@ -115,8 +111,7 @@ func buildAlert(evt *event.Event) alert {
 		Priority:    priority(evt.Priority),
 		Tags:        alertTags(evt.Tags),
 	}
-	// Opsgenie deduplicates open alerts by alias, so a retried event does not
-	// open a second alert.
+	// Opsgenie deduplicates open alerts by alias, so a retry opens no second alert.
 	if len(evt.UUID) <= maxAliasLen {
 		a.Alias = evt.UUID
 	}

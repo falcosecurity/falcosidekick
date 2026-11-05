@@ -34,8 +34,7 @@ import (
 // eventName names the log records as OpenTelemetry events.
 const eventName = "falco.alert"
 
-// severities maps Falco priorities as the OpenTelemetry log data model maps
-// syslog levels.
+// severities follows the syslog mapping of the OpenTelemetry log data model.
 var severities = map[event.Priority]otellog.Severity{
 	event.PriorityEmergency:     otellog.SeverityFatal,
 	event.PriorityAlert:         otellog.SeverityError3,
@@ -47,9 +46,7 @@ var severities = map[event.Priority]otellog.Severity{
 	event.PriorityDebug:         otellog.SeverityDebug,
 }
 
-// logsSignal emits one record per event through an instance-scoped
-// provider whose only processor hands the records back to the caller, which
-// exports them synchronously.
+// logsSignal's only processor hands records back to the caller, which exports them synchronously.
 type logsSignal struct {
 	exporter sdklog.Exporter
 	provider *sdklog.LoggerProvider

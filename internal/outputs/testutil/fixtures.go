@@ -25,8 +25,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-// DefaultRuntimeConfig returns the runtime defaults shared across
-// api, reload, and pipeline tests.
+// DefaultRuntimeConfig returns the runtime defaults shared by api, reload and pipeline tests.
 func DefaultRuntimeConfig() output.RuntimeConfig {
 	return output.RuntimeConfig{
 		QueueSize: 100,

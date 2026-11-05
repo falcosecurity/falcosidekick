@@ -295,8 +295,7 @@ func TestParseBulkResponseAccountsForEveryItem(t *testing.T) {
 	}
 }
 
-// fakeBulkStore models Elasticsearch create semantics: an _id is stored once
-// and a second create of the same _id is a conflict.
+// fakeBulkStore models create semantics: a second create of the same _id is a conflict.
 type fakeBulkStore struct {
 	stored  map[string]int
 	failIDs map[string]bool

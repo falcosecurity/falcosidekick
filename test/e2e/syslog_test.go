@@ -47,7 +47,6 @@ import (
 // https://www.rfc-editor.org/rfc/rfc5424#section-6
 var syslogHeader = regexp.MustCompile(`^<(\d{1,3})>1 (\S+) ([\x21-\x7e]{1,255}) ([\x21-\x7e]{1,48}) ([\x21-\x7e]{1,128}) ([\x21-\x7e]{1,32}) - `)
 
-// syslogMessage is one message accepted by the strict receiver.
 type syslogMessage struct {
 	Time     time.Time
 	Hostname string
@@ -56,9 +55,7 @@ type syslogMessage struct {
 	Pri      int
 }
 
-// syslogReceiver is a strict RFC 5424 receiver. Stream transports must use
-// octet counting (RFC 6587 section 3.4.1); anything malformed is recorded as
-// rejected and, on a stream, closes the connection.
+// syslogReceiver is a strict RFC 5424 receiver requiring octet counting on streams (RFC 6587 3.4.1).
 type syslogReceiver struct {
 	messages []syslogMessage
 	rejected []string
@@ -171,8 +168,6 @@ func (r *syslogReceiver) servePackets(pc net.PacketConn) {
 	}
 }
 
-// startSyslogReceiver listens on 127.0.0.1 for protocol and returns the
-// receiver, its port and, for tls, a CA file that trusts its certificate.
 func startSyslogReceiver(t *testing.T, protocol string) (receiver *syslogReceiver, port int, caFile string) {
 	t.Helper()
 	receiver = &syslogReceiver{}
@@ -210,7 +205,6 @@ func syslogOutput(port int, protocol, extra string) string {
 	return fmt.Sprintf("syslog:\n  host: 127.0.0.1\n  port: %d\n  protocol: %s\n", port, protocol) + indent(extra)
 }
 
-// waitSyslog waits for a message whose MSG contains marker.
 func waitSyslog(t *testing.T, r *syslogReceiver, marker string) syslogMessage {
 	t.Helper()
 	var found syslogMessage

@@ -24,8 +24,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-// Envelope and limits from
-// https://learn.microsoft.com/en-us/connectors/teams/ (When a Teams webhook request is received) and
+// Envelope and limits: https://learn.microsoft.com/en-us/connectors/teams/ (When a Teams webhook request is received)
 // https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook.
 const (
 	adaptiveContentType = "application/vnd.microsoft.card.adaptive"
@@ -83,8 +82,7 @@ type fact struct {
 	Value string `json:"value"`
 }
 
-// priorityStyles maps priorities to Adaptive Card container styles, following
-// the v2 MessageCard hues: red/orange, yellow, green, blue, neutral.
+// priorityStyles maps priorities to Adaptive Card container styles.
 var priorityStyles = map[event.Priority]string{
 	event.PriorityEmergency:     "attention",
 	event.PriorityAlert:         "attention",
@@ -96,8 +94,7 @@ var priorityStyles = map[event.Priority]string{
 	event.PriorityDebug:         "default",
 }
 
-// priorityStyle returns a value valid both as a Container style and as a
-// TextBlock color.
+// priorityStyle returns a value valid both as a Container style and as a TextBlock color.
 func priorityStyle(p event.Priority) string {
 	if s, ok := priorityStyles[p]; ok {
 		return s
@@ -113,9 +110,7 @@ func factBytes(f fact) int {
 	return len(b) + 1
 }
 
-// buildFacts returns the v2 fact order: rule, priority, source, hostname,
-// output fields sorted by key, tags. Output fields are facts[outputFrom:outputTo],
-// so callers can drop them before the others.
+// buildFacts returns the output fields as facts[outputFrom:outputTo] so callers can drop them first.
 func buildFacts(evt *event.Event) (facts []fact, outputFrom, outputTo int) {
 	facts = append(facts,
 		fact{Title: "rule", Value: shared.TruncateRunes(evt.Rule, maxFactRunes)},
@@ -177,8 +172,7 @@ func (d *driver) card(evt *event.Event, text string, facts []fact) message {
 	}
 }
 
-// buildPayload renders the card and shrinks it under maxPayloadBytes: output
-// fields go first, then the other facts, then the text is cut.
+// buildPayload shrinks the card under maxPayloadBytes: output fields first, then other facts, then the text.
 func (d *driver) buildPayload(evt *event.Event) ([]byte, error) {
 	var text string
 	if d.cfg.OutputFormat == formatAll || d.cfg.OutputFormat == formatText {

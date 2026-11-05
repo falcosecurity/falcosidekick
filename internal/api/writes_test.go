@@ -47,7 +47,6 @@ func readOnlyServer(t *testing.T, rig *mutationTestRig) *Server {
 	return srv
 }
 
-// isWriteMethod lists the methods that can change server state.
 func isWriteMethod(method string) bool {
 	switch method {
 	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:

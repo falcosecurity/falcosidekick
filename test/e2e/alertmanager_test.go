@@ -30,8 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// alertmanagerUnreachable and alertmanagerUnreachable2 are local origins with
-// no listener.
+// Local origins with no listener.
 const (
 	alertmanagerUnreachable  = "http://127.0.0.1:19094"
 	alertmanagerUnreachable2 = "http://127.0.0.1:19097"
@@ -44,13 +43,11 @@ type alertmanagerAlert struct {
 	EndsAt      time.Time         `json:"endsAt"`
 }
 
-// alertmanagerRule is the rule label of the event posted with marker; label
-// values arrive verbatim.
+// alertmanagerRule is the rule label of the marker event; label values arrive verbatim.
 func alertmanagerRule(marker string) string {
 	return "E2E " + marker
 }
 
-// alertmanagerAlerts returns the alerts whose rule label matches marker.
 func alertmanagerAlerts(t *testing.T, baseURL, marker string) []alertmanagerAlert {
 	t.Helper()
 	query := url.Values{"filter": {fmt.Sprintf("rule=%q", alertmanagerRule(marker))}}
@@ -63,8 +60,6 @@ func alertmanagerAlerts(t *testing.T, baseURL, marker string) []alertmanagerAler
 	return alerts
 }
 
-// waitAlertmanagerAlert polls Alertmanager until an alert carries marker and
-// requires it to be the only one.
 func waitAlertmanagerAlert(t *testing.T, baseURL, marker string) alertmanagerAlert {
 	t.Helper()
 	var alerts []alertmanagerAlert
@@ -120,9 +115,7 @@ func TestAlertmanagerDeliversAlert(t *testing.T) {
 	assert.Equal(t, 600*time.Second, alert.EndsAt.Sub(alert.StartsAt))
 }
 
-// With several hosts the driver posts to all of them and counts the event as
-// sent when at least one host accepts it; the failed host degrades the output
-// with a warning instead of an error.
+// One accepting host counts the event as sent; a failed host only degrades the output.
 func TestAlertmanagerFanOutToleratesUnreachableHost(t *testing.T) {
 	amURL := requireEnv(t, "FALCOSIDEKICK_E2E_ALERTMANAGER_URL")
 	sk := startSidekick(t, fmt.Sprintf(`alertmanager:
@@ -161,8 +154,7 @@ func TestAlertmanagerFanOutFailsWhenAllHostsFail(t *testing.T) {
 	assert.Contains(t, st.LastError, "all 2 hosts failed")
 }
 
-// A wrong base path makes the health probe answer 404, a configuration error
-// that stops startup. A wrong endpoint is only visible on delivery.
+// A wrong base path fails the health probe at startup; a wrong endpoint fails only on delivery.
 func TestAlertmanagerReportsWrongRoute(t *testing.T) {
 	amURL := requireEnv(t, "FALCOSIDEKICK_E2E_ALERTMANAGER_URL")
 	t.Run("base_path", func(t *testing.T) {

@@ -114,8 +114,7 @@ func (d *driver) Init(context.Context) error { return nil }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 
-// Send posts the event as an Adaptive Card. Workflows answers 202 once the
-// flow run is queued; a failing run is only visible in the flow history.
+// Send gets 202 once the flow run is queued; a failing run shows only in the flow history.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {

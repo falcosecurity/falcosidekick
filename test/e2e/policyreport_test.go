@@ -70,7 +70,6 @@ func kubeCluster(t *testing.T) kubeTarget {
 	return kubeTarget{client: client, discovery: disc, kubeconfig: path}
 }
 
-// createNamespace creates a namespace named after marker and deletes it when the test ends.
 func (k kubeTarget) createNamespace(t *testing.T, prefix, marker string) string {
 	t.Helper()
 	ns := prefix + "-" + marker
@@ -85,8 +84,7 @@ func (k kubeTarget) createNamespace(t *testing.T, prefix, marker string) string 
 	return ns
 }
 
-// results returns the results of the report in namespace, or of the
-// ClusterReport when namespace is empty, that carry marker.
+// results reads the ClusterReport when namespace is empty.
 func (k kubeTarget) results(t *testing.T, namespace, marker string) (report *unstructured.Unstructured, found []map[string]any) {
 	t.Helper()
 	var err error
@@ -267,8 +265,7 @@ func servesResource(k kubeTarget, gvr schema.GroupVersionResource) bool {
 	return slices.ContainsFunc(list.APIResources, func(r metav1.APIResource) bool { return r.Name == gvr.Resource })
 }
 
-// kubeconfigWithToken copies the cluster and CA of the test kubeconfig with a
-// bearer token as the only credential.
+// kubeconfigWithToken keeps the test cluster and CA with a bearer token as the only credential.
 func kubeconfigWithToken(t *testing.T, k kubeTarget, server, token string) string {
 	t.Helper()
 	cfg, err := clientcmd.LoadFromFile(k.kubeconfig)

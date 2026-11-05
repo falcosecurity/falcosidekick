@@ -50,8 +50,7 @@ const (
 
 	// ioTimeout bounds a dial or write when the context has no deadline.
 	ioTimeout = 10 * time.Second
-	// probeTimeout is how long a stream connection is read to detect that
-	// the receiver closed it; receivers never send data.
+	// probeTimeout bounds the read that detects a receiver closing a stream connection.
 	probeTimeout = time.Millisecond
 )
 
@@ -205,8 +204,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return nil
 }
 
-// HealthCheck dials TCP and TLS receivers and keeps the connection for
-// Send. UDP has no handshake, so the probe is a no-op.
+// HealthCheck dials stream receivers and keeps the connection; UDP has no handshake to probe.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.cfg.Protocol == protocolUDP {
 		return nil
@@ -221,8 +219,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-// Close waits for the write in progress, which its deadline bounds, and
-// closes the connection.
+// Close waits for the write in progress, which its deadline bounds.
 func (d *driver) Close() error {
 	d.sem <- struct{}{}
 	defer d.release()
@@ -246,8 +243,7 @@ func (d *driver) acquire(ctx context.Context) error {
 
 func (d *driver) release() { <-d.sem }
 
-// connection returns the open connection, replacing one the receiver closed.
-// The caller holds sem.
+// connection replaces a connection the receiver closed; the caller holds sem.
 func (d *driver) connection(ctx context.Context) (net.Conn, error) {
 	if d.closed {
 		return nil, shared.WrapDeliveryError(name, "dial", errClosed)
@@ -276,9 +272,7 @@ func (d *driver) drop() {
 	}
 }
 
-// peerClosed reports whether the receiver closed or reset the connection.
-// Receivers never write, so any read result other than a timeout means the
-// connection is gone.
+// peerClosed treats any read result but a timeout as closed: receivers never write.
 func peerClosed(conn net.Conn) bool {
 	if err := conn.SetReadDeadline(time.Now().Add(probeTimeout)); err != nil {
 		return true
@@ -294,8 +288,7 @@ func peerClosed(conn net.Conn) bool {
 	return true
 }
 
-// write sends msg before the context deadline, or ioTimeout without one,
-// and stops as soon as the context ends.
+// write uses the context deadline, or ioTimeout without one, and stops as soon as ctx ends.
 func write(ctx context.Context, conn net.Conn, msg []byte) error {
 	deadline := time.Now().Add(ioTimeout)
 	ctxDeadline := false

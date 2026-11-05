@@ -71,8 +71,7 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 
-// Init creates one exporter per enabled signal; gRPC connections open on
-// first use.
+// Init creates one exporter per enabled signal; gRPC connections open on first use.
 func (d *driver) Init(ctx context.Context) error {
 	if err := d.init(ctx, newResource()); err != nil {
 		_ = d.Close()
@@ -125,12 +124,10 @@ func (d *driver) init(ctx context.Context, res *sdkresource.Resource) error {
 	return nil
 }
 
-// Send exports one event to every enabled signal.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.SendBatch(ctx, []*event.Event{evt})
 }
 
-// SendBatch exports the events in one request per enabled signal.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if len(d.signals) == 0 {
 		return fmt.Errorf("otlp: %w", core.ErrNotReady)
@@ -147,8 +144,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 // HealthCheck is a no-op: OTLP has no request that exports nothing.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
-// Close shuts down every exporter, each within its export timeout. Exports
-// are synchronous, so nothing is buffered.
+// Close needs no flush: exports are synchronous.
 func (d *driver) Close() error {
 	var errs []error
 	for _, s := range d.signals {

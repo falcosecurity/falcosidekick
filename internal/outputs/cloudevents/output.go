@@ -107,8 +107,7 @@ func (c *config) validate() utils.ValidationErrors {
 	return nil
 }
 
-// validString applies the CloudEvents String type: valid UTF-8 without
-// control characters U+0000-U+001F and U+007F-U+009F.
+// validString applies the CloudEvents String type: valid UTF-8 without U+0000-U+001F and U+007F-U+009F.
 func validString(s string) bool {
 	if !utf8.ValidString(s) {
 		return false
@@ -140,7 +139,6 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(context.Context) error { return nil }
 
-// Send posts the event in binary content mode. Any 2xx is success.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
@@ -153,8 +151,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.Do(ctx, req)
 }
 
-// HealthCheck is a no-op: a CloudEvents receiver has no standard probe, and
-// any request to it may be taken as an event.
+// HealthCheck is a no-op: receivers have no standard probe and may take any request as an event.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
 func (d *driver) Close() error { return nil }

@@ -77,8 +77,7 @@ func (h ValueSources) resolve() ([]string, error) {
 	return h.resolveSources("header", httpguts.ValidHeaderFieldValue)
 }
 
-// ApplyHeaders replaces configured request headers in values, secrets, files order.
-// It leaves the request unchanged if any header cannot be resolved or validated.
+// ApplyHeaders applies values, secrets, then files, and leaves the request unchanged if any header fails.
 func ApplyHeaders(req *http.Request, headers map[string]ValueSources) error {
 	if err := validateHeaderNames(headers); err != nil {
 		return err

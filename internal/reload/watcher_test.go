@@ -33,7 +33,6 @@ import (
 
 const testDebounce = 100 * time.Millisecond
 
-// startWatcher runs a watcher on paths and waits until it watches them.
 func startWatcher(t *testing.T, paths []string) *atomic.Int64 {
 	t.Helper()
 	var calls atomic.Int64
@@ -142,7 +141,6 @@ func TestWatcherFailsOnMissingDirectory(t *testing.T) {
 	}
 }
 
-// loopHarness drives the debounce loop with synthetic events under synctest.
 type loopHarness struct {
 	events chan fsnotify.Event
 	calls  atomic.Int64

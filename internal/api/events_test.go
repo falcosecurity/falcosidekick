@@ -33,8 +33,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-// --- splitCSV ---
-
 func TestSplitCSV(t *testing.T) {
 	tests := []struct {
 		name string
@@ -54,8 +52,6 @@ func TestSplitCSV(t *testing.T) {
 		})
 	}
 }
-
-// --- /api/v1/events/search ---
 
 func TestHandleEventsSearch_Defaults(t *testing.T) {
 	store := &fakeReadableStore{}
@@ -173,8 +169,6 @@ func TestHandleEventsSearch_StoreError(t *testing.T) {
 	assert.Contains(t, string(body), "boom")
 }
 
-// --- /api/v1/events/count ---
-
 func TestHandleEventsCount(t *testing.T) {
 	store := &fakeReadableStore{
 		CountFn: func(_ context.Context, _ *output.Filters) (int64, error) {
@@ -258,8 +252,6 @@ func TestHandleEventsCount_StoreError(t *testing.T) {
 	assert.Equal(t, 500, resp.StatusCode)
 }
 
-// --- /api/v1/events/count/:groupby ---
-
 func TestHandleEventsCountBy_Valid(t *testing.T) {
 	store := &fakeReadableStore{
 		CountByFn: func(_ context.Context, _ string, _ *output.Filters) (map[string]int64, error) {
@@ -340,8 +332,6 @@ func TestHandleEventsCountBy_EmptyGroupsSerialization(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(body), `"groups":{}`, "nil map must serialize as empty object, not null")
 }
-
-// --- /api/v1/events/:uuid ---
 
 func TestHandleEventByUUID_Hit(t *testing.T) {
 	want := &event.Event{

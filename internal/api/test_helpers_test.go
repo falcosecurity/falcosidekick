@@ -314,7 +314,6 @@ func buildMutationTestServerNilReloader(t *testing.T, db core.Database) *Server 
 	return srv
 }
 
-// writableConfig enables the mutating routes, which are off by default.
 func writableConfig() *core.Config {
 	return &core.Config{API: core.APIConfig{AllowWrites: true}}
 }

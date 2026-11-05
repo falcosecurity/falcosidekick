@@ -24,8 +24,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// Config holds Sidekick core configuration settings
-// Loaded from sidekick.yaml. Requires restart on change.
+// Config holds Sidekick core configuration; changes require a restart.
 type Config struct {
 	TLS           *TLSConfig         `json:"tls,omitempty" mapstructure:"tls,omitempty"`
 	LogFormat     LogFormat          `json:"log_format" mapstructure:"log_format"`
@@ -41,16 +40,11 @@ type Config struct {
 }
 
 // MetricsConfig controls the Prometheus metrics on /metrics.
-//   - ExtraLabels: event output field names (for example k8s.ns.name)
-//     added as labels to the Falco events counter; dots become
-//     underscores. Each distinct value is a new series.
 type MetricsConfig struct {
 	ExtraLabels []string `json:"extra_labels" mapstructure:"extra_labels"`
 }
 
-// Validate rejects extra labels that are not valid Prometheus label names
-// once dots are replaced, or that collide with each other or with the
-// counter's own labels.
+// Validate rejects extra labels that are invalid Prometheus label names or collide with another label.
 func (c MetricsConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	seen := map[string]string{"rule": "", "priority": "", "source": ""}
@@ -95,28 +89,17 @@ func validMetricLabel(name string) bool {
 }
 
 // APIConfig controls the management API.
-//   - AllowWrites: when false (default), routes that change the running
-//     configuration answer 403. There is no authentication on these routes.
 type APIConfig struct {
 	AllowWrites bool `json:"allow_writes" mapstructure:"allow_writes"`
 }
 
-// ProvisioningConfig controls the interaction between file-based
-// provisioning and UI-driven writes. Both flags default to false.
-//   - AllowUIUpdates: when false, PUT/DELETE on Provisioned:true
-//     entries return 409. When true, UI writes are accepted on any
-//     entry; the next file reload restores the file version for
-//     file-provisioned names.
-//   - DisableDeletion: when false, Provisioned:true entries not in
-//     the file set are removed on reload. When true, they are kept
-//     in the database and continue running.
+// ProvisioningConfig controls how file provisioning and UI writes interact.
 type ProvisioningConfig struct {
 	AllowUIUpdates  bool `json:"allow_ui_updates" mapstructure:"allow_ui_updates"`
 	DisableDeletion bool `json:"disable_deletion" mapstructure:"disable_deletion"`
 }
 
-// Validate checks core configuration for errors. Does not validate TLS file
-// paths (I/O) - that validation lives in the config loader.
+// Validate checks core configuration; TLS files are checked by the config loader.
 func (c *Config) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 
@@ -240,8 +223,7 @@ func (c *DatabaseConfig) Validate() utils.ValidationErrors {
 	return errs
 }
 
-// ReloadConfig holds hot-reload settings.
-// Only output config is hot-reloadable; core config requires restart.
+// ReloadConfig holds hot-reload settings for output configuration.
 type ReloadConfig struct {
 	PollInterval  time.Duration `json:"poll_interval" mapstructure:"poll_interval"`
 	RetireTimeout time.Duration `json:"retire_timeout" mapstructure:"retire_timeout"`

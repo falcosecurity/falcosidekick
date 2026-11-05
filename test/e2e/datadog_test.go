@@ -56,8 +56,7 @@ var datadogAlertTypes = []string{"error", "warning", "info", "success", "user_up
 
 const datadogAppKey = "e2eDatadogAppKey0123456789abcdef0123456"
 
-// datadogV2Request mirrors the Events API v2 EventCreateRequestPayload for
-// the alert category:
+// datadogV2Request mirrors the Events API v2 alert EventCreateRequestPayload:
 // https://github.com/DataDog/datadog-api-client-go/blob/master/.generator/schemas/v2/openapi.yaml
 type datadogV2Request struct {
 	Data struct {
@@ -81,9 +80,7 @@ type datadogV2Request struct {
 	} `json:"data"`
 }
 
-// datadogAPI is a strict fake of the Datadog API. It checks the keys on
-// every request like Datadog does (403 when wrong), validates event bodies
-// against the documented schemas and records what it accepted.
+// datadogAPI is a strict fake that answers 403 to wrong keys, as Datadog does.
 type datadogAPI struct {
 	key         string
 	events      []datadogEvent

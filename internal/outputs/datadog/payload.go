@@ -35,7 +35,7 @@ const (
 	alertInfo    = "info"
 )
 
-// payload is the Events API v1 request body, with the fields v2 sent.
+// payload is the Events API v1 request body.
 type payload struct {
 	Title      string   `json:"title"`
 	Text       string   `json:"text"`
@@ -99,8 +99,7 @@ type v2Alert struct {
 	Priority string `json:"priority"`
 }
 
-// newV2Payload carries the v1 content in the v2 schema. The event UUID is
-// the aggregation key, so a retried event is deduplicated.
+// newV2Payload uses the event UUID as aggregation key so a retried event is deduplicated.
 func newV2Payload(evt *event.Event) v2Request {
 	v1 := newPayload(evt)
 	tags := v1.Tags
@@ -124,8 +123,7 @@ func newV2Payload(evt *event.Event) v2Request {
 	}}
 }
 
-// alertStatus maps a priority to warn, error or ok, the only v2 statuses;
-// priorities v1 sent as info become ok.
+// alertStatus maps a priority to warn, error or ok, the only Events API v2 statuses.
 func alertStatus(p event.Priority) string {
 	switch alertType(p) {
 	case alertError:

@@ -25,8 +25,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-// Embed limits from https://docs.discord.com/developers/resources/message
-// (Embed Limits). A payload over any of them is rejected with 400.
+// Discord rejects an embed over these limits: https://docs.discord.com/developers/resources/message
 const (
 	maxDescriptionRunes = 4096
 	maxFields           = 25
@@ -53,7 +52,7 @@ type field struct {
 	Inline bool   `json:"inline"`
 }
 
-// priorityColors are the v2 colors as integers, as the embed object requires.
+// priorityColors are integers, as the embed object requires.
 var priorityColors = map[event.Priority]int{
 	event.PriorityEmergency:     15158332, // red
 	event.PriorityAlert:         11027200, // dark orange
@@ -77,9 +76,7 @@ func (f field) runes() int {
 	return utf8.RuneCountInString(f.Name) + utf8.RuneCountInString(f.Value)
 }
 
-// buildPayload keeps the v2 field order: rule, priority, source, hostname,
-// output fields sorted by key, tags, time. Output fields are dropped first
-// when the embed would exceed the field count or the total character limit.
+// buildPayload drops output fields first when the embed would exceed a limit.
 func (d *driver) buildPayload(evt *event.Event) payload {
 	head := []field{
 		newField("rule", evt.Rule),

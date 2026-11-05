@@ -78,12 +78,10 @@ func fatal(err error) {
 }
 
 func run(parentCtx context.Context, configPath string, outputPaths []string) error {
-	// appCtx: canceled on SIGTERM/SIGINT or when parentCtx is canceled.
 	appCtx, stop := signal.NotifyContext(parentCtx, syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
-	// workerRunCtx: separate from appCtx so SIGTERM does not immediately kill
-	// queued-event drain. Canceled explicitly during shutdown after drain timeout.
+	// Workers outlive appCtx so SIGTERM does not abort the queued-event drain.
 	workerRunCtx, stopWorkers := context.WithCancel(context.Background())
 	defer stopWorkers()
 

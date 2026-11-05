@@ -25,9 +25,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// ResolveSecrets reads file-backed secrets for fields marked Secret in the schema.
-// For each Secret field, if <field>_file is set and <field> is empty, the file
-// content replaces the field value. Trailing newlines are stripped.
+// ResolveSecrets fills empty Secret fields from their <field>_file counterparts.
 func ResolveSecrets(outputName string, cfg map[string]any, schema output.Schema) error {
 	for _, field := range schema.Fields {
 		if !field.Secret {

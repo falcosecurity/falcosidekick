@@ -14,7 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package shared provides the shared toolkit for output driver implementations.
-// It includes HTTP request handling (Sender), TLS configuration, priority
-// presentation mappings, field formatting, and logging helpers.
+// Package shared provides the HTTP, TLS, formatting and logging helpers of output drivers.
 package shared

@@ -31,8 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// snsEnvelope is the SNS notification an SQS subscription receives without
-// raw message delivery.
+// snsEnvelope is the notification an SQS subscriber gets without raw message delivery.
 type snsEnvelope struct {
 	MessageAttributes map[string]struct {
 		Type  string `json:"Type"`
@@ -42,8 +41,6 @@ type snsEnvelope struct {
 	TopicArn string `json:"TopicArn"`
 }
 
-// createTopic creates a topic named after marker with an SQS queue
-// subscribed to it, both deleted when the test ends.
 func (a *awsTarget) createTopic(t *testing.T, marker string) (topicARN, queueURL string) {
 	t.Helper()
 	client := sns.NewFromConfig(a.cfg)

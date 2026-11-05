@@ -23,10 +23,7 @@ import (
 
 var labelSanitizer = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
-// SanitizeLabel replaces characters not allowed in Prometheus/Loki label names,
-// collapses double underscores, trims leading/trailing underscores, and
-// prepends underscore if the name starts with a digit.
-// Label names must match [a-zA-Z_][a-zA-Z0-9_]*.
+// SanitizeLabel makes name match the Prometheus and Loki label grammar [a-zA-Z_][a-zA-Z0-9_]*.
 func SanitizeLabel(s string) string {
 	result := labelSanitizer.ReplaceAllString(s, "_")
 	result = strings.Trim(result, "_")

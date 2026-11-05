@@ -40,8 +40,7 @@ func hostPort(addr string) map[string]any {
 	return map[string]any{"host": host, "port": port}
 }
 
-// Every registered driver must stop waiting on a silent destination once its
-// context ends, or retire and shutdown deadlines cannot hold.
+// Drivers must stop waiting on a silent destination once ctx ends, or retire and shutdown deadlines cannot hold.
 func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
 	tests := []struct {
 		config     func(host string) map[string]any

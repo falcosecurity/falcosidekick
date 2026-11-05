@@ -38,56 +38,30 @@ type Driver interface {
 }
 
 // BatchSender is an optional interface for outputs that support batch delivery.
-// The dispatcher checks for this at startup. Batching activates only when both
-// the output implements BatchSender and batching is enabled in config.
 type BatchSender interface {
 	SendBatch(ctx context.Context, events []*event.Event) error
 }
 
-// LateFailureReporter is an optional interface for drivers that learn the
-// outcome of a delivery after Send has returned, such as Kafka in async mode.
-// The pipeline installs the handler before the first Send; the driver calls it
-// once per failed event, from any goroutine.
+// LateFailureReporter is an optional interface for drivers that learn of a failed delivery after Send returned.
+// The handler is installed before the first Send and is called once per failed event, from any goroutine.
 type LateFailureReporter interface {
 	SetLateFailureHandler(handler func(err error))
 }
 
-// WarningReporter is an optional interface for drivers that can deliver while
-// part of the destination is failing, such as Alertmanager with several hosts.
-// The pipeline installs the handler before the first Send. The driver passes a
-// description to raise the warning and an empty string to clear it.
+// WarningReporter is an optional interface for drivers that deliver while part of the destination fails.
+// The handler is installed before the first Send; an empty string clears the warning.
 type WarningReporter interface {
 	SetWarningHandler(handler func(warning string))
 }
 
-// ErrMisconfigured marks a HealthCheck failure that a retry cannot fix, such
-// as rejected credentials, a wrong path or an untrusted certificate. Drivers
-// wrap it so callers can refuse the configuration instead of starting.
+// ErrMisconfigured marks a HealthCheck failure that a retry cannot fix, so the configuration is refused.
 var ErrMisconfigured = errors.New("destination rejects the configuration")
 
 // ErrEmptyUUID indicates an empty UUID passed to GetEvent.
 var ErrEmptyUUID = errors.New("uuid is required")
 
-// ReadableStore is an optional interface for outputs that support event queries.
-// The API layer uses this to serve the UI. Only outputs configured as the
-// ui.event_source need to implement it (inmemory does).
-//
-// Filter combination semantics are part of the contract:
-//   - Within a single field, multiple values combine with OR
-//     (e.g. Filters{Priority: ["critical","error"]} matches events whose
-//     priority is critical OR error).
-//   - Across fields, criteria combine with AND
-//     (e.g. Filters{Priority: ["critical"], Rule: ["foo"]} matches events
-//     whose priority is critical AND rule is foo).
-//   - Since is applied as AND alongside the structured filters.
-//   - SearchQuery.Filter (free text) is applied as AND as a case-insensitive
-//     substring match over output, rule, priority, source, hostname, and tags.
-//
-// GetEvent lookup semantics:
-//   - A hit returns the event and a nil error.
-//   - A miss returns (nil, nil); callers map this to 404.
-//   - An empty uuid returns (nil, ErrEmptyUUID); callers map this to 400.
-//   - Any other error indicates a lookup failure; callers map this to 500.
+// ReadableStore is an optional interface for outputs that serve event queries to the UI.
+// GetEvent returns (nil, nil) on a miss and ErrEmptyUUID for an empty uuid.
 type ReadableStore interface {
 	Search(ctx context.Context, query *SearchQuery) (*SearchResult, error)
 	Count(ctx context.Context, filters *Filters) (int64, error)
@@ -96,28 +70,21 @@ type ReadableStore interface {
 	GetEvent(ctx context.Context, uuid string) (*event.Event, error)
 }
 
-// HistogramRequest describes a time-bucketed aggregation over the event store.
-// Filters.Since defines the window (must be > 0). BucketMs is the bucket width
-// in milliseconds. GroupBy is optional; when set, each bucket carries per-group
-// counts in addition to the total. Callers must invoke Normalize.
+// HistogramRequest describes a time-bucketed aggregation; callers must invoke Normalize.
 type HistogramRequest struct {
 	GroupBy  string  `json:"group_by,omitempty"`
 	Filters  Filters `json:"filters"`
 	BucketMs int64   `json:"bucket_ms"`
 }
 
-// HistogramBucket is one time slice of the histogram. T is the bucket start
-// expressed as Unix milliseconds. By is non-nil only when GroupBy was set;
-// it is sparse, containing only groups with at least one event in the bucket.
+// HistogramBucket is one time slice starting at T (Unix ms); By lists only non-empty groups.
 type HistogramBucket struct {
 	By    map[string]int64 `json:"by,omitempty"`
 	T     int64            `json:"t"`
 	Count int64            `json:"count"`
 }
 
-// HistogramResult is a dense series of buckets spanning [From, To). The first
-// bucket starts at From; the last bucket ends at To. Consumers can render the
-// slice directly without gap-filling.
+// HistogramResult is a dense, gap-free series of buckets spanning [From, To).
 type HistogramResult struct {
 	GroupBy  string            `json:"group_by,omitempty"`
 	Buckets  []HistogramBucket `json:"buckets"`
@@ -132,8 +99,7 @@ const (
 	histogramMaxCount  = 1024
 )
 
-// Normalize validates the request and rejects inputs that would generate an
-// unbounded or malformed histogram.
+// Normalize rejects requests that would produce an unbounded or malformed histogram.
 func (r *HistogramRequest) Normalize() error {
 	if r.Filters.Since <= 0 {
 		return fmt.Errorf("histogram: since must be > 0")
@@ -199,8 +165,6 @@ type SchemaField struct {
 }
 
 // SearchQuery holds parameters for querying stored events.
-// The free-text search term lives on Filters.Filter so that Search, Count,
-// and CountBy all honor it uniformly through a single *Filters value.
 type SearchQuery struct {
 	SortBy   string  `json:"sort_by"`
 	Filters  Filters `json:"filters"`
@@ -209,10 +173,7 @@ type SearchQuery struct {
 	SortDesc bool    `json:"sort_desc"`
 }
 
-// Filters holds filter criteria for event queries. Filter is a free-text
-// case-insensitive substring match applied across output, rule, priority,
-// source, hostname, and tags. All filter fields combine as AND across
-// fields and as OR within each multi-value field.
+// Filters holds event query criteria, combined with AND across fields and OR within a field.
 type Filters struct {
 	Filter   string        `json:"filter,omitempty"`
 	Priority []string      `json:"priority,omitempty"`
@@ -232,7 +193,6 @@ type SearchResult struct {
 }
 
 // Normalize applies defaults and validates the query.
-// Default sort is timestamp descending (newest first).
 func (q *SearchQuery) Normalize() error {
 	if q.Limit <= 0 {
 		q.Limit = 100

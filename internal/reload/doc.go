@@ -14,12 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package reload implements hot-reload for output configuration.
-// Only output config files are hot-reloadable; core config requires a restart.
-//
-// Reload is triggered by fsnotify file events, SIGHUP, or content-hash polling.
-// All triggers call Reloader.Reload, which is serialized by a mutex.
-//
-// Reload is all-or-nothing at the runtime boundary: if parse, validate,
-// create, or init fails, old outputs keep running unchanged.
+// Package reload hot-reloads output configuration; a failed reload leaves the running outputs unchanged.
 package reload

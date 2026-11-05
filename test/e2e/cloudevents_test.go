@@ -50,14 +50,12 @@ var (
 	cloudEventsHeaderValue = regexp.MustCompile(`^(?:[\x21\x23-\x24\x26-\x7e]|%[0-9A-Fa-f]{2})*$`)
 )
 
-// cloudEvent is one binary-mode message: decoded context attributes and the data.
 type cloudEvent struct {
 	attributes map[string]string
 	data       map[string]any
 }
 
-// cloudEventsReceiver is a strict CloudEvents 1.0 HTTP receiver in binary
-// content mode. It rejects any message that breaks the spec or the binding.
+// cloudEventsReceiver is a strict CloudEvents 1.0 HTTP receiver in binary content mode.
 type cloudEventsReceiver struct {
 	events   []cloudEvent
 	rejected []string
@@ -98,8 +96,6 @@ func (r *cloudEventsReceiver) ServeHTTP(w http.ResponseWriter, req *http.Request
 	w.WriteHeader(r.status)
 }
 
-// cloudEventsAttributes decodes the ce- headers and checks the required
-// attributes of the spec.
 func cloudEventsAttributes(header http.Header) (attrs map[string]string, reason string) {
 	attrs = map[string]string{}
 	for key, values := range header {
@@ -204,8 +200,7 @@ func TestCloudEventsReportsDestinationFailure(t *testing.T) {
 	assert.Len(t, events, 1, "max_attempts 1 sends exactly once")
 }
 
-// A receiver has no standard probe, so an unreachable host is only visible
-// on delivery.
+// A receiver has no standard probe, so an unreachable host fails only on delivery.
 func TestCloudEventsUnreachableAtStartup(t *testing.T) {
 	sk := startSidekick(t, fmt.Sprintf("cloudevents:\n  host: \"http://127.0.0.1:%d\"\n  secret_endpoint: %q\n", freePort(t), cloudEventsPath))
 	assert.Equal(t, "idle", sk.status(t, "cloudevents").Status, "no probe, so not degraded")

@@ -105,8 +105,7 @@ func parseSearchQuery(c fiber.Ctx) (*output.SearchQuery, error) {
 	return q, nil
 }
 
-// readableStoreOrUnavailable writes 503 and returns (nil, false) when
-// the configured event source is not resolvable; caller must return nil.
+// readableStoreOrUnavailable writes 503 and returns false when the event source does not resolve.
 func (s *Server) readableStoreOrUnavailable(c fiber.Ctx) (output.ReadableStore, bool) {
 	rs := s.GetReadableStore()
 	if rs == nil {

@@ -30,8 +30,7 @@ import (
 
 const (
 	name = "talon"
-	// Talon serves events on "/" and a side-effect-free "/healthz":
-	// https://github.com/falcosecurity/falco-talon/blob/main/cmd/server.go
+	// Side-effect-free "/healthz": https://github.com/falcosecurity/falco-talon/blob/main/cmd/server.go
 	defaultEndpoint = "/"
 	healthRoute     = "/healthz"
 )
@@ -105,7 +104,6 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
-// Send posts the event to Talon.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
@@ -114,8 +112,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSON(ctx, http.MethodPost, target, buildPayload(evt))
 }
 
-// HealthCheck sends GET /healthz under base_path. A 401, 403 or 404 means
-// the address does not reach Talon.
+// HealthCheck sends GET /healthz; a 401, 403 or 404 means the address does not reach Talon.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	target, err := d.cfg.URL(d.cfg.Host, healthRoute, nil)
 	if err != nil {

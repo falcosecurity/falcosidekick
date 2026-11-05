@@ -337,8 +337,6 @@ func TestHandleGetOutputsDBError(t *testing.T) {
 	assert.Contains(t, string(body), "db failure")
 }
 
-// --- ReadableStore dynamic resolution tests ---
-
 func TestGetReadableStoreReturnsNilWhenNoEventSource(t *testing.T) {
 	srv := buildTestServer(t, nil)
 	assert.Nil(t, srv.GetReadableStore())

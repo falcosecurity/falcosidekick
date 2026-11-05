@@ -32,8 +32,7 @@ const (
 	stateAlerting = "alerting"
 )
 
-// The integration URL path carries the integration token, so there is no
-// default host: Grafana Cloud and self-hosted engines use different hosts.
+// No default host: Grafana Cloud and self-hosted engines differ, and the path carries the token.
 var targetOptions = shared.HTTPTargetOptions{SecretEndpointRequired: true}
 
 type config struct {
@@ -53,7 +52,6 @@ var OutputType = output.Type{
 	},
 }
 
-// payload is the formatted webhook alert:
 // https://grafana.com/docs/grafana-cloud/alerting-and-irm/irm/configure/integrations/webhooks/incoming-webhooks/oncall-webhooks
 type payload struct {
 	AlertUID string `json:"alert_uid"`
@@ -99,7 +97,6 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
-// Send posts the event as a formatted webhook alert.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
@@ -108,8 +105,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSON(ctx, http.MethodPost, target, buildPayload(evt))
 }
 
-// HealthCheck is a no-op: the integration only accepts POST, so no request
-// can probe it without creating an alert.
+// HealthCheck is a no-op: the integration only accepts POST, which creates an alert.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
 func (d *driver) Close() error { return nil }

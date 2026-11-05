@@ -393,7 +393,7 @@ func TestSendSyncWithClient(t *testing.T) {
 		Source:       "syscall",
 		OutputFields: map[string]interface{}{"a": "b"},
 	})
-	// error expected - no broker, but we exercise the sync produce path
+	// No broker is running.
 	assert.Error(t, err)
 }
 
@@ -416,7 +416,7 @@ func TestSendAsyncWithClient(t *testing.T) {
 		Source:       "syscall",
 		OutputFields: map[string]interface{}{"a": "b"},
 	})
-	// async produce returns nil immediately
+	// Async produce returns before any broker answers.
 	assert.NoError(t, err)
 }
 
@@ -439,7 +439,7 @@ func TestSendBatchSyncWithClient(t *testing.T) {
 		{Rule: "r2", Priority: event.PriorityError, Time: time.Now(), Source: "syscall", OutputFields: map[string]interface{}{"c": "d"}},
 	}
 	err = o.SendBatch(ctx, events)
-	// error expected - no broker
+	// No broker is running.
 	assert.Error(t, err)
 }
 
@@ -477,7 +477,7 @@ func TestHealthCheckWithClient(t *testing.T) {
 	defer cancel()
 
 	err = o.HealthCheck(ctx)
-	// error expected - no broker, but exercises the ping path
+	// No broker is running.
 	assert.Error(t, err)
 }
 

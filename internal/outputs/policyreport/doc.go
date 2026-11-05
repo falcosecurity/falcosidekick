@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package policyreport implements the output that writes Falco events as
-// openreports.io Report and ClusterReport results in Kubernetes.
+// Package policyreport writes Falco events as openreports.io Report and ClusterReport results.
 package policyreport

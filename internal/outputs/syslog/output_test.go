@@ -233,8 +233,7 @@ func TestCEFMessage(t *testing.T) {
 	}
 }
 
-// streamServer accepts stream connections and sends each octet-counted
-// frame it reads on the returned channel.
+// streamServer sends each octet-counted frame it reads on the returned channel.
 func streamServer(t *testing.T, ln net.Listener) (frames <-chan string, conns <-chan net.Conn) {
 	t.Helper()
 	out := make(chan string, 16)
@@ -364,8 +363,7 @@ func TestUDPDelivery(t *testing.T) {
 	assert.True(t, strings.HasPrefix(m[4], "CEF:0|"))
 }
 
-// tlsServer returns a TLS listener with the httptest certificate, valid
-// for 127.0.0.1, and a CA file that trusts it.
+// tlsServer returns a TLS listener valid for 127.0.0.1 and a CA file that trusts it.
 func tlsServer(t *testing.T) (ln net.Listener, caFile string) {
 	t.Helper()
 	srv := httptest.NewUnstartedServer(nil)

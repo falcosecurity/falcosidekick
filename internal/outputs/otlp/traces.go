@@ -31,9 +31,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/version"
 )
 
-// tracesSignal turns each event into one ended span and exports the spans
-// synchronously. The provider has no span processor, so the SDK never
-// exports in the background.
+// tracesSignal has no span processor, so the SDK never exports in the background.
 type tracesSignal struct {
 	exporter sdktrace.SpanExporter
 	provider *sdktrace.TracerProvider
@@ -79,9 +77,7 @@ func (s *tracesSignal) span(evt *event.Event) sdktrace.ReadOnlySpan {
 	return span.(sdktrace.ReadOnlySpan)
 }
 
-// traceID groups the events of one workload in one trace: the Kubernetes
-// pod, else the container, else the host. Without any of them the SDK
-// generates a random trace ID.
+// traceID groups events by pod, else container, else host; without any the SDK picks a random ID.
 func traceID(evt *event.Event) (trace.TraceID, bool) {
 	field := func(name string) string {
 		s, _ := evt.OutputFields[name].(string)

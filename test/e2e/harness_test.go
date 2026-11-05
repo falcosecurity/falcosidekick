@@ -16,9 +16,7 @@
 
 //go:build e2e
 
-// Package e2e runs the falcosidekick binary against real or faked
-// destinations: a Falco event goes in over HTTP and each test checks what
-// the destination received through the destination's own API.
+// Package e2e runs the falcosidekick binary against real or faked destinations.
 package e2e
 
 import (
@@ -80,8 +78,7 @@ func run(m *testing.M) (int, error) {
 	return m.Run(), nil
 }
 
-// sidekick is one running falcosidekick process. exited is closed once the
-// process has been waited for; waitErr holds its exit status.
+// sidekick is one falcosidekick process; waitErr is valid once exited is closed.
 type sidekick struct {
 	waitErr error
 	cmd     *exec.Cmd
@@ -107,9 +104,7 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
-// startSidekick runs the binary with one retry attempt so failures surface
-// quickly, and outputs given as the YAML body under `outputs:`. It fails the
-// test if the process exits or is not ready within startTimeout.
+// startSidekick runs the binary with one retry attempt so failures surface quickly.
 func startSidekick(t *testing.T, outputs string) *sidekick {
 	t.Helper()
 	s := launchSidekick(t, outputs)
@@ -132,8 +127,6 @@ func startSidekick(t *testing.T, outputs string) *sidekick {
 	}
 }
 
-// startSidekickFails runs the binary and requires it to exit with a non-zero
-// status within startTimeout. It returns the process logs.
 func startSidekickFails(t *testing.T, outputs string) string {
 	t.Helper()
 	s := launchSidekick(t, outputs)
@@ -209,7 +202,6 @@ func (s *sidekick) stop(t *testing.T) {
 	}
 }
 
-// postEvent sends a Falco event carrying marker in its output fields and rule.
 func (s *sidekick) postEvent(t *testing.T, marker string) {
 	t.Helper()
 	body, err := json.Marshal(falcoEvent(marker))
@@ -256,7 +248,6 @@ func (s *sidekick) status(t *testing.T, name string) outputStatus {
 	return st
 }
 
-// waitStatus polls the output status until done reports true.
 func (s *sidekick) waitStatus(t *testing.T, name string, done func(outputStatus) bool) outputStatus {
 	t.Helper()
 	var st outputStatus
@@ -267,7 +258,6 @@ func (s *sidekick) waitStatus(t *testing.T, name string, done func(outputStatus)
 	return st
 }
 
-// eventuallyf polls cond until it holds or deliverTimeout passes.
 func eventuallyf(t *testing.T, cond func() bool, format string, args ...any) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), deliverTimeout)
@@ -301,11 +291,9 @@ func requireEnv(t *testing.T, name string) string {
 	return value
 }
 
-// httpClient bounds every test request so a stuck destination fails the test
-// instead of hanging it.
+// httpClient has a timeout so a stuck destination fails the test instead of hanging it.
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-// httpDo sends a request with a JSON body when body is not nil.
 func httpDo(method, url string, body []byte) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(context.Background(), method, url, bytes.NewReader(body))
 	if err != nil {

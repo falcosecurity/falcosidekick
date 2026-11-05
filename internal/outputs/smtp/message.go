@@ -73,8 +73,7 @@ func newTemplateData(evt *event.Event) templateData {
 	}
 }
 
-// message builds the email for evt: a text body, plus an HTML alternative
-// in html format.
+// message builds a text body, plus an HTML alternative in html format.
 func (d *driver) message(evt *event.Event) (*mail.Msg, error) {
 	data := newTemplateData(evt)
 	msg := mail.NewMsg()

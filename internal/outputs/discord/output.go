@@ -101,8 +101,7 @@ func (d *driver) Init(context.Context) error { return nil }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 
-// Send executes the webhook with wait=true: Discord answers only once the
-// message is saved, so a lost message is an error, not a 204.
+// Send uses wait=true so Discord answers only once the message is saved.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.URL(d.cfg.Host, d.cfg.DeliveryRoute(), url.Values{waitParam: {"true"}})
 	if err != nil {
@@ -111,8 +110,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSON(ctx, http.MethodPost, target, d.buildPayload(evt))
 }
 
-// HealthCheck reads the webhook with GET, which returns it without posting
-// a message: a wrong token or a deleted webhook answers 401 or 404.
+// HealthCheck reads the webhook with GET, which posts no message.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {

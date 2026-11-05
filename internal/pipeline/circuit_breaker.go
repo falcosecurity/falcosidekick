@@ -73,8 +73,7 @@ func NewCircuitBreaker(cfg *output.CircuitBreakerConfig) *CircuitBreaker {
 	return &CircuitBreaker{cfg: *cfg}
 }
 
-// GetState returns the current circuit state, transitioning from open to half-open
-// when the reset timeout has elapsed.
+// GetState returns the current state, moving open to half-open once the reset timeout elapsed.
 func (cb *CircuitBreaker) GetState() CircuitState {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
@@ -83,10 +82,8 @@ func (cb *CircuitBreaker) GetState() CircuitState {
 	return cb.state
 }
 
-// AllowRequest admits one attempt and returns its completion callback.
-// A denied attempt returns nil, false. An admitted attempt must be completed;
-// only its first completion counts, and results from older states are ignored.
-// Half-open allows exactly one outstanding attempt.
+// AllowRequest admits one attempt and returns its completion callback, which the caller must call.
+// Only the first completion counts, and results from an older state are ignored.
 func (cb *CircuitBreaker) AllowRequest() (complete func(success bool), allowed bool) {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()

@@ -169,8 +169,7 @@ func TestObjectKey(t *testing.T) {
 	assert.Regexp(t, `^p/\d{4}-\d{2}-\d{2}/[^_]+_[0-9a-f-]{36}\.json$`, generated)
 }
 
-// objectBody returns the object content of a PutObject request, decoding
-// the aws-chunked encoding the SDK uses to send a trailing checksum.
+// objectBody decodes the aws-chunked encoding the SDK uses to send a trailing checksum.
 func objectBody(t *testing.T, req testutil.CapturedRequest) []byte {
 	t.Helper()
 	if !strings.Contains(req.Header.Get("Content-Encoding"), "aws-chunked") {

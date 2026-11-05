@@ -26,18 +26,13 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-// Watcher monitors output config files via fsnotify and triggers reload.
-// Parent directories are watched instead of files so that atomic saves
-// (write-temp + rename) and Kubernetes ConfigMap updates (a swap of the
-// `..data` symlink) are seen even when the file inode changes. A debounce
-// timer coalesces rapid events into a single reload call.
+// Watcher triggers a debounced reload when fsnotify reports an output config change.
+// It watches parent directories so atomic renames and ConfigMap ..data swaps are seen.
 type Watcher struct {
 	reloadFn func() error
 	logger   *slog.Logger
 	ready    chan struct{}
-	// targets maps each watched path to its symlink-resolved target, so a
-	// swap that does not touch the path itself is still detected. Owned by
-	// the Run goroutine.
+	// targets holds each path's resolved symlink target; owned by the Run goroutine.
 	targets  map[string]string
 	paths    []string
 	debounce time.Duration
@@ -59,12 +54,10 @@ func NewWatcher(paths []string, debounce time.Duration, reloadFn func() error, l
 	}
 }
 
-// Ready is closed once every parent directory is watched. Changes made
-// before that are not reported.
+// Ready is closed once every parent directory is watched; earlier changes are missed.
 func (w *Watcher) Ready() <-chan struct{} { return w.ready }
 
-// Run starts the fsnotify event loop. Blocks until ctx is canceled or
-// the watcher encounters a fatal error.
+// Run watches until ctx is canceled or fsnotify fails.
 func (w *Watcher) Run(ctx context.Context) error {
 	fsw, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -82,7 +75,6 @@ func (w *Watcher) Run(ctx context.Context) error {
 	return w.loop(ctx, fsw.Events, fsw.Errors)
 }
 
-// loop debounces relevant events from events into reload calls.
 func (w *Watcher) loop(ctx context.Context, events <-chan fsnotify.Event, errs <-chan error) error {
 	var timer *time.Timer
 	var timerC <-chan time.Time
@@ -126,8 +118,7 @@ func (w *Watcher) loop(ctx context.Context, events <-chan fsnotify.Event, errs <
 	}
 }
 
-// relevant reports an event on a watched path, or any event after which a
-// watched path resolves to a different file.
+// relevant also accepts unrelated events after which a watched symlink resolves elsewhere.
 func (w *Watcher) relevant(ev fsnotify.Event) bool {
 	if ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove) == 0 {
 		return false
@@ -137,8 +128,7 @@ func (w *Watcher) relevant(ev fsnotify.Event) bool {
 	return w.resolveTargets() || direct
 }
 
-// resolveTargets refreshes the resolved target of every path and reports
-// whether one changed. A path that does not resolve keeps its last target.
+// resolveTargets reports whether a target changed; an unresolvable path keeps its last target.
 func (w *Watcher) resolveTargets() bool {
 	changed := false
 	for _, p := range w.paths {

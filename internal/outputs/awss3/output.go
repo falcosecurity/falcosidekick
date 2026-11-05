@@ -47,8 +47,7 @@ const (
 	contentTypeNDJSON = "application/x-ndjson"
 )
 
-// bucketPattern accepts the general purpose bucket names of the S3 naming
-// rules and the dotted names some S3-compatible stores allow.
+// bucketPattern also accepts the dotted names some S3-compatible stores allow.
 var bucketPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
 
 var cannedACLs = func() []string {
@@ -134,7 +133,6 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(context.Context) error { return nil }
 
-// Send writes the event as one JSON object.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	body, err := json.Marshal(evt)
 	if err != nil {
@@ -143,7 +141,6 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.put(ctx, d.objectKey(evt, ".json"), body, contentTypeJSON)
 }
 
-// SendBatch writes the events as one object, one JSON event per line.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if len(events) == 0 {
 		return nil
@@ -172,9 +169,7 @@ func (d *driver) put(ctx context.Context, key string, body []byte, contentType s
 	return d.cfg.WrapError(name, "PutObject", err)
 }
 
-// objectKey returns <prefix>/<YYYY-MM-DD>/<time>_<uuid><ext>, with the date
-// and the RFC 3339 time of the event in UTC. The UUID keeps keys unique and
-// makes a retried delivery overwrite the same object.
+// objectKey includes the event UUID so a retried delivery overwrites the same object.
 func (d *driver) objectKey(evt *event.Event, ext string) string {
 	t := evt.Time
 	if t.IsZero() {
@@ -189,8 +184,6 @@ func (d *driver) objectKey(evt *event.Event, ext string) string {
 }
 
 // HealthCheck sends HeadBucket, which needs s3:ListBucket on the bucket.
-// A missing bucket, rejected credentials or a denied request wrap
-// output.ErrMisconfigured.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	_, err := d.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: sdkaws.String(d.cfg.Bucket)})
 	return d.cfg.WrapProbeError(name, "HeadBucket", err)

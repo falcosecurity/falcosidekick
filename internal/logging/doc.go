@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package logging provides structured logging via slog with configurable
-// level and format (text or JSON).
+// Package logging builds the slog logger from the configured level and format.
 package logging

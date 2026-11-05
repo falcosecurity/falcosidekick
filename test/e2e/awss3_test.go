@@ -37,8 +37,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// envAWSEndpoint is the LocalStack endpoint serving S3, SQS and SNS. The
-// AWS tests skip when it is unset.
+// envAWSEndpoint is the LocalStack endpoint for S3, SQS and SNS; AWS tests skip without it.
 const envAWSEndpoint = "FALCOSIDEKICK_E2E_AWS_ENDPOINT"
 
 const (
@@ -46,8 +45,7 @@ const (
 	awsAccessKeyID = "test"
 )
 
-// awsTarget is a LocalStack endpoint with a per-test secret access key,
-// which LocalStack accepts and the tests look for in logs and API answers.
+// awsTarget carries a per-test secret key that must never appear in logs or API answers.
 type awsTarget struct {
 	cfg      aws.Config
 	endpoint string
@@ -67,8 +65,6 @@ func localstack(t *testing.T) *awsTarget {
 	return &awsTarget{cfg: cfg, endpoint: endpoint, secret: secret}
 }
 
-// output renders an AWS output block with the target credentials, region
-// and endpoint, plus extra YAML lines under the output key.
 func (a *awsTarget) output(name, extra string) string {
 	out := fmt.Sprintf("%s:\n  region: %s\n  endpoint: %q\n  access_key_id: %s\n  secret_access_key: %q\n",
 		name, awsRegion, a.endpoint, awsAccessKeyID, a.secret)
@@ -106,8 +102,6 @@ func (a *awsTarget) s3Client() *s3.Client {
 	return s3.NewFromConfig(a.cfg, func(o *s3.Options) { o.UsePathStyle = true })
 }
 
-// createBucket creates a bucket named after marker and empties and deletes
-// it when the test ends.
 func (a *awsTarget) createBucket(t *testing.T, marker string) string {
 	t.Helper()
 	client := a.s3Client()
@@ -128,8 +122,6 @@ func (a *awsTarget) createBucket(t *testing.T, marker string) string {
 	return bucket
 }
 
-// waitObjects lists the bucket until it holds want objects and returns
-// their keys and contents.
 func (a *awsTarget) waitObjects(t *testing.T, bucket string, want int) map[string]string {
 	t.Helper()
 	client := a.s3Client()
@@ -152,7 +144,6 @@ func (a *awsTarget) waitObjects(t *testing.T, bucket string, want int) map[strin
 	return objects
 }
 
-// assertAWSEvent checks a delivered event JSON against the posted event.
 func assertAWSEvent(t *testing.T, body, marker string) {
 	t.Helper()
 	var got map[string]any

@@ -25,7 +25,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 )
 
-// buildRecord creates a Kafka record from a Falco event with key, headers, and topic resolution.
 func (d *driver) buildRecord(evt *event.Event) (*kgo.Record, error) {
 	data, err := json.Marshal(evt)
 	if err != nil {
@@ -40,9 +39,6 @@ func (d *driver) buildRecord(evt *event.Event) (*kgo.Record, error) {
 	}, nil
 }
 
-// resolveTopic returns the topic for this event.
-// If topic_field is configured and the field exists in the event, use it.
-// Otherwise use the default static topic.
 func (d *driver) resolveTopic(evt *event.Event) string {
 	if d.cfg.TopicField != "" {
 		if v, ok := evt.OutputFields[d.cfg.TopicField]; ok {
@@ -54,8 +50,7 @@ func (d *driver) resolveTopic(evt *event.Event) string {
 	return d.cfg.Topic
 }
 
-// resolveKey returns the message key for partition affinity.
-// Priority: message_key_field (dynamic) > message_key (static) > nil (round-robin).
+// resolveKey returns nil, which partitions round-robin, when no key applies.
 func (d *driver) resolveKey(evt *event.Event) []byte {
 	if d.cfg.MessageKeyField != "" {
 		if v, ok := evt.OutputFields[d.cfg.MessageKeyField]; ok {
@@ -70,7 +65,6 @@ func (d *driver) resolveKey(evt *event.Event) []byte {
 	return nil
 }
 
-// buildHeaders creates Kafka record headers for consumer-side routing/filtering.
 func buildHeaders(evt *event.Event) []kgo.RecordHeader {
 	return []kgo.RecordHeader{
 		{Key: "content-type", Value: []byte("application/json")},

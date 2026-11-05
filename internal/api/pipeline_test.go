@@ -41,8 +41,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/pipeline"
 )
 
-// --- /api/v1/pipeline/status ---
-
 func TestHandlePipelineStatus_NoOutputs(t *testing.T) {
 	srv := buildTestServer(t, nil)
 
@@ -78,8 +76,6 @@ func TestHandlePipelineStatus_WithOutputs(t *testing.T) {
 	assert.ElementsMatch(t, []string{"slack", "elasticsearch"}, names)
 }
 
-// --- /api/v1/pipeline/status/:name ---
-
 func TestHandlePipelineStatusByName_Hit(t *testing.T) {
 	cfg := testutil.DefaultRuntimeConfig()
 	out := pipeline.NewOutput(&testutil.MockDriver{DriverName: "slack"}, &cfg, nil)
@@ -106,8 +102,6 @@ func TestHandlePipelineStatusByName_Miss(t *testing.T) {
 
 	assert.Equal(t, 404, resp.StatusCode)
 }
-
-// --- /api/v1/pipeline/outputs ---
 
 func TestHandlePipelineOutputs_Masked(t *testing.T) {
 	db := database.NewMemory()
@@ -183,8 +177,6 @@ func TestHandlePipelineOutputs_DBError(t *testing.T) {
 	assert.Contains(t, string(body), "db failure")
 }
 
-// --- /api/v1/pipeline/outputs/:name ---
-
 func TestHandlePipelineOutputByName_Hit(t *testing.T) {
 	db := database.NewMemory()
 	require.NoError(t, db.Provision(t.Context(), &core.ProvisionRequest{
@@ -256,8 +248,6 @@ func TestHandlePipelineOutputByName_BackendFailureReturns500(t *testing.T) {
 	assert.Contains(t, string(body), "db failure")
 }
 
-// --- /api/v1/pipeline/outputs/types ---
-
 func TestHandlePipelineOutputTypes(t *testing.T) {
 	cat, err := catalog.New([]output.Type{
 		{
@@ -302,8 +292,6 @@ func TestHandlePipelineOutputTypes(t *testing.T) {
 	assert.ElementsMatch(t, []string{"slack", "webhook"}, names)
 }
 
-// --- /api/v1/pipeline/outputs/types/:name ---
-
 func TestHandlePipelineOutputTypeByName_Hit(t *testing.T) {
 	cat, err := catalog.New([]output.Type{{
 		Name:     "slack",
@@ -342,8 +330,6 @@ func TestHandlePipelineOutputTypeByName_Miss(t *testing.T) {
 	assert.Equal(t, 404, resp.StatusCode)
 }
 
-// --- Route ordering: types vs :name ---
-
 func TestHandlePipelineOutputsRouteOrdering_TypesWinsOverName(t *testing.T) {
 	srv := buildTestServer(t, nil)
 
@@ -357,8 +343,6 @@ func TestHandlePipelineOutputsRouteOrdering_TypesWinsOverName(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	assert.Contains(t, string(body), `"types"`)
 }
-
-// --- /api/v1/pipeline/layout ---
 
 func TestHandlePipelineLayout_NoLayout(t *testing.T) {
 	db := database.NewMemory()
@@ -404,8 +388,6 @@ func TestHandlePipelineLayout_NoDatabase(t *testing.T) {
 	assert.Equal(t, 503, resp.StatusCode)
 }
 
-// --- /api/v1/pipeline (composite) ---
-
 func TestHandlePipelineComposite(t *testing.T) {
 	db := database.NewMemory()
 	require.NoError(t, db.Provision(t.Context(), &core.ProvisionRequest{
@@ -428,7 +410,6 @@ func TestHandlePipelineComposite(t *testing.T) {
 	}})
 	require.NoError(t, err)
 
-	// Build a pipeline with one live output so status is non-empty.
 	cfg := testutil.DefaultRuntimeConfig()
 	out := pipeline.NewOutput(&testutil.MockDriver{DriverName: "slack"}, &cfg, nil)
 	enricher, _ := pipeline.NewEnricher(output.EnricherConfig{
@@ -494,8 +475,6 @@ func TestHandlePipelineComposite_LayoutError(t *testing.T) {
 	assert.Contains(t, string(body), "layout failed")
 }
 
-// --- /api/v1/config with secret masking ---
-
 func TestHandleGetConfig_MaskingHelperWired(t *testing.T) {
 	db := database.NewMemory()
 	require.NoError(t, db.Provision(t.Context(), &core.ProvisionRequest{
@@ -517,11 +496,7 @@ func TestHandleGetConfig_MaskingHelperWired(t *testing.T) {
 	assert.Equal(t, 2801, got.Config.ListenPort)
 }
 
-// --- Guard: event struct import is used ---
-
 var _ = event.Event{}
-
-// --- Mutation handlers (PUT/DELETE outputs, PUT layout) ---
 
 func TestHandlePipelineOutputPut_CreatesNewUIOwned(t *testing.T) {
 	db := database.NewMemory()
@@ -568,9 +543,7 @@ func TestHandlePipelineOutputPut_MergesAbsentKeys(t *testing.T) {
 		"present key must overlay the existing value")
 }
 
-// nestedMutationCatalog mirrors Kafka's schema shape: a nested auth
-// subtree with a Secret-flagged leaf at auth.password. Exercises deep
-// merge + nested secret handling on PUT.
+// nestedMutationCatalog has a Secret leaf at auth.password, like Kafka.
 func nestedMutationCatalog(t *testing.T) *catalog.Catalog {
 	t.Helper()
 	cat, err := catalog.New([]output.Type{{
@@ -901,7 +874,6 @@ func TestHandlePipelineOutputDelete_ProvisionedReturns409WhenUpdatesDisabled(t *
 	require.NoError(t, db.Provision(context.Background(), &core.ProvisionRequest{
 		Outputs: map[string]map[string]any{"slack": {"secret_endpoint": "file"}},
 	}))
-	// Default provisioning flags: allow_ui_updates=false.
 	srv := buildMutationTestServer(t, db)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
@@ -1192,8 +1164,7 @@ func TestHandlePipelineOutputDelete_NoDatabaseReturns503(t *testing.T) {
 
 func TestHandlePipelineOutputPut_ApplyInitFailureReturns500(t *testing.T) {
 	db := database.NewMemory()
-	// A catalog with a driver that fails Init lets the real Reloader
-	// return a wrapped "apply init: ..." error without a fake.
+	// A driver that fails Init makes the real Reloader return an apply error.
 	cat, err := catalog.New([]output.Type{{
 		Name:   "slack",
 		Schema: output.Schema{Fields: []output.SchemaField{{Name: "secret_endpoint", Type: "string", Required: true, Secret: true}}},

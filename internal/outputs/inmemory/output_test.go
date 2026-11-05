@@ -53,8 +53,6 @@ func createTestOutput(capacity int) *driver {
 	return o.(*driver)
 }
 
-// --- OutputDriver compliance ---
-
 func TestName(t *testing.T) {
 	o := createTestOutput(100)
 	assert.Equal(t, "inmemory", o.Name())
@@ -78,8 +76,6 @@ func TestCloseIsIdempotent(t *testing.T) {
 	assert.NoError(t, o.Close(), "second Close must not panic or error")
 }
 
-// --- createOutput validation ---
-
 func TestCreateRuntimeDefaults(t *testing.T) {
 	o, err := createOutput(map[string]any{}, output.Deps{})
 	require.NoError(t, err)
@@ -101,8 +97,6 @@ func TestCreateOutputCustomConfig(t *testing.T) {
 	assert.Equal(t, time.Hour, mem.ttl)
 	assert.Equal(t, 30*time.Second, mem.gcInterval)
 }
-
-// --- Send + ReadableStore ---
 
 func TestSendAndSearch(t *testing.T) {
 	ctx := context.Background()
@@ -563,8 +557,6 @@ func TestSearchCombinedIndexIntersection(t *testing.T) {
 	assert.Equal(t, "rule-b", result.Events[0].Rule)
 }
 
-// --- Interface compliance ---
-
 func TestImplementsOutputDriver(t *testing.T) {
 	o := createTestOutput(10)
 	var _ output.Driver = o
@@ -615,8 +607,6 @@ func TestSearchSortAscendingTimestamp(t *testing.T) {
 	require.Len(t, result.Events, 3)
 	assert.True(t, result.Events[0].Time.Before(result.Events[2].Time), "ascending: oldest first")
 }
-
-// --- GetEvent ---
 
 func TestGetEventHit(t *testing.T) {
 	ctx := context.Background()
@@ -700,25 +690,18 @@ func TestGetEventAfterRingBufferOverwrite(t *testing.T) {
 	assert.Equal(t, uuid3, got.UUID)
 }
 
-// --- Filter combination semantics (contract) ---
-
-// Contract: within a field multiple values combine with OR,
-// across fields criteria combine with AND. Enforced across every ReadableStore.
+// Values within a field combine with OR, criteria across fields with AND.
 func TestFilterSemanticsWithinFieldOrCrossFieldAnd(t *testing.T) {
 	ctx := context.Background()
 	o := createTestOutput(100)
 	now := time.Now()
 
-	// e1: priority=error, rule=foo
 	e1 := testEvent("foo", event.PriorityError, "syscall", now)
 	e1.UUID = "e1"
-	// e2: priority=critical, rule=foo
 	e2 := testEvent("foo", event.PriorityCritical, "syscall", now.Add(time.Second))
 	e2.UUID = "e2"
-	// e3: priority=error, rule=bar
 	e3 := testEvent("bar", event.PriorityError, "syscall", now.Add(2*time.Second))
 	e3.UUID = "e3"
-	// e4: priority=warning, rule=foo
 	e4 := testEvent("foo", event.PriorityWarning, "syscall", now.Add(3*time.Second))
 	e4.UUID = "e4"
 

@@ -203,8 +203,6 @@ func TestInitTemplateCreatesOnlyWhenAbsent(t *testing.T) {
 	}
 }
 
-// An unreachable server does not stop startup, and no event is indexed
-// before the template exists.
 func TestTemplateCreatedBeforeFirstDelivery(t *testing.T) {
 	var up atomic.Bool
 	var requests []string
@@ -270,8 +268,7 @@ func TestBuildMappingsDynamicTemplate(t *testing.T) {
 
 	tmpl := dt[0]["output_fields_as_keyword"].(map[string]any)
 	assert.Equal(t, "output_fields.*", tmpl["path_match"])
-	// Without it the objects created for dotted names (output_fields.proc)
-	// are mapped as text and every event is rejected.
+	// Otherwise the objects of dotted names are mapped as text and every event is rejected.
 	assert.Equal(t, "string", tmpl["match_mapping_type"])
 }
 

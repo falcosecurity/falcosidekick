@@ -48,8 +48,7 @@ type talonEvent struct {
 	Tags         []string       `json:"tags"`
 }
 
-// talonServer is a strict fake of the Falco Talon HTTP server: events on
-// POST /, a side-effect-free GET /healthz, 400 for anything else on /.
+// talonServer is a strict fake of the Falco Talon HTTP server:
 // https://github.com/falcosecurity/falco-talon/blob/main/internal/handler/handler.go
 type talonServer struct {
 	events   []talonEvent
@@ -159,8 +158,7 @@ func TestTalonReportsDestinationFailure(t *testing.T) {
 	assert.Len(t, events, 1, "max_attempts 1 sends exactly once")
 }
 
-// A wrong base path makes /healthz answer 404, a configuration error that
-// stops startup.
+// A wrong base path makes /healthz answer 404, which stops startup.
 func TestTalonWrongBasePathFailsStartup(t *testing.T) {
 	_, url := startTalon(t, http.StatusOK)
 	logs := startSidekickFails(t, fmt.Sprintf("talon:\n  host: %q\n  base_path: /missing\n", url))

@@ -24,8 +24,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-// alertPayload matches the Alertmanager v2 API POST /api/v2/alerts schema.
-// Fields match the OpenAPI spec: labels (required), annotations, startsAt, endsAt, generatorURL.
+// alertPayload is one alert of the Alertmanager POST /api/v2/alerts body.
 type alertPayload struct {
 	Labels       map[string]string `json:"labels"`
 	Annotations  map[string]string `json:"annotations,omitempty"`

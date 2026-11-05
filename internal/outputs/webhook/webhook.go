@@ -97,7 +97,6 @@ func (d *driver) Name() string { return "webhook" }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
-// Send delivers an event as JSON to the webhook address.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
@@ -106,8 +105,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSON(ctx, d.cfg.Method, target, evt)
 }
 
-// HealthCheck is a no-op: the endpoint only accepts POST, so no request can
-// probe it without delivering a message.
+// HealthCheck is a no-op: the endpoint only accepts POST, which delivers a message.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
 func (d *driver) Close() error { return nil }

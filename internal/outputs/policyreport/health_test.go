@@ -178,7 +178,6 @@ func TestHealthCheck(t *testing.T) {
 	}
 }
 
-// Over TLS with a trusted CA the kubeconfig token authenticates every request.
 func TestHealthCheckTrustedCertificateSendsToken(t *testing.T) {
 	api := newAPIServer()
 	server := httptest.NewTLSServer(api)
@@ -254,7 +253,6 @@ func TestSendThroughAPIServer(t *testing.T) {
 	assert.Equal(t, "warn", results[0].(map[string]any)["result"])
 }
 
-// Send and HealthCheck return once ctx ends on an API server that never answers.
 func TestReturnsWhenContextEndsOnSilentServer(t *testing.T) {
 	d := driverFor(t, testutil.HangingHTTPServer(t).URL)
 

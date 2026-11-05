@@ -216,8 +216,7 @@ func (s *Server) handlePipelineLayoutPut(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(stored)
 }
 
-// loadMaskedOutputs writes 503/500 and returns (nil, false) when the
-// database is nil or fails; caller must return nil.
+// loadMaskedOutputs writes 503 or 500 and returns false when the database is missing or fails.
 func (s *Server) loadMaskedOutputs(c fiber.Ctx) (map[string]*outputConfigResponse, bool) {
 	if s.database == nil {
 		_ = c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "database not configured"})
@@ -231,10 +230,7 @@ func (s *Server) loadMaskedOutputs(c fiber.Ctx) (map[string]*outputConfigRespons
 	return maskOutputConfigs(entries, s.catalog), true
 }
 
-// checkMutationPrereqs checks that reloader and database are configured
-// and the :name path parameter is non-empty. Returns the name on success.
-// When handled is true the HTTP response has already been written and
-// the handler must return immediately.
+// checkMutationPrereqs returns handled=true once it has written the error response.
 func (s *Server) checkMutationPrereqs(c fiber.Ctx) (name string, handled bool) {
 	if s.reloader == nil {
 		_ = c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "reloader not configured"})
@@ -252,10 +248,7 @@ func (s *Server) checkMutationPrereqs(c fiber.Ctx) (name string, handled bool) {
 	return name, false
 }
 
-// loadOutputEntryForMutation returns the stored entry (possibly nil)
-// after enforcing the provisioning gate: a Provisioned:true entry is
-// rejected with 409 unless provisioning.allow_ui_updates is true. When
-// handled is true the HTTP response has already been written.
+// loadOutputEntryForMutation answers 409 for a provisioned entry unless UI updates are allowed.
 func (s *Server) loadOutputEntryForMutation(c fiber.Ctx, name string) (entry *core.OutputConfigEntry, handled bool) {
 	entry, err := s.database.GetOutputConfig(c.Context(), name)
 	if err != nil {
@@ -295,11 +288,7 @@ func (s *Server) writeMutationError(c fiber.Ctx, name, verb string, err error) e
 	}
 }
 
-// mergeOutputConfig returns a deep copy of existing with patch deep-merged
-// in. Nested maps merge recursively so a partial PUT preserves untouched
-// sibling keys; scalars overwrite. When existing is nil, the result is a
-// deep copy of patch. Enforces the UI-write "absent key = keep stored"
-// contract on PUT bodies at every nesting level.
+// mergeOutputConfig deep-merges patch into a copy of existing so keys absent from a PUT keep their stored value.
 func mergeOutputConfig(existing, patch map[string]any) map[string]any {
 	result := utils.DeepCopyMap(existing)
 	if result == nil {

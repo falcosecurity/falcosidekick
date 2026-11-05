@@ -21,7 +21,6 @@ type Versioned interface {
 	GetVersion() int64
 }
 
-// nextVersion returns 1 when prev is nil and prev.GetVersion()+1 otherwise.
 func nextVersion[T Versioned](prev *T) int64 {
 	if prev == nil {
 		return 1
