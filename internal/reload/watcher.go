@@ -20,38 +20,48 @@ import (
 	"context"
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 )
 
-// Watcher monitors output config files via fsnotify and triggers reload
-// on Write, Create, or Rename events. Parent directories are watched
-// instead of files directly so that atomic-save patterns (write-temp +
-// rename) are detected even when the file inode changes. A debounce
+// Watcher monitors output config files via fsnotify and triggers reload.
+// Parent directories are watched instead of files so that atomic saves
+// (write-temp + rename) and Kubernetes ConfigMap updates (a swap of the
+// `..data` symlink) are seen even when the file inode changes. A debounce
 // timer coalesces rapid events into a single reload call.
 type Watcher struct {
-	reloadFn  func() error
-	logger    *slog.Logger
-	filenames map[string]bool
-	paths     []string
-	debounce  time.Duration
+	reloadFn func() error
+	logger   *slog.Logger
+	ready    chan struct{}
+	// targets maps each watched path to its symlink-resolved target, so a
+	// swap that does not touch the path itself is still detected. Owned by
+	// the Run goroutine.
+	targets  map[string]string
+	paths    []string
+	debounce time.Duration
 }
 
 // NewWatcher creates a file watcher for the given output config paths.
 func NewWatcher(paths []string, debounce time.Duration, reloadFn func() error, logger *slog.Logger) *Watcher {
-	names := make(map[string]bool, len(paths))
-	for _, p := range paths {
-		names[filepath.Base(p)] = true
+	cleaned := make([]string, len(paths))
+	for i, p := range paths {
+		cleaned[i] = filepath.Clean(p)
 	}
 	return &Watcher{
-		paths:     paths,
-		filenames: names,
-		reloadFn:  reloadFn,
-		debounce:  debounce,
-		logger:    logger,
+		paths:    cleaned,
+		targets:  make(map[string]string, len(paths)),
+		reloadFn: reloadFn,
+		debounce: debounce,
+		logger:   logger,
+		ready:    make(chan struct{}),
 	}
 }
+
+// Ready is closed once every parent directory is watched. Changes made
+// before that are not reported.
+func (w *Watcher) Ready() <-chan struct{} { return w.ready }
 
 // Run starts the fsnotify event loop. Blocks until ctx is canceled or
 // the watcher encounters a fatal error.
@@ -62,13 +72,18 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 	defer func() { _ = fsw.Close() }()
 
-	dirs := parentDirs(w.paths)
-	for _, d := range dirs {
+	for _, d := range parentDirs(w.paths) {
 		if err := fsw.Add(d); err != nil {
 			return err
 		}
 	}
+	w.resolveTargets()
+	close(w.ready)
+	return w.loop(ctx, fsw.Events, fsw.Errors)
+}
 
+// loop debounces relevant events from events into reload calls.
+func (w *Watcher) loop(ctx context.Context, events <-chan fsnotify.Event, errs <-chan error) error {
 	var timer *time.Timer
 	var timerC <-chan time.Time
 
@@ -80,14 +95,11 @@ func (w *Watcher) Run(ctx context.Context) error {
 			}
 			return ctx.Err()
 
-		case ev, ok := <-fsw.Events:
+		case ev, ok := <-events:
 			if !ok {
 				return nil
 			}
-			if !isReloadEvent(ev.Op) {
-				continue
-			}
-			if !w.filenames[filepath.Base(ev.Name)] {
+			if !w.relevant(ev) {
 				continue
 			}
 			if timer == nil {
@@ -97,7 +109,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				timer.Reset(w.debounce)
 			}
 
-		case err, ok := <-fsw.Errors:
+		case err, ok := <-errs:
 			if !ok {
 				return nil
 			}
@@ -114,8 +126,32 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-func isReloadEvent(op fsnotify.Op) bool {
-	return op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0
+// relevant reports an event on a watched path, or any event after which a
+// watched path resolves to a different file.
+func (w *Watcher) relevant(ev fsnotify.Event) bool {
+	if ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove) == 0 {
+		return false
+	}
+	direct := ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0 &&
+		slices.Contains(w.paths, filepath.Clean(ev.Name))
+	return w.resolveTargets() || direct
+}
+
+// resolveTargets refreshes the resolved target of every path and reports
+// whether one changed. A path that does not resolve keeps its last target.
+func (w *Watcher) resolveTargets() bool {
+	changed := false
+	for _, p := range w.paths {
+		target, err := filepath.EvalSymlinks(p)
+		if err != nil {
+			continue
+		}
+		if prev, ok := w.targets[p]; ok && prev != target {
+			changed = true
+		}
+		w.targets[p] = target
+	}
+	return changed
 }
 
 func parentDirs(paths []string) []string {
