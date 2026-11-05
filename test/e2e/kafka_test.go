@@ -359,10 +359,13 @@ func TestKafkaReportsUnreachableBroker(t *testing.T) {
 	unreachable := kafkaTarget{brokers: []string{fmt.Sprintf("127.0.0.1:%d", freePort(t))}}
 	marker := newMarker(t)
 	sk := startSidekick(t, kafkaOutput(unreachable, kafkaTopic(marker), "producer:\n  delivery_timeout: 2s\n"))
+	st := sk.status(t, "kafka")
+	assert.Equal(t, "degraded", st.Status, "an unreachable broker at startup is transient")
+	assert.Contains(t, st.LastWarning, "health check failed before start")
 
 	start := time.Now()
 	sk.postEvent(t, marker)
-	st := sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.FailedTotal == 1 })
+	st = sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.FailedTotal == 1 })
 	assert.Less(t, time.Since(start), kafkaShortTimeout+kafkaFailMargin, "delivery_timeout bounds the record")
 	assert.Zero(t, st.SentTotal)
 	t.Logf("last_error: %s", st.LastError)
@@ -372,6 +375,7 @@ func TestKafkaReportsUnreachableBroker(t *testing.T) {
 	sk.stop(t)
 	assert.Less(t, time.Since(start), kafkaShortTimeout+kafkaFailMargin, "shutdown is bounded by the flush timeout")
 	assert.Equal(t, 0, sk.cmd.ProcessState.ExitCode(), "SIGTERM exits cleanly\n%s", sk.logs.String())
+	assert.Contains(t, sk.logs.String(), "connection refused", "the client logs the dial cause")
 }
 
 func TestKafkaSASL(t *testing.T) {
@@ -418,17 +422,12 @@ func TestKafkaSASL(t *testing.T) {
 				assert.Zero(t, st.FailedTotal)
 			})
 
-			t.Run("wrong password fails without leaking it", func(t *testing.T) {
+			t.Run("wrong password stops startup without leaking it", func(t *testing.T) {
 				wrong := "wrong-" + newMarker(t)
-				sk := startSidekick(t, kafkaOutput(target(mechanism, wrong), topic, "producer:\n  delivery_timeout: 2s\n"))
-				sk.postEvent(t, newMarker(t))
-				st := sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.FailedTotal == 1 })
-				assert.Zero(t, st.SentTotal)
-				t.Logf("last_error: %s", st.LastError)
-				assert.NotEmpty(t, st.LastError)
-				assert.NotContains(t, st.LastError, wrong)
-				sk.stop(t)
-				assert.NotContains(t, sk.logs.String(), wrong)
+				logs := startSidekickFails(t, kafkaOutput(target(mechanism, wrong), topic, "producer:\n  delivery_timeout: 2s\n"))
+				assert.Contains(t, logs, "health check")
+				assert.Contains(t, logs, "SASL_AUTHENTICATION_FAILED")
+				assert.NotContains(t, logs, wrong)
 			})
 		})
 	}
@@ -465,15 +464,10 @@ func TestKafkaTLS(t *testing.T) {
 		assert.Zero(t, st.FailedTotal)
 	})
 
-	t.Run("unknown CA fails", func(t *testing.T) {
-		sk := startSidekick(t, kafkaOutput(target(writeUnknownCA(t)), topic, "producer:\n  delivery_timeout: 2s\n"))
-		sk.postEvent(t, newMarker(t))
-		st := sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.FailedTotal == 1 })
-		assert.Zero(t, st.SentTotal)
-		// franz-go reports dial failures as a record timeout, without the
-		// TLS cause.
-		t.Logf("last_error: %s", st.LastError)
-		assert.NotEmpty(t, st.LastError)
+	t.Run("unknown CA stops startup", func(t *testing.T) {
+		logs := startSidekickFails(t, kafkaOutput(target(writeUnknownCA(t)), topic, "producer:\n  delivery_timeout: 2s\n"))
+		assert.Contains(t, logs, "health check")
+		assert.Contains(t, logs, "certificate signed by unknown authority")
 	})
 }
 

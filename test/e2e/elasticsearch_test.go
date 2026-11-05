@@ -50,7 +50,7 @@ type esServer struct {
 func newESServer(t *testing.T) *esServer {
 	t.Helper()
 	es := &esServer{
-		client:   http.DefaultClient,
+		client:   httpClient,
 		url:      strings.TrimSuffix(requireEnv(t, "FALCOSIDEKICK_E2E_ES_URL"), "/"),
 		username: os.Getenv("FALCOSIDEKICK_E2E_ES_USERNAME"),
 		password: os.Getenv("FALCOSIDEKICK_E2E_ES_PASSWORD"),
@@ -61,7 +61,7 @@ func newESServer(t *testing.T) *esServer {
 		require.NoError(t, err)
 		pool := x509.NewCertPool()
 		require.True(t, pool.AppendCertsFromPEM(pem), "no certificate in %s", es.caFile)
-		es.client = &http.Client{Transport: &http.Transport{
+		es.client = &http.Client{Timeout: httpClient.Timeout, Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12},
 		}}
 	}
@@ -272,6 +272,26 @@ func TestElasticsearchCreatesIndexTemplate(t *testing.T) {
 	assert.Contains(t, mapped, `"uuid":{"type":"keyword"}`)
 	assert.Contains(t, mapped, `"output_fields_as_keyword"`)
 	assert.Len(t, es.search(t, index, marker), 1)
+}
+
+// A wrong base path or rejected credentials are configuration errors that
+// stop startup.
+func TestElasticsearchMisconfigurationFailsStartup(t *testing.T) {
+	es := newESServer(t)
+	t.Run("base_path", func(t *testing.T) {
+		logs := startSidekickFails(t, es.outputs("fsk-e2e-es-unused", "  base_path: /e2e-missing\n"))
+		assert.Contains(t, logs, "health check")
+	})
+	t.Run("password", func(t *testing.T) {
+		if es.username == "" {
+			t.Skip("server runs without authentication")
+		}
+		wrong := *es
+		wrong.password = "wrong-" + newMarker(t)
+		logs := startSidekickFails(t, wrong.outputs("fsk-e2e-es-unused", ""))
+		assert.Contains(t, logs, "HTTP 401")
+		assert.NotContains(t, logs, wrong.password)
+	})
 }
 
 func esJSON(t *testing.T, value any) string {
