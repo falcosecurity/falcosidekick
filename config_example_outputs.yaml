@@ -153,3 +153,9 @@ outputs:
   #     sasl: plain
   #     username: falcosidekick
   #     password_file: /run/secrets/kafka-password
+  #   producer:
+  #     required_acks: all               # all, one, none
+  #     delivery_timeout: 10s            # max wait per record, also bounds the flush on shutdown
+  #     # async: true does not wait for the broker: events count as sent once
+  #     # buffered, and a later broker error also counts as failed. Keep it false
+  #     # for exact metrics.

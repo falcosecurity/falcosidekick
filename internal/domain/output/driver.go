@@ -44,6 +44,14 @@ type BatchSender interface {
 	SendBatch(ctx context.Context, events []*event.Event) error
 }
 
+// LateFailureReporter is an optional interface for drivers that learn the
+// outcome of a delivery after Send has returned, such as Kafka in async mode.
+// The pipeline installs the handler before the first Send; the driver calls it
+// once per failed event, from any goroutine.
+type LateFailureReporter interface {
+	SetLateFailureHandler(handler func(err error))
+}
+
 // ErrEmptyUUID indicates an empty UUID passed to GetEvent.
 var ErrEmptyUUID = errors.New("uuid is required")
 

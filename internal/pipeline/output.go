@@ -145,7 +145,16 @@ func NewOutput(driver output.Driver, cfg *output.RuntimeConfig, metrics core.Met
 	}
 	o.lastSuccess.Store(time.Time{})
 	o.lastError.Store("")
+	if reporter, ok := driver.(output.LateFailureReporter); ok {
+		reporter.SetLateFailureHandler(o.recordLateFailure)
+	}
 	return o
+}
+
+// recordLateFailure counts an event that the driver reported as sent and
+// later learned was not delivered.
+func (o *Output) recordLateFailure(err error) {
+	o.recordFailure(context.Background(), 1, err)
 }
 
 // Name returns the output driver name.

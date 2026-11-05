@@ -20,6 +20,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 
@@ -50,12 +53,13 @@ type kafkaAuth struct {
 }
 
 type kafkaProducer struct {
-	Compression   string `mapstructure:"compression"`
-	Balancer      string `mapstructure:"balancer"`
-	RequiredACKs  string `mapstructure:"required_acks"`
-	ClientID      string `mapstructure:"client_id"`
-	Async         bool   `mapstructure:"async"`
-	TopicCreation bool   `mapstructure:"auto_create_topic"`
+	Compression     string        `mapstructure:"compression"`
+	Balancer        string        `mapstructure:"balancer"`
+	RequiredACKs    string        `mapstructure:"required_acks"`
+	ClientID        string        `mapstructure:"client_id"`
+	DeliveryTimeout time.Duration `mapstructure:"delivery_timeout"`
+	Async           bool          `mapstructure:"async"`
+	TopicCreation   bool          `mapstructure:"auto_create_topic"`
 }
 
 // OutputType describes the Kafka output for the catalog.
@@ -78,17 +82,25 @@ var OutputType = output.Type{
 			{Name: "producer.balancer", Type: "enum", Values: []string{"", "round_robin", "least_backup", "sticky"}, Default: "", Label: "Partition Balancer"},
 			{Name: "producer.required_acks", Type: "enum", Values: []string{"all", "one", "none"}, Default: "all", Label: "Required ACKs"},
 			{Name: "producer.client_id", Type: "string", Label: "Client ID"},
-			{Name: "producer.async", Type: "bool", Default: false, Label: "Async Produce"},
+			{Name: "producer.async", Type: "bool", Default: false, Label: "Async Produce (counted as sent once buffered; broker errors also count as failed)"},
 			{Name: "producer.auto_create_topic", Type: "bool", Default: false, Label: "Allow Auto Topic Creation"},
+			{Name: "producer.delivery_timeout", Type: "string", Default: defaultDeliveryTimeout.String(), Label: "Delivery Timeout"},
 		}, append(shared.TLSClientSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }
 
 type driver struct {
-	client *kgo.Client
-	logger *slog.Logger
-	opts   []kgo.Opt
-	cfg    config
+	client      *kgo.Client
+	logger      *slog.Logger
+	lateFailure atomic.Pointer[func(error)]
+	opts        []kgo.Opt
+	cfg         config
+	inflight    sync.WaitGroup
+}
+
+// SetLateFailureHandler receives the pipeline counter for async failures.
+func (d *driver) SetLateFailureHandler(handler func(err error)) {
+	d.lateFailure.Store(&handler)
 }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
@@ -98,6 +110,12 @@ var (
 	validCompression  = map[string]bool{"": true, "none": true, "gzip": true, "snappy": true, "lz4": true, "zstd": true}
 	validBalancer     = map[string]bool{"": true, "round_robin": true, "least_backup": true, "sticky": true}
 	validRequiredACKs = map[string]bool{"": true, "all": true, "one": true, "none": true}
+)
+
+const (
+	defaultDeliveryTimeout = 10 * time.Second
+	// minDeliveryTimeout is the lowest record timeout franz-go accepts.
+	minDeliveryTimeout = time.Second
 )
 
 func (a *kafkaAuth) validate() utils.ValidationErrors {
@@ -122,6 +140,9 @@ func (p *kafkaProducer) validate() utils.ValidationErrors {
 	if !validRequiredACKs[p.RequiredACKs] {
 		errs.Add("required_acks", fmt.Sprintf("must be all/one/none, got %q", p.RequiredACKs))
 	}
+	if p.DeliveryTimeout < minDeliveryTimeout {
+		errs.Add("delivery_timeout", fmt.Sprintf("must be at least %s, got %s", minDeliveryTimeout, p.DeliveryTimeout))
+	}
 	return errs
 }
 
@@ -144,6 +165,9 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
 		return nil, fmt.Errorf("kafka config: %w", err)
+	}
+	if !hasKey(raw, "producer", "delivery_timeout") {
+		cfg.Producer.DeliveryTimeout = defaultDeliveryTimeout
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("kafka: %s", errs.Error())
@@ -184,6 +208,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 
 	if d.cfg.Producer.Async {
+		d.inflight.Add(1)
 		d.client.Produce(ctx, record, d.asyncCallback)
 		return nil
 	}
@@ -206,6 +231,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	}
 
 	if d.cfg.Producer.Async {
+		d.inflight.Add(len(records))
 		for _, r := range records {
 			d.client.Produce(ctx, r, d.asyncCallback)
 		}
@@ -223,17 +249,42 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	return d.client.Ping(ctx)
 }
 
-// Close shuts down the Kafka producer. franz-go flushes buffered records internally.
+// Close delivers buffered records for at most the delivery timeout, then
+// closes the client. Records still pending fail through their callbacks.
 func (d *driver) Close() error {
-	if d.client != nil {
-		d.client.Close()
+	if d.client == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), d.cfg.Producer.DeliveryTimeout)
+	defer cancel()
+	err := d.client.Flush(ctx)
+	d.client.Close()
+	// Close fails every record still buffered, so each callback runs.
+	d.inflight.Wait()
+	if err != nil {
+		return fmt.Errorf("kafka flush: %w", err)
 	}
 	return nil
 }
 
-// asyncCallback handles produce results for async mode.
+func hasKey(raw map[string]any, section, key string) bool {
+	nested, ok := raw[section].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, ok = nested[key]
+	return ok
+}
+
+// asyncCallback handles produce results for async mode. The event was
+// already counted as sent; a failure is counted again as failed.
 func (d *driver) asyncCallback(_ *kgo.Record, err error) {
-	if err != nil {
-		d.logger.Error("async produce failed", "error", err)
+	defer d.inflight.Done()
+	if err == nil {
+		return
+	}
+	d.logger.Error("async produce failed", "error", err)
+	if handler := d.lateFailure.Load(); handler != nil {
+		(*handler)(fmt.Errorf("kafka async produce: %w", err))
 	}
 }

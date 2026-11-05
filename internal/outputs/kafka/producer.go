@@ -31,6 +31,7 @@ func buildClientOpts(cfg *config) ([]kgo.Opt, error) {
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.DefaultProduceTopic(cfg.Topic),
+		kgo.RecordDeliveryTimeout(cfg.Producer.DeliveryTimeout),
 	}
 
 	if cfg.Producer.TopicCreation {

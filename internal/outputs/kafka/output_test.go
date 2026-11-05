@@ -19,6 +19,7 @@ package kafka
 import (
 	"context"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -163,7 +164,7 @@ func TestCreateOutputAsync(t *testing.T) {
 	out, err := createOutput(map[string]any{
 		"brokers":  []string{"localhost:9092"},
 		"topic":    "events",
-		"producer": map[string]any{"async": true},
+		"producer": map[string]any{"async": true, "delivery_timeout": "1s"},
 	}, output.Deps{})
 	require.NoError(t, err)
 
@@ -395,7 +396,7 @@ func TestSendAsyncWithClient(t *testing.T) {
 	d, err := createOutput(map[string]any{
 		"brokers":  []string{"localhost:19092"},
 		"topic":    "events",
-		"producer": map[string]any{"async": true},
+		"producer": map[string]any{"async": true, "delivery_timeout": "1s"},
 	}, output.Deps{})
 	require.NoError(t, err)
 
@@ -441,7 +442,7 @@ func TestSendBatchAsyncWithClient(t *testing.T) {
 	d, err := createOutput(map[string]any{
 		"brokers":  []string{"localhost:19092"},
 		"topic":    "events",
-		"producer": map[string]any{"async": true},
+		"producer": map[string]any{"async": true, "delivery_timeout": "1s"},
 	}, output.Deps{})
 	require.NoError(t, err)
 
@@ -505,4 +506,110 @@ func TestValidBrokerReachesTheClientAddress(t *testing.T) {
 func TestSchemeBrokerRejected(t *testing.T) {
 	_, err := createOutput(map[string]any{"brokers": []string{"http://localhost:9092"}, "topic": "falco"}, output.Deps{})
 	require.ErrorContains(t, err, "must be host:port without a scheme")
+}
+
+func TestDeliveryTimeoutConfig(t *testing.T) {
+	for _, tc := range []struct {
+		value   any
+		name    string
+		wantErr string
+		want    time.Duration
+	}{
+		{name: "default", want: 10 * time.Second},
+		{name: "explicit", value: "2500ms", want: 2500 * time.Millisecond},
+		{name: "minimum", value: "1s", want: time.Second},
+		{name: "below minimum", value: "999ms", wantErr: "delivery_timeout: must be at least 1s"},
+		{name: "zero", value: "0s", wantErr: "delivery_timeout: must be at least 1s"},
+		{name: "negative", value: "-1s", wantErr: "delivery_timeout: must be at least 1s"},
+		{name: "unparsable", value: "soon", wantErr: "delivery_timeout"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			producer := map[string]any{}
+			if tc.value != nil {
+				producer["delivery_timeout"] = tc.value
+			}
+			d, err := createOutput(map[string]any{"brokers": []string{"127.0.0.1:1"}, "topic": "events", "producer": producer}, output.Deps{})
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, d.(*driver).cfg.Producer.DeliveryTimeout)
+		})
+	}
+}
+
+func TestDeliveryTimeoutSchemaDefault(t *testing.T) {
+	for _, field := range OutputType.Schema.Fields {
+		if field.Name == "producer.delivery_timeout" {
+			assert.Equal(t, "10s", field.Default)
+			return
+		}
+	}
+	t.Fatal("producer.delivery_timeout missing from schema")
+}
+
+func unreachableDriver(t *testing.T, async bool) *driver {
+	t.Helper()
+	d, err := createOutput(map[string]any{
+		"brokers":  []string{"127.0.0.1:1"},
+		"topic":    "events",
+		"producer": map[string]any{"async": async, "delivery_timeout": "1s"},
+	}, output.Deps{})
+	require.NoError(t, err)
+	o := d.(*driver)
+	require.NoError(t, o.Init(context.Background()))
+	return o
+}
+
+func TestSyncSendIsBoundedByDeliveryTimeout(t *testing.T) {
+	o := unreachableDriver(t, false)
+	defer func() { _ = o.Close() }()
+
+	start := time.Now()
+	err := o.Send(context.Background(), &event.Event{Rule: "r", Priority: event.PriorityWarning, Time: time.Now(), OutputFields: map[string]any{}})
+	require.Error(t, err)
+	assert.Less(t, time.Since(start), 5*time.Second)
+}
+
+func TestCloseIsBoundedByDeliveryTimeout(t *testing.T) {
+	o := unreachableDriver(t, true)
+	for range 10 {
+		require.NoError(t, o.Send(context.Background(), &event.Event{Rule: "r", Priority: event.PriorityWarning, Time: time.Now(), OutputFields: map[string]any{}}))
+	}
+
+	start := time.Now()
+	err := o.Close()
+	assert.Less(t, time.Since(start), 5*time.Second)
+	if err != nil {
+		assert.ErrorContains(t, err, "kafka flush")
+	}
+}
+
+func TestAsyncFailureReachesLateFailureHandler(t *testing.T) {
+	o := unreachableDriver(t, true)
+	var mu sync.Mutex
+	var failures []error
+	o.SetLateFailureHandler(func(err error) {
+		mu.Lock()
+		defer mu.Unlock()
+		failures = append(failures, err)
+	})
+	for range 3 {
+		require.NoError(t, o.Send(context.Background(), &event.Event{Rule: "r", Priority: event.PriorityWarning, Time: time.Now(), OutputFields: map[string]any{}}))
+	}
+	_ = o.Close()
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, failures, 3)
+	for _, err := range failures {
+		assert.ErrorContains(t, err, "kafka async produce")
+	}
+}
+
+func TestAsyncFailureWithoutHandlerOnlyLogs(t *testing.T) {
+	o := unreachableDriver(t, true)
+	require.NoError(t, o.Send(context.Background(), &event.Event{Rule: "r", Priority: event.PriorityWarning, Time: time.Now(), OutputFields: map[string]any{}}))
+	_ = o.Close()
 }
