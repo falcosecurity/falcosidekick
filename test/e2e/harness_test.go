@@ -78,11 +78,14 @@ func run(m *testing.M) (int, error) {
 	return m.Run(), nil
 }
 
-// sidekick is one running falcosidekick process.
+// sidekick is one running falcosidekick process. exited is closed once the
+// process has been waited for; waitErr holds its exit status.
 type sidekick struct {
-	cmd  *exec.Cmd
-	logs *syncBuffer
-	url  string
+	waitErr error
+	cmd     *exec.Cmd
+	logs    *syncBuffer
+	exited  chan struct{}
+	url     string
 }
 
 type syncBuffer struct {
@@ -103,8 +106,46 @@ func (b *syncBuffer) String() string {
 }
 
 // startSidekick runs the binary with one retry attempt so failures surface
-// quickly, and outputs given as the YAML body under `outputs:`.
+// quickly, and outputs given as the YAML body under `outputs:`. It fails the
+// test if the process exits or is not ready within startTimeout.
 func startSidekick(t *testing.T, outputs string) *sidekick {
+	t.Helper()
+	s := launchSidekick(t, outputs)
+	deadline := time.After(startTimeout)
+	for {
+		resp, err := httpDo(http.MethodGet, s.url+"/healthz", nil)
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return s
+			}
+		}
+		select {
+		case <-s.exited:
+			t.Fatalf("falcosidekick exited during startup: %v\n%s", s.waitErr, s.logs.String())
+		case <-deadline:
+			t.Fatalf("falcosidekick not ready within %s\n%s", startTimeout, s.logs.String())
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+// startSidekickFails runs the binary and requires it to exit with a non-zero
+// status within startTimeout. It returns the process logs.
+func startSidekickFails(t *testing.T, outputs string) string {
+	t.Helper()
+	s := launchSidekick(t, outputs)
+	select {
+	case <-s.exited:
+	case <-time.After(startTimeout):
+		t.Fatalf("falcosidekick still running after %s, want a startup failure\n%s", startTimeout, s.logs.String())
+	}
+	var exitErr *exec.ExitError
+	require.ErrorAs(t, s.waitErr, &exitErr, "want a non-zero exit\n%s", s.logs.String())
+	return s.logs.String()
+}
+
+func launchSidekick(t *testing.T, outputs string) *sidekick {
 	t.Helper()
 	dir := t.TempDir()
 	port := freePort(t)
@@ -130,40 +171,35 @@ runtime_defaults:
 	require.NoError(t, os.WriteFile(corePath, []byte(core), 0o600))
 	require.NoError(t, os.WriteFile(outputsPath, []byte("outputs:\n"+indent(outputs)), 0o600))
 
-	s := &sidekick{logs: &syncBuffer{}, url: fmt.Sprintf("http://127.0.0.1:%d", port)}
+	s := &sidekick{
+		logs:   &syncBuffer{},
+		exited: make(chan struct{}),
+		url:    fmt.Sprintf("http://127.0.0.1:%d", port),
+	}
 	s.cmd = exec.CommandContext(context.Background(), binary, "-c", corePath, "-o", outputsPath)
 	s.cmd.Stdout, s.cmd.Stderr = s.logs, s.logs
 	require.NoError(t, s.cmd.Start())
+	go func() {
+		s.waitErr = s.cmd.Wait()
+		close(s.exited)
+	}()
 	t.Cleanup(func() { s.stop(t) })
-
-	deadline := time.Now().Add(startTimeout)
-	for time.Now().Before(deadline) {
-		resp, err := httpDo(http.MethodGet, s.url+"/healthz", nil)
-		if err == nil {
-			_ = resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				return s
-			}
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	t.Fatalf("falcosidekick not ready within %s\n%s", startTimeout, s.logs.String())
-	return nil
+	return s
 }
 
 func (s *sidekick) stop(t *testing.T) {
 	t.Helper()
-	if s.cmd.ProcessState != nil {
+	select {
+	case <-s.exited:
 		return
+	default:
 	}
 	_ = s.cmd.Process.Signal(syscall.SIGTERM)
-	done := make(chan error, 1)
-	go func() { done <- s.cmd.Wait() }()
 	select {
-	case <-done:
+	case <-s.exited:
 	case <-time.After(stopTimeout):
 		_ = s.cmd.Process.Kill()
-		<-done
+		<-s.exited
 		t.Errorf("falcosidekick did not stop within %s", stopTimeout)
 	}
 	if t.Failed() {
@@ -199,7 +235,9 @@ func falcoEvent(marker string) map[string]any {
 }
 
 type outputStatus struct {
+	Status       string `json:"status"`
 	LastError    string `json:"last_error"`
+	LastWarning  string `json:"last_warning"`
 	SentTotal    int    `json:"sent_total"`
 	FailedTotal  int    `json:"failed_total"`
 	DroppedTotal int    `json:"dropped_total"`
@@ -261,6 +299,10 @@ func requireEnv(t *testing.T, name string) string {
 	return value
 }
 
+// httpClient bounds every test request so a stuck destination fails the test
+// instead of hanging it.
+var httpClient = &http.Client{Timeout: 10 * time.Second}
+
 // httpDo sends a request with a JSON body when body is not nil.
 func httpDo(method, url string, body []byte) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(context.Background(), method, url, bytes.NewReader(body))
@@ -270,7 +312,7 @@ func httpDo(method, url string, body []byte) (*http.Response, error) {
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	return http.DefaultClient.Do(req)
+	return httpClient.Do(req)
 }
 
 func freePort(t *testing.T) int {

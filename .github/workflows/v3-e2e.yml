@@ -131,7 +131,7 @@ jobs:
           go-version: '1.26'
       - name: Generate broker TLS material
         run: |
-          d="$RUNNER_TEMP/kafka-tls"; mkdir -p "$d"; cd "$d"
+          d="$RUNNER_TEMP/kafka-tls"; mkdir -p "$d"; cd "$d" || exit 1
           openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=fsk-e2e-ca -keyout ca.key -out ca.pem
           openssl req -newkey rsa:2048 -nodes -subj /CN=127.0.0.1 -keyout server.key -out server.csr
           printf 'subjectAltName=IP:127.0.0.1,DNS:localhost\n' > ext.cnf
@@ -210,9 +210,9 @@ jobs:
           sudo sysctl -w vm.max_map_count=262144
           args=(-e discovery.type=single-node -e "ES_JAVA_OPTS=-Xms512m -Xmx512m" -e "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m")
           case "$FLAVOR" in
-            es7) scheme=http; user=elastic; args+=(-e xpack.security.enabled=true -e xpack.security.authc.api_key.enabled=true -e "ELASTIC_PASSWORD=$ES_PASSWORD") ;;
-            es)  scheme=https; user=elastic; args+=(-e "ELASTIC_PASSWORD=$ES_PASSWORD") ;;
-            os)  scheme=https; user=admin; args+=(-e "OPENSEARCH_INITIAL_ADMIN_PASSWORD=$ES_PASSWORD") ;;
+            es7) scheme=http; user="elastic"; args+=(-e xpack.security.enabled=true -e xpack.security.authc.api_key.enabled=true -e "ELASTIC_PASSWORD=$ES_PASSWORD") ;;
+            es)  scheme=https; user="elastic"; args+=(-e "ELASTIC_PASSWORD=$ES_PASSWORD") ;;
+            os)  scheme=https; user="admin"; args+=(-e "OPENSEARCH_INITIAL_ADMIN_PASSWORD=$ES_PASSWORD") ;;
           esac
           docker run -d --name es -p 127.0.0.1:9200:9200 "${args[@]}" "$IMAGE"
           url="$scheme://127.0.0.1:9200"

@@ -55,7 +55,7 @@ func lokiQuery(t *testing.T, base, tenant, logQL string) (int, []lokiStream) {
 	if tenant != "" {
 		req.Header.Set("X-Scope-OrgID", tenant)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
@@ -183,12 +183,33 @@ func TestLokiMissingTenantIsRejected(t *testing.T) {
 	assert.Contains(t, st.LastError, "HTTP 401")
 }
 
-func TestLokiReportsWrongRoute(t *testing.T) {
+// A wrong base path makes the readiness probe answer 404, a configuration
+// error that stops startup.
+func TestLokiWrongBasePathFailsStartup(t *testing.T) {
 	base := requireEnv(t, lokiURLEnv)
-	sk := startSidekick(t, fmt.Sprintf("loki:\n  host: %q\n  base_path: /e2e-missing\n  tenant: e2e-falco\n", base))
+	logs := startSidekickFails(t, fmt.Sprintf("loki:\n  host: %q\n  base_path: /e2e-missing\n  tenant: e2e-falco\n", base))
+	assert.Contains(t, logs, "health check")
+	assert.Contains(t, logs, "HTTP 404")
+}
+
+// A wrong endpoint is only visible on delivery.
+func TestLokiReportsWrongEndpoint(t *testing.T) {
+	base := requireEnv(t, lokiURLEnv)
+	sk := startSidekick(t, fmt.Sprintf("loki:\n  host: %q\n  endpoint: /e2e-missing\n  tenant: e2e-falco\n", base))
+	assert.Equal(t, "idle", sk.status(t, "loki").Status)
 
 	sk.postEvent(t, newMarker(t))
 	st := sk.waitStatus(t, "loki", func(st outputStatus) bool { return st.FailedTotal == 1 })
 	assert.Zero(t, st.SentTotal)
+	assert.Equal(t, "error", st.Status)
 	assert.Contains(t, st.LastError, "HTTP 404")
+}
+
+// An unreachable destination at startup is transient: the output starts
+// degraded and reports why.
+func TestLokiUnreachableStartsDegraded(t *testing.T) {
+	sk := startSidekick(t, fmt.Sprintf("loki:\n  host: %q\n", "http://127.0.0.1:19098"))
+	st := sk.status(t, "loki")
+	assert.Equal(t, "degraded", st.Status)
+	assert.Contains(t, st.LastWarning, "health check failed before start")
 }
