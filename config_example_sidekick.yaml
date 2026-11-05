@@ -116,3 +116,4 @@ runtime_defaults:
     enabled: false            # enable batch delivery (outputs must implement BatchSender)
     batch_size: 500           # events per batch
     flush_interval: 1s        # max time before flushing partial batch
+  health_check: true          # probe each destination before it starts (false skips it)

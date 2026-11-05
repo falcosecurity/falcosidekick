@@ -38,5 +38,6 @@ func RuntimeConfigSchemaFields() []output.SchemaField {
 		{Name: "runtime.batching.enabled", Type: "bool", Default: false, Label: "Enable Batching"},
 		{Name: "runtime.batching.batch_size", Type: "int", Default: 500, Label: "Batch Size"},
 		{Name: "runtime.batching.flush_interval", Type: "string", Default: "1s", Label: "Batch Flush Interval"},
+		{Name: "runtime.health_check", Type: "bool", Default: true, Label: "Probe the destination before starting"},
 	}
 }

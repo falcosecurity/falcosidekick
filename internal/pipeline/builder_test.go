@@ -206,6 +206,80 @@ func TestBuildOutput_HealthCheckIsBounded(t *testing.T) {
 	})
 }
 
+func probeType(name string, probe func(context.Context) error, closed *atomic.Int32) output.Type {
+	return output.Type{
+		Name:   name,
+		Schema: output.Schema{Fields: []output.SchemaField{}},
+		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+			return &testutil.MockDriver{
+				DriverName:      name,
+				HealthCheckFunc: probe,
+				CloseFunc: func() error {
+					closed.Add(1)
+					return nil
+				},
+			}, nil
+		},
+	}
+}
+
+func TestBuildOutputs_ProbesRunConcurrently(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var closed atomic.Int32
+		slow := func(context.Context) error {
+			time.Sleep(3 * time.Second)
+			return nil
+		}
+		cat, err := catalog.New([]output.Type{probeType("a", slow, &closed), probeType("b", slow, &closed), probeType("c", slow, &closed)})
+		require.NoError(t, err)
+
+		start := time.Now()
+		outs, err := pipeline.BuildOutputs(context.Background(), cat,
+			map[string]map[string]any{"a": {}, "b": {}, "c": {}}, testutil.DefaultRuntimeConfig(), output.Deps{})
+		require.NoError(t, err)
+		assert.Equal(t, 3*time.Second, time.Since(start))
+		assert.Len(t, outs, 3)
+		assert.Zero(t, closed.Load())
+	})
+}
+
+func TestBuildOutputs_FailureClosesTheOthers(t *testing.T) {
+	var closed atomic.Int32
+	ok := func(context.Context) error { return nil }
+	bad := func(context.Context) error { return fmt.Errorf("%w: HTTP 401", output.ErrMisconfigured) }
+	cat, err := catalog.New([]output.Type{probeType("a", ok, &closed), probeType("b", bad, &closed), probeType("c", ok, &closed)})
+	require.NoError(t, err)
+
+	outs, err := pipeline.BuildOutputs(context.Background(), cat,
+		map[string]map[string]any{"a": {}, "b": {}, "c": {}}, testutil.DefaultRuntimeConfig(), output.Deps{})
+	require.Error(t, err)
+	assert.Nil(t, outs)
+	assert.Contains(t, err.Error(), `output "b"`)
+	assert.Equal(t, int32(3), closed.Load(), "the failed driver and both built outputs are closed")
+}
+
+func TestBuildOutput_HealthCheckDisabled(t *testing.T) {
+	var probes atomic.Int32
+	driver := &testutil.MockDriver{
+		DriverName: "slack",
+		HealthCheckFunc: func(context.Context) error {
+			probes.Add(1)
+			return fmt.Errorf("%w: HTTP 401", output.ErrMisconfigured)
+		},
+		RuntimeConfigFunc: func() output.RuntimeConfig {
+			disabled := false
+			return output.RuntimeConfig{HealthCheck: &disabled}
+		},
+	}
+	cat, err := catalog.New([]output.Type{newMockDriverType(driver)})
+	require.NoError(t, err)
+
+	out, err := pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{}, testutil.DefaultRuntimeConfig(), output.Deps{})
+	require.NoError(t, err)
+	assert.Zero(t, probes.Load())
+	assert.Equal(t, pipeline.HealthIdle, out.GetStatus().Status)
+}
+
 func TestBuildOutput_AppliesRuntimeDefaults(t *testing.T) {
 	driver := &testutil.MockDriver{DriverName: "slack"}
 	cat, err := catalog.New([]output.Type{newMockDriverType(driver)})

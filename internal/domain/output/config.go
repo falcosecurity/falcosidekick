@@ -31,6 +31,7 @@ type RuntimeConfig struct {
 	Retry          *RetryConfig          `json:"retry,omitempty" mapstructure:"retry"`
 	CircuitBreaker *CircuitBreakerConfig `json:"circuit_breaker,omitempty" mapstructure:"circuit_breaker"`
 	Batching       *BatchingConfig       `json:"batching,omitempty" mapstructure:"batching"`
+	HealthCheck    *bool                 `json:"health_check,omitempty" mapstructure:"health_check"`
 	MinPriority    event.Priority        `json:"minimum_priority" mapstructure:"minimum_priority"`
 	QueueSize      int                   `json:"queue_size" mapstructure:"queue_size"`
 	Workers        int                   `json:"workers" mapstructure:"workers"`
@@ -86,8 +87,15 @@ func (c *RuntimeConfig) DeepCopy() RuntimeConfig {
 		b := *c.Batching
 		cp.Batching = &b
 	}
+	if c.HealthCheck != nil {
+		h := *c.HealthCheck
+		cp.HealthCheck = &h
+	}
 	return cp
 }
+
+// ProbesDestination reports whether the destination is probed before start.
+func (c *RuntimeConfig) ProbesDestination() bool { return c.HealthCheck == nil || *c.HealthCheck }
 
 // RetryConfig holds retry policy settings.
 type RetryConfig struct {

@@ -431,21 +431,8 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	return nil
 }
 
-// createOutputs builds the given set of outputs. On failure, outputs built
-// so far in the batch are closed before returning.
 func (r *Reloader) createOutputs(ctx context.Context, configs map[string]map[string]any) (map[string]*pipeline.Output, error) {
-	outputs := make(map[string]*pipeline.Output, len(configs))
-
-	for name, cfg := range configs {
-		out, err := pipeline.BuildOutput(ctx, r.catalog, name, cfg, r.runtimeDefaults, r.deps)
-		if err != nil {
-			closeOutputs(outputs)
-			return nil, fmt.Errorf("output %q %w", name, err)
-		}
-		outputs[name] = out
-	}
-
-	return outputs, nil
+	return pipeline.BuildOutputs(ctx, r.catalog, configs, r.runtimeDefaults, r.deps)
 }
 
 func closeOutputs(outputs map[string]*pipeline.Output) {

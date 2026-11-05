@@ -83,6 +83,10 @@ func MergeRuntimeConfig(defaults output.RuntimeConfig, name string, perOutput ou
 		}
 		resolved.Batching = &merged
 	}
+	if perOutput.HealthCheck != nil {
+		enabled := *perOutput.HealthCheck
+		resolved.HealthCheck = &enabled
+	}
 
 	if errs := resolved.Validate(); len(errs) > 0 {
 		return resolved, fmt.Errorf("output %q: %s", name, errs.Error())

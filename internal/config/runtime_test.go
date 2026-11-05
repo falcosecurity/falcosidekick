@@ -77,6 +77,29 @@ func TestMergeRuntimeConfigDefaults(t *testing.T) {
 	assert.Equal(t, cfg.RuntimeDefaults.Workers, resolved.Workers)
 }
 
+func TestMergeRuntimeConfigHealthCheck(t *testing.T) {
+	off, on := false, true
+	tests := []struct {
+		defaults, perOutput *bool
+		name                string
+		want                bool
+	}{
+		{name: "probes by default", want: true},
+		{name: "disabled for one output", perOutput: &off, want: false},
+		{name: "disabled for all", defaults: &off, want: false},
+		{name: "disabled for all, enabled for one", defaults: &off, perOutput: &on, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defaults := loadDefaults(t).RuntimeDefaults
+			defaults.HealthCheck = tt.defaults
+			resolved, err := MergeRuntimeConfig(defaults, "loki", output.RuntimeConfig{HealthCheck: tt.perOutput})
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, resolved.ProbesDestination())
+		})
+	}
+}
+
 func TestMergeRuntimeConfigZeroOverrideKeepsDefault(t *testing.T) {
 	cfg := loadDefaults(t)
 
