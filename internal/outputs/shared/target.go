@@ -73,14 +73,14 @@ func (c *HTTPTargetConfig) validateHost(opts *HTTPTargetOptions) utils.Validatio
 	var errs utils.ValidationErrors
 	if opts.ExternalHosts {
 		if c.Host != "" {
-			errs.Add("host", "is not supported; use hosts")
+			errs.Add(fieldHost, "is not supported; use hosts")
 		}
 		return errs
 	}
 	if c.Host == "" {
 		c.Host = opts.DefaultHost
 	}
-	errs.Merge("host", ValidateOrigin(c.Host))
+	errs.Merge(fieldHost, ValidateOrigin(c.Host))
 	return errs
 }
 
@@ -177,7 +177,7 @@ func (c *HTTPTargetConfig) URL(host, route string, query url.Values) (string, er
 func HTTPTargetSchemaFields(opts *HTTPTargetOptions) []output.SchemaField {
 	var fields []output.SchemaField
 	if !opts.ExternalHosts {
-		host := output.SchemaField{Name: "host", Type: "string", Required: opts.DefaultHost == "", Label: "Host (scheme, host and port)"}
+		host := output.SchemaField{Name: fieldHost, Type: "string", Required: opts.DefaultHost == "", Label: "Host (scheme, host and port)"}
 		if opts.DefaultHost != "" {
 			host.Default = opts.DefaultHost
 		}
