@@ -111,6 +111,17 @@ describe("PipelineDetailPanel", () => {
     expect(screen.getByText("Connection refused")).toBeInTheDocument()
   })
 
+  test("a degraded output that still delivers shows its warning, not an error", () => {
+    renderWithProviders(<PipelineDetailPanel selection={{ kind: "sink", name: "alerts" }} entry={entry} status={{
+      ...status, status: "degraded", sent_total: 3,
+      last_warning: "health check failed before start: connection refused",
+    }} />)
+    expect(screen.getByLabelText("status degraded")).toBeInTheDocument()
+    expect(screen.getByText("Last warning")).toHaveClass("text-status-degraded-foreground")
+    expect(screen.getByText("health check failed before start: connection refused")).toHaveClass("text-status-degraded-foreground")
+    expect(screen.queryByText("Last error")).toBeNull()
+  })
+
   test("health text uses the dedicated foreground tokens", () => {
     renderWithProviders(<PipelineDetailPanel selection={{ kind: "sink", name: "alerts" }} entry={entry} status={{
       ...status, failed_total: 1, dropped_total: 2, queue_depth: 90,

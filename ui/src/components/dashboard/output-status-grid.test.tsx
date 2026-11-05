@@ -96,6 +96,18 @@ describe("OutputStatusGrid", () => {
     expect(screen.getByText("upstream unavailable")).toHaveClass("text-status-error-foreground")
   })
 
+  test("renders a warning of a degraded output that still delivers", () => {
+    renderGrid([{
+      ...status,
+      circuit_state: "closed",
+      last_error: "",
+      last_warning: "1 of 2 hosts failed: connection refused",
+    }])
+    expect(screen.getByRole("status", { name: "status degraded" })).toBeInTheDocument()
+    expect(screen.getByText("1 of 2 hosts failed: connection refused")).toHaveClass("text-status-degraded-foreground")
+    expect(screen.queryByText("upstream unavailable")).toBeNull()
+  })
+
   test("keeps all zero-valued metrics in a labelled group", () => {
     renderGrid([{
       ...status,

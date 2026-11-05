@@ -75,6 +75,9 @@ export interface OutputStatus {
   circuit_state: CircuitState
   last_success: string
   last_error: string
+  // Present when the output delivers with a problem: a destination not
+  // reachable at startup or a partial fan-out failure.
+  last_warning?: string
   send_latency_p99_ms?: number
 }
 
