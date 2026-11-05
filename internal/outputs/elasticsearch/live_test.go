@@ -21,6 +21,8 @@ package elasticsearch
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -39,7 +41,10 @@ import (
 // Run with hack/elasticsearch-matrix.sh, or set FALCOSIDEKICK_ES_URL to a
 // disposable cluster: the test deletes the indices and templates it uses.
 // FALCOSIDEKICK_ES_USERNAME and FALCOSIDEKICK_ES_PASSWORD enable the
-// authentication cases; the user must be able to create API keys.
+// authentication cases; the user must be able to create API keys unless
+// FALCOSIDEKICK_ES_API_KEYS=false. FALCOSIDEKICK_ES_CA_FILE enables the TLS
+// cases, and FALCOSIDEKICK_ES_CLIENT_CERT with FALCOSIDEKICK_ES_CLIENT_KEY
+// the client certificate cases.
 func liveURL(t *testing.T) string {
 	t.Helper()
 	target := os.Getenv("FALCOSIDEKICK_ES_URL")
@@ -57,11 +62,24 @@ func liveRequest(t *testing.T, base, method, path, body string) (status int, dec
 	if user := os.Getenv("FALCOSIDEKICK_ES_USERNAME"); user != "" {
 		req.SetBasicAuth(user, os.Getenv("FALCOSIDEKICK_ES_PASSWORD"))
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := liveClient(t).Do(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 	_ = json.NewDecoder(resp.Body).Decode(&decoded)
 	return resp.StatusCode, decoded
+}
+
+func liveClient(t *testing.T) *http.Client {
+	t.Helper()
+	caFile := os.Getenv("FALCOSIDEKICK_ES_CA_FILE")
+	if caFile == "" {
+		return http.DefaultClient
+	}
+	pem, err := os.ReadFile(caFile)
+	require.NoError(t, err)
+	pool := x509.NewCertPool()
+	require.True(t, pool.AppendCertsFromPEM(pem))
+	return &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}}}
 }
 
 func liveCount(t *testing.T, base, index string) float64 {
@@ -81,7 +99,13 @@ func liveEvent(id string, n any) *event.Event {
 
 func liveDriver(t *testing.T, cfg map[string]any) output.Driver {
 	t.Helper()
-	if _, explicit := cfg["api_key"]; !explicit {
+	if _, explicit := cfg["tls"]; !explicit && os.Getenv("FALCOSIDEKICK_ES_CA_FILE") != "" {
+		cfg["tls"] = map[string]any{"ca_file": os.Getenv("FALCOSIDEKICK_ES_CA_FILE")}
+	}
+	_, explicitKey := cfg["api_key"]
+	tlsCfg, _ := cfg["tls"].(map[string]any)
+	_, explicitCert := tlsCfg["cert_file"]
+	if !explicitKey && !explicitCert {
 		if user := os.Getenv("FALCOSIDEKICK_ES_USERNAME"); user != "" {
 			cfg["username"] = user
 			cfg["password"] = os.Getenv("FALCOSIDEKICK_ES_PASSWORD")
@@ -199,6 +223,9 @@ func TestLiveElasticsearchAuthentication(t *testing.T) {
 	})
 
 	t.Run("api key", func(t *testing.T) {
+		if os.Getenv("FALCOSIDEKICK_ES_API_KEYS") == "false" {
+			t.Skip("server without API keys")
+		}
 		status, body := liveRequest(t, base, http.MethodPost, "/_security/api_key", `{"name":"fsk-live"}`)
 		require.Equal(t, http.StatusOK, status, body)
 		key, ok := body["encoded"].(string)
@@ -212,16 +239,72 @@ func TestLiveElasticsearchAuthentication(t *testing.T) {
 
 	t.Run("wrong credentials fail and never create the template", func(t *testing.T) {
 		liveRequest(t, base, http.MethodDelete, "/_index_template/fsk-live-denied", "")
-		d, err := createOutput(map[string]any{
+		cfg := map[string]any{
 			"host": base, "index": "fsk-live-denied", "username": user, "password": password + "-wrong",
 			"create_index_template": true, "number_of_shards": 1,
-		}, output.Deps{Logger: slog.New(slog.DiscardHandler)})
+		}
+		if caFile := os.Getenv("FALCOSIDEKICK_ES_CA_FILE"); caFile != "" {
+			cfg["tls"] = map[string]any{"ca_file": caFile}
+		}
+		d, err := createOutput(cfg, output.Deps{Logger: slog.New(slog.DiscardHandler)})
 		require.NoError(t, err)
 		require.ErrorContains(t, d.Init(ctx), "index template check: elasticsearch response: HTTP 401 Unauthorized")
 		require.ErrorContains(t, d.(output.BatchSender).SendBatch(ctx, events("denied")), "HTTP 401")
 		status, _ := liveRequest(t, base, http.MethodHead, "/_index_template/fsk-live-denied", "")
 		assert.Equal(t, http.StatusNotFound, status)
 		assert.NotContains(t, d.HealthCheck(ctx).Error(), password)
+	})
+}
+
+func TestLiveElasticsearchTLS(t *testing.T) {
+	base := liveURL(t)
+	caFile := os.Getenv("FALCOSIDEKICK_ES_CA_FILE")
+	if caFile == "" {
+		t.Skip("FALCOSIDEKICK_ES_CA_FILE not set")
+	}
+	password := os.Getenv("FALCOSIDEKICK_ES_PASSWORD")
+	ctx := context.Background()
+	batch := []*event.Event{liveEvent("tls-1", 1)}
+
+	t.Run("verified server certificate", func(t *testing.T) {
+		d := liveDriver(t, map[string]any{"host": base, "index": "fsk-live-tls", "index_suffix": "none"})
+		require.NoError(t, d.(output.BatchSender).SendBatch(ctx, batch))
+	})
+
+	t.Run("unknown authority is rejected", func(t *testing.T) {
+		d := liveDriver(t, map[string]any{"host": base, "index": "fsk-live-tls", "index_suffix": "none", "tls": map[string]any{}})
+		err := d.(output.BatchSender).SendBatch(ctx, batch)
+		require.ErrorContains(t, err, "TLS certificate verification failed")
+		if password != "" {
+			assert.NotContains(t, err.Error(), password)
+		}
+	})
+
+	t.Run("wrong server name is rejected", func(t *testing.T) {
+		d := liveDriver(t, map[string]any{
+			"host": base, "index": "fsk-live-tls", "index_suffix": "none",
+			"tls": map[string]any{"ca_file": caFile, "server_name": "wrong.invalid"},
+		})
+		require.ErrorContains(t, d.(output.BatchSender).SendBatch(ctx, batch), "TLS certificate verification failed")
+	})
+
+	t.Run("client certificate", func(t *testing.T) {
+		certFile, keyFile := os.Getenv("FALCOSIDEKICK_ES_CLIENT_CERT"), os.Getenv("FALCOSIDEKICK_ES_CLIENT_KEY")
+		if certFile == "" {
+			t.Skip("FALCOSIDEKICK_ES_CLIENT_CERT not set")
+		}
+		withCert := liveDriver(t, map[string]any{
+			"host": base, "index": "fsk-live-mtls", "index_suffix": "none",
+			"tls": map[string]any{"ca_file": caFile, "cert_file": certFile, "key_file": keyFile},
+		})
+		require.NoError(t, withCert.(output.BatchSender).SendBatch(ctx, []*event.Event{liveEvent("mtls-1", 1)}))
+		require.NoError(t, withCert.Send(ctx, liveEvent("mtls-2", 1)))
+
+		anonymous, err := createOutput(map[string]any{
+			"host": base, "index": "fsk-live-mtls", "index_suffix": "none", "tls": map[string]any{"ca_file": caFile},
+		}, output.Deps{Logger: slog.New(slog.DiscardHandler)})
+		require.NoError(t, err)
+		require.ErrorContains(t, anonymous.(output.BatchSender).SendBatch(ctx, []*event.Event{liveEvent("mtls-3", 1)}), "HTTP 401")
 	})
 }
 
