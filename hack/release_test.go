@@ -73,7 +73,7 @@ func releaseWorkflowStep(t *testing.T, file, jobID, stepID string) releaseStep {
 	return releaseStep{}
 }
 
-func TestReleaseV3Artifacts(t *testing.T) {
+func TestReleaseArtifacts(t *testing.T) {
 	var config struct {
 		Dist   string `yaml:"dist"`
 		Builds []struct {
@@ -93,7 +93,7 @@ func TestReleaseV3Artifacts(t *testing.T) {
 			Tags            []string          `yaml:"tags"`
 		} `yaml:"dockers_v2"`
 	}
-	readReleaseYAML(t, ".goreleaser.v3.yml", &config)
+	readReleaseYAML(t, ".goreleaser.yml", &config)
 	require.Equal(t, "dist/release", config.Dist)
 	require.Len(t, config.Builds, 2)
 	require.Len(t, config.Dockers, 2)
@@ -107,7 +107,7 @@ func TestReleaseV3Artifacts(t *testing.T) {
 				require.Contains(t, flags, "-X "+prefix+assignment)
 			}
 			require.NotContains(t, flags, ".Env.LDFLAGS")
-			ui := build.ID == "falcosidekick-v3"
+			ui := build.ID == "falcosidekick"
 			require.Equal(t, ui, slices.Contains(build.Flags, "-tags=builtinui"))
 			matches := 0
 			for _, docker := range config.Dockers {
@@ -115,7 +115,7 @@ func TestReleaseV3Artifacts(t *testing.T) {
 					continue
 				}
 				matches++
-				require.Equal(t, "Dockerfile.v3", docker.Dockerfile)
+				require.Equal(t, "Dockerfile", docker.Dockerfile)
 				require.Equal(t, build.Binary, docker.BuildArgs["BINARY"])
 				require.Nil(t, docker.LegacyBuildArgs)
 				require.Equal(t, []string{"falcosecurity/falcosidekick", "public.ecr.aws/falcosecurity/falcosidekick"}, docker.Images)
@@ -134,20 +134,21 @@ func TestReleaseV3Artifacts(t *testing.T) {
 }
 
 func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
-	for _, name := range []string{"v3-build", "v3-release"} {
+	for _, name := range []string{"build", "release"} {
 		t.Run(name, func(t *testing.T) {
 			var workflow releaseWorkflow
 			readReleaseYAML(t, ".github/workflows/"+name+".yml", &workflow)
 			checks := workflow.Jobs["checks"]
-			require.Equal(t, "./.github/workflows/v3-test.yml", checks.Uses)
+			require.Equal(t, "./.github/workflows/test.yml", checks.Uses)
 			require.Equal(t, "read", checks.Permissions["contents"])
-			publishID := "v3-release"
+			publishID := "release"
 			refGuard := "startsWith(github.ref, 'refs/tags/v3.')"
-			if name == "v3-build" {
-				publishID = "v3-build-snapshot"
+			if name == "build" {
+				publishID = "build-snapshot"
 				refGuard = "github.ref == 'refs/heads/master'"
 			}
-			publish := workflow.Jobs[publishID]
+			publish, ok := workflow.Jobs[publishID]
+			require.True(t, ok, "missing job %s", publishID)
 			require.Contains(t, publish.Needs, "checks")
 			require.Contains(t, publish.If, "github.repository == 'falcosecurity/falcosidekick' && ",
 				"forks must never publish")
@@ -158,7 +159,7 @@ func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
 			}
 		})
 	}
-	for _, name := range []string{"v3-build", "v3-release", "v3-test", "v3-lint"} {
+	for _, name := range []string{"build", "release", "test", "lint", "e2e"} {
 		var workflow releaseWorkflow
 		readReleaseYAML(t, ".github/workflows/"+name+".yml", &workflow)
 		for _, job := range workflow.Jobs {
@@ -177,16 +178,16 @@ func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
 
 func TestReleaseChecksIncludeUITestsAndLint(t *testing.T) {
 	var tests, lint releaseWorkflow
-	readReleaseYAML(t, ".github/workflows/v3-test.yml", &tests)
-	readReleaseYAML(t, ".github/workflows/v3-lint.yml", &lint)
+	readReleaseYAML(t, ".github/workflows/test.yml", &tests)
+	readReleaseYAML(t, ".github/workflows/lint.yml", &lint)
 	require.Contains(t, tests.On, "workflow_call")
 	require.Contains(t, lint.On, "workflow_call")
-	require.Equal(t, "./.github/workflows/v3-lint.yml", tests.Jobs["v3-lint"].Uses)
-	ui := releaseWorkflowStep(t, "v3-test.yml", "v3-unit-tests", "ui-tests")
+	require.Equal(t, "./.github/workflows/lint.yml", tests.Jobs["lint"].Uses)
+	ui := releaseWorkflowStep(t, "test.yml", "unit-tests", "ui-tests")
 	require.Equal(t, "ui", ui.WorkingDirectory)
 	require.Equal(t, "bun test", strings.TrimSpace(ui.Run))
-	check := releaseWorkflowStep(t, "v3-test.yml", "v3-unit-tests", "release-config")
-	require.Equal(t, "check --config .goreleaser.v3.yml", check.With["args"])
+	check := releaseWorkflowStep(t, "test.yml", "unit-tests", "release-config")
+	require.Equal(t, "check", check.With["args"], "goreleaser reads the default .goreleaser.yml")
 }
 
 func runReleaseScript(t *testing.T, script, tool, shim string, env ...string) (output, dir string, err error) {
@@ -204,7 +205,7 @@ func runReleaseScript(t *testing.T, script, tool, shim string, env ...string) (o
 }
 
 func TestReleaseCoverageThreshold(t *testing.T) {
-	step := releaseWorkflowStep(t, "v3-test.yml", "v3-unit-tests", "coverage")
+	step := releaseWorkflowStep(t, "test.yml", "unit-tests", "coverage")
 	const shim = `
 if [[ "$1" == test ]]; then
   [[ "$TEST_FAIL" != yes ]] || exit 9
@@ -250,7 +251,7 @@ printf 'total: (statements) %s\n' "$coverage"
 }
 
 func TestReleaseSnapshotPublication(t *testing.T) {
-	step := releaseWorkflowStep(t, "v3-build.yml", "v3-build-snapshot", "publish-snapshot")
+	step := releaseWorkflowStep(t, "build.yml", "build-snapshot", "publish-snapshot")
 	const sha = "0123456789abcdef0123456789abcdef01234567"
 	const shim = `
 printf '%s\n' "$*" >> "$CALLS"

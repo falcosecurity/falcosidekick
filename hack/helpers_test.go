@@ -85,7 +85,7 @@ func newHelperRun(t *testing.T, clusters string) *helperRun {
 	run.env = append(os.Environ(),
 		"PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"STUB_LOG="+run.stubLog, "STUB_PF="+run.stubPF, "STUB_CLUSTERS="+clusters,
-		"KUBECONFIG=/nonexistent", "V3_FALCO_WAIT=0", "V3_WEBHOOK_WAIT=0", "V3_UI_WRITE_WAIT=0",
+		"KUBECONFIG=/nonexistent", "FSK_FALCO_WAIT=0", "FSK_WEBHOOK_WAIT=0", "FSK_UI_WRITE_WAIT=0",
 	)
 	return run
 }
@@ -150,7 +150,7 @@ var helperScripts = []struct {
 }{
 	{
 		name: "live-test", path: "live-test/run.sh",
-		named: func(cluster string) (args, env []string) { return nil, []string{"V3_KIND_CLUSTER=" + cluster} },
+		named: func(cluster string) (args, env []string) { return nil, []string{"FSK_KIND_CLUSTER=" + cluster} },
 	},
 	{
 		name: "ui-dev-cluster", path: "ui-dev-cluster.sh", args: []string{"--skip-build", "--clean"},

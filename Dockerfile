@@ -5,7 +5,7 @@ ARG BASE_IMAGE=alpine:3.22
 FROM ${BASE_IMAGE}
 
 ARG TARGETPLATFORM
-ARG BINARY=falcosidekick-v3
+ARG BINARY=falcosidekick
 ARG VARIANT=ui
 
 LABEL MAINTAINER="Falco Maintainers"

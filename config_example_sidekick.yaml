@@ -1,4 +1,4 @@
-# falcosidekick v3.0 - core configuration (sidekick.yaml)
+# falcosidekick - core configuration (sidekick.yaml)
 #
 # Server, logging, TLS, database, UI, enrichment, and runtime defaults.
 # Outputs are configured separately via -o flag (see config_example_outputs.yaml).

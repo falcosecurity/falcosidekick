@@ -34,8 +34,9 @@ Webhook, Slack, Loki, Elasticsearch, Alertmanager and Kafka.
 Requires Go and [Bun](https://bun.sh).
 
 ```sh
-make falcosidekick-v3       # binary with the web UI
-make falcosidekick-v3-slim  # binary without the web UI
+make falcosidekick       # binary with the web UI
+make falcosidekick-slim  # binary without the web UI
+make image               # local image falcosidekick:local
 ```
 
 ## Configuration
@@ -45,7 +46,7 @@ See [`config_example_sidekick.yaml`](config_example_sidekick.yaml) for the servi
 ## Development
 
 ```sh
-make v3-verify-full
+make verify
 ```
 
 ## License

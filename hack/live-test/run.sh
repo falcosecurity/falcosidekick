@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Live-test protocol for falcosidekick v3 against a local kind cluster.
+# Live-test protocol for falcosidekick against a local kind cluster.
 # See README.md in this directory for the criteria.
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,11 +9,11 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$HERE/../lib/cluster.sh"
 NAMESPACE="$HELPER_NAMESPACE"
 MANIFESTS=("$HERE/webhook-receiver.yaml" "$HERE/component.yaml")
-IMAGE="${V3_IMAGE:-falcosidekick}:${V3_TAG:-v3-local}"
-LOCAL_PORT="${V3_LOCAL_PORT:-28010}"
-TIMEOUT_READY="${V3_TIMEOUT_READY:-90s}"
-FALCO_PROPAGATION_WAIT="${V3_FALCO_WAIT:-30}"
-WEBHOOK_WAIT="${V3_WEBHOOK_WAIT:-8}"
+IMAGE="${FSK_IMAGE:-falcosidekick}:${FSK_TAG:-local}"
+LOCAL_PORT="${FSK_LOCAL_PORT:-28010}"
+TIMEOUT_READY="${FSK_TIMEOUT_READY:-90s}"
+FALCO_PROPAGATION_WAIT="${FSK_FALCO_WAIT:-30}"
+WEBHOOK_WAIT="${FSK_WEBHOOK_WAIT:-8}"
 
 FAIL=0
 PF_PID=""
@@ -40,7 +40,7 @@ require kubectl
 require kind
 require docker
 
-KIND_CLUSTER="$(resolve_cluster "${V3_KIND_CLUSTER:-}")" || { fail "set V3_KIND_CLUSTER to select the cluster"; exit 1; }
+KIND_CLUSTER="$(resolve_cluster "${FSK_KIND_CLUSTER:-}")" || { fail "set FSK_KIND_CLUSTER to select the cluster"; exit 1; }
 use_cluster "$KIND_CLUSTER"
 
 log "1/9 cluster reachable? (context $HELPER_CONTEXT)"
@@ -49,7 +49,7 @@ require_owned "${MANIFESTS[@]}" || { fail "existing resources are not owned by t
 
 log "2/9 loading image $IMAGE into kind cluster '$KIND_CLUSTER'"
 kind load docker-image --name "$KIND_CLUSTER" "$IMAGE" >/dev/null \
-  || { fail "kind load docker-image failed (cluster: $KIND_CLUSTER). Build it first via 'make build-image-v3-local'"; exit 1; }
+  || { fail "kind load docker-image failed (cluster: $KIND_CLUSTER). Build it first via 'make image'"; exit 1; }
 
 log "3/9 applying webhook-receiver + Component CR"
 apply_owned "${MANIFESTS[@]}"
@@ -210,11 +210,11 @@ log "9/10 UI shell (browser-shape request)"
 if decoded=$(curl -sS --compressed -H "Accept-Encoding: gzip" "http://127.0.0.1:$LOCAL_PORT/") && [[ "$decoded" == *'<html'* ]]; then
   log "  ok: GET / with Accept-Encoding returned UI HTML shell [criterion 8]"
 else
-  fail "GET / with Accept-Encoding did not return decoded HTML (variant may be slim; set V3_TAG=v3-local-slim to skip this criterion)"
+  fail "GET / with Accept-Encoding did not return decoded HTML (variant may be slim; set FSK_TAG=local-slim to skip this criterion)"
 fi
 
 log "10/10 UI-driven output PUT (updates provisioned webhook under allow_ui_updates=true; next file reload would restore the file version)"
-UI_WRITE_WAIT="${V3_UI_WRITE_WAIT:-10}"
+UI_WRITE_WAIT="${FSK_UI_WRITE_WAIT:-10}"
 pre_ui_sent="$(webhook_sent_total)"
 put_resp=$(curl -sS -w '\n%{http_code}' -X PUT \
   -H "Content-Type: application/json" \

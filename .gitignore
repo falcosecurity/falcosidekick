@@ -12,6 +12,7 @@
 *.out
 
 /falcosidekick
+/falcosidekick-slim
 /config.yaml
 .env
 .vscode

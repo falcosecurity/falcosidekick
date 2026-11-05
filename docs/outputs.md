@@ -4,7 +4,7 @@ Fields, defaults and comments for every output are in [`config_example_outputs.y
 
 ## Tested versions
 
-Each version below runs in CI ([`v3-e2e.yml`](../.github/workflows/v3-e2e.yml)): an event goes into the binary and the test reads it back from the destination's own API.
+Each version below runs in CI ([`e2e.yml`](../.github/workflows/e2e.yml)): an event goes into the binary and the test reads it back from the destination's own API.
 
 | Output | Versions | Covered |
 | --- | --- | --- |

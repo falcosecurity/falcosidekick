@@ -1,4 +1,4 @@
-name: v3-build
+name: build
 
 on:
   workflow_dispatch:
@@ -10,15 +10,15 @@ permissions: {}
 
 jobs:
   checks:
-    uses: ./.github/workflows/v3-test.yml
+    uses: ./.github/workflows/test.yml
     permissions:
       contents: read
 
-  v3-build-snapshot:
-    name: v3 goreleaser snapshot
+  build-snapshot:
+    name: goreleaser snapshot
     needs: [checks]
     if: github.repository == 'falcosecurity/falcosidekick' && github.ref == 'refs/heads/master'
-    concurrency: v3-publish
+    concurrency: publish
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -71,7 +71,7 @@ jobs:
       - uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         with:
           version: v2.18.2
-          args: release --config .goreleaser.v3.yml --snapshot --clean --skip=sign
+          args: release --snapshot --clean --skip=sign
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
