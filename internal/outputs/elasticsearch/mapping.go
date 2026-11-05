@@ -25,8 +25,7 @@ import (
 )
 
 // createIndexTemplate creates a composable index template using the
-// _index_template API (ES 7.8+, composable templates).
-// since ES 7.8 and will be removed in ES 9.x.
+// _index_template API (ES 7.8+) when the template does not exist.
 func (d *driver) createIndexTemplate(ctx context.Context) error {
 	templateURL, err := d.cfg.URL(d.cfg.Host, "/_index_template/"+d.cfg.Index, nil)
 	if err != nil {
@@ -37,9 +36,14 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 	if err != nil {
 		return shared.WrapDeliveryError("elasticsearch", "build request", err)
 	}
-	if checkErr := d.sender.Do(ctx, req); checkErr == nil {
+	// Only a confirmed absence creates the template; any other answer could
+	// hide an existing template that a PUT would overwrite.
+	switch checkErr := d.sender.Do(ctx, req); {
+	case checkErr == nil:
 		d.logger.Info("index template already exists", "index", d.cfg.Index)
 		return nil
+	case shared.HTTPStatus(checkErr) != http.StatusNotFound:
+		return fmt.Errorf("elasticsearch index template check: %w", checkErr)
 	}
 
 	shards := d.cfg.NumberOfShards

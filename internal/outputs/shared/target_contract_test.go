@@ -132,7 +132,7 @@ func TestDriversDeliverToExactTargets(t *testing.T) {
 					"host": h, "base_path": "/es", "index_suffix": "none", "pipeline": "a&b c", "query_params": secretQuery(),
 				}
 			},
-			send: "POST /es/falco/_doc?pipeline=a%26b+c&" + wantQuery, health: "GET /es?" + wantQuery,
+			send: "PUT /es/falco/_create/test-uuid-001?pipeline=a%26b+c&" + wantQuery, health: "GET /es?" + wantQuery,
 		},
 		{
 			name: "alertmanager default endpoint", kind: alertmanager.OutputType,
@@ -186,7 +186,7 @@ func TestBatchAndTemplateRoutes(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "/es/_bulk", target.Path)
 		assert.Equal(t, url.Values{
-			"filter_path": {"items.*.status,items.*.error.type,items.*.error.reason"},
+			"filter_path": {"errors,items.*.status,items.*.error.type"},
 			"pipeline":    {"a&b"},
 			"team":        {"a b", "c"},
 			"token":       {"t&k"},

@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,7 +120,7 @@ func TestSendBatchUsesCreateAction(t *testing.T) {
 	var capturedBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedBody, _ = io.ReadAll(r.Body)
-		w.WriteHeader(http.StatusOK)
+		writeCreated(w, capturedBody)
 	}))
 	defer server.Close()
 
@@ -157,11 +158,11 @@ func TestBuildBulkBodyIsExactNDJSON(t *testing.T) {
 	first, second := testutil.CreateValidEvent(), testutil.CreateValidEvent()
 	firstData, err := d.marshalEvent(first)
 	require.NoError(t, err)
+	second.UUID = ""
 	secondData, err := d.marshalEvent(second)
 	require.NoError(t, err)
-
-	const action = `{"create":{"_index":"test"}}`
-	want := action + "\n" + string(firstData) + "\n" + action + "\n" + string(secondData) + "\n"
+	want := `{"create":{"_index":"test","_id":"test-uuid-001"}}` + "\n" + string(firstData) + "\n" +
+		`{"create":{"_index":"test"}}` + "\n" + string(secondData) + "\n"
 
 	got, err := d.buildBulkBody([]*event.Event{first, second})
 	require.NoError(t, err)
@@ -176,7 +177,8 @@ func TestSendBatchIncludesFilterPath(t *testing.T) {
 	var capturedURL string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedURL = r.URL.String()
-		w.WriteHeader(http.StatusOK)
+		body, _ := io.ReadAll(r.Body)
+		writeCreated(w, body)
 	}))
 	defer server.Close()
 
@@ -196,7 +198,8 @@ func TestSendBatchWithPipeline(t *testing.T) {
 	var capturedURL string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedURL = r.URL.String()
-		w.WriteHeader(http.StatusOK)
+		body, _ := io.ReadAll(r.Body)
+		writeCreated(w, body)
 	}))
 	defer server.Close()
 
@@ -213,57 +216,11 @@ func TestSendBatchWithPipeline(t *testing.T) {
 	assert.Contains(t, capturedURL, "pipeline=enrich")
 }
 
-func TestParseBulkResponseAllSuccess(t *testing.T) {
-	o := &driver{logger: slog.Default()}
-	body := []byte(`{"errors":false,"items":[{"create":{"status":201}},{"create":{"status":201}}]}`)
-	assert.NoError(t, o.parseBulkResponse(body, 2))
-}
-
-func TestParseBulkResponseEmptyBody(t *testing.T) {
-	o := &driver{logger: slog.Default()}
-	assert.NoError(t, o.parseBulkResponse(nil, 0))
-	assert.NoError(t, o.parseBulkResponse([]byte{}, 0))
-}
-
-func TestParseBulkResponsePartialFailure(t *testing.T) {
-	o := &driver{logger: slog.Default()}
-	body := []byte(`{"errors":true,"items":[
-		{"create":{"status":201}},
-		{"create":{"status":400,"error":{"type":"document_parsing_exception","reason":"field mapping"}}},
-		{"create":{"status":201}}
-	]}`)
-
-	err := o.parseBulkResponse(body, 3)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "2/3")
-	assert.Contains(t, err.Error(), "1 failed")
-}
-
-func TestParseBulkResponseAllFailed(t *testing.T) {
-	o := &driver{logger: slog.Default()}
-	body := []byte(`{"errors":true,"items":[
-		{"create":{"status":429,"error":{"type":"es_rejected_execution_exception","reason":"queue full"}}},
-		{"create":{"status":429,"error":{"type":"es_rejected_execution_exception","reason":"queue full"}}}
-	]}`)
-
-	err := o.parseBulkResponse(body, 2)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "0/2")
-	assert.Contains(t, err.Error(), "2 failed")
-}
-
-func TestParseBulkResponseFastPathNoErrors(t *testing.T) {
-	o := &driver{logger: slog.Default()}
-	// Response without "errors":true - fast path skips JSON parsing.
-	body := []byte(`{"errors":false,"items":[{"create":{"status":201}}]}`)
-	assert.NoError(t, o.parseBulkResponse(body, 1))
-}
-
 func TestSendBatchBulkFormatAndIndex(t *testing.T) {
 	var capturedBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedBody, _ = io.ReadAll(r.Body)
-		w.WriteHeader(http.StatusOK)
+		writeCreated(w, capturedBody)
 	}))
 	defer server.Close()
 
@@ -291,4 +248,105 @@ func TestSendBatchBulkFormatAndIndex(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(lines[i+1]), &doc))
 		assert.Contains(t, doc, "@timestamp")
 	}
+}
+
+func writeCreated(w http.ResponseWriter, body []byte) {
+	items := make([]string, strings.Count(string(body), "\n")/2)
+	for i := range items {
+		items[i] = `{"create":{"status":201}}`
+	}
+	_, _ = w.Write([]byte(`{"errors":false,"items":[` + strings.Join(items, ",") + `]}`))
+}
+
+func TestParseBulkResponseAccountsForEveryItem(t *testing.T) {
+	const (
+		created  = `{"create":{"status":201}}`
+		conflict = `{"create":{"status":409,"error":{"type":"version_conflict_engine_exception"}}}`
+		mapping  = `{"create":{"status":400,"error":{"type":"document_parsing_exception"}}}`
+		rejected = `{"create":{"status":429,"error":{"type":"es_rejected_execution_exception"}}}`
+		other409 = `{"create":{"status":409,"error":{"type":"other_exception"}}}`
+	)
+	for _, tc := range []struct {
+		name, body, want string
+		expected         int
+	}{
+		{name: "all created", body: `{"errors":false,"items":[` + created + `,` + created + `]}`, expected: 2},
+		{name: "already indexed", body: `{"errors":true,"items":[` + conflict + `,` + conflict + `]}`, expected: 2},
+		{name: "created and already indexed", body: `{"errors":true,"items":[` + created + `,` + conflict + `]}`, expected: 2},
+		{name: "one mapping failure", body: `{"errors":true,"items":[` + created + `,` + mapping + `,` + created + `]}`, expected: 3, want: "elasticsearch: bulk indexed 2/3, 1 failed"},
+		{name: "rejected", body: `{"errors":true,"items":[` + rejected + `,` + conflict + `]}`, expected: 2, want: "elasticsearch: bulk indexed 1/2, 1 failed"},
+		{name: "conflict of another type", body: `{"errors":true,"items":[` + other409 + `]}`, expected: 1, want: "elasticsearch: bulk indexed 0/1, 1 failed"},
+		{name: "item without create", body: `{"errors":true,"items":[{"index":{"status":201}}]}`, expected: 1, want: "elasticsearch: bulk indexed 0/1, 1 failed"},
+		{name: "errors flag hidden", body: `{"items":[` + created + `]}`, expected: 1, want: "incomplete bulk response"},
+		{name: "missing items", body: `{"errors":false}`, expected: 1, want: "incomplete bulk response"},
+		{name: "short items", body: `{"errors":false,"items":[` + created + `]}`, expected: 2, want: "incomplete bulk response"},
+		{name: "empty body", body: ``, expected: 1, want: "invalid JSON"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := &driver{logger: slog.New(slog.DiscardHandler)}
+			err := d.parseBulkResponse([]byte(tc.body), tc.expected)
+			if tc.want == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
+}
+
+// fakeBulkStore models Elasticsearch create semantics: an _id is stored once
+// and a second create of the same _id is a conflict.
+type fakeBulkStore struct {
+	stored  map[string]int
+	failIDs map[string]bool
+	mu      sync.Mutex
+}
+
+func (f *fakeBulkStore) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	body, _ := io.ReadAll(r.Body)
+	lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+	var items []string
+	for i := 0; i < len(lines); i += 2 {
+		var action struct {
+			Create struct {
+				ID string `json:"_id"`
+			} `json:"create"`
+		}
+		_ = json.Unmarshal([]byte(lines[i]), &action)
+		id := action.Create.ID
+		switch {
+		case f.failIDs[id]:
+			delete(f.failIDs, id)
+			items = append(items, `{"create":{"status":429,"error":{"type":"es_rejected_execution_exception"}}}`)
+		case f.stored[id] > 0:
+			items = append(items, `{"create":{"status":409,"error":{"type":"version_conflict_engine_exception"}}}`)
+		default:
+			f.stored[id]++
+			items = append(items, `{"create":{"status":201}}`)
+		}
+	}
+	_, _ = w.Write([]byte(`{"errors":true,"items":[` + strings.Join(items, ",") + `]}`))
+}
+
+func TestSendBatchRetryIndexesEachEventOnce(t *testing.T) {
+	store := &fakeBulkStore{stored: map[string]int{}, failIDs: map[string]bool{"b": true}}
+	server := httptest.NewServer(store)
+	t.Cleanup(server.Close)
+	d, err := createOutput(map[string]any{"host": server.URL}, output.Deps{Logger: slog.New(slog.DiscardHandler)})
+	require.NoError(t, err)
+	batch := d.(output.BatchSender)
+
+	events := make([]*event.Event, 0, 3)
+	for _, id := range []string{"a", "b", "c"} {
+		evt := testutil.CreateValidEvent()
+		evt.UUID = id
+		events = append(events, evt)
+	}
+
+	require.EqualError(t, batch.SendBatch(context.Background(), events), "elasticsearch: bulk indexed 2/3, 1 failed")
+	require.NoError(t, batch.SendBatch(context.Background(), events))
+	assert.Equal(t, map[string]int{"a": 1, "b": 1, "c": 1}, store.stored)
 }

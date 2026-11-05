@@ -162,6 +162,53 @@ func TestInitTemplateSkipped(t *testing.T) {
 	assert.False(t, called)
 }
 
+func TestInitTemplateCreatesOnlyWhenAbsent(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		wantErr string
+		head    int
+		wantPut bool
+	}{
+		{name: "exists", head: http.StatusOK},
+		{name: "absent", head: http.StatusNotFound, wantPut: true},
+		{name: "unauthorized", head: http.StatusUnauthorized, wantErr: "index template check: elasticsearch response: HTTP 401 Unauthorized"},
+		{name: "server error", head: http.StatusInternalServerError, wantErr: "index template check: elasticsearch response: HTTP 500 Internal Server Error"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var puts int
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPut {
+					puts++
+					return
+				}
+				w.WriteHeader(tc.head)
+			}))
+			t.Cleanup(server.Close)
+			d, err := createOutput(map[string]any{"host": server.URL, "create_index_template": true, "number_of_shards": 1}, output.Deps{})
+			require.NoError(t, err)
+
+			err = d.Init(context.Background())
+			if tc.wantErr != "" {
+				require.EqualError(t, err, "elasticsearch "+tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tc.wantPut, puts == 1)
+		})
+	}
+}
+
+func TestInitTemplateUnreachableDoesNotCreate(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	target := server.URL
+	server.Close()
+	d, err := createOutput(map[string]any{"host": target, "create_index_template": true, "number_of_shards": 1}, output.Deps{})
+	require.NoError(t, err)
+	err = d.Init(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "index template check")
+}
+
 func TestBuildMappingsContainsExpectedFields(t *testing.T) {
 	m := buildMappings()
 
