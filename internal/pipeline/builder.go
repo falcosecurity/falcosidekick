@@ -58,6 +58,9 @@ func BuildOutput(
 
 	if err := driver.Init(ctx); err != nil {
 		_ = driver.Close()
+		if errors.Is(err, output.ErrMisconfigured) {
+			err = invalidOutputConfigError{cause: err}
+		}
 		return nil, fmt.Errorf("init: %w", err)
 	}
 

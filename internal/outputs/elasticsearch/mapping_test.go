@@ -22,13 +22,17 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
 func TestInitTemplateSafeRequestError(t *testing.T) {
@@ -172,7 +176,7 @@ func TestInitTemplateCreatesOnlyWhenAbsent(t *testing.T) {
 		{name: "exists", head: http.StatusOK},
 		{name: "absent", head: http.StatusNotFound, wantPut: true},
 		{name: "unauthorized", head: http.StatusUnauthorized, wantErr: "index template check: elasticsearch response: HTTP 401 Unauthorized"},
-		{name: "server error", head: http.StatusInternalServerError, wantErr: "index template check: elasticsearch response: HTTP 500 Internal Server Error"},
+		{name: "server error is left to the first delivery", head: http.StatusInternalServerError},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var puts int
@@ -189,7 +193,8 @@ func TestInitTemplateCreatesOnlyWhenAbsent(t *testing.T) {
 
 			err = d.Init(context.Background())
 			if tc.wantErr != "" {
-				require.EqualError(t, err, "elasticsearch "+tc.wantErr)
+				require.ErrorIs(t, err, output.ErrMisconfigured)
+				assert.Contains(t, err.Error(), tc.wantErr)
 			} else {
 				require.NoError(t, err)
 			}
@@ -198,15 +203,46 @@ func TestInitTemplateCreatesOnlyWhenAbsent(t *testing.T) {
 	}
 }
 
-func TestInitTemplateUnreachableDoesNotCreate(t *testing.T) {
-	server := httptest.NewServer(http.NotFoundHandler())
-	target := server.URL
-	server.Close()
-	d, err := createOutput(map[string]any{"host": target, "create_index_template": true, "number_of_shards": 1}, output.Deps{})
+// An unreachable server does not stop startup, and no event is indexed
+// before the template exists.
+func TestTemplateCreatedBeforeFirstDelivery(t *testing.T) {
+	var up atomic.Bool
+	var requests []string
+	var mu sync.Mutex
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		mu.Unlock()
+		switch {
+		case !up.Load():
+			w.WriteHeader(http.StatusServiceUnavailable)
+		case r.Method == http.MethodHead:
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			w.WriteHeader(http.StatusCreated)
+		}
+	}))
+	t.Cleanup(server.Close)
+	d, err := createOutput(map[string]any{"host": server.URL, "create_index_template": true, "number_of_shards": 1}, output.Deps{})
 	require.NoError(t, err)
-	err = d.Init(context.Background())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "index template check")
+
+	require.NoError(t, d.Init(context.Background()), "a transient error does not fail startup")
+	require.Error(t, d.Send(context.Background(), testutil.CreateValidEvent()), "no delivery before the template")
+	for _, req := range requests {
+		assert.NotContains(t, req, "_create", "nothing indexed while the template is missing")
+	}
+
+	up.Store(true)
+	mu.Lock()
+	requests = nil
+	mu.Unlock()
+	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
+	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
+	assert.Equal(t, []string{
+		"HEAD /_index_template/falco", "PUT /_index_template/falco",
+		"PUT /falco-" + time.Now().UTC().Format("2006.01.02") + "/_create/test-uuid-001",
+		"PUT /falco-" + time.Now().UTC().Format("2006.01.02") + "/_create/test-uuid-001",
+	}, requests, "the template is created once, before the first document")
 }
 
 func TestBuildMappingsContainsExpectedFields(t *testing.T) {
