@@ -109,18 +109,33 @@ func requireReturnsOnCancel(t *testing.T, name string, call func(context.Context
 // ends, or retire and shutdown deadlines cannot hold.
 func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
 	tests := []struct {
-		config func(host string) map[string]any
-		name   string
-		tcp    bool
+		config  func(host string) map[string]any
+		name    string
+		typ     string // output type when it differs from name
+		tcp     bool
+		noProbe bool
 	}{
-		{name: "webhook", config: func(h string) map[string]any { return map[string]any{"host": h} }},
-		{name: "slack", config: func(h string) map[string]any { return map[string]any{"host": h, "secret_endpoint": "/services/T/B/X"} }},
+		{name: "webhook", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h} }},
+		{name: "slack", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h, "secret_endpoint": "/services/T/B/X"} }},
 		{name: "loki", config: func(h string) map[string]any { return map[string]any{"host": h} }},
 		{name: "elasticsearch", config: func(h string) map[string]any { return map[string]any{"host": h} }},
 		{name: "alertmanager", config: func(h string) map[string]any { return map[string]any{"hosts": []string{h, h}} }},
 		{name: "kafka", tcp: true, config: func(h string) map[string]any {
 			return map[string]any{"brokers": []string{h}, "topic": "falco"}
 		}},
+		{name: "teams", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h, "secret_endpoint": "/workflows/x"} }},
+		{name: "discord", config: func(h string) map[string]any {
+			return map[string]any{"host": h, "secret_endpoint": "/api/webhooks/1/t"}
+		}},
+		{name: "grafanaoncall", noProbe: true, config: func(h string) map[string]any {
+			return map[string]any{"host": h, "secret_endpoint": "/integrations/v1/formatted_webhook/t/"}
+		}},
+		{name: "talon", config: func(h string) map[string]any { return map[string]any{"host": h} }},
+		{name: "cloudevents", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h} }},
+		{name: "pagerduty", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h, "routing_key": "rk"} }},
+		{name: "opsgenie", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k"} }},
+		{name: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k"} }},
+		{name: "datadog v2", typ: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k", "app_key": "a"} }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -130,7 +145,11 @@ func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
 			} else {
 				host = hangingHTTPServer(t).URL
 			}
-			driver, err := outputTypes[tt.name].New(tt.config(host), output.Deps{})
+			typ := tt.name
+			if tt.typ != "" {
+				typ = tt.typ
+			}
+			driver, err := outputTypes[typ].New(tt.config(host), output.Deps{})
 			require.NoError(t, err)
 			require.NoError(t, driver.Init(context.Background()))
 			t.Cleanup(func() { _ = driver.Close() })
@@ -143,7 +162,7 @@ func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
 					return batch.SendBatch(ctx, []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent()})
 				})
 			}
-			if tt.name != "webhook" && tt.name != "slack" {
+			if !tt.noProbe {
 				requireReturnsOnCancel(t, "HealthCheck", driver.HealthCheck)
 			}
 		})

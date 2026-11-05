@@ -49,3 +49,37 @@ Pushes to `/loki/api/v1/push` under `base_path`; `tenant` sets `X-Scope-OrgID`. 
 - `producer.async: true` does not wait: an event counts as sent once buffered, and a later broker failure is counted as failed. Choose sync for exact counters.
 - Idempotent writes are on only with sync and `required_acks: all`.
 - Client warnings and errors (connection, TLS, SASL) go to the Falcosidekick log.
+
+## Microsoft Teams
+
+Posts an Adaptive Card to a Teams Workflows (Power Automate) webhook; the retired Office 365 connector `MessageCard` is not supported. `host` is required (it varies per tenant), the workflow path goes in `secret_endpoint` and the `sig` query parameter must be a secret or a file. Workflows answers 202 once the flow run is queued: a run that fails later is visible only in the flow history. Messages are capped below the 28 KB Teams limit, dropping output fields first. Not probed at startup.
+
+## Discord
+
+Posts embeds to a webhook; `host` defaults to `https://discord.com`, the path with the token goes in `secret_endpoint`. Startup reads the webhook with `GET`, which posts nothing: a wrong token or a deleted webhook stops startup. Embeds stay within the documented limits.
+
+## Grafana OnCall
+
+Posts to the formatted webhook integration (Grafana OnCall OSS, archived on 2026-03-24, and Grafana Cloud IRM use the same format). The token path goes in `secret_endpoint`; `bearer_token` sends a service account token when the integration requires one. Not probed at startup.
+
+## PagerDuty
+
+Sends Events API v2 `trigger` events to `/v2/enqueue` on the `us` or `eu` host (`region`). `routing_key` is a secret. The event UUID is the `dedup_key` and severity follows the Falco priority. Not probed at startup: the Events API has no read route, so any request would open an alert.
+
+## Opsgenie
+
+Atlassian ends Opsgenie on 2027-04-05 (sales stopped on 2025-06-04). Creates alerts with `/v2/alerts` on the `us` or `eu` host, `api_key` sent as `GenieKey`. The event UUID is the `alias`, so a retried event updates the same alert. Startup calls `GET /v2/heartbeats`: 401 or 404 stops startup; 403, the answer for an alert-only key, is accepted.
+
+## Datadog
+
+- Without `app_key`: Events API v1 (`/api/v1/events`), which Datadog marks deprecated and keeps for organizations that already used it.
+- With `app_key`: Events API v2 on the event intake host, with `category: alert` and the event UUID as `aggregation_key`.
+- `site` selects the hosts; `host` overrides both. Startup validates the API key (`/api/v1/validate`) and, with `app_key`, both keys (`/api/v2/validate_keys`).
+
+## Falco Talon
+
+Posts the Falco event as Falco sends it to `/` (configurable). Startup calls `GET /healthz`.
+
+## CloudEvents
+
+CloudEvents 1.0 over HTTP in binary mode: `ce-specversion`, `ce-id` (event UUID), `ce-source` (`source`, default `https://falco.org`), `ce-type` (`falco.rule.output.v1`), `ce-time`, plus `ce-priority`, `ce-rule`, `ce-eventsource`, `ce-hostname` and the configured `extensions` (names `[a-z0-9]+`). The body is the event JSON. Not probed at startup.

@@ -43,6 +43,8 @@ import (
 )
 
 const (
+	contentTypeJSON = "application/json"
+
 	startTimeout   = 20 * time.Second
 	stopTimeout    = 20 * time.Second
 	deliverTimeout = 30 * time.Second
@@ -310,7 +312,7 @@ func httpDo(method, url string, body []byte) (*http.Response, error) {
 		return nil, err
 	}
 	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Type", contentTypeJSON)
 	}
 	return httpClient.Do(req)
 }

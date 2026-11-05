@@ -35,11 +35,20 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/alertmanager"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/all"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/cloudevents"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/datadog"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/discord"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/elasticsearch"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/grafanaoncall"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/inmemory"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/kafka"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/loki"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/opsgenie"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/pagerduty"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/slack"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/talon"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/teams"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 )
@@ -47,6 +56,9 @@ import (
 var outputTypes = map[string]output.Type{
 	"alertmanager": alertmanager.OutputType, "elasticsearch": elasticsearch.OutputType, "inmemory": inmemory.OutputType,
 	"kafka": kafka.OutputType, "loki": loki.OutputType, "slack": slack.OutputType, "webhook": webhook.OutputType,
+	"teams": teams.OutputType, "discord": discord.OutputType, "grafanaoncall": grafanaoncall.OutputType,
+	"talon": talon.OutputType, "cloudevents": cloudevents.OutputType, "datadog": datadog.OutputType,
+	"pagerduty": pagerduty.OutputType, "opsgenie": opsgenie.OutputType,
 }
 
 type requestLog struct {
@@ -145,6 +157,62 @@ func TestDriversDeliverToExactTargets(t *testing.T) {
 				return map[string]any{"hosts": []string{h}, "base_path": "/am/alerts", "endpoint": "/alerts", "query_params": secretQuery()}
 			},
 			send: "POST /am/alerts/alerts?" + wantQuery, health: "GET /am/alerts/-/healthy?" + wantQuery,
+		},
+		{
+			name: "teams", kind: teams.OutputType,
+			config: func(h string) map[string]any {
+				return map[string]any{"host": h, "base_path": "/wf", "secret_endpoint": "/workflows/1/triggers/manual/paths/invoke", "query_params": secretQuery()}
+			},
+			send: "POST /wf/workflows/1/triggers/manual/paths/invoke?" + wantQuery,
+		},
+		{
+			name: "discord", kind: discord.OutputType,
+			config: func(h string) map[string]any {
+				return map[string]any{"host": h, "secret_endpoint": "/api/webhooks/1/tok", "query_params": secretQuery()}
+			},
+			send: "POST /api/webhooks/1/tok?" + wantQuery + "&wait=true", health: "GET /api/webhooks/1/tok?" + wantQuery,
+		},
+		{
+			name: "grafana oncall", kind: grafanaoncall.OutputType,
+			config: func(h string) map[string]any {
+				return map[string]any{"host": h, "base_path": "/oncall", "secret_endpoint": "/integrations/v1/formatted_webhook/tok/", "query_params": secretQuery()}
+			},
+			send: "POST /oncall/integrations/v1/formatted_webhook/tok/?" + wantQuery,
+		},
+		{
+			name: "talon", kind: talon.OutputType,
+			config: func(h string) map[string]any {
+				return map[string]any{"host": h, "base_path": "/talon", "query_params": secretQuery()}
+			},
+			send: "POST /talon/?" + wantQuery, health: "GET /talon/healthz?" + wantQuery,
+		},
+		{
+			name: "cloudevents", kind: cloudevents.OutputType,
+			config: func(h string) map[string]any {
+				return map[string]any{"host": h, "base_path": "/ce", "endpoint": "/in", "query_params": secretQuery()}
+			},
+			send: "POST /ce/in?" + wantQuery,
+		},
+		{
+			name: "pagerduty", kind: pagerduty.OutputType,
+			config: func(h string) map[string]any {
+				return map[string]any{"host": h, "base_path": "/pd", "routing_key": "rk", "query_params": secretQuery()}
+			},
+			send: "POST /pd/v2/enqueue?" + wantQuery,
+		},
+		{
+			name: "opsgenie", kind: opsgenie.OutputType,
+			config: func(h string) map[string]any {
+				return map[string]any{"host": h, "base_path": "/og", "api_key": "k", "query_params": secretQuery()}
+			},
+			send: "POST /og/v2/alerts?" + wantQuery, health: "GET /og/v2/heartbeats?" + wantQuery,
+		},
+		{
+			name: "datadog v1", kind: datadog.OutputType,
+			config: func(h string) map[string]any {
+				return map[string]any{"host": h, "base_path": "/dd", "api_key": "k", "query_params": secretQuery()}
+			},
+			send: "POST /dd/api/v1/events?" + wantQuery, health: "GET /dd/api/v1/validate?" + wantQuery,
 		},
 	}
 	for _, tt := range tests {
@@ -317,10 +385,12 @@ func exampleBlocks(t *testing.T, path string) map[string]map[string]any {
 }
 
 func TestExampleOutputsConstruct(t *testing.T) {
+	registered := make([]string, 0, len(all.Types()))
+	for _, kind := range all.Types() {
+		registered = append(registered, kind.Name)
+	}
 	for path, want := range map[string][]string{
-		"../../../config_example_outputs.yaml": {
-			"alertmanager", "elasticsearch", "inmemory", "kafka", "loki", "slack", "webhook",
-		},
+		"../../../config_example_outputs.yaml": registered,
 		"../../../hack/live-test/outputs.yaml": {"inmemory", "webhook"},
 	} {
 		blocks := exampleBlocks(t, path)

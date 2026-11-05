@@ -21,11 +21,19 @@ package all
 import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/alertmanager"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/cloudevents"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/datadog"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/discord"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/elasticsearch"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/grafanaoncall"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/inmemory"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/kafka"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/loki"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/opsgenie"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/pagerduty"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/slack"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/talon"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/teams"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 )
 
@@ -33,11 +41,19 @@ import (
 func Types() []output.Type {
 	return []output.Type{
 		alertmanager.OutputType,
+		cloudevents.OutputType,
+		datadog.OutputType,
+		discord.OutputType,
 		elasticsearch.OutputType,
+		grafanaoncall.OutputType,
 		kafka.OutputType,
 		loki.OutputType,
 		inmemory.OutputType,
+		opsgenie.OutputType,
+		pagerduty.OutputType,
 		slack.OutputType,
+		talon.OutputType,
+		teams.OutputType,
 		webhook.OutputType,
 	}
 }
