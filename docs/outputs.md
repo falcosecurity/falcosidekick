@@ -1,26 +1,22 @@
 # Outputs
 
-Fields, defaults and comments for every output are in [`config_example_outputs.yaml`](../config_example_outputs.yaml). This page covers behavior and the server versions the beta was tested against.
+Fields, defaults and comments for every output are in [`config_example_outputs.yaml`](../config_example_outputs.yaml). This page covers behavior and the tested server versions.
 
-## Tested versions
+## Tested server versions
 
-Each version below runs in CI ([`e2e.yml`](../.github/workflows/e2e.yml)): an event goes into the binary and the test reads it back from the destination's own API.
-
-| Output | Versions | Covered |
-| --- | --- | --- |
-| Webhook | strict local fake | delivery, headers, failures |
-| Slack | strict local fake | payload, failures |
-| Loki | 3.7.9, 2.9.17 | push, labels, tenants with `auth_enabled`, wrong path |
-| Alertmanager | v0.34.2, v0.33.1 | labels, annotations, expiry, fan-out to several hosts |
-| Kafka | 4.4.0, 3.9.2 | sync and async, acks, compression, SASL PLAIN and SCRAM, TLS |
-| Elasticsearch | 7.17.28, 8.19.23, 9.5.5 | single and bulk, index template, basic auth, API key, TLS |
-| OpenSearch | 2.19.7, 3.9.0 | single and bulk, basic auth, TLS, client certificate |
+| Output | Versions |
+| --- | --- |
+| Loki | 3.7.9, 2.9.17 |
+| Alertmanager | v0.34.2, v0.33.1 |
+| Kafka | 4.4.0, 3.9.2 |
+| Elasticsearch | 7.17.28, 8.19.23, 9.5.5 |
+| OpenSearch | 2.19.7, 3.9.0 |
 
 Older servers may work but are not tested.
 
 ## HTTP outputs
 
-Webhook, Slack, Loki, Elasticsearch and Alertmanager share the target fields: `host` (scheme, host and port only), `base_path`, `endpoint` or `secret_endpoint`, `query_params`, headers, TLS and `_file` secrets. Values marked secret are never returned by the API. Only a 2xx answer counts as delivered; redirects to another origin are refused.
+All HTTP outputs share the target fields: `host` (scheme, host and port only), `base_path`, `endpoint` or `secret_endpoint`, `query_params`, headers, TLS and `_file` secrets. Values marked secret are never returned by the API. Only a 2xx answer counts as delivered; redirects to another origin are refused.
 
 ## Webhook
 
