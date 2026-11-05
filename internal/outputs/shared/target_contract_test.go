@@ -41,8 +41,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/discord"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/elasticsearch"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/grafanaoncall"
-	"github.com/falcosecurity/falcosidekick/internal/outputs/inmemory"
-	"github.com/falcosecurity/falcosidekick/internal/outputs/kafka"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/loki"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/opsgenie"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/pagerduty"
@@ -53,13 +51,13 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 )
 
-var outputTypes = map[string]output.Type{
-	"alertmanager": alertmanager.OutputType, "elasticsearch": elasticsearch.OutputType, "inmemory": inmemory.OutputType,
-	"kafka": kafka.OutputType, "loki": loki.OutputType, "slack": slack.OutputType, "webhook": webhook.OutputType,
-	"teams": teams.OutputType, "discord": discord.OutputType, "grafanaoncall": grafanaoncall.OutputType,
-	"talon": talon.OutputType, "cloudevents": cloudevents.OutputType, "datadog": datadog.OutputType,
-	"pagerduty": pagerduty.OutputType, "opsgenie": opsgenie.OutputType,
-}
+var outputTypes = func() map[string]output.Type {
+	types := make(map[string]output.Type, len(all.Types()))
+	for _, kind := range all.Types() {
+		types[kind.Name] = kind
+	}
+	return types
+}()
 
 type requestLog struct {
 	uris []string
@@ -360,7 +358,7 @@ func TestDriverTargetFailureStaysSafe(t *testing.T) {
 		"webhook target: cannot resolve target")
 }
 
-var commentedBlock = regexp.MustCompile(`(?m)^ {2}# ([a-z]+):\n((?: {2}# {2}.*\n)+)`)
+var commentedBlock = regexp.MustCompile(`(?m)^ {2}# ([a-z0-9]+):\n((?: {2}# {2}.*\n)+)`)
 
 // exampleBlocks returns every output block of the example file, commented or not.
 func exampleBlocks(t *testing.T, path string) map[string]map[string]any {
