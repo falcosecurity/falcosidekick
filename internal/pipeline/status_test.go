@@ -252,6 +252,38 @@ func TestRateWindowConcurrentReadersAndWriters(t *testing.T) {
 	assert.Zero(t, window.rate(second+60))
 }
 
+// A status that counts a delivery must also carry its outcome: a failed
+// count comes with last_error, a sent count with last_success.
+func TestStatusCountersComeWithTheirOutcome(t *testing.T) {
+	for range 200 {
+		out := NewOutput(&testutil.MockDriver{DriverName: "order"}, defaultRuntimeDefaults(), nil)
+		stop := make(chan struct{})
+		var readers sync.WaitGroup
+		for range 4 {
+			readers.Go(func() {
+				for {
+					select {
+					case <-stop:
+						return
+					default:
+					}
+					st := out.GetStatus()
+					if st.FailedTotal > 0 && st.SentTotal == 0 {
+						assert.NotEmpty(t, st.LastError, "failed_total without last_error")
+					}
+					if st.SentTotal > 0 {
+						assert.False(t, st.LastSuccess.IsZero(), "sent_total without last_success")
+					}
+				}
+			})
+		}
+		out.executeWithRetry(context.Background(), 1, func(context.Context) error { return errDelivery })
+		out.executeWithRetry(context.Background(), 1, func(context.Context) error { return nil })
+		close(stop)
+		readers.Wait()
+	}
+}
+
 type warningDriver struct {
 	handler func(string)
 	testutil.MockDriver
