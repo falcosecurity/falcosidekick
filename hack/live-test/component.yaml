@@ -64,7 +64,7 @@ spec:
     spec:
       containers:
         - name: falcosidekick
-          image: falcosidekick:v3-local
+          image: falcosidekick:local
           imagePullPolicy: IfNotPresent
           args:
             - "-c"

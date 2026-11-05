@@ -1,4 +1,4 @@
-# falcosidekick v3.0 - output configuration (outputs.yaml)
+# falcosidekick - output configuration (outputs.yaml)
 #
 # Defines which outputs receive Falco events.
 # Multiple output files can be merged with repeated -o flags.

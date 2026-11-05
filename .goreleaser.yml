@@ -1,6 +1,6 @@
 version: 2
 
-project_name: falcosidekick-v3
+project_name: falcosidekick
 dist: dist/release
 
 env:
@@ -11,10 +11,11 @@ env:
   - COSIGN_YES=true
 
 snapshot:
+  # Published image tags keep the v3- prefix: `latest` still points to v2.
   version_template: "v3-latest"
 
 checksum:
-  name_template: "falcosidekick-v3-checksums.txt"
+  name_template: "falcosidekick-checksums.txt"
 
 before:
   hooks:
@@ -25,9 +26,9 @@ sboms:
   - artifacts: archive
 
 builds:
-  - id: falcosidekick-v3
+  - id: falcosidekick
     main: ./cmd/falcosidekick
-    binary: falcosidekick-v3
+    binary: falcosidekick
     goos:
       - linux
     goarch:
@@ -45,9 +46,9 @@ builds:
       - -X github.com/falcosecurity/falcosidekick/internal/version.Commit={{ .FullCommit }}
       - -X github.com/falcosecurity/falcosidekick/internal/version.BuildDate={{ .Date }}
 
-  - id: falcosidekick-v3-slim
+  - id: falcosidekick-slim
     main: ./cmd/falcosidekick
-    binary: falcosidekick-v3-slim
+    binary: falcosidekick-slim
     goos:
       - linux
     goarch:
@@ -65,20 +66,20 @@ builds:
       - -X github.com/falcosecurity/falcosidekick/internal/version.BuildDate={{ .Date }}
 
 archives:
-  - id: falcosidekick-v3
+  - id: falcosidekick
     ids:
-      - falcosidekick-v3
-    name_template: "falcosidekick-v3_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-  - id: falcosidekick-v3-slim
+      - falcosidekick
+    name_template: "falcosidekick_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: falcosidekick-slim
     ids:
-      - falcosidekick-v3-slim
-    name_template: "falcosidekick-v3_{{ .Version }}_{{ .Os }}_{{ .Arch }}_slim"
+      - falcosidekick-slim
+    name_template: "falcosidekick_{{ .Version }}_{{ .Os }}_{{ .Arch }}_slim"
 
 dockers_v2:
-  - id: falcosidekick-v3-ui
-    dockerfile: Dockerfile.v3
+  - id: falcosidekick-ui
+    dockerfile: Dockerfile
     ids:
-      - falcosidekick-v3
+      - falcosidekick
     platforms:
       - linux/amd64
       - linux/arm64
@@ -89,21 +90,21 @@ dockers_v2:
       - "v3-{{ .Version }}"
       - "v3-latest"
     build_args:
-      BINARY: falcosidekick-v3
+      BINARY: falcosidekick
       VARIANT: ui
     labels:
       "org.opencontainers.image.created": "{{ .Date }}"
-      "org.opencontainers.image.name": "falcosidekick-v3"
+      "org.opencontainers.image.name": "falcosidekick"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
       "org.opencontainers.image.version": "{{ .Version }}"
       "io.falcosecurity.falcosidekick.variant": "ui"
     extra_files:
       - LICENSE
 
-  - id: falcosidekick-v3-slim
-    dockerfile: Dockerfile.v3
+  - id: falcosidekick-slim
+    dockerfile: Dockerfile
     ids:
-      - falcosidekick-v3-slim
+      - falcosidekick-slim
     platforms:
       - linux/amd64
       - linux/arm64
@@ -114,11 +115,11 @@ dockers_v2:
       - "v3-{{ .Version }}-slim"
       - "v3-latest-slim"
     build_args:
-      BINARY: falcosidekick-v3-slim
+      BINARY: falcosidekick-slim
       VARIANT: slim
     labels:
       "org.opencontainers.image.created": "{{ .Date }}"
-      "org.opencontainers.image.name": "falcosidekick-v3"
+      "org.opencontainers.image.name": "falcosidekick"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
       "org.opencontainers.image.version": "{{ .Version }}"
       "io.falcosecurity.falcosidekick.variant": "slim"
@@ -126,7 +127,7 @@ dockers_v2:
       - LICENSE
 
 signs:
-  - id: falcosidekick-v3
+  - id: falcosidekick
     signature: "${artifact}.bundle"
     cmd: cosign
     args: ["sign-blob", "--bundle", "${artifact}.bundle", "${artifact}"]
@@ -138,7 +139,7 @@ signs:
     artifacts: checksum
 
 docker_signs:
-  - id: falcosidekick-v3
+  - id: falcosidekick
     cmd: cosign
     args: ["sign", "--recursive", "${artifact}"]
     artifacts: manifests
@@ -149,4 +150,4 @@ release:
     owner: falcosecurity
     name: falcosidekick
   prerelease: auto
-  name_template: "falcosidekick v3 {{ .Version }}"
+  name_template: "falcosidekick {{ .Version }}"

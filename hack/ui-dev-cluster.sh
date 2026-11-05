@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# One-shot dev loop: build the v3 UI image, load it into a kind cluster,
+# One-shot dev loop: build the UI image, load it into a kind cluster,
 # deploy falcosidekick via the falco-operator Component CR (same manifests
 # the live-test uses), port-forward the service, and start `bun run dev`
 # with FALCOSIDEKICK_BACKEND pointing at the forward.
@@ -16,7 +16,7 @@
 #   -l PORT         local port for port-forward (default: 2801)
 #   -p PORT         service port (default: 2801)
 #   -k NAME         kind cluster name (default: auto-detect single cluster)
-#   --skip-build    reuse existing :v3-local image; skip build + kind load
+#   --skip-build    reuse existing :local image; skip build + kind load
 #   --skip-deploy   do not apply webhook-receiver/Component CR (reuse deployed)
 #   --clean         on exit, delete the resources this run applied
 #   -h, --help      print this help
@@ -37,7 +37,7 @@ SERVICE="falcosidekick"
 LOCAL_PORT="2801"
 BACKEND_PORT="2801"
 CLUSTER=""
-IMAGE="${V3_IMAGE:-falcosidekick}:${V3_TAG:-v3-local}"
+IMAGE="${FSK_IMAGE:-falcosidekick}:${FSK_TAG:-local}"
 
 usage() { sed -n '1,/^set -euo/p' "$0" | sed 's/^# \{0,1\}//' | sed '$d'; }
 
@@ -105,8 +105,8 @@ log "namespace:    $NAMESPACE"
 log "image:        $IMAGE"
 
 if [[ $SKIP_BUILD -eq 0 ]]; then
-  log "step 1/5  build v3 UI image"
-  (cd "$REPO" && make build-image-v3-local)
+  log "step 1/5  build UI image"
+  (cd "$REPO" && make image)
 else
   log "step 1/5  skipped build (--skip-build)"
 fi

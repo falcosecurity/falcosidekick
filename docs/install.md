@@ -136,6 +136,7 @@ The UI is served on the same port. Editing outputs from the UI also needs `api.a
 Requires Go and [Bun](https://bun.sh).
 
 ```sh
-make falcosidekick-v3       # binary with the UI
-make falcosidekick-v3-slim  # binary without the UI
+make falcosidekick       # binary with the UI
+make falcosidekick-slim  # binary without the UI
+make image               # local image falcosidekick:local
 ```

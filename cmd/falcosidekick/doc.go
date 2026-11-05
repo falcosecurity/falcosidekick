@@ -14,5 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package main is the entry point for falcosidekick v3.
+// Package main is the entry point for falcosidekick.
 package main

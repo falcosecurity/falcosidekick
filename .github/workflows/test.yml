@@ -1,4 +1,4 @@
-name: v3-tests
+name: tests
 
 on:
   workflow_call:
@@ -15,13 +15,13 @@ on:
 permissions: {}
 
 jobs:
-  v3-lint:
-    uses: ./.github/workflows/v3-lint.yml
+  lint:
+    uses: ./.github/workflows/lint.yml
     permissions:
       contents: read
 
-  v3-unit-tests:
-    name: v3 Go + UI tests
+  unit-tests:
+    name: Go + UI tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,10 +63,10 @@ jobs:
         working-directory: ui
         run: bun run build
 
-      - name: Run v3 Go tests (default build)
+      - name: Run Go tests (default build)
         run: go test -race -count=1 ./internal/... ./cmd/... ./ui ./hack
 
-      - name: Run v3 Go tests (-tags=builtinui)
+      - name: Run Go tests (-tags=builtinui)
         run: go test -race -count=1 -tags=builtinui ./internal/... ./cmd/... ./ui
 
       - name: Check release configuration
@@ -74,9 +74,9 @@ jobs:
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         with:
           version: v2.18.2
-          args: check --config .goreleaser.v3.yml
+          args: check
 
-      - name: v3 coverage (minimum 80% per package)
+      - name: Coverage (minimum 80% per package)
         id: coverage
         shell: bash
         run: |
