@@ -38,13 +38,8 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
-// Set FALCOSIDEKICK_ES_URL to a disposable Elasticsearch or OpenSearch
-// cluster: the test deletes the indices and templates it uses.
-// FALCOSIDEKICK_ES_USERNAME and FALCOSIDEKICK_ES_PASSWORD enable the
-// authentication cases; the user must be able to create API keys unless
-// FALCOSIDEKICK_ES_API_KEYS=false. FALCOSIDEKICK_ES_CA_FILE enables the TLS
-// cases, and FALCOSIDEKICK_ES_CLIENT_CERT with FALCOSIDEKICK_ES_CLIENT_KEY
-// the client certificate cases.
+// FALCOSIDEKICK_ES_URL must be a disposable cluster: the test deletes the indices and templates it uses.
+// The FALCOSIDEKICK_ES_USERNAME user must be able to create API keys unless FALCOSIDEKICK_ES_API_KEYS=false.
 func liveURL(t *testing.T) string {
 	t.Helper()
 	target := os.Getenv("FALCOSIDEKICK_ES_URL")

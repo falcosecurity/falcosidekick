@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package testutil provides core.Database test doubles for
-// backend-failure injection in unit tests.
+// Package testutil provides core.Database test doubles that inject backend failures.
 package testutil

@@ -30,9 +30,7 @@ import (
 
 const msgEndpointConflict = "cannot be combined with secret_endpoint"
 
-// HTTPTargetConfig is where an HTTP output delivers; HTTPConfig is how. Credentials never belong in
-// host, base_path or endpoint: sensitive parts go in secret_endpoint or query_params.
-// Outputs embed this struct next to HTTPConfig.
+// HTTPTargetConfig is where an HTTP output delivers; credentials belong in secret_endpoint or query_params.
 type HTTPTargetConfig struct {
 	QueryParams    map[string]ValueSources `mapstructure:"query_params"`
 	Host           string                  `mapstructure:"host"`
@@ -57,8 +55,7 @@ type HTTPTargetOptions struct {
 	SecretEndpointRequired bool
 }
 
-// Validate applies defaults, normalizes base_path, and checks the address.
-// Query parameter files are read here so an unreadable file fails at load.
+// Validate applies defaults and checks the address; it reads query files so an unreadable one fails at load.
 func (c *HTTPTargetConfig) Validate(opts *HTTPTargetOptions) utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	errs.Merge("", c.validateHost(opts))
@@ -149,10 +146,8 @@ func (c *HTTPTargetConfig) DeliveryURL() (string, error) {
 	return c.URL(c.Host, c.DeliveryRoute(), nil)
 }
 
-// URL joins host, base_path and route, with query_params and the driver's own
-// query. Query files are reread on each call. Route must be a validated path.
-// Errors name no configured value, so drivers report them through
-// WrapDeliveryError with the "target" operation.
+// URL joins host, base_path, a validated route and the queries, rereading query files.
+// Errors name no configured value; drivers wrap them with the "target" operation.
 func (c *HTTPTargetConfig) URL(host, route string, query url.Values) (string, error) {
 	target, err := url.Parse(host + c.BasePath + route)
 	if err != nil {

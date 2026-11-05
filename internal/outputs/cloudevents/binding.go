@@ -41,8 +41,7 @@ const (
 	headerAttr  = "Ce-"
 )
 
-// attributes returns the context attributes of evt. Built-in extensions
-// come first so configured extensions replace them, as in v2.
+// attributes sets built-in extensions first so configured extensions replace them.
 func attributes(evt *event.Event, source string, extensions map[string]string) map[string]string {
 	id := evt.UUID
 	if id == "" {
@@ -67,9 +66,7 @@ func attributes(evt *event.Event, source string, extensions map[string]string) m
 	return attrs
 }
 
-// ceString makes an event-derived value a valid CloudEvents String, which
-// excludes control characters, surrogates and noncharacters: each one, and
-// each invalid UTF-8 sequence, becomes a space.
+// ceString replaces invalid UTF-8 and the characters a CloudEvents String excludes with spaces.
 // https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md#type-system
 func ceString(s string) string {
 	return strings.Map(func(r rune) rune {
@@ -82,8 +79,6 @@ func ceString(s string) string {
 	}, strings.ToValidUTF8(s, " "))
 }
 
-// newRequest builds the binary-mode request: each attribute is a ce- header
-// and the body is the Falco event as JSON.
 func newRequest(ctx context.Context, target string, evt *event.Event, source string, extensions map[string]string) (*http.Request, error) {
 	body, err := json.Marshal(evt)
 	if err != nil {
@@ -100,8 +95,7 @@ func newRequest(ctx context.Context, target string, evt *event.Event, source str
 	return req, nil
 }
 
-// encodeHeaderValue percent-encodes space, double quote, percent and every
-// byte outside printable ASCII, as the binding requires for header values.
+// encodeHeaderValue percent-encodes header values as the HTTP binding requires.
 func encodeHeaderValue(s string) string {
 	const hex = "0123456789ABCDEF"
 	b := make([]byte, 0, len(s))

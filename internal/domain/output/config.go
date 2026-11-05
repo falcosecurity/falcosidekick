@@ -25,8 +25,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// RuntimeConfig holds runtime output configuration settings.
-// Pointer fields are nil when not specified (used for per-output overrides).
+// RuntimeConfig holds runtime output settings; a nil field means not overridden.
 type RuntimeConfig struct {
 	Retry          *RetryConfig          `json:"retry,omitempty" mapstructure:"retry"`
 	CircuitBreaker *CircuitBreakerConfig `json:"circuit_breaker,omitempty" mapstructure:"circuit_breaker"`

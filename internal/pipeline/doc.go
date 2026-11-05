@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package pipeline implements the event processing pipeline:
-// enrich, store, route, and dispatch.
+// Package pipeline enriches events and dispatches them to outputs.
 package pipeline

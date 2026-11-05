@@ -27,8 +27,7 @@ import (
 
 const fieldHost = "host"
 
-// RegionHosts maps the regions of a SaaS destination to their default
-// hosts. An explicit host overrides the region's.
+// RegionHosts maps the regions of a SaaS destination to their default hosts.
 type RegionHosts struct {
 	Hosts   map[string]string
 	Default string
@@ -46,8 +45,7 @@ func (r RegionHosts) Names() []string {
 	return names
 }
 
-// Resolve lowercases region, applies the default when it is empty, and
-// fills host from the region when host is empty.
+// Resolve normalizes region and fills an empty host from it.
 func (r RegionHosts) Resolve(region, host *string) utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	*region = strings.ToLower(*region)
@@ -70,8 +68,7 @@ func (r RegionHosts) SchemaField(label string) output.SchemaField {
 	return output.SchemaField{Name: "region", Type: "enum", Values: r.Names(), Default: r.Default, Label: label}
 }
 
-// RegionTargetSchemaFields returns the target fields with host left without
-// a default, since the region selects it.
+// RegionTargetSchemaFields returns the target fields without a host default, since the region selects it.
 func RegionTargetSchemaFields(opts *HTTPTargetOptions) []output.SchemaField {
 	fields := HTTPTargetSchemaFields(opts)
 	for i := range fields {

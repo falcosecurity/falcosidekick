@@ -124,8 +124,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 	return s, nil
 }
 
-// mountRoutes registers routes with static segments (`/types`, `/status`,
-// `/layout`) declared before `:name` so Fiber's matcher prefers literals.
+// mountRoutes declares static segments before :name so Fiber matches the literals first.
 func (s *Server) mountRoutes(registry *prometheus.Registry) *fiber.App {
 	app := fiber.New()
 	app.Use(recover.New())
@@ -173,8 +172,7 @@ func (s *Server) mountRoutes(registry *prometheus.Registry) *fiber.App {
 	return app
 }
 
-// GetReadableStore resolves the ReadableStore dynamically through the pipeline.
-// Returns nil when no event source is configured or the output does not implement ReadableStore.
+// GetReadableStore resolves the event source through the pipeline on each call, or returns nil.
 func (s *Server) GetReadableStore() output.ReadableStore {
 	if s.eventSource == "" {
 		return nil
@@ -183,8 +181,7 @@ func (s *Server) GetReadableStore() output.ReadableStore {
 	return rs
 }
 
-// Start begins listening for HTTP requests. Blocks until the server stops.
-// Uses TLS when configured, including mutual TLS with client cert verification.
+// Start listens for HTTP requests and blocks until the server stops.
 func (s *Server) Start() error {
 	cfg := fiber.ListenConfig{DisableStartupMessage: true}
 	if s.tls != nil && s.tls.Enabled {
@@ -212,7 +209,6 @@ func isLoopback(address string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// errWritesDisabled is the response body of a mutating route while writes are off.
 const errWritesDisabled = "API writes are disabled (set api.allow_writes to enable)"
 
 // requireWrites guards routes that change the running configuration.

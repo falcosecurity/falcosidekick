@@ -35,10 +35,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// esServer is an Elasticsearch or OpenSearch cluster reached with the same
-// credentials and CA that falcosidekick uses. FALCOSIDEKICK_E2E_ES_URL selects
-// it; FALCOSIDEKICK_E2E_ES_USERNAME, FALCOSIDEKICK_E2E_ES_PASSWORD and
-// FALCOSIDEKICK_E2E_ES_CA_FILE are needed for secured servers.
+// esServer is an Elasticsearch or OpenSearch cluster reached with the credentials and CA falcosidekick uses.
 type esServer struct {
 	client   *http.Client
 	url      string
@@ -68,7 +65,6 @@ func newESServer(t *testing.T) *esServer {
 	return es
 }
 
-// outputs returns the elasticsearch output YAML for index, followed by extra.
 func (es *esServer) outputs(index, extra string) string {
 	yaml := fmt.Sprintf("elasticsearch:\n  host: %q\n  index: %q\n", es.url, index)
 	if es.username != "" {
@@ -95,8 +91,7 @@ func (es *esServer) do(t *testing.T, method, path, body string) (status int, dec
 	return resp.StatusCode, decoded
 }
 
-// deleteIndices removes every index matching pattern by name, because
-// Elasticsearch 8 and later refuse wildcard deletes by default.
+// deleteIndices deletes by name because Elasticsearch 8+ refuses wildcard deletes by default.
 func (es *esServer) deleteIndices(t *testing.T, pattern string) {
 	t.Helper()
 	for name := range es.indices(t, pattern) {
@@ -104,7 +99,6 @@ func (es *esServer) deleteIndices(t *testing.T, pattern string) {
 	}
 }
 
-// indices returns the settings of every index matching pattern.
 func (es *esServer) indices(t *testing.T, pattern string) map[string]any {
 	t.Helper()
 	status, body := es.do(t, http.MethodGet, "/"+pattern+"/_settings?allow_no_indices=true&expand_wildcards=open", "")
@@ -112,7 +106,6 @@ func (es *esServer) indices(t *testing.T, pattern string) map[string]any {
 	return body
 }
 
-// search refreshes index and returns the hits whose output fields carry marker.
 func (es *esServer) search(t *testing.T, index, marker string) []map[string]any {
 	t.Helper()
 	es.do(t, http.MethodPost, "/"+index+"/_refresh", "")
@@ -135,7 +128,6 @@ func (es *esServer) count(t *testing.T, index string) int {
 	return int(body["count"].(float64))
 }
 
-// freshIndex returns a unique index name that is removed after the test.
 func (es *esServer) freshIndex(t *testing.T, marker string) string {
 	t.Helper()
 	index := "fsk-e2e-es-" + marker
@@ -274,8 +266,7 @@ func TestElasticsearchCreatesIndexTemplate(t *testing.T) {
 	assert.Len(t, es.search(t, index, marker), 1)
 }
 
-// A wrong base path or rejected credentials are configuration errors that
-// stop startup.
+// A wrong base path or rejected credentials stop startup.
 func TestElasticsearchMisconfigurationFailsStartup(t *testing.T) {
 	es := newESServer(t)
 	t.Run("base_path", func(t *testing.T) {

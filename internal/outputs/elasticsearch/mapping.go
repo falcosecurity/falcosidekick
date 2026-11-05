@@ -24,8 +24,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-// createIndexTemplate creates a composable index template using the
-// _index_template API (ES 7.8+) when the template does not exist.
+// createIndexTemplate uses the composable _index_template API, available since Elasticsearch 7.8.
 func (d *driver) createIndexTemplate(ctx context.Context) error {
 	templateURL, err := d.cfg.URL(d.cfg.Host, "/_index_template/"+d.cfg.Index, nil)
 	if err != nil {
@@ -36,8 +35,7 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 	if err != nil {
 		return shared.WrapDeliveryError("elasticsearch", "build request", err)
 	}
-	// Only a confirmed absence creates the template; any other answer could
-	// hide an existing template that a PUT would overwrite.
+	// Only a confirmed 404 creates the template; a PUT would overwrite an existing one.
 	switch checkErr := d.sender.Do(ctx, req); {
 	case checkErr == nil:
 		d.logger.Info("index template already exists", "index", d.cfg.Index)
@@ -70,11 +68,7 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 	return nil
 }
 
-// buildMappings returns Elasticsearch mappings for Falco events.
-// Explicit types for known stable fields prevent mapping explosions.
-// Dynamic template for output_fields handles variable Falco fields; it
-// matches strings only, because dotted field names such as proc.name are
-// expanded into objects that must stay objects.
+// buildMappings matches output_fields strings only: dotted names such as proc.name expand into objects.
 func buildMappings() map[string]any {
 	return map[string]any{
 		"dynamic_templates": []map[string]any{
@@ -99,9 +93,6 @@ func buildMappings() map[string]any {
 	}
 }
 
-// textWithKeyword returns an ES mapping for a text field with a keyword
-// sub-field. This is the standard dual-purpose mapping: full-text searchable
-// via the text field, exact-match and aggregatable via the keyword sub-field.
 func textWithKeyword(ignoreAbove int) map[string]any {
 	return map[string]any{
 		"type": "text",

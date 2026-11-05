@@ -45,7 +45,6 @@ var prioritySeverity = map[string]string{
 }
 
 // PriorityColor returns the hex color code for a priority level.
-// Used by rich-message outputs (Slack, Teams, Discord, Mattermost).
 func PriorityColor(p event.Priority) string {
 	if c, ok := priorityColors[p]; ok {
 		return c
@@ -54,7 +53,6 @@ func PriorityColor(p event.Priority) string {
 }
 
 // PrioritySeverity returns the collapsed severity label for a priority.
-// Used by alerting outputs (Alertmanager, PagerDuty, Opsgenie).
 func PrioritySeverity(p event.Priority) string {
 	if s, ok := prioritySeverity[strings.ToLower(string(p))]; ok {
 		return s

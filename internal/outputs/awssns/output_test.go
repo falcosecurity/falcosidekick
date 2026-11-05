@@ -43,8 +43,7 @@ const (
 	probeOp  = "GetTopicAttributes"
 )
 
-// fakeSNS answers the SNS query protocol. errStatus and errCode turn every
-// call into an error.
+// fakeSNS answers the SNS query protocol.
 type fakeSNS struct {
 	errCode   string
 	forms     []url.Values
@@ -97,7 +96,6 @@ func newDriverAt(t *testing.T, endpoint string, extra map[string]any) output.Dri
 	return d
 }
 
-// attributes decodes the query encoding of MessageAttributes.
 func attributes(form url.Values) map[string][2]string {
 	attrs := map[string][2]string{}
 	for i := 1; ; i++ {

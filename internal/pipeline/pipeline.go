@@ -25,9 +25,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-// Pipeline orchestrates event processing: enrich and dispatch.
-// The caller owns the worker runtime context and passes it via Start.
-// Shutdown delegates to the dispatcher for bounded, orderly teardown.
+// Pipeline enriches events and dispatches them to outputs.
 type Pipeline struct {
 	enricher    *Enricher
 	dispatcher  *Dispatcher
@@ -55,9 +53,7 @@ func NewPipeline(
 	}, nil
 }
 
-// Start launches the dispatcher worker pools with the caller-owned worker
-// runtime context. stopWorkers is stored and called by Shutdown if the
-// drain deadline expires.
+// Start runs workers on the caller-owned workerRunCtx; Shutdown calls stopWorkers if draining times out.
 func (p *Pipeline) Start(workerRunCtx context.Context, stopWorkers context.CancelFunc) {
 	p.stopWorkers = stopWorkers
 	p.dispatcher.Start(workerRunCtx)
@@ -89,8 +85,7 @@ func (p *Pipeline) CollectOutputStatus() []OutputStatus {
 	return p.dispatcher.CollectStatus()
 }
 
-// GetReadableStore resolves the named output's ReadableStore implementation
-// at request time. Returns false if the output is missing or not readable.
+// GetReadableStore returns the named output's ReadableStore, resolved at call time.
 func (p *Pipeline) GetReadableStore(name string) (output.ReadableStore, bool) {
 	return p.dispatcher.GetReadableStore(name)
 }

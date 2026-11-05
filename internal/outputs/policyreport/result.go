@@ -106,8 +106,7 @@ type reportResult struct {
 	Timestamp  timestamp         `json:"timestamp"`
 }
 
-// buildResult converts an event into an unstructured report result: the
-// Falco rule is the policy, the event source the category.
+// buildResult maps the Falco rule to the policy and the event source to the category.
 func buildResult(evt *event.Event) (map[string]any, error) {
 	properties := make(map[string]string, len(evt.OutputFields)+4)
 	for k, v := range evt.OutputFields {
@@ -169,8 +168,7 @@ func mapSeverity(p event.Priority) string {
 	}
 }
 
-// namespaceOf returns the event namespace, or "" when the event has none or
-// the value is not a valid namespace name.
+// namespaceOf returns "" when the event has no valid namespace name.
 func namespaceOf(fields map[string]any) string {
 	for _, key := range []string{fieldNamespace, fieldTargetNS} {
 		v, ok := fields[key]

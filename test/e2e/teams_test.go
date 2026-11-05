@@ -38,8 +38,7 @@ const (
 	teamsPath      = "/workflows/e2e0workflow/triggers/manual/paths/invoke"
 )
 
-// teamsMessage mirrors the body of the "When a Teams webhook request is
-// received" trigger for Adaptive Cards:
+// teamsMessage mirrors the Workflows Teams webhook trigger body for Adaptive Cards:
 // https://learn.microsoft.com/en-us/connectors/teams/
 type teamsMessage struct {
 	Type        string            `json:"type"`
@@ -52,8 +51,7 @@ type teamsAttachment struct {
 	Content     json.RawMessage `json:"content"`
 }
 
-// teamsCard holds the Adaptive Card properties the fake checks; element
-// properties are free-form per the Adaptive Card schema.
+// teamsCard leaves element properties free-form, as the Adaptive Card schema does.
 type teamsCard struct {
 	Schema  string           `json:"$schema"`
 	Type    string           `json:"type"`
@@ -63,8 +61,7 @@ type teamsCard struct {
 	Actions []map[string]any `json:"actions"`
 }
 
-// teamsWebhook is a strict fake of a Workflows webhook trigger. It answers
-// 202 like the trigger once a valid payload is queued.
+// teamsWebhook is a strict fake of a Workflows trigger, answering 202 like the real one.
 type teamsWebhook struct {
 	cards    []teamsCard
 	rejected []string
@@ -163,7 +160,6 @@ func startTeams(t *testing.T, status int) (*teamsWebhook, *sidekick) {
 	return hook, sk
 }
 
-// teamsTexts returns every TextBlock text and FactSet fact in the card body.
 func teamsTexts(elements []map[string]any, texts []string, facts map[string]string) []string {
 	for _, e := range elements {
 		if text, ok := e["text"].(string); ok {

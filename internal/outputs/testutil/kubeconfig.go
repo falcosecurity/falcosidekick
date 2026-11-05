@@ -25,8 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// WriteKubeconfig writes a kubeconfig for server with a bearer token, trusting
-// caData (base64 PEM) when set, and returns its path.
+// WriteKubeconfig writes a bearer-token kubeconfig for server, trusting caData (base64 PEM) when set.
 func WriteKubeconfig(t *testing.T, server, caData, token string) string {
 	t.Helper()
 	cluster := "    insecure-skip-tls-verify: false\n"

@@ -31,8 +31,7 @@ const (
 	Region          = "eu-west-1"
 )
 
-// Isolate clears the AWS environment and points the shared config files at
-// missing paths, so the host configuration cannot change a test.
+// Isolate clears the AWS environment and shared config files so the host cannot change a test.
 func Isolate(t *testing.T) {
 	t.Helper()
 	missing := filepath.Join(t.TempDir(), "missing")
@@ -49,8 +48,7 @@ func Isolate(t *testing.T) {
 	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
 }
 
-// Config returns an output configuration with the test region and static
-// credentials, the endpoint when set, and extra merged over them.
+// Config returns an output configuration with the test credentials, the endpoint, and extra merged over them.
 func Config(endpoint string, extra map[string]any) map[string]any {
 	cfg := map[string]any{
 		"region":            Region,

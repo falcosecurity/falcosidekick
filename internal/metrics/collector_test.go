@@ -144,7 +144,6 @@ func TestRecordEvent(t *testing.T) {
 	assert.Equal(t, 2.0, collectCounter(t, c.eventTotal))
 }
 
-// Extra labels come from event output fields, as v2 prometheus.extralabels.
 func TestRecordEventExtraLabels(t *testing.T) {
 	c := NewCollector("k8s.ns.name", "proc.pid")
 	ctx := context.Background()

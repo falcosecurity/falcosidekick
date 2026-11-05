@@ -26,9 +26,7 @@ const (
 	authXOAuth2 = "xoauth2"
 )
 
-// authOptions returns the go-mail options for the configured mechanism.
-// go-mail sends PLAIN only over TLS or to localhost; XOAUTH2 has no such
-// check, so validation restricts it to TLS modes that cannot fall back.
+// go-mail checks TLS for PLAIN but not XOAUTH2, so validation restricts XOAUTH2 to TLS modes that cannot fall back.
 func authOptions(cfg *config) []mail.Option {
 	switch cfg.AuthMechanism {
 	case authPlain:

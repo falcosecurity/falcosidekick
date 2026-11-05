@@ -54,7 +54,6 @@ func newResource() *sdkresource.Resource {
 	)
 }
 
-// eventAttributes describes the event: its identity, then every output field.
 func eventAttributes(evt *event.Event) []attribute.KeyValue {
 	attrs := make([]attribute.KeyValue, 0, 6+len(evt.OutputFields))
 	attrs = append(attrs,
@@ -70,7 +69,6 @@ func eventAttributes(evt *event.Event) []attribute.KeyValue {
 	return attrs
 }
 
-// appendIdentity adds host and tags when the event has them.
 func appendIdentity(attrs []attribute.KeyValue, evt *event.Event) []attribute.KeyValue {
 	if evt.Hostname != "" {
 		attrs = append(attrs, attribute.String(attrHostname, evt.Hostname))

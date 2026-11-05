@@ -52,8 +52,7 @@ func HangingHTTPServer(t *testing.T) *httptest.Server {
 	return server
 }
 
-// HangingTCPServer accepts connections and never reads or writes; it returns
-// the listener address as host:port.
+// HangingTCPServer accepts connections, never reads or writes, and returns host:port.
 func HangingTCPServer(t *testing.T) string {
 	t.Helper()
 	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
@@ -87,8 +86,7 @@ func HangingTCPServer(t *testing.T) string {
 	return ln.Addr().String()
 }
 
-// RequireReturnsOnCancel runs call with a context that ends after CancelAfter,
-// requires an error within ReturnWithin and returns it.
+// RequireReturnsOnCancel requires call to fail within ReturnWithin of a context ending after CancelAfter.
 func RequireReturnsOnCancel(t *testing.T, name string, call func(context.Context) error) error {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), CancelAfter)

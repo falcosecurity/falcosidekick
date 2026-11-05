@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package config loads and validates falcosidekick configuration from
-// YAML files and environment variables.
+// Package config loads and validates falcosidekick configuration from YAML and environment.
 package config

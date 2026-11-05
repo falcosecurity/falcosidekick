@@ -34,8 +34,6 @@ func (d DiffResult) IsEmpty() bool {
 }
 
 // DiffOutputConfigs compares old and new output config maps by output name.
-// Config equality uses JSON serialization with sorted keys so that nested map
-// order does not cause false positives.
 func DiffOutputConfigs(old, updated map[string]map[string]any) DiffResult {
 	result := DiffResult{
 		Added:   make(map[string]map[string]any),

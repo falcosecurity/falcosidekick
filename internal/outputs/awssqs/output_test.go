@@ -49,8 +49,7 @@ type sqsCall struct {
 	Target string
 }
 
-// fakeSQS answers the SQS JSON protocol. failIDs lists batch entry ids
-// reported as failed; errStatus and errType turn every call into an error.
+// fakeSQS answers the SQS JSON protocol.
 type fakeSQS struct {
 	failIDs   map[string]bool
 	errType   string

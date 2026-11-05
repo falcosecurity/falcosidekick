@@ -132,11 +132,7 @@ func endpointProblem(value string) string {
 	return ""
 }
 
-// Load resolves the region and the credentials. The region comes from
-// region, then from the environment and the shared config files, then from
-// fallbackRegion. Credentials come from the static keys or the default
-// chain, then from role_arn when set. API calls are not retried here: the
-// pipeline owns retries.
+// Load resolves the region and the credentials; SDK retries are off because the pipeline owns retries.
 func (c *Config) Load(ctx context.Context, fallbackRegion string) (sdkaws.Config, error) {
 	var opts []func(*awsconfig.LoadOptions) error
 	if c.Region != "" {

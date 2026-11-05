@@ -23,8 +23,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-// MergeRuntimeConfig merges per-output runtime overrides into runtime defaults.
-// Zero-value fields in perOutput keep the default. Non-zero fields override.
+// MergeRuntimeConfig overlays the non-zero per-output runtime fields on the defaults.
 func MergeRuntimeConfig(defaults output.RuntimeConfig, name string, perOutput output.RuntimeConfig) (output.RuntimeConfig, error) {
 	resolved := defaults.DeepCopy()
 

@@ -23,10 +23,8 @@ import (
 	"strings"
 )
 
-// ValueSources holds the public, secret, and file-backed values of one named
-// entry in headers or query_params. Files are validated at construction and reread
-// on every request with surrounding whitespace removed. Relative paths resolve from
-// the process working directory.
+// ValueSources holds the public, secret and file values of one headers or query_params entry.
+// Files are reread and trimmed on every request; relative paths resolve from the working directory.
 type ValueSources struct {
 	Values  []string `mapstructure:"values"`
 	Secrets []string `mapstructure:"secrets"`
@@ -102,8 +100,7 @@ func decodeStringList(data any) ([]string, error) {
 	}
 }
 
-// resolveSources returns values, secrets, and trimmed file contents in that order.
-// kind labels diagnostics, which never include the values. A nil valid accepts every value.
+// resolveSources returns values, secrets, then file contents; diagnostics never include the values.
 func (h ValueSources) resolveSources(kind string, valid func(string) bool) ([]string, error) {
 	values := make([]string, 0, len(h.Values)+len(h.Secrets)+len(h.Files))
 	for _, group := range []struct {

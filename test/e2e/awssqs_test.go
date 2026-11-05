@@ -32,8 +32,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// createQueue creates a queue named after marker, deleted when the test
-// ends, and returns its URL and ARN.
 func (a *awsTarget) createQueue(t *testing.T, marker string) (queueURL, queueARN string) {
 	t.Helper()
 	client := sqs.NewFromConfig(a.cfg)
@@ -53,8 +51,6 @@ func (a *awsTarget) createQueue(t *testing.T, marker string) (queueURL, queueARN
 	return queueURL, attrs.Attributes[string(sqstypes.QueueAttributeNameQueueArn)]
 }
 
-// receiveMessages reads the queue until it returned want messages, deleting
-// each one, and returns their bodies.
 func (a *awsTarget) receiveMessages(t *testing.T, queueURL string, want int) []string {
 	t.Helper()
 	client := sqs.NewFromConfig(a.cfg)

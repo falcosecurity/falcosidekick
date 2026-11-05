@@ -44,7 +44,6 @@ type redisTarget struct {
 	password string
 }
 
-// redisTargets returns one target per configured server.
 func redisTargets(t *testing.T) []redisTarget {
 	t.Helper()
 	addrs := requireEnv(t, envRedisAddr)
@@ -174,7 +173,6 @@ func TestRedisReportsUnreachableServer(t *testing.T) {
 	assert.NotContains(t, sk.logs.String(), target.password)
 }
 
-// outputConfig returns the output as the API shows it.
 func outputConfig(t *testing.T, sk *sidekick, name string) string {
 	t.Helper()
 	resp, err := httpDo(http.MethodGet, sk.url+"/api/v1/pipeline/outputs/"+name, nil)

@@ -42,7 +42,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/ui"
 )
 
-// app holds the running application resources built during startup.
 type app struct {
 	db       core.Database
 	pipe     *pipeline.Pipeline
@@ -50,8 +49,7 @@ type app struct {
 	reloader *reload.Reloader
 }
 
-// NewApp builds all application resources. On failure, resources built
-// so far are closed before returning; the caller does not need deferred cleanup.
+// NewApp builds all application resources and closes them on failure.
 func NewApp(
 	ctx context.Context,
 	cfg *config.Config,
@@ -156,10 +154,7 @@ func NewApp(
 	}, nil
 }
 
-// startReloadWatchers wires the fsnotify, poller, and SIGHUP reload
-// triggers. All goroutines exit when appCtx is canceled. Also binds the
-// worker context on the Reloader so UI-driven ApplyOutput/RemoveOutput
-// calls share the same long-lived context as file-driven reloads.
+// startReloadWatchers binds the worker context so UI-driven applies share the file reload lifetime.
 func (a *app) startReloadWatchers(
 	appCtx, workerRunCtx context.Context,
 	outputPaths []string,
@@ -209,8 +204,6 @@ func (a *app) startReloadWatchers(
 	}()
 }
 
-// serve starts the HTTP server in a background goroutine. Non-shutdown
-// errors are sent to errCh. The caller owns the channel.
 func (a *app) serve(errCh chan<- error) {
 	go func() {
 		if err := a.srv.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -219,7 +212,6 @@ func (a *app) serve(errCh chan<- error) {
 	}()
 }
 
-// shutdown performs orderly teardown: server, pipeline, database.
 func (a *app) shutdown() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -239,10 +231,7 @@ func (a *app) shutdown() {
 	slog.Info("stopped")
 }
 
-// resolveUIAssets returns the asset filesystem to serve under GET / when
-// the UI is both configured and compiled in. When the operator asks for a
-// UI on a binary built without -tags=builtinui, a warning is logged and nil
-// is returned so event ingestion continues unaffected.
+// resolveUIAssets returns nil without -tags=builtinui so event ingestion still starts.
 func resolveUIAssets(enabled bool, dist fs.FS) fs.FS {
 	if !enabled {
 		return nil
@@ -283,10 +272,7 @@ func createOutputs(
 	return outputs, nil
 }
 
-// restoreFromDB rebuilds live outputs for every database entry that
-// the file-driven createOutputs step did not already cover. Used at
-// startup so UI-only writes and orphaned provisioned entries from a
-// previous run are reinstated in the dispatcher.
+// restoreFromDB rebuilds outputs stored in the database but absent from the output files.
 func restoreFromDB(
 	ctx context.Context,
 	cfg *config.Config,

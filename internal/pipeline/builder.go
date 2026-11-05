@@ -30,8 +30,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-// ErrInvalidOutputConfig matches BuildOutput failures caused by the supplied
-// configuration, as opposed to driver initialization.
+// ErrInvalidOutputConfig matches BuildOutput failures caused by the configuration, not by driver startup.
 var ErrInvalidOutputConfig = errors.New("invalid output config")
 
 type invalidOutputConfigError struct{ cause error }
@@ -40,9 +39,7 @@ func (e invalidOutputConfigError) Error() string        { return e.cause.Error()
 func (e invalidOutputConfigError) Unwrap() error        { return e.cause }
 func (e invalidOutputConfigError) Is(target error) bool { return target == ErrInvalidOutputConfig }
 
-// BuildOutput constructs a live *Output. On any failure after
-// catalog.Create, the driver is closed before return. Secret resolution
-// is the caller's responsibility.
+// BuildOutput constructs a live *Output, closing the driver on failure; the caller resolves secrets.
 func BuildOutput(
 	ctx context.Context,
 	cat *catalog.Catalog,
@@ -133,5 +130,4 @@ func BuildOutputs(
 	return outputs, nil
 }
 
-// healthCheckTimeout bounds the destination probe made before an output starts.
 const healthCheckTimeout = 5 * time.Second

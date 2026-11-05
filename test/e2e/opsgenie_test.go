@@ -54,10 +54,7 @@ type opsgenieAlert struct {
 
 var opsgeniePriorities = map[string]bool{"P1": true, "P2": true, "P3": true, "P4": true, "P5": true}
 
-// opsgenieAPI is a strict fake of the Alert API create endpoint and the
-// heartbeat list used as the startup probe. healthStatus answers the probe;
-// alertStatus answers valid alerts. Requests Opsgenie would reject are
-// recorded with their reason.
+// opsgenieAPI fakes alert creation and the heartbeat list used as the startup probe.
 type opsgenieAPI struct {
 	alerts       []opsgenieAlert
 	rejected     []string
@@ -195,7 +192,6 @@ func TestOpsgenieReportsRejectedAlert(t *testing.T) {
 	assert.Len(t, alerts, 1, "max_attempts 1 sends exactly once")
 }
 
-// A rejected key is a configuration error that stops startup.
 func TestOpsgenieRejectedKeyFailsStartup(t *testing.T) {
 	fake := &opsgenieAPI{healthStatus: http.StatusOK, alertStatus: http.StatusAccepted}
 	server := httptest.NewServer(fake)

@@ -24,8 +24,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-// --- Filter helpers ---
-
 func hasNoFilters(f *output.Filters) bool {
 	return f.Filter == "" && hasNoStructuredFilters(f) && f.Since == 0
 }

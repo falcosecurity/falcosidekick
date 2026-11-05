@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package otlp implements the OpenTelemetry Protocol output driver for
-// traces, logs and metrics.
+// Package otlp implements the OpenTelemetry Protocol output driver for traces, logs and metrics.
 package otlp

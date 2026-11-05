@@ -34,8 +34,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// ReloaderConfig holds the dependencies the Reloader needs. Long-lived
-// contexts are not stored here; they are passed explicitly to Reload.
+// ReloaderConfig holds the Reloader dependencies; contexts are passed to Reload and BindWorkerContext.
 type ReloaderConfig struct {
 	Deps            output.Deps
 	Database        core.Database
@@ -49,24 +48,16 @@ type ReloaderConfig struct {
 	Provisioning    core.ProvisioningConfig
 }
 
-// ErrReloaderNotBound is returned by ApplyOutput and RemoveOutput when
-// BindWorkerContext has not been called yet.
+// ErrReloaderNotBound is returned by UI writes before BindWorkerContext is called.
 var ErrReloaderNotBound = errors.New("reloader: worker context not bound")
 
-// ErrUnknownOutputType is returned by ApplyOutput when the requested name
-// is not registered in the catalog.
+// ErrUnknownOutputType is returned by ApplyOutput for a name not in the catalog.
 var ErrUnknownOutputType = errors.New("reloader: unknown output type")
 
-// ErrDBSyncFailed is returned by ApplyOutput and RemoveOutput when the
-// runtime change was applied to the dispatcher but the subsequent
-// database persistence step failed. Runtime state is live but not
-// durable; the caller must surface this to the operator.
+// ErrDBSyncFailed means the runtime change is live but was not persisted to the database.
 var ErrDBSyncFailed = errors.New("reloader: database sync failed after runtime apply")
 
-// Reloader applies output config changes to a running dispatcher from two
-// sources: file reloads (Reload) and UI writes (ApplyOutput, RemoveOutput).
-// All apply paths serialize on an internal mutex so runtime state changes
-// are strictly sequential across sources.
+// Reloader applies output config changes from file reloads and UI writes, serialized by one mutex.
 type Reloader struct {
 	deps       output.Deps
 	database   core.Database
@@ -85,8 +76,7 @@ type Reloader struct {
 	bound           bool
 }
 
-// NewReloader returns a Reloader. InitialOutputs is deep-copied so the
-// reloader's diff state is isolated from the caller.
+// NewReloader returns a Reloader with its own deep copy of InitialOutputs.
 func NewReloader(cfg *ReloaderConfig) *Reloader {
 	var initial map[string]map[string]any
 	if cfg.InitialOutputs != nil {
@@ -109,10 +99,7 @@ func NewReloader(cfg *ReloaderConfig) *Reloader {
 	}
 }
 
-// BindWorkerContext attaches the long-lived worker context and retire
-// timeout that ApplyOutput and RemoveOutput use when building or retiring
-// outputs. Must be called exactly once before the first UI-driven apply.
-// Panics if called a second time.
+// BindWorkerContext sets the worker context and retire timeout for UI writes; it panics if called twice.
 func (r *Reloader) BindWorkerContext(workerRunCtx context.Context, retireTimeout time.Duration) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -124,16 +111,7 @@ func (r *Reloader) BindWorkerContext(workerRunCtx context.Context, retireTimeout
 	r.bound = true
 }
 
-// ApplyOutput applies one UI-driven output config to the dispatcher
-// and persists it through Database.SaveOutputConfig. r.fileState records
-// names whose last-applied source was a file; ApplyOutput updates it
-// only when the name is already present so UI-only names stay out of
-// the file view.
-//
-// Returns nil on full success, ErrDBSyncFailed when runtime applied
-// but Database.SaveOutputConfig failed, ErrUnknownOutputType when the
-// name has no catalog entry, ErrReloaderNotBound before the worker
-// context binding, or pipeline.ErrDispatcherStopped during shutdown.
+// ApplyOutput applies one UI-driven output config to the dispatcher and persists it.
 func (r *Reloader) ApplyOutput(ctx context.Context, name string, cfg map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -199,11 +177,7 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, cfg map[string]
 		}
 	}
 
-	// r.fileState tracks runtime state for file-owned names so the next
-	// file reload can detect divergence and restore the file version.
-	// The update happens regardless of dbSyncFailed: the dispatcher
-	// was mutated either way, and the next reload must see that to
-	// restore the file on partial failure.
+	// Updated even if the DB save failed, so the next file reload restores the file version.
 	if fileOwned {
 		r.fileState[name] = cfgCopy
 	}
@@ -221,18 +195,7 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, cfg map[string]
 	return nil
 }
 
-// RemoveOutput retires a single output from the dispatcher and deletes
-// it from the database. A name that is not currently running is still
-// valid: the dispatcher returns nil and the DB delete is attempted.
-//
-// Outcomes mirror ApplyOutput:
-//   - nil: runtime retired AND database deleted. Metric success (or
-//     partial_success if retire timed out while replacement/retire was
-//     in-flight).
-//   - ErrDBSyncFailed: runtime retired but database delete failed.
-//     Metric partial_success.
-//   - pipeline.ErrDispatcherStopped: shutdown in progress; neither
-//     runtime nor DB mutated. Metric failure.
+// RemoveOutput retires an output and deletes it from the database, even if it is not running.
 func (r *Reloader) RemoveOutput(ctx context.Context, name string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -263,9 +226,7 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string) error {
 		}
 	}
 
-	// Drop the name from the file view so the next file reload
-	// detects the delete as an addition and restores file-provisioned
-	// outputs without requiring a file edit.
+	// The next file reload then sees the name as added and restores a file-provisioned output.
 	delete(r.fileState, name)
 
 	duration := time.Since(start)
@@ -281,14 +242,8 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string) error {
 	return nil
 }
 
-// Reload diffs the current output config files against the running state
-// and applies the delta. On any pre-apply failure the running state is
-// left unchanged.
-//
-// ctx bounds parse, Init, and DB Provision; typically derived from the
-// process context. workerRunCtx is attached to new output workers so
-// they outlive ctx cancellation during a clean shutdown. retireTimeout
-// bounds retirement of old outputs only.
+// Reload applies the delta between the output config files and the running state.
+// ctx bounds parse, Init and Provision; new workers run on workerRunCtx so they outlive ctx.
 func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.Duration) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -315,8 +270,7 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 
 	diff := DiffOutputConfigs(r.fileState, outsCfg.Outputs)
 
-	// Route names already live in the dispatcher through ReplaceOutput
-	// so AddOutput never overwrites a running slot and leaks its worker.
+	// A live name goes through ReplaceOutput so AddOutput never leaks a running worker.
 	for _, name := range r.dispatcher.OutputNames() {
 		if cfg, added := diff.Added[name]; added {
 			diff.Changed[name] = cfg
@@ -344,7 +298,6 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	retireCtx, retireCancel := context.WithTimeout(ctx, retireTimeout)
 	defer retireCancel()
 
-	// stopped means the dispatcher rejected a mutation (shutdown in progress);
 	// retireWarning means a drain timed out but the replacement is live.
 	var stopped bool
 	var retireWarning bool
@@ -370,9 +323,6 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 			}
 		}
 	}
-	// With DisableDeletion=true, names that dropped out of the file
-	// set are preserved as orphaned provisioned outputs: keep them
-	// running in the dispatcher and keep their DB entries.
 	if !r.provisioning.DisableDeletion {
 		for _, name := range diff.Removed {
 			if err := r.dispatcher.RemoveOutput(retireCtx, name); err != nil {
@@ -402,10 +352,8 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 		}
 	}
 
-	// Runtime apply succeeded past this point, so r.fileState always advances
-	// regardless of DB sync or retire-timeout outcome. When DisableDeletion
-	// is on, orphaned names still drop out of r.fileState so subsequent
-	// reloads do not keep retrying to retire them.
+	// The runtime is applied, so fileState advances even on DB or retire failure;
+	// orphans kept by DisableDeletion leave it so later reloads do not retire them.
 	r.fileState = outsCfg.Outputs
 	duration := time.Since(start)
 

@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package grafanaoncall implements the Grafana OnCall and Grafana Cloud IRM
-// formatted webhook output driver.
+// Package grafanaoncall implements the Grafana OnCall and Cloud IRM formatted webhook output driver.
 package grafanaoncall

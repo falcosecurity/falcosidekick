@@ -49,8 +49,7 @@ const (
 	defaultMaxEvents = 1000
 	defaultNamespace = "default"
 
-	// maxAttempts bounds the read-modify-write loop when other writers
-	// change the report between the read and the write.
+	// maxAttempts bounds read-modify-write retries against concurrent writers.
 	maxAttempts = 5
 
 	clientQPS   = 50
@@ -137,8 +136,7 @@ func newDriver(cfg *config, client dynamic.Interface, disc rest.Interface, logge
 	}
 }
 
-// loadRESTConfig reads kubeconfig, or the in-cluster configuration when it is
-// empty. Errors never carry the file content.
+// loadRESTConfig errors never carry the kubeconfig content.
 func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
 	var (
 		cfg *rest.Config
@@ -178,8 +176,7 @@ func fallbackNamespace(configured string) string {
 
 func (d *driver) Name() string { return name }
 
-// Init loads the kubeconfig, or the in-cluster configuration, and builds the
-// Kubernetes clients. It does not contact the API server.
+// Init does not contact the API server.
 func (d *driver) Init(_ context.Context) error {
 	restCfg, err := loadRESTConfig(d.cfg.Kubeconfig)
 	if err != nil {
@@ -199,9 +196,7 @@ func (d *driver) Init(_ context.Context) error {
 
 func (d *driver) Close() error { return nil }
 
-// Send adds the event to the Report of its namespace, or to the ClusterReport
-// when it has none. A namespace that does not exist falls back to the
-// fallback namespace.
+// Send uses the fallback namespace when the event namespace does not exist.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	if d.client == nil {
 		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
@@ -219,8 +214,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return safeError("write report", err)
 }
 
-// apply serializes writes to one report in this process and retries the
-// read-modify-write when another writer changed the report in between.
+// apply serializes local writes per report and retries when another writer changed it in between.
 func (d *driver) apply(ctx context.Context, t target, result map[string]any) error {
 	lock := d.lock(t)
 	lock.Lock()
@@ -282,10 +276,7 @@ func isNamespaceNotFound(err error) bool {
 	return details != nil && details.Kind == "namespaces"
 }
 
-// HealthCheck requires openreports.io/v1alpha1 to serve reports and
-// clusterreports, and the ClusterReport to be readable. A missing API,
-// rejected credentials, a denied read or an untrusted certificate are
-// configuration errors; anything else is transient.
+// HealthCheck requires the openreports.io/v1alpha1 API and a readable ClusterReport.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil || d.discovery == nil {
 		return fmt.Errorf("%s: %w", name, core.ErrNotReady)

@@ -32,7 +32,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// defaultEndpoint targets the Alertmanager v2 API.
 const (
 	defaultEndpoint = "/api/v2/alerts"
 	healthRoute     = "/-/healthy"
@@ -117,9 +116,6 @@ func (d *driver) Name() string { return "alertmanager" }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
-// Send delivers an event as an Alertmanager alert.
-// Fan-out: sends to ALL configured hosts in parallel.
-// Succeeds if at least one host accepts the alert.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	alerts := []alertPayload{d.buildAlert(evt)}
 
@@ -144,7 +140,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.fanOut(ctx, targets, body)
 }
 
-// fanOut sends to all hosts in parallel, succeeds if at least one works.
+// fanOut succeeds if at least one host accepts the alert.
 func (d *driver) fanOut(ctx context.Context, targets []string, body []byte) error {
 	var (
 		wg      sync.WaitGroup
@@ -187,7 +183,6 @@ func (d *driver) fanOut(ctx context.Context, targets []string, body []byte) erro
 	return nil
 }
 
-// SetWarningHandler receives the pipeline handler for partial fan-out.
 func (d *driver) SetWarningHandler(handler func(warning string)) {
 	d.warning.Store(&handler)
 }
@@ -198,9 +193,7 @@ func (d *driver) reportWarning(warning string) {
 	}
 }
 
-// HealthCheck probes every host concurrently, so a slow host does not use up
-// the budget of the others. A configuration error on any host is returned
-// as such; otherwise any unreachable host is reported.
+// HealthCheck probes hosts concurrently so a slow host does not use up the others' budget.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if len(d.cfg.Hosts) == 0 {
 		return fmt.Errorf("alertmanager: no hosts configured")

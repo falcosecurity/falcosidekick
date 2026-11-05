@@ -82,7 +82,6 @@ func writeOutputsYAML(t *testing.T, path, content string) {
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 }
 
-// reloaderTestEnv sets up a dispatcher with workerRunCtx for reloader tests.
 type reloaderTestEnv struct {
 	d            *pipeline.Dispatcher
 	workerRunCtx context.Context
@@ -398,9 +397,6 @@ func TestReloaderInitFailureClosesPartialOutputs(t *testing.T) {
 	assert.Empty(t, env.d.OutputNames(), "no outputs must be added on partial failure")
 }
 
-// A file reload whose new config fails the destination health check with a
-// configuration error is rejected, and the running output keeps delivering
-// with its previous config.
 func TestReloaderMisconfiguredDestinationKeepsOldOutput(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
@@ -470,7 +466,6 @@ const (
 	metricReloadLastSuccess = "falcosidekick_reload_last_success_timestamp"
 )
 
-// getMetricValue extracts a counter or gauge value from a gathered metric family.
 func getMetricValue(gathered []*dto.MetricFamily, name string) float64 {
 	for _, mf := range gathered {
 		if mf.GetName() == name {
@@ -480,7 +475,6 @@ func getMetricValue(gathered []*dto.MetricFamily, name string) float64 {
 	return 0
 }
 
-// getLastSuccessTimestamp extracts the reload_last_success_timestamp gauge value.
 func getLastSuccessTimestamp(gathered []*dto.MetricFamily) float64 {
 	for _, mf := range gathered {
 		if mf.GetName() == metricReloadLastSuccess {
@@ -511,7 +505,7 @@ func TestReloaderReplaceRetireTimeoutKeepsLiveReplacement(t *testing.T) {
 	cat, err := catalog.New([]output.Type{fastType})
 	require.NoError(t, err)
 
-	// Start with a slow output whose Send blocks forever (ignores ctx).
+	// Send blocks forever and ignores ctx.
 	slowDriver := &testutil.MockDriver{
 		DriverName: "myout",
 		SendFunc: func(_ context.Context, _ *event.Event) error {
@@ -527,11 +521,9 @@ func TestReloaderReplaceRetireTimeoutKeepsLiveReplacement(t *testing.T) {
 	env := newReloaderTestEnv(t, []*pipeline.Output{initialOut})
 	defer env.shutdown(t)
 
-	// Feed an event so the slow worker enters blocking Send.
 	env.d.DispatchEvent(&event.Event{Priority: event.PriorityError, Rule: "test", Source: "test"})
 	time.Sleep(30 * time.Millisecond)
 
-	// Changed config triggers a replace.
 	writeOutputsYAML(t, path, "outputs:\n  myout:\n    host: http://changed\n")
 
 	reg := prometheus.NewRegistry()
@@ -546,7 +538,7 @@ func TestReloaderReplaceRetireTimeoutKeepsLiveReplacement(t *testing.T) {
 		InitialOutputs:  map[string]map[string]any{"myout": {"host": "http://old"}},
 	})
 
-	// Broad reloadCtx (for Init/Provision), short retireTimeout so old output retire times out.
+	// The short retireTimeout makes the old output's retire time out.
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer reloadCancel()
 	err = r.Reload(reloadCtx, env.workerRunCtx, 100*time.Millisecond)
@@ -589,7 +581,6 @@ func TestReloaderRemoveRetireTimeoutIsWarning(t *testing.T) {
 	env := newReloaderTestEnv(t, []*pipeline.Output{initialOut})
 	defer env.shutdown(t)
 
-	// Feed event to block the worker.
 	env.d.DispatchEvent(&event.Event{Priority: event.PriorityError, Rule: "test", Source: "test"})
 	time.Sleep(30 * time.Millisecond)
 
@@ -638,7 +629,6 @@ func TestReloaderRejectsDuringShutdown(t *testing.T) {
 
 	env := newReloaderTestEnv(t, nil)
 
-	// Stop the dispatcher BEFORE reload.
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), time.Second)
 	defer shutdownCancel()
 	_ = env.d.Shutdown(shutdownCtx, env.stopWorkers)
@@ -779,7 +769,7 @@ func TestReloaderPartialSuccessDBSyncFailure(t *testing.T) {
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Reload returns nil because runtime accepted the new config even though DB failed.
+	// The runtime accepted the config, so a DB failure does not fail Reload.
 	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
 
 	assert.Contains(t, r.fileState, "slack", "file state must reflect new config despite DB failure")
@@ -792,9 +782,6 @@ func TestReloaderPartialSuccessDBSyncFailure(t *testing.T) {
 	assert.Equal(t, float64(0), getLastSuccessTimestamp(gathered), "reload_last_success_timestamp must NOT be updated on partial")
 }
 
-// newApplyReloader builds a Reloader suitable for ApplyOutput/RemoveOutput tests.
-// db may be nil for tests that do not exercise the non-file-provisioned
-// (Provisioned:false) apply path.
 func newApplyReloader(t *testing.T, cat *catalog.Catalog, env *reloaderTestEnv, initial map[string]map[string]any) *Reloader {
 	t.Helper()
 	r := NewReloader(&ReloaderConfig{
@@ -1035,10 +1022,6 @@ func TestReloaderRemoveOutput_MissIsNoop(t *testing.T) {
 	require.NoError(t, r.RemoveOutput(context.Background(), "never-existed"), "RemoveOutput on a missing name must be a no-op")
 }
 
-// TestReloaderApplyThenReload_FileWinsOverUIEdit encodes the
-// file-authoritative contract: UI edits to a file-provisioned name are
-// accepted by the runtime and the database, but the next file reload
-// is authoritative and restores the file version via ReplaceOutput.
 func TestReloaderApplyThenReload_FileWinsOverUIEdit(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
@@ -1082,10 +1065,6 @@ func TestReloaderApplyThenReload_FileWinsOverUIEdit(t *testing.T) {
 		"file reload must overwrite the UI edit with the file version")
 }
 
-// TestReloaderReload_DisableDeletionKeepsOrphanedOutputRunning
-// exercises the runtime side of disable_deletion: a name dropped
-// from the file set must NOT be retired from the dispatcher when
-// DisableDeletion=true, and its DB entry must be preserved.
 func TestReloaderReload_DisableDeletionKeepsOrphanedOutputRunning(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
@@ -1114,11 +1093,9 @@ func TestReloaderReload_DisableDeletionKeepsOrphanedOutputRunning(t *testing.T) 
 		InitialOutputs:  map[string]map[string]any{},
 	})
 
-	// First reload: both outputs provisioned from files.
 	require.NoError(t, r.Reload(context.Background(), env.workerRunCtx, time.Second))
 	require.ElementsMatch(t, []string{"slack", "webhook"}, env.d.OutputNames())
 
-	// File drops webhook; DisableDeletion=true must preserve it.
 	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: slack-cfg\n")
 	require.NoError(t, r.Reload(context.Background(), env.workerRunCtx, time.Second))
 
@@ -1171,14 +1148,7 @@ func TestReloaderReload_DisableDeletionFalseRetiresOrphan(t *testing.T) {
 	assert.Nil(t, stored, "DB entry must be deleted when DisableDeletion=false")
 }
 
-// TestReloaderApplyThenReload_PartialFailureNextReloadRestoresFile
-// covers the partial-failure aftermath contract: a UI PUT on a
-// file-provisioned name succeeds in the runtime but the DB save
-// fails. The file stays unchanged. The next file reload must
-// observe that the dispatcher diverged from the file and rebuild
-// the output from the file version via ReplaceOutput. The build
-// counter proves the reload re-ran catalog.Create (UI-apply + file
-// restore = 2 builds) rather than no-op'ing (1 build).
+// Two builds (UI apply + file restore) prove the reload rebuilt the output instead of a no-op.
 func TestReloaderApplyThenReload_PartialFailureNextReloadRestoresFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
@@ -1233,12 +1203,6 @@ func TestReloaderApplyThenReload_PartialFailureNextReloadRestoresFile(t *testing
 		"post-reload r.fileState must reflect the file version")
 }
 
-// TestReloaderReload_ReAddsNameAlreadyLiveAsReplace covers the
-// defensive Added-to-Changed reclassification. A UI-only PUT creates
-// a live output; a later file reload declares the same name; the
-// diff classifies it as Added, but the dispatcher already has it, so
-// Reloader must route through ReplaceOutput rather than orphaning
-// the old Output via a bare AddOutput overwrite.
 func TestReloaderReload_ReAddsNameAlreadyLiveAsReplace(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
@@ -1282,10 +1246,6 @@ func TestReloaderReload_ReAddsNameAlreadyLiveAsReplace(t *testing.T) {
 		"post-reload r.fileState reflects the file version")
 }
 
-// TestReloaderApplyOutput_DBSaveFailureReturnsErrDBSyncFailed proves the
-// Bug-2 metric-truthfulness contract: runtime apply succeeded but DB
-// save failed; ApplyOutput returns ErrDBSyncFailed and the metric
-// records partial_success, not success.
 func TestReloaderApplyOutput_DBSaveFailureReturnsErrDBSyncFailed(t *testing.T) {
 	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
 	require.NoError(t, err)
@@ -1322,8 +1282,6 @@ func TestReloaderApplyOutput_DBSaveFailureReturnsErrDBSyncFailed(t *testing.T) {
 		"failures_total{source=ui} must not increment when runtime apply succeeded")
 }
 
-// TestReloaderRemoveOutput_DBDeleteFailureReturnsErrDBSyncFailed mirrors
-// the Bug-2 contract for RemoveOutput.
 func TestReloaderRemoveOutput_DBDeleteFailureReturnsErrDBSyncFailed(t *testing.T) {
 	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
 	require.NoError(t, err)
@@ -1363,10 +1321,6 @@ func TestReloaderRemoveOutput_DBDeleteFailureReturnsErrDBSyncFailed(t *testing.T
 }
 
 func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {
-	// file-provisioned output → UI DELETE → unchanged file reload must
-	// reinstate it. Regression for the file-authoritative contract: the
-	// file stays source of truth; UI delete is ephemeral until the
-	// operator edits the file.
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
 	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: https://hooks.slack.com/file\n")
@@ -1414,7 +1368,6 @@ func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {
 	assert.True(t, entry.Provisioned, "restored entry must be marked Provisioned:true")
 }
 
-// getMetricValueByLabel returns the counter value for (name, labelKey=labelValue).
 func getMetricValueByLabel(gathered []*dto.MetricFamily, name, labelKey, labelValue string) float64 {
 	for _, mf := range gathered {
 		if mf.GetName() != name {

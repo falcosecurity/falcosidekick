@@ -153,9 +153,7 @@ func TestLoadStaticCredentials(t *testing.T) {
 	assert.Equal(t, 1, cfg.Retryer().MaxAttempts(), "the pipeline owns retries")
 }
 
-// AssumeRole goes to STS with the base credentials, the role session name
-// and the external id; the custom endpoint applies to STS only through the
-// SDK environment, as here.
+// The custom endpoint reaches STS only through the SDK environment, as set here.
 func TestLoadAssumeRole(t *testing.T) {
 	awstest.Isolate(t)
 	var form string

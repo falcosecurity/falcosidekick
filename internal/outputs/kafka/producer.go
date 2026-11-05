@@ -112,8 +112,7 @@ func resolveBalancer(b string) []kgo.Opt {
 	}
 }
 
-// clientLogger routes franz-go warnings and errors, such as broker dial, TLS
-// and SASL failures, to the output logger. Debug and info are not forwarded.
+// clientLogger forwards franz-go warnings and errors, such as dial, TLS and SASL failures.
 type clientLogger struct {
 	logger *slog.Logger
 }

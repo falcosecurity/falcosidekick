@@ -38,14 +38,11 @@ type Collector struct {
 	dropTotal     *prometheus.CounterVec
 	errorTotal    *prometheus.CounterVec
 	eventTotal    *prometheus.CounterVec
-	// extraFields are output field names whose values label eventTotal,
-	// in label order after rule, priority and source.
+	// extraFields label eventTotal, in order after rule, priority and source.
 	extraFields []string
 }
 
-// NewCollector creates a Collector with its own Prometheus registry.
-// extraFields are output field names, already validated by
-// core.MetricsConfig, added as labels to the Falco events counter.
+// NewCollector creates a Collector with its own registry; extraFields must be validated by core.MetricsConfig.
 func NewCollector(extraFields ...string) *Collector {
 	reg := prometheus.NewRegistry()
 	eventLabels := make([]string, 0, 3+len(extraFields))
@@ -129,8 +126,7 @@ func (c *Collector) RecordError(_ context.Context, component string, _ error) {
 	c.errorTotal.WithLabelValues(component).Inc()
 }
 
-// RecordEvent increments the event counter. A configured field missing
-// from the event gets an empty label value.
+// RecordEvent increments the event counter.
 func (c *Collector) RecordEvent(_ context.Context, evt *event.Event) {
 	values := make([]string, 0, 3+len(c.extraFields))
 	values = append(values, evt.Rule, string(evt.Priority), evt.Source)

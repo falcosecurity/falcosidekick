@@ -79,8 +79,7 @@ type discordEmbedField struct {
 	Inline bool   `json:"inline"`
 }
 
-// discordWebhook is a strict fake of a Discord webhook: it enforces the
-// embed limits and wait=true, answers POST with status and GET with getStatus.
+// discordWebhook is a strict fake of a Discord webhook that enforces embed limits and wait=true.
 type discordWebhook struct {
 	messages  []discordExecute
 	rejected  []string
@@ -232,8 +231,7 @@ func TestDiscordDeliversEvent(t *testing.T) {
 	assert.NotContains(t, sk.logs.String(), discordToken)
 }
 
-// The health check reads the webhook: a rejected token stops startup and
-// nothing is posted.
+// The health check only reads the webhook, so a rejected token stops startup before any post.
 func TestDiscordInvalidTokenFailsStartup(t *testing.T) {
 	hook, outputs := newDiscord(t, http.StatusUnauthorized, http.StatusUnauthorized)
 	logs := startSidekickFails(t, outputs)

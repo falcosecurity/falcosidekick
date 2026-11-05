@@ -30,7 +30,6 @@ import (
 )
 
 // DeliveryError describes a failed HTTP delivery without formatting its cause.
-// Unwrap retains the cause for errors.Is and errors.As, not for public diagnostics.
 type DeliveryError struct {
 	cause     error
 	name      string
@@ -80,8 +79,7 @@ func (e *DeliveryError) Format(state fmt.State, verb rune) {
 // MarshalText encodes the safe diagnostic, never the wrapped cause.
 func (e *DeliveryError) MarshalText() ([]byte, error) { return []byte(e.Error()), nil }
 
-// WrapDeliveryError classifies a failure without copying its message.
-// Name and operation must be application-defined labels, not payload or URL text.
+// WrapDeliveryError classifies a failure without copying its message; name and operation must be fixed labels.
 func WrapDeliveryError(name, operation string, cause error) error {
 	if cause == nil {
 		return nil
@@ -96,14 +94,12 @@ func WrapDeliveryError(name, operation string, cause error) error {
 	return &DeliveryError{name: name, operation: operation, reason: classifyDeliveryError(cause, operation), cause: cause}
 }
 
-// NewProtocolError reports an application-defined or allowlisted provider code.
-// Code must not contain unvalidated response content.
+// NewProtocolError reports a fixed or allowlisted provider code, never unvalidated response content.
 func NewProtocolError(name, code string) error {
 	return &DeliveryError{name: name, operation: "response", reason: code}
 }
 
-// IsTLSVerificationError reports whether err is a server certificate the
-// client does not trust.
+// IsTLSVerificationError reports whether err is a server certificate the client does not trust.
 func IsTLSVerificationError(err error) bool {
 	var (
 		certificate *tls.CertificateVerificationError

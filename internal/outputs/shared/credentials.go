@@ -24,8 +24,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// CredentialHeader describes a credential that an output sends in a header
-// of its own, such as an API key.
+// CredentialHeader describes a credential, such as an API key, that an output sends in its own header.
 type CredentialHeader struct {
 	// Field is the config key holding the credential, e.g. "api_key".
 	Field string
@@ -35,11 +34,7 @@ type CredentialHeader struct {
 	Required bool
 }
 
-// ValidateCredential checks a credential sent in its own header. A set
-// value must be a valid header value. With the Authorization header, a set
-// value cannot be combined with basic auth, bearer_token or an
-// Authorization entry in headers. Any other header belongs to the output,
-// so headers may never set it.
+// ValidateCredential checks the value and rejects any other configured source for the same header.
 func (c *HTTPConfig) ValidateCredential(h CredentialHeader, value string) utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	set := value != ""

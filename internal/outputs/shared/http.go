@@ -34,7 +34,6 @@ const (
 )
 
 // HTTPConfig holds shared HTTP client settings for outputs.
-// Outputs embed this struct to get TLS, headers, and authentication for free.
 type HTTPConfig struct {
 	Headers     map[string]ValueSources `mapstructure:"headers"`
 	Username    string                  `mapstructure:"username"`

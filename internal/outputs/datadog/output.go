@@ -35,27 +35,22 @@ const (
 	apiKeyName  = "DD-API-KEY"         //nolint:gosec // header name, not a credential
 	appKeyName  = "DD-APPLICATION-KEY" //nolint:gosec // header name, not a credential
 
-	// Events API v1 (API key only, deprecated) and v2 (API and application key):
-	// https://docs.datadoghq.com/api/latest/events/#post-an-event
+	// v1 needs the API key, v2 also the application key: https://docs.datadoghq.com/api/latest/events/#post-an-event
 	eventsV1Route = "/api/v1/events"
 	eventsV2Route = "/api/v2/events"
-	// Key validation, both on api.<site>:
 	// https://docs.datadoghq.com/api/latest/authentication/#validate-api-key
 	// https://docs.datadoghq.com/api/latest/key-management/#validate-api-and-application-keys
 	validateRoute     = "/api/v1/validate"
 	validateKeysRoute = "/api/v2/validate_keys"
 )
 
-// Sites listed by the Events API reference. v1 events and key validation
-// use api.<site>; v2 events use event-management-intake.<site>.
+// v1 events and key validation use api.<site>; v2 events use event-management-intake.<site>.
 var sites = []string{
 	"datadoghq.com", "us3.datadoghq.com", "us5.datadoghq.com", "datadoghq.eu",
 	"ap1.datadoghq.com", "ap2.datadoghq.com", "uk1.datadoghq.com", "ddog-gov.com", "us2.ddog-gov.com",
 }
 
-// DefaultHost is only a placeholder for the target rules: validate sets the
-// host from site before they run. api_key is reserved so the key never ends
-// up in a URL, as it did in v2.
+// DefaultHost is a placeholder replaced from site; api_key is reserved so the key never reaches a URL.
 var targetOptions = shared.HTTPTargetOptions{
 	DefaultHost:         apiHost(defaultSite),
 	DriverRoutes:        true,
@@ -157,10 +152,8 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(context.Context) error { return nil }
 
-// v2 reports whether events go to Events API v2, which needs app_key.
 func (d *driver) v2() bool { return d.cfg.AppKey != "" }
 
-// Send posts the event to the selected Events API, which answers 202 on success.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	host, route, body := d.cfg.Host, eventsV1Route, any(newPayload(evt))
 	if d.v2() {
@@ -173,9 +166,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSON(ctx, http.MethodPost, target, body)
 }
 
-// HealthCheck validates the keys without posting an event: the API key in
-// both modes, then the application key with it in v2 mode. Datadog answers
-// 401 or 403 to a rejected key; 401, 403 and 404 wrap output.ErrMisconfigured.
+// HealthCheck validates the keys without posting an event.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	routes := []string{validateRoute}
 	if d.v2() {

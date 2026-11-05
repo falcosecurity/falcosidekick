@@ -46,8 +46,7 @@ const (
 	sentinel    = "s3cret-sentinel"
 )
 
-// serviceAccountJSON carries sentinel in the private key, which is not a
-// valid key.
+// serviceAccountJSON carries sentinel in an invalid private key.
 var serviceAccountJSON = fmt.Sprintf(`{"type":"service_account","project_id":"p","private_key_id":"k",`+
 	`"private_key":"-----BEGIN PRIVATE KEY-----\n%s\n-----END PRIVATE KEY-----\n",`+
 	`"client_email":"fsk@p.iam.gserviceaccount.com","client_id":"1","token_uri":"https://oauth2.googleapis.com/token"}`, sentinel)

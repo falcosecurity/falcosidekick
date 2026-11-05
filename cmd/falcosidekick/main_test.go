@@ -94,8 +94,6 @@ func waitForServer(t *testing.T, port int) {
 	t.Fatalf("server on port %d did not become ready within %s", port, timeout)
 }
 
-// writeTestOutputsAt writes output config at a stable path so the same
-// file can be overwritten in-place.
 func writeTestOutputsAt(t *testing.T, path, content string) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
@@ -388,7 +386,7 @@ func TestRestoreFromDB_BuildsFromProvisionedFalseEntries(t *testing.T) {
 	require.NoError(t, err)
 
 	db := database.NewMemory()
-	// A prior UI PUT persisted a UI-only output.
+	// UI-only output left by a previous run.
 	require.NoError(t, db.SaveOutputConfig(ctx, "webhook", map[string]any{"address": "http://sink"}))
 
 	fileOutputs := map[string]map[string]any{}
@@ -416,11 +414,10 @@ func TestRestoreFromDB_SkipsProvisionedEntries(t *testing.T) {
 	require.NoError(t, err)
 
 	db := database.NewMemory()
-	// File provisions "webhook"; startup's Provision call marks it Provisioned:true.
 	require.NoError(t, db.Provision(ctx, &core.ProvisionRequest{
 		Outputs: map[string]map[string]any{"webhook": {"address": "http://from-file"}},
 	}))
-	// The file path built its Output already; restore must not double-build.
+	// The file already built webhook, so restore must skip it.
 	fileOutputs := map[string]map[string]any{"webhook": {"address": "http://from-file"}}
 	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(), fileOutputs)
 	require.NoError(t, err)
@@ -494,7 +491,6 @@ func TestRunLifecycleCleanShutdown(t *testing.T) {
 
 	waitForServer(t, port)
 
-	// Cancel context triggers orderly shutdown (like SIGTERM).
 	cancel()
 
 	select {
@@ -549,10 +545,8 @@ func TestRunSIGHUPReload(t *testing.T) {
 	signal.Notify(drain, syscall.SIGHUP)
 	signal.Stop(drain)
 
-	// Send SIGHUP to trigger a reload cycle.
 	require.NoError(t, syscall.Kill(syscall.Getpid(), syscall.SIGHUP))
 
-	// Allow time for the reload to execute (no-op since config unchanged).
 	time.Sleep(300 * time.Millisecond)
 
 	cancel()
@@ -586,10 +580,9 @@ func TestRunPollerDetectsChange(t *testing.T) {
 
 	waitForServer(t, port)
 
-	// Overwrite output config so the poller detects a content-hash change.
 	writeTestOutputsAt(t, outsPath, "outputs:\n  webhook:\n    host: http://127.0.0.1:29999\n")
 
-	// Wait for the poller tick (100ms interval) plus processing time.
+	// Covers one 100ms poller tick plus processing.
 	time.Sleep(400 * time.Millisecond)
 
 	cancel()
@@ -807,6 +800,5 @@ func TestCloseOutputsLogsOnCloseError(t *testing.T) {
 		CloseFunc:  func() error { return errors.New("close failed") },
 	}, &cfg, nil)
 
-	// No panic; log branch exercised.
 	closeOutputs([]*pipeline.Output{failing})
 }

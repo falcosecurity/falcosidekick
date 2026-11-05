@@ -37,19 +37,13 @@ const (
 	maxDecimals = 5
 )
 
-// attributeName matches the SNS message attribute name rules:
-// https://docs.aws.amazon.com/sns/latest/dg/sns-message-attributes.html
+// attributeName follows https://docs.aws.amazon.com/sns/latest/dg/sns-message-attributes.html
 var attributeName = regexp.MustCompile(`^[A-Za-z0-9_-]([A-Za-z0-9_.-]{0,254}[A-Za-z0-9_-])?$`)
 
-// fieldName maps an output field name to an attribute name: proc.aname[2]
-// becomes proc.aname.2.
+// fieldName maps proc.aname[2] to proc.aname.2, a valid attribute name.
 var fieldName = strings.NewReplacer("]", "", "[", ".")
 
-// messageAttributes returns priority, rule, source, tags (comma separated)
-// and hostname, then every output field with a string or numeric value. A
-// number outside the SNS Number range is sent as a String. An
-// output field with the name of a fixed attribute replaces it. Names SNS
-// rejects and empty values are left out.
+// messageAttributes lets an output field replace the fixed attribute of the same name.
 func messageAttributes(evt *event.Event) map[string]snstypes.MessageAttributeValue {
 	attrs := make(map[string]snstypes.MessageAttributeValue, len(evt.OutputFields)+5)
 	add := func(name, dataType, value string) {
@@ -84,9 +78,7 @@ func messageAttributes(evt *event.Event) map[string]snstypes.MessageAttributeVal
 	return attrs
 }
 
-// numberType returns Number for values SNS accepts as numbers, from -10^9
-// to 10^9 with at most 5 decimals, and String for any other number, such as
-// an inode or a nanosecond timestamp.
+// numberType returns String for numbers outside the SNS Number range: -10^9 to 10^9, 5 decimals.
 func numberType(value string) string {
 	f, err := strconv.ParseFloat(value, 64)
 	if err != nil || math.IsNaN(f) || math.Abs(f) > maxNumber {

@@ -252,8 +252,6 @@ func TestRateWindowConcurrentReadersAndWriters(t *testing.T) {
 	assert.Zero(t, window.rate(second+60))
 }
 
-// A status that counts a delivery must also carry its outcome: a failed
-// count comes with last_error, a sent count with last_success.
 func TestStatusCountersComeWithTheirOutcome(t *testing.T) {
 	for range 200 {
 		out := NewOutput(&testutil.MockDriver{DriverName: "order"}, defaultRuntimeDefaults(), nil)

@@ -47,8 +47,7 @@ import (
 	"github.com/twmb/franz-go/pkg/sasl/scram"
 )
 
-// Environment contract. Each group is optional except the plaintext brokers;
-// a test skips when the variables it needs are unset.
+// Only the plaintext brokers are required; other tests skip when their variables are unset.
 const (
 	envKafkaBrokers        = "FALCOSIDEKICK_E2E_KAFKA_BROKERS"
 	envKafkaSASLBrokers    = "FALCOSIDEKICK_E2E_KAFKA_SASL_BROKERS"
@@ -60,15 +59,12 @@ const (
 
 	// kafkaShortTimeout is the producer.delivery_timeout of failure tests.
 	kafkaShortTimeout = 2 * time.Second
-	// kafkaFailMargin bounds the time between the post and the failure
-	// counter on top of the delivery timeout.
+	// kafkaFailMargin bounds the failure counter delay beyond the delivery timeout.
 	kafkaFailMargin = 3 * time.Second
 	// kafkaTopicField is the event output field that carries the topic name.
 	kafkaTopicField = "e2e.topic"
 )
 
-// kafkaTarget is one broker endpoint plus the client options to reach it,
-// and the YAML lines that configure falcosidekick for the same endpoint.
 type kafkaTarget struct {
 	yaml    string
 	brokers []string
@@ -91,8 +87,6 @@ func splitBrokers(value string) []string {
 	return brokers
 }
 
-// kafkaOutput renders the kafka output block for target and topic, with
-// extra YAML lines appended under the kafka key.
 func kafkaOutput(target kafkaTarget, topic, extra string) string {
 	quoted := make([]string, len(target.brokers))
 	for i, b := range target.brokers {
@@ -115,8 +109,7 @@ func newKafkaClient(t *testing.T, target kafkaTarget, extra ...kgo.Opt) *kgo.Cli
 	return client
 }
 
-// createTopic creates a one-partition topic through target and deletes it
-// when the test ends. Broker-side auto creation stays disabled.
+// createTopic creates the topic explicitly because broker-side auto creation stays disabled.
 func createTopic(t *testing.T, target kafkaTarget, topic string) {
 	t.Helper()
 	client := newKafkaClient(t, target)
@@ -150,8 +143,6 @@ func createTopic(t *testing.T, target kafkaTarget, topic string) {
 	})
 }
 
-// consumeMarker reads topic from the start until it finds the record whose
-// value carries marker.
 func consumeMarker(t *testing.T, target kafkaTarget, topic, marker string) *kgo.Record {
 	t.Helper()
 	client := newKafkaClient(t, target,
@@ -180,8 +171,6 @@ func consumeMarker(t *testing.T, target kafkaTarget, topic, marker string) *kgo.
 	}
 }
 
-// postKafkaEvent posts a Falco event whose output fields also carry the
-// topic name under kafkaTopicField.
 func postKafkaEvent(t *testing.T, sk *sidekick, marker, topic string) {
 	t.Helper()
 	evt := falcoEvent(marker)
@@ -204,7 +193,6 @@ func recordHeaders(r *kgo.Record) map[string]string {
 	return h
 }
 
-// assertFalcoRecord checks the record value and headers built from the event.
 func assertFalcoRecord(t *testing.T, r *kgo.Record, marker string) {
 	t.Helper()
 	var got map[string]any
@@ -277,8 +265,6 @@ func TestKafkaDeliversEvent(t *testing.T) {
 	}
 }
 
-// TestKafkaRequiredAcks covers every documented producer.required_acks value
-// in both produce modes.
 func TestKafkaRequiredAcks(t *testing.T) {
 	target := plaintextKafka(t)
 	for _, acks := range []string{"all", "one", "none"} {
@@ -471,8 +457,7 @@ func TestKafkaTLS(t *testing.T) {
 	})
 }
 
-// writeUnknownCA writes a fresh self-signed CA that signed nothing the
-// broker presents.
+// writeUnknownCA writes a self-signed CA that signed nothing the broker presents.
 func writeUnknownCA(t *testing.T) string {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

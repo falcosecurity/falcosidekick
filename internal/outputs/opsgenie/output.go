@@ -46,8 +46,7 @@ var regions = shared.RegionHosts{Default: regionUS, Hosts: map[string]string{reg
 // Opsgenie API keys travel as "Authorization: GenieKey <key>".
 var apiKeyHeader = shared.CredentialHeader{Field: "api_key", Header: "Authorization", Required: true}
 
-// DefaultHost is only a placeholder for the target rules: validate sets the
-// host from region before they run.
+// DefaultHost is a placeholder: validate sets host from region.
 var targetOptions = shared.HTTPTargetOptions{DefaultHost: hostUS, DriverRoutes: true}
 
 type config struct {
@@ -110,7 +109,7 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(context.Context) error { return nil }
 
-// Send creates an alert. Opsgenie answers 202 and processes it asynchronously.
+// Send gets 202: Opsgenie creates the alert asynchronously.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.URL(d.cfg.Host, alertsRoute, nil)
 	if err != nil {
@@ -119,10 +118,8 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSON(ctx, http.MethodPost, target, buildAlert(evt))
 }
 
-// HealthCheck lists heartbeats, a read that creates nothing. 401 means the key
-// is invalid or its integration is disabled. 403 is transient: a valid key
-// without configuration access, the usual alert-only setup, is refused there
-// but can still create alerts. https://docs.opsgenie.com/docs/response
+// HealthCheck lists heartbeats; 403 is transient because an alert-only key is refused there.
+// https://docs.opsgenie.com/docs/response
 func (d *driver) HealthCheck(ctx context.Context) error {
 	target, err := d.cfg.URL(d.cfg.Host, heartbeatsRoute, nil)
 	if err != nil {

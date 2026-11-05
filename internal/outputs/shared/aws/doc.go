@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package aws holds the region, credential, endpoint and error handling
-// shared by the AWS outputs.
+// Package aws holds the region, credential, endpoint and error handling shared by the AWS outputs.
 package aws

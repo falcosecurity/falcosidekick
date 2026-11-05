@@ -35,8 +35,7 @@ type CapturedRequest struct {
 	Body   []byte
 }
 
-// Recorder answers requests with Status, or StatusByPath for a listed path,
-// and Reply, and keeps a copy of each request.
+// Recorder answers with Status, or StatusByPath for a listed path, and Reply, keeping each request.
 type Recorder struct {
 	StatusByPath map[string]int
 	Reply        string
@@ -74,8 +73,7 @@ func (r *Recorder) Received() []CapturedRequest {
 	return append([]CapturedRequest(nil), r.requests...)
 }
 
-// StartCaptureServer answers every request with status and reply and
-// sends a copy of each request on the returned channel (buffer of 4).
+// StartCaptureServer answers with status and reply and sends each request on the returned channel (buffer 4).
 func StartCaptureServer(t *testing.T, status int, reply string) (server *httptest.Server, received <-chan CapturedRequest) {
 	t.Helper()
 	requests := make(chan CapturedRequest, 4)

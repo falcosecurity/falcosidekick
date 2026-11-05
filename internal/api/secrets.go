@@ -25,7 +25,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-// SecretMask is the legacy redaction sentinel rejected in explicit secret updates.
+// SecretMask is the redaction sentinel rejected in explicit secret updates.
 const SecretMask = "****"
 
 type outputConfigResponse struct {

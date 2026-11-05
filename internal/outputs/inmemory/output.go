@@ -60,15 +60,8 @@ type config struct {
 	Capacity   int                  `mapstructure:"capacity"`
 }
 
-// driver implements a bounded ring buffer with optional TTL-based GC.
-//
-// Ring buffer invariants:
-//   - head: next write position (advances on each Send)
-//   - tail: oldest valid position (advances on overwrite or GC)
-//   - count: number of valid events (always == occupied slots, no holes)
-//   - When count < capacity: buffer has free slots, tail stays fixed
-//   - When count == capacity: buffer full, writing at head overwrites tail
-//   - GC only advances tail forward (never creates holes in the middle)
+// driver is a ring buffer: head is the next write, tail the oldest event, count the occupied slots.
+// Overwrite and GC only advance tail, so valid events stay contiguous.
 type driver struct {
 	stopGC     chan struct{}
 	byRule     map[string]map[int]struct{}
@@ -144,8 +137,7 @@ func (d *driver) Init(_ context.Context) error {
 	return nil
 }
 
-// Send appends an event to the ring buffer.
-// When full, overwrites the oldest event at head (which equals tail) and advances tail.
+// Send overwrites the oldest event when the buffer is full.
 func (d *driver) Send(_ context.Context, evt *event.Event) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -176,8 +168,6 @@ func (d *driver) Close() error {
 	}
 	return nil
 }
-
-// --- ReadableStore ---
 
 func (d *driver) Search(_ context.Context, query *output.SearchQuery) (*output.SearchResult, error) {
 	if err := query.Normalize(); err != nil {
@@ -300,8 +290,6 @@ func (d *driver) Histogram(_ context.Context, req *output.HistogramRequest) (*ou
 	}, nil
 }
 
-// --- Ring buffer internals ---
-
 func (d *driver) addToIndexes(pos int, evt *event.Event) {
 	addToIndex(d.byRule, evt.Rule, pos)
 	addToIndex(d.byPriority, string(evt.Priority), pos)
@@ -343,8 +331,6 @@ func removeFromIndex(idx map[string]map[int]struct{}, key string, pos int) {
 		}
 	}
 }
-
-// --- Query internals ---
 
 func (d *driver) findMatchingEvents(filters *output.Filters, freeText string) []*event.Event {
 	positions := d.findMatchingPositions(filters)
@@ -485,8 +471,6 @@ func accumulateByField(dst map[string]int64, e *event.Event, field string) {
 	}
 }
 
-// --- GC ---
-
 func (d *driver) runGC(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -500,8 +484,6 @@ func (d *driver) runGC(interval time.Duration) {
 	}
 }
 
-// removeExpired advances tail past expired events.
-// Only removes from the oldest end - never creates holes.
 func (d *driver) removeExpired() {
 	d.mu.Lock()
 	defer d.mu.Unlock()

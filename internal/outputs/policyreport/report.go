@@ -40,8 +40,7 @@ var (
 	clusterReportsGVR = schema.GroupVersionResource{Group: group, Version: version, Resource: "clusterreports"}
 )
 
-// target identifies one report: a Report in namespace, or the ClusterReport
-// when namespace is empty.
+// target is a Report in namespace, or the ClusterReport when namespace is empty.
 type target struct {
 	namespace string
 }
@@ -60,8 +59,7 @@ func newReport(t target) *unstructured.Unstructured {
 	return obj
 }
 
-// addResult appends result to the report, removes results beyond maxEvents,
-// recomputes the summary and declares maxEvents as configuration.limits.maxResults.
+// addResult prunes results beyond maxEvents and declares it as configuration.limits.maxResults.
 func addResult(obj *unstructured.Unstructured, result map[string]any, maxEvents int, pruneByPriority bool) {
 	_ = unstructured.SetNestedField(obj.Object, int64(maxEvents), "configuration", "limits", "maxResults")
 	results, _ := obj.Object["results"].([]any)

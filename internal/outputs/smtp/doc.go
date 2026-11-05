@@ -14,7 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package smtp implements the SMTP output driver. It sends one email per
-// event over STARTTLS (RFC 3207), implicit TLS (RFC 8314) or plain SMTP,
-// with optional SASL authentication (RFC 4954).
+// Package smtp implements the SMTP output driver over STARTTLS (RFC 3207), implicit TLS (RFC 8314) or plain SMTP.
 package smtp

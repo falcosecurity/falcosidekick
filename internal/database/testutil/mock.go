@@ -22,9 +22,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 )
 
-// Mock is a core.Database test double. Reads return the matching state
-// field; writes are no-ops; non-nil *Err fields short-circuit the
-// matching method with that error.
+// Mock is a core.Database whose writes are no-ops and whose *Err fields fail the matching method.
 type Mock struct {
 	Outputs    map[string]*core.OutputConfigEntry
 	CoreConfig *core.ConfigEntry
@@ -62,8 +60,7 @@ func (m *Mock) GetOutputConfigs(_ context.Context) (map[string]*core.OutputConfi
 	return m.Outputs, m.GetOutputConfigsErr
 }
 
-// GetOutputConfig returns GetOutputConfigErr when set, otherwise the
-// entry from Outputs (or nil, nil on miss).
+// GetOutputConfig returns GetOutputConfigErr when set, otherwise the entry from Outputs.
 func (m *Mock) GetOutputConfig(_ context.Context, name string) (*core.OutputConfigEntry, error) {
 	if m.GetOutputConfigErr != nil {
 		return nil, m.GetOutputConfigErr

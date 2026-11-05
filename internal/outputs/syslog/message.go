@@ -91,8 +91,7 @@ func validHostname(s string) bool {
 	return true
 }
 
-// message renders one RFC 5424 message, framed with its octet count on
-// stream transports (RFC 6587 section 3.4.1, RFC 5425 section 4.3).
+// message frames stream transports with the octet count: RFC 6587 section 3.4.1, RFC 5425 section 4.3.
 func (d *driver) message(evt *event.Event) ([]byte, error) {
 	body, err := d.body(evt)
 	if err != nil {
@@ -124,7 +123,7 @@ func (d *driver) body(evt *event.Event) ([]byte, error) {
 	return json.Marshal(evt)
 }
 
-// cefBody renders the event in ArcSight CEF with the v2 field layout.
+// cefBody renders the event in ArcSight CEF.
 func cefBody(evt *event.Event) string {
 	extension := []string{
 		"uuid=" + cefExtensionEscaper.Replace(evt.UUID),

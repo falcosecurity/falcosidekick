@@ -34,8 +34,7 @@ import (
 const (
 	envOTLPGRPC = "FALCOSIDEKICK_E2E_OTLP_GRPC"
 	envOTLPHTTP = "FALCOSIDEKICK_E2E_OTLP_HTTP"
-	// envOTLPFile is the directory where the collector file exporter writes
-	// traces.json, logs.json and metrics.json (test/e2e/testdata/otel-collector.yaml).
+	// envOTLPFile is the output directory of the collector file exporter (testdata/otel-collector.yaml).
 	envOTLPFile = "FALCOSIDEKICK_E2E_OTLP_FILE"
 )
 
@@ -115,7 +114,6 @@ func attrs(list []otlpAttribute) map[string]any {
 	return m
 }
 
-// waitOTLPLine returns the last line of the collector file that mentions marker.
 func waitOTLPLine(t *testing.T, dir, file, marker string) otlpFileLine {
 	t.Helper()
 	path := filepath.Join(dir, file)

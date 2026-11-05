@@ -239,8 +239,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 		tlsConfig.ServerName = cfg.Host
 	}
 
-	// Implicit TLS is dialed by the driver, so go-mail sees an encrypted
-	// connection and must not attempt STARTTLS on it.
+	// The driver dials implicit TLS itself, so go-mail must not attempt STARTTLS on it.
 	policy := map[string]mail.TLSPolicy{
 		tlsModeStartTLS: mail.TLSMandatory, tlsModeOpportunistic: mail.TLSOpportunistic,
 		tlsModeImplicit: mail.NoTLS, tlsModeNone: mail.NoTLS,
@@ -273,7 +272,6 @@ func (d *driver) Init(context.Context) error { return nil }
 // Close is a no-op: every session closes its own connection.
 func (d *driver) Close() error { return nil }
 
-// Send delivers the event as one email in its own SMTP session.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	msg, err := d.message(evt)
 	if err != nil {
@@ -292,8 +290,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return nil
 }
 
-// HealthCheck runs a session up to authentication and quits without
-// sending mail. Rejected credentials or TLS setup are misconfigurations.
+// HealthCheck runs a session up to authentication and quits without sending mail.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	client, conn, end, err := d.session(ctx)
 	if err != nil {
@@ -306,9 +303,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-// session connects, negotiates TLS and authenticates. go-mail observes ctx
-// only while dialing, so the driver dials and aborts the connection when
-// ctx ends. The returned function releases the connection.
+// session aborts the connection when ctx ends: go-mail observes ctx only while dialing.
 func (d *driver) session(ctx context.Context) (client *mail.Client, conn *gosmtp.Client, end func(), err error) {
 	timeout := sessionTimeout
 	if deadline, ok := ctx.Deadline(); ok {
@@ -359,8 +354,7 @@ func (d *driver) session(ctx context.Context) (client *mail.Client, conn *gosmtp
 	return client, conn, end, nil
 }
 
-// replyError reports an SMTP reply code without the server text, which can
-// echo submitted values.
+// replyError omits the server text, which can echo submitted values.
 type replyError struct {
 	cause error
 	stage string
@@ -373,8 +367,7 @@ func (e *replyError) Error() string {
 
 func (e *replyError) Unwrap() error { return e.cause }
 
-// stageError turns a session failure into an error that names the stage
-// and never carries server text or credentials.
+// stageError names the stage and never carries server text or credentials.
 func stageError(ctx context.Context, stage string, err error) error {
 	if ctxErr := contextError(ctx); ctxErr != nil {
 		return shared.WrapDeliveryError(name, stage, ctxErr)
@@ -388,9 +381,7 @@ func stageError(ctx context.Context, stage string, err error) error {
 	return shared.WrapDeliveryError(name, stage, err)
 }
 
-// contextError reports why ctx ended. The session timeout equals the
-// context deadline, so a connection deadline can fire just before ctx
-// reports it.
+// contextError reports why ctx ended: the connection deadline equals it and can fire first.
 func contextError(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -401,8 +392,7 @@ func contextError(ctx context.Context) error {
 	return nil
 }
 
-// knownError maps go-mail failures that a retry cannot fix to fixed texts.
-// go-mail reports a missing STARTTLS or AUTH extension only as text.
+// knownError matches text because go-mail reports a missing STARTTLS or AUTH extension only as text.
 func knownError(err error) error {
 	message := err.Error()
 	switch {
@@ -443,8 +433,7 @@ func sendError(ctx context.Context, err error) error {
 	return shared.WrapDeliveryError(name, stage, err)
 }
 
-// misconfiguredReplies are permanent replies to STARTTLS or AUTH that a
-// retry cannot fix (RFC 4954 section 6, RFC 3207 section 4, RFC 5321).
+// misconfiguredReplies are permanent STARTTLS or AUTH replies: RFC 4954 section 6, RFC 3207 section 4, RFC 5321.
 var misconfiguredReplies = map[int]bool{
 	504: true, // mechanism or command parameter not implemented
 	530: true, // authentication required

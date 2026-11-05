@@ -162,11 +162,9 @@ func TestProvisionOverwritesUIEditedProvisionedEntry(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
-	// Seed: file-provisioned entry.
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
 		Outputs: map[string]map[string]any{"slack": {"secret_endpoint": "file-v1"}},
 	}))
-	// UI edits the provisioned entry (save preserves the Provisioned flag).
 	require.NoError(t, s.SaveOutputConfig(ctx, "slack", map[string]any{"secret_endpoint": "ui-edit"}))
 	after, err := s.GetOutputConfig(ctx, "slack")
 	require.NoError(t, err)
@@ -175,7 +173,6 @@ func TestProvisionOverwritesUIEditedProvisionedEntry(t *testing.T) {
 		"SaveOutputConfig must preserve the Provisioned flag on an existing file-provisioned entry")
 	require.Equal(t, "ui-edit", after.Config["secret_endpoint"])
 
-	// File reload overrides the UI edit: file is authoritative.
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
 		Outputs: map[string]map[string]any{"slack": {"secret_endpoint": "file-v2"}},
 	}))
@@ -198,8 +195,6 @@ func TestProvisionDisableDeletionKeepsOrphanProvisioned(t *testing.T) {
 		},
 	}))
 
-	// File now drops webhook; DisableDeletion=true preserves it as a
-	// Provisioned:true orphan instead of removing it from the store.
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
 		Outputs:         map[string]map[string]any{"slack": {"host": "slack-file"}},
 		DisableDeletion: true,
@@ -235,7 +230,6 @@ func TestSaveOutputConfigPreservesProvisionedFlag(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
-	// Existing Provisioned:true entry: save preserves the flag.
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
 		Outputs: map[string]map[string]any{"slack": {"host": "file"}},
 	}))
@@ -244,7 +238,6 @@ func TestSaveOutputConfigPreservesProvisionedFlag(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, got.Provisioned, "UI edit of file-provisioned entry keeps Provisioned:true")
 
-	// Brand-new name: starts Provisioned:false (UI-only).
 	require.NoError(t, s.SaveOutputConfig(ctx, "ui-only-webhook", map[string]any{"address": "http://x"}))
 	fresh, err := s.GetOutputConfig(ctx, "ui-only-webhook")
 	require.NoError(t, err)

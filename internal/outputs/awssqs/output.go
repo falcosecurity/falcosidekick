@@ -39,7 +39,6 @@ import (
 const (
 	name = "awssqs"
 
-	// SendMessageBatch limits:
 	// https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessageBatch.html
 	maxBatchEntries = 10
 	maxBatchBytes   = 1 << 20
@@ -99,8 +98,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	return &driver{client: sqs.NewFromConfig(awsCfg), cfg: cfg}, nil
 }
 
-// queueRegion returns the region in an SQS queue URL host, either
-// sqs.<region>.<domain> or the legacy <region>.queue.<domain>.
+// queueRegion reads the region from a sqs.<region>.<domain> or legacy <region>.queue.<domain> host.
 func queueRegion(queueURL string) string {
 	u, err := url.Parse(queueURL)
 	if err != nil {
@@ -120,7 +118,6 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(context.Context) error { return nil }
 
-// Send sends the event JSON as one message.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	body, err := json.Marshal(evt)
 	if err != nil {
@@ -133,9 +130,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.cfg.WrapError(name, "SendMessage", err)
 }
 
-// SendBatch sends one message per event with SendMessageBatch, split into
-// requests of at most 10 entries and 1 MiB. The batch fails when any
-// entry fails; a request error stops the remaining requests.
+// SendBatch fails when any entry fails; a request error stops the remaining requests.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	bodies := make([]string, len(events))
 	for i, evt := range events {
@@ -175,9 +170,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	return nil
 }
 
-// splitBatch groups bodies in order into chunks within the
-// SendMessageBatch limits. A body larger than maxBatchBytes goes alone, and
-// SQS decides whether to accept it.
+// splitBatch sends a body larger than maxBatchBytes alone and lets SQS decide whether to accept it.
 func splitBatch(bodies []string) [][]string {
 	var chunks [][]string
 	current := make([]string, 0, maxBatchEntries)
@@ -196,9 +189,7 @@ func splitBatch(bodies []string) [][]string {
 	return chunks
 }
 
-// HealthCheck reads the queue ARN with GetQueueAttributes, which needs
-// sqs:GetQueueAttributes. A missing queue, rejected credentials or a denied
-// request wrap output.ErrMisconfigured.
+// HealthCheck sends GetQueueAttributes, which needs sqs:GetQueueAttributes.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	_, err := d.client.GetQueueAttributes(ctx, &sqs.GetQueueAttributesInput{
 		QueueUrl:       sdkaws.String(d.cfg.QueueURL),

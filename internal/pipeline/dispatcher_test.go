@@ -246,8 +246,7 @@ func TestDispatcherShutdownBoundedWithStuckSender(t *testing.T) {
 	assert.Less(t, elapsed, 1*time.Second, "Shutdown must complete within deadline, not hang forever")
 }
 
-// A driver whose Close blocks (Kafka flushing to an unreachable broker) must
-// not push Shutdown past its deadline, and must not delay the other drivers.
+// Models a Kafka driver whose Close blocks flushing to an unreachable broker.
 func TestDispatcherShutdownBoundsSlowDriverClose(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		release := make(chan struct{})
@@ -323,8 +322,6 @@ func TestReplaceOutputKeepsCounters(t *testing.T) {
 	assert.Zero(t, newOut.GetStatus().FailedTotal)
 }
 
-// --- Hot-reload lifecycle tests ---
-
 func TestAddOutputRoutesEvents(t *testing.T) {
 	var origCalls, addedCalls atomic.Int64
 
@@ -340,7 +337,6 @@ func TestAddOutputRoutesEvents(t *testing.T) {
 	workerRunCtx, stopWorkers := context.WithCancel(context.Background())
 	d.Start(workerRunCtx)
 
-	// Add new output while pipeline is running.
 	addedOut := NewOutput(&testutil.MockDriver{
 		DriverName: "added",
 		SendFunc: func(_ context.Context, _ *event.Event) error {
@@ -381,11 +377,9 @@ func TestRemoveOutputDrainsAndStops(t *testing.T) {
 	workerRunCtx, stopWorkers := context.WithCancel(context.Background())
 	d.Start(workerRunCtx)
 
-	// Dispatch one event, let it process.
 	d.DispatchEvent(newTestEvent())
 	time.Sleep(50 * time.Millisecond)
 
-	// Remove output.
 	retireCtx, retireCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer retireCancel()
 	err := d.RemoveOutput(retireCtx, "removable")
@@ -394,7 +388,6 @@ func TestRemoveOutputDrainsAndStops(t *testing.T) {
 	assert.True(t, closeCalled.Load(), "driver Close must be called after drain")
 	assert.Equal(t, int64(1), calls.Load())
 
-	// Dispatch another event after removal - should not reach removed output.
 	remaining := NewOutput(&testutil.MockDriver{DriverName: "remaining"}, defaultRuntimeDefaults(), nil)
 	require.NoError(t, d.AddOutput(workerRunCtx, remaining))
 
@@ -442,11 +435,9 @@ func TestReplaceOutputSwapsAtomically(t *testing.T) {
 	workerRunCtx, stopWorkers := context.WithCancel(context.Background())
 	d.Start(workerRunCtx)
 
-	// Let one event go to old.
 	d.DispatchEvent(newTestEvent())
 	time.Sleep(50 * time.Millisecond)
 
-	// Replace with new output.
 	replacement := NewOutput(&testutil.MockDriver{
 		DriverName: "target",
 		SendFunc: func(_ context.Context, _ *event.Event) error {
@@ -460,7 +451,6 @@ func TestReplaceOutputSwapsAtomically(t *testing.T) {
 	err := d.ReplaceOutput(retireCtx, workerRunCtx, "target", replacement)
 	require.NoError(t, err)
 
-	// Events after replace go to new output.
 	d.DispatchEvent(newTestEvent())
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -521,7 +511,6 @@ func TestDispatcherShutdownRejectsConcurrentDispatchAfterStop(t *testing.T) {
 	err := d.Shutdown(shutdownCtx, stopWorkers)
 	require.NoError(t, err)
 
-	// Dispatch after shutdown must not panic or enqueue.
 	callsBefore := calls.Load()
 	d.DispatchEvent(newTestEvent())
 	assert.Equal(t, callsBefore, calls.Load(), "dispatch after shutdown must be silently dropped")
@@ -558,7 +547,6 @@ func TestDispatcherShutdownAfterReload(t *testing.T) {
 	workerRunCtx, stopWorkers := context.WithCancel(context.Background())
 	d.Start(workerRunCtx)
 
-	// Reload: replace "original" and add "extra".
 	replacement := NewOutput(&testutil.MockDriver{
 		DriverName: "original",
 		CloseFunc:  func() error { replacementClosed.Add(1); return nil },
@@ -574,15 +562,12 @@ func TestDispatcherShutdownAfterReload(t *testing.T) {
 	}, defaultRuntimeDefaults(), nil)
 	require.NoError(t, d.AddOutput(workerRunCtx, extra))
 
-	// Shutdown closes current live outputs (replacement and extra), not stale startup.
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer shutdownCancel()
 	require.NoError(t, d.Shutdown(shutdownCtx, stopWorkers))
 
-	// The startup "original" was already retired by ReplaceOutput (Retire).
 	assert.Equal(t, int64(1), startupClosed.Load(), "retired startup output must be closed exactly once by Retire")
 
-	// The replacement and the added output must be closed exactly once by Shutdown.
 	assert.Equal(t, int64(1), replacementClosed.Load(), "replacement output must be closed once by Shutdown")
 	assert.Equal(t, int64(1), addedClosed.Load(), "added output must be closed once by Shutdown")
 }
@@ -643,7 +628,6 @@ func TestConcurrentDispatchAndLifecycle(t *testing.T) {
 	workerRunCtx, stopWorkers := context.WithCancel(context.Background())
 	d.Start(workerRunCtx)
 
-	// Concurrent dispatch.
 	var wg sync.WaitGroup
 	for i := 0; i < 50; i++ {
 		wg.Add(1)
@@ -653,7 +637,6 @@ func TestConcurrentDispatchAndLifecycle(t *testing.T) {
 		}()
 	}
 
-	// Concurrent add/remove cycle.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -680,11 +663,9 @@ func TestConcurrentDispatchAndLifecycle(t *testing.T) {
 	defer shutdownCancel()
 	require.NoError(t, d.Shutdown(shutdownCtx, stopWorkers))
 
-	// Base output must have processed at least some events.
 	assert.Greater(t, total.Load(), int64(0))
 }
 
-// mockReadableStoreDriver implements both output.Driver and output.ReadableStore.
 type mockReadableStoreDriver struct {
 	testutil.MockDriver
 }

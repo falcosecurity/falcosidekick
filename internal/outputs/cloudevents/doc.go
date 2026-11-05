@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package cloudevents implements the CloudEvents 1.0 HTTP output driver in
-// binary content mode.
+// Package cloudevents implements the CloudEvents 1.0 HTTP output driver in binary content mode.
 package cloudevents

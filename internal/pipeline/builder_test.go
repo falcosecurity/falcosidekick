@@ -183,8 +183,6 @@ func TestBuildOutput_UnreachableDestinationStartsDegraded(t *testing.T) {
 	assert.Equal(t, "health check failed before start: connection refused", status.LastWarning)
 }
 
-// A destination that never answers must not hold startup or a reload: the
-// probe is bounded by healthCheckTimeout (5s).
 func TestBuildOutput_HealthCheckIsBounded(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		driver := &testutil.MockDriver{

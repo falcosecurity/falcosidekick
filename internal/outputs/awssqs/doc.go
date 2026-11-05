@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package awssqs implements the AWS SQS output driver: one message per
-// event, sent with SendMessage or SendMessageBatch.
+// Package awssqs implements the AWS SQS output driver: one message per event.
 package awssqs

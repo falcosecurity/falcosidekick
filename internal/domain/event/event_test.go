@@ -205,7 +205,6 @@ func TestEventJSONRoundTrip(t *testing.T) {
 	assert.Equal(t, original.Tags, decoded.Tags)
 	assert.Equal(t, original.Hostname, decoded.Hostname)
 
-	// Priority serialized as string in JSON
 	assert.Contains(t, string(data), `"priority":"error"`)
 }
 

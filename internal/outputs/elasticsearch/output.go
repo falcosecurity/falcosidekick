@@ -156,9 +156,7 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 
 func (d *driver) Name() string { return "elasticsearch" }
 
-// Init creates the index template if configured.
-// Init creates the index template when configured. A configuration error
-// fails; any other error leaves the template to the first delivery.
+// Init fails only on a misconfiguration; otherwise the first delivery retries the template.
 func (d *driver) Init(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, templateInitTimeout)
 	defer cancel()
@@ -172,8 +170,7 @@ func (d *driver) Init(ctx context.Context) error {
 
 const templateInitTimeout = 5 * time.Second
 
-// ensureTemplate creates the index template once. Deliveries wait for it:
-// an index created without it would keep the wrong mapping.
+// ensureTemplate blocks deliveries: an index created without the template keeps the wrong mapping.
 func (d *driver) ensureTemplate(ctx context.Context) error {
 	if !d.cfg.CreateIndexTemplate || d.templateReady.Load() {
 		return nil
@@ -190,8 +187,7 @@ func (d *driver) ensureTemplate(ctx context.Context) error {
 	return nil
 }
 
-// Send delivers a single event to Elasticsearch.
-// With a UUID it uses the _create API, so a retry of an indexed event is a no-op.
+// Send uses _create with the event UUID so a retry of an indexed event is a no-op.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	if err := d.ensureTemplate(ctx); err != nil {
 		return err
@@ -218,9 +214,6 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return err
 }
 
-// SendBatch delivers multiple events using the Elasticsearch bulk API.
-// Any failed item fails the batch; items already indexed by an earlier
-// attempt are reported as conflicts and count as delivered.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if err := d.ensureTemplate(ctx); err != nil {
 		return err
@@ -245,14 +238,12 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	return d.parseBulkResponse(respBody, len(events))
 }
 
-// HealthCheck verifies connectivity to Elasticsearch.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	target, err := d.cfg.URL(d.cfg.Host, "", nil)
 	if err != nil {
 		return shared.WrapDeliveryError("elasticsearch", "target", err)
 	}
-	// GET / needs the cluster monitor privilege, which a user that may only
-	// index can lack, so 403 is not proof of a wrong configuration.
+	// GET / needs the cluster monitor privilege an index-only user can lack, so 403 is transient.
 	return d.sender.HealthCheck(ctx, target, http.StatusForbidden)
 }
 

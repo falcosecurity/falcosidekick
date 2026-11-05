@@ -123,7 +123,6 @@ func TestPriorityMapping(t *testing.T) {
 	}
 }
 
-// Mirrors the v2 TestNewOpsgeniePayload expectations, plus alias and tags.
 func TestBuildAlertV2Parity(t *testing.T) {
 	evt := &event.Event{
 		Time:         time.Date(2001, 1, 1, 1, 10, 0, 0, time.UTC),

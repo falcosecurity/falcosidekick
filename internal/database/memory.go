@@ -26,8 +26,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// Memory implements domain.Database with in-memory maps.
-// All data is lost on restart and re-provisioned from files.
+// Memory is an in-memory core.Database; UI-only entries do not survive a restart.
 type Memory struct {
 	outputs    map[string]*core.OutputConfigEntry
 	coreConfig *core.ConfigEntry
@@ -120,9 +119,7 @@ func (s *Memory) GetOutputConfigs(_ context.Context) (map[string]*core.OutputCon
 	return result, nil
 }
 
-// GetOutputConfig returns a single output entry by name. Returns
-// (nil, nil) when the named output does not exist; any error indicates
-// a backend failure.
+// GetOutputConfig returns the named entry, or nil and no error when it does not exist.
 func (s *Memory) GetOutputConfig(_ context.Context, name string) (*core.OutputConfigEntry, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -134,8 +131,7 @@ func (s *Memory) GetOutputConfig(_ context.Context, name string) (*core.OutputCo
 	return entry.DeepCopy(), nil
 }
 
-// SaveOutputConfig stores the config. Existing entries preserve the
-// Provisioned flag and bump Version; new entries start as Provisioned:false.
+// SaveOutputConfig stores the config, keeping the Provisioned flag of an existing entry.
 func (s *Memory) SaveOutputConfig(_ context.Context, name string, cfg map[string]any) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -155,8 +151,7 @@ func (s *Memory) SaveOutputConfig(_ context.Context, name string, cfg map[string
 	return nil
 }
 
-// DeleteOutputConfig removes one output entry. A miss returns nil; any
-// error return indicates a real backend failure.
+// DeleteOutputConfig removes one output entry; a missing name is not an error.
 func (s *Memory) DeleteOutputConfig(_ context.Context, name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

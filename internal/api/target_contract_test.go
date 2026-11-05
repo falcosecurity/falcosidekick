@@ -83,8 +83,6 @@ func TestTargetSecretsStayOutOfAPIAndSurvivePartialPUT(t *testing.T) {
 	assert.Equal(t, "PUT", stored.Config["method"])
 }
 
-// A destination that answers its health probe with 404 is misconfigured: the
-// PUT is rejected with the reason and the running output keeps its config.
 func TestPUTRejectsMisconfiguredDestination(t *testing.T) {
 	pushes := make(chan string, 4)
 	loki := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

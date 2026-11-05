@@ -44,8 +44,7 @@ const (
 
 var regions = shared.RegionHosts{Default: regionUS, Hosts: map[string]string{regionUS: hostUS, regionEU: hostEU}}
 
-// DefaultHost is only a placeholder for the target rules: validate sets the
-// host from region before they run.
+// DefaultHost is a placeholder: validate sets host from region.
 var targetOptions = shared.HTTPTargetOptions{DefaultHost: hostUS, DriverRoutes: true}
 
 type config struct {
@@ -109,7 +108,6 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(context.Context) error { return nil }
 
-// Send enqueues a trigger event. The Events API answers 202 on success.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.URL(d.cfg.Host, enqueueRoute, nil)
 	if err != nil {
@@ -118,8 +116,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSON(ctx, http.MethodPost, target, buildEvent(evt, d.cfg.RoutingKey))
 }
 
-// HealthCheck is a no-op: the Events API has only delivery endpoints, so no
-// request can check the routing key without opening an alert.
+// HealthCheck is a no-op: the Events API cannot check a routing key without opening an alert.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
 func (d *driver) Close() error { return nil }

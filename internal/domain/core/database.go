@@ -21,14 +21,10 @@ import (
 	"time"
 )
 
-// Database persists all configuration. Dedicated and synchronous -
-// not an output, not in the pipeline.
+// Database persists all configuration synchronously, outside the event pipeline.
 type Database interface {
-	// Provision writes the file-based config into the store. Entries
-	// named in req.Outputs are upserted as Provisioned:true.
-	// Provisioned:true entries absent from req.Outputs are deleted
-	// unless req.DisableDeletion is true. Provisioned:false entries
-	// are preserved.
+	// Provision upserts req.Outputs as provisioned and deletes stale provisioned
+	// entries unless req.DisableDeletion; unprovisioned entries are kept.
 	Provision(ctx context.Context, req *ProvisionRequest) error
 
 	// GetConfig returns the stored core configuration.
@@ -40,17 +36,14 @@ type Database interface {
 	// GetOutputConfigs returns all output configurations.
 	GetOutputConfigs(ctx context.Context) (map[string]*OutputConfigEntry, error)
 
-	// GetOutputConfig returns a single output configuration by name.
-	// Returns (nil, nil) when the named output does not exist. Any error
-	// return indicates a backend failure, never a miss.
+	// GetOutputConfig returns one output configuration, or (nil, nil) on a miss;
+	// an error always means a backend failure.
 	GetOutputConfig(ctx context.Context, name string) (*OutputConfigEntry, error)
 
 	// SaveOutputConfig persists one output configuration.
 	SaveOutputConfig(ctx context.Context, name string, cfg map[string]any) error
 
-	// DeleteOutputConfig removes one output configuration. A miss
-	// (no entry with that name) returns nil; any error return
-	// indicates a real backend failure.
+	// DeleteOutputConfig removes one output configuration; a miss returns nil.
 	DeleteOutputConfig(ctx context.Context, name string) error
 
 	// GetPipelineLayout returns the UI pipeline layout.
@@ -62,10 +55,7 @@ type Database interface {
 	Close() error
 }
 
-// ProvisionRequest holds file-based config for initial provisioning.
-// DisableDeletion, when true, instructs Provision to preserve
-// Provisioned:true entries that are no longer present in Outputs
-// instead of deleting them.
+// ProvisionRequest holds the file-based config passed to Provision.
 type ProvisionRequest struct {
 	Config          *Config
 	Outputs         map[string]map[string]any

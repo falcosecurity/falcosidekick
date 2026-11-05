@@ -34,9 +34,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-// exporterSettings carries every exporter option explicitly, so OTEL_*
-// environment variables never change the configured behavior. Exporter
-// retries are disabled: the pipeline owns retries.
+// exporterSettings sets every option so OTEL_* variables cannot change it; the pipeline owns retries.
 type exporterSettings struct {
 	tls     *tls.Config
 	headers map[string]string

@@ -212,7 +212,6 @@ func TestRetireDoesNotCloseDriverBeforeWorkerExit(t *testing.T) {
 	out.Enqueue(newTestEvent())
 	<-sendStarted
 
-	// Retire with generous deadline so drain succeeds.
 	retireDone := make(chan error, 1)
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -220,7 +219,6 @@ func TestRetireDoesNotCloseDriverBeforeWorkerExit(t *testing.T) {
 		retireDone <- out.Retire(ctx)
 	}()
 
-	// Unblock the worker.
 	close(sendBlock)
 
 	err := <-retireDone

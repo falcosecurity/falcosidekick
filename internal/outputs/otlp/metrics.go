@@ -42,10 +42,8 @@ const (
 	maxPendingCounted = 100_000
 )
 
-// metricsSignal counts events in a cumulative counter and exports the
-// collected data on every delivery. A failed export is repaired by the next
-// one, since cumulative points carry totals. Events counted but not yet
-// exported are remembered by UUID so a retry does not count them twice.
+// metricsSignal exports a cumulative counter, so the next export repairs a failed one.
+// Events counted but not yet exported are kept by UUID so a retry does not count them twice.
 type metricsSignal struct {
 	exporter sdkmetric.Exporter
 	provider *sdkmetric.MeterProvider
@@ -97,8 +95,7 @@ func (s *metricsSignal) export(ctx context.Context, events []*event.Event) error
 	return nil
 }
 
-// count adds the events not counted yet and returns the pending UUIDs that
-// the next collection includes.
+// count adds uncounted events and returns the UUIDs the next collection includes.
 func (s *metricsSignal) count(events []*event.Event) []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -29,8 +29,7 @@ const (
 	pubsubSentinel = "pubsub-s3cret-sentinel"
 )
 
-// newPubSubClient connects to the emulator with explicit options, so the
-// falcosidekick process does not inherit PUBSUB_EMULATOR_HOST.
+// newPubSubClient uses explicit options, not PUBSUB_EMULATOR_HOST, which falcosidekick would inherit.
 func newPubSubClient(t *testing.T, host string) *pubsub.Client {
 	t.Helper()
 	client, err := pubsub.NewClient(context.Background(), pubsubProject,
@@ -44,8 +43,6 @@ func newPubSubClient(t *testing.T, host string) *pubsub.Client {
 	return client
 }
 
-// createPubSubTopic creates topic and a subscription to it, both deleted
-// when the test ends, and returns the subscription name.
 func createPubSubTopic(t *testing.T, client *pubsub.Client, topic string) string {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), deliverTimeout)
@@ -65,7 +62,6 @@ func createPubSubTopic(t *testing.T, client *pubsub.Client, topic string) string
 	return subName
 }
 
-// receiveMarker pulls the subscription until a message carries marker.
 func receiveMarker(t *testing.T, client *pubsub.Client, sub, marker string) *pubsub.Message {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), deliverTimeout)

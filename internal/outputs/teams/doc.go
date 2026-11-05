@@ -14,6 +14,5 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package teams implements the Microsoft Teams output driver. It posts an
-// Adaptive Card to a Teams Workflows webhook.
+// Package teams implements the Microsoft Teams output driver: an Adaptive Card posted to a Workflows webhook.
 package teams

@@ -24,8 +24,7 @@ import (
 	"time"
 )
 
-// Poller periodically compares SHA-256 content hashes of output config files
-// to detect changes that fsnotify may miss (e.g., K8s ConfigMap symlink swaps).
+// Poller compares content hashes of output config files to catch changes fsnotify misses.
 type Poller struct {
 	reloadFn func() error
 	hashes   map[string][sha256.Size]byte
@@ -45,8 +44,7 @@ func NewPoller(paths []string, interval time.Duration, reloadFn func() error, lo
 	}
 }
 
-// Run starts the polling loop. Blocks until ctx is canceled. On the first
-// tick, computes initial hashes without triggering a reload.
+// Run polls until ctx is canceled; the first tick only records hashes.
 func (p *Poller) Run(ctx context.Context) error {
 	for _, path := range p.paths {
 		h, err := hashFile(path)
