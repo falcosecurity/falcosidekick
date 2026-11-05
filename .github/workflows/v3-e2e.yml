@@ -1,0 +1,253 @@
+name: v3-e2e
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    tags:
+      - "v3.*"
+  pull_request:
+    branches:
+      - master
+
+permissions: {}
+
+concurrency:
+  group: v3-e2e-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  self-contained:
+    name: e2e webhook, slack, kafka unreachable
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Run end-to-end tests without external services
+        run: go test -count=1 -v -tags e2e ./test/e2e/
+
+  loki:
+    name: e2e loki ${{ matrix.loki }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        loki: ['3.7.9', '2.9.17']
+    services:
+      loki:
+        image: grafana/loki:${{ matrix.loki }}
+        ports:
+          - 3100:3100
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Start multi-tenant Loki
+        env:
+          LOKI_VERSION: ${{ matrix.loki }}
+        run: |
+          docker run -d --name loki-auth -p 127.0.0.1:3101:3100 "grafana/loki:${LOKI_VERSION}" \
+            -config.file=/etc/loki/local-config.yaml -auth.enabled=true
+      - name: Wait for Loki
+        run: |
+          for port in 3100 3101; do
+            timeout 120 bash -c "until curl -fsS http://127.0.0.1:${port}/ready; do sleep 2; done"
+          done
+      - name: Run Loki tests
+        env:
+          FALCOSIDEKICK_E2E_LOKI_URL: http://127.0.0.1:3100
+        run: go test -count=1 -v -tags e2e -run Loki ./test/e2e/
+      - name: Run Loki tests with tenants enforced
+        env:
+          FALCOSIDEKICK_E2E_LOKI_URL: http://127.0.0.1:3101
+        run: go test -count=1 -v -tags e2e -run Loki ./test/e2e/
+      - name: Stop multi-tenant Loki
+        if: always()
+        run: docker rm -f loki-auth || true
+
+  alertmanager:
+    name: e2e alertmanager ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['v0.34.2', 'v0.33.1']
+    services:
+      alertmanager:
+        image: prom/alertmanager:${{ matrix.version }}
+        ports:
+          - 9093:9093
+        options: >-
+          --health-cmd "wget -q -O- http://127.0.0.1:9093/-/ready || exit 1"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      FALCOSIDEKICK_E2E_ALERTMANAGER_URL: http://127.0.0.1:9093
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Run Alertmanager tests
+        run: go test -count=1 -v -tags e2e -run Alertmanager ./test/e2e/
+
+  kafka:
+    name: e2e kafka ${{ matrix.kafka }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        kafka: ['4.4.0', '3.9.2']
+    env:
+      FALCOSIDEKICK_E2E_KAFKA_BROKERS: 127.0.0.1:19094
+      FALCOSIDEKICK_E2E_KAFKA_SASL_BROKERS: 127.0.0.1:19095
+      FALCOSIDEKICK_E2E_KAFKA_SASL_USER: e2e
+      FALCOSIDEKICK_E2E_KAFKA_SASL_PASSWORD: e2e-secret
+      FALCOSIDEKICK_E2E_KAFKA_TLS_BROKERS: 127.0.0.1:19096
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Generate broker TLS material
+        run: |
+          d="$RUNNER_TEMP/kafka-tls"; mkdir -p "$d"; cd "$d"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=fsk-e2e-ca -keyout ca.key -out ca.pem
+          openssl req -newkey rsa:2048 -nodes -subj /CN=127.0.0.1 -keyout server.key -out server.csr
+          printf 'subjectAltName=IP:127.0.0.1,DNS:localhost\n' > ext.cnf
+          openssl x509 -req -in server.csr -CA ca.pem -CAkey ca.key -CAcreateserial -days 1 -extfile ext.cnf -out server.pem
+          openssl pkcs8 -topk8 -nocrypt -in server.key -out server.pk8
+          cat server.pk8 server.pem > keystore.pem
+          chmod 644 keystore.pem ca.pem
+          echo "FALCOSIDEKICK_E2E_KAFKA_TLS_CA_FILE=$d/ca.pem" >> "$GITHUB_ENV"
+      - name: Start Kafka
+        env:
+          KAFKA_VERSION: ${{ matrix.kafka }}
+        run: |
+          docker run -d --name fsk-e2e-kafka \
+            -p 127.0.0.1:19094:19094 -p 127.0.0.1:19095:19095 -p 127.0.0.1:19096:19096 \
+            -v "$RUNNER_TEMP/kafka-tls/keystore.pem:/etc/kafka/e2e/keystore.pem:ro" \
+            -e KAFKA_NODE_ID=1 -e KAFKA_PROCESS_ROLES=broker,controller \
+            -e KAFKA_LISTENERS=INTERNAL://:29092,EXTERNAL://:19094,SASL://:19095,TLS://:19096,CONTROLLER://:9093 \
+            -e KAFKA_ADVERTISED_LISTENERS=INTERNAL://localhost:29092,EXTERNAL://127.0.0.1:19094,SASL://127.0.0.1:19095,TLS://127.0.0.1:19096 \
+            -e KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+            -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,SASL:SASL_PLAINTEXT,TLS:SSL \
+            -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+            -e KAFKA_AUTO_CREATE_TOPICS_ENABLE=false \
+            -e KAFKA_LISTENER_NAME_SASL_SASL_ENABLED_MECHANISMS=PLAIN,SCRAM-SHA-256,SCRAM-SHA-512 \
+            -e 'KAFKA_LISTENER_NAME_SASL_PLAIN_SASL_JAAS_CONFIG=org.apache.kafka.common.security.plain.PlainLoginModule required user_e2e="e2e-secret";' \
+            -e 'KAFKA_LISTENER_NAME_SASL_SCRAM___SHA___256_SASL_JAAS_CONFIG=org.apache.kafka.common.security.scram.ScramLoginModule required;' \
+            -e 'KAFKA_LISTENER_NAME_SASL_SCRAM___SHA___512_SASL_JAAS_CONFIG=org.apache.kafka.common.security.scram.ScramLoginModule required;' \
+            -e KAFKA_LISTENER_NAME_TLS_SSL_KEYSTORE_TYPE=PEM \
+            -e KAFKA_LISTENER_NAME_TLS_SSL_KEYSTORE_LOCATION=/etc/kafka/e2e/keystore.pem \
+            "apache/kafka:${KAFKA_VERSION}"
+          for _ in $(seq 1 60); do
+            docker exec fsk-e2e-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:29092 --list >/dev/null 2>&1 && break
+            sleep 2
+          done
+          docker exec fsk-e2e-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:29092 --list
+          for m in SCRAM-SHA-256 SCRAM-SHA-512; do
+            docker exec fsk-e2e-kafka /opt/kafka/bin/kafka-configs.sh --bootstrap-server localhost:29092 \
+              --alter --entity-type users --entity-name e2e --add-config "$m=[password=e2e-secret]"
+          done
+      - name: Run Kafka tests
+        run: go test -count=1 -v -tags e2e -run Kafka ./test/e2e/
+      - name: Kafka logs
+        if: failure()
+        run: docker logs --tail 200 fsk-e2e-kafka
+      - name: Stop Kafka
+        if: always()
+        run: docker rm -f fsk-e2e-kafka || true
+
+  elasticsearch:
+    name: e2e ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: elasticsearch-7, image: "docker.io/library/elasticsearch:7.17.28", flavor: es7 }
+          - { name: elasticsearch-8, image: "docker.io/library/elasticsearch:8.19.23", flavor: es }
+          - { name: elasticsearch-9, image: "docker.io/library/elasticsearch:9.5.5", flavor: es }
+          - { name: opensearch-2, image: "docker.io/opensearchproject/opensearch:2.19.7", flavor: os }
+          - { name: opensearch-3, image: "docker.io/opensearchproject/opensearch:3.9.0", flavor: os }
+    env:
+      ES_PASSWORD: "Falcosidekick-E2E-2026!"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Start server
+        env:
+          IMAGE: ${{ matrix.image }}
+          FLAVOR: ${{ matrix.flavor }}
+        run: |
+          sudo sysctl -w vm.max_map_count=262144
+          args=(-e discovery.type=single-node -e "ES_JAVA_OPTS=-Xms512m -Xmx512m" -e "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m")
+          case "$FLAVOR" in
+            es7) scheme=http; user=elastic; args+=(-e xpack.security.enabled=true -e xpack.security.authc.api_key.enabled=true -e "ELASTIC_PASSWORD=$ES_PASSWORD") ;;
+            es)  scheme=https; user=elastic; args+=(-e "ELASTIC_PASSWORD=$ES_PASSWORD") ;;
+            os)  scheme=https; user=admin; args+=(-e "OPENSEARCH_INITIAL_ADMIN_PASSWORD=$ES_PASSWORD") ;;
+          esac
+          docker run -d --name es -p 127.0.0.1:9200:9200 "${args[@]}" "$IMAGE"
+          url="$scheme://127.0.0.1:9200"
+          for _ in $(seq 1 90); do
+            curl -skf -u "$user:$ES_PASSWORD" "$url/_cluster/health?wait_for_status=yellow&timeout=1s" >/dev/null && break
+            sleep 2
+          done
+          curl -skf -u "$user:$ES_PASSWORD" "$url/"
+          certs="$RUNNER_TEMP/es-certs"; mkdir -p "$certs"
+          {
+            echo "FALCOSIDEKICK_ES_URL=$url"; echo "FALCOSIDEKICK_E2E_ES_URL=$url"
+            echo "FALCOSIDEKICK_ES_USERNAME=$user"; echo "FALCOSIDEKICK_E2E_ES_USERNAME=$user"
+            echo "FALCOSIDEKICK_ES_PASSWORD=$ES_PASSWORD"; echo "FALCOSIDEKICK_E2E_ES_PASSWORD=$ES_PASSWORD"
+          } >> "$GITHUB_ENV"
+          case "$FLAVOR" in
+            es)
+              docker cp es:/usr/share/elasticsearch/config/certs/http_ca.crt "$certs/ca.pem"
+              { echo "FALCOSIDEKICK_ES_CA_FILE=$certs/ca.pem"; echo "FALCOSIDEKICK_E2E_ES_CA_FILE=$certs/ca.pem"; } >> "$GITHUB_ENV" ;;
+            os)
+              docker cp es:/usr/share/opensearch/config/root-ca.pem "$certs/ca.pem"
+              docker cp es:/usr/share/opensearch/config/kirk.pem "$certs/client.pem"
+              docker cp es:/usr/share/opensearch/config/kirk-key.pem "$certs/client-key.pem"
+              {
+                echo "FALCOSIDEKICK_ES_CA_FILE=$certs/ca.pem"; echo "FALCOSIDEKICK_E2E_ES_CA_FILE=$certs/ca.pem"
+                echo "FALCOSIDEKICK_ES_API_KEYS=false"
+                echo "FALCOSIDEKICK_ES_CLIENT_CERT=$certs/client.pem"; echo "FALCOSIDEKICK_ES_CLIENT_KEY=$certs/client-key.pem"
+              } >> "$GITHUB_ENV" ;;
+          esac
+      - name: Driver integration tests
+        run: go test -count=1 -v -tags integration -run TestLiveElasticsearch ./internal/outputs/elasticsearch/
+      - name: End-to-end tests
+        run: go test -count=1 -v -tags e2e -run Elasticsearch ./test/e2e/
+      - name: Server logs on failure
+        if: failure()
+        run: docker logs --tail 200 es
+      - name: Stop server
+        if: always()
+        run: docker rm -f es || true
