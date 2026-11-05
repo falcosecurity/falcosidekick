@@ -70,7 +70,7 @@ var ErrEmptyUUID = errors.New("uuid is required")
 
 // ReadableStore is an optional interface for outputs that support event queries.
 // The API layer uses this to serve the UI. Only outputs configured as the
-// ui.event_source need to implement it (e.g., inmemory, redis, postgres).
+// ui.event_source need to implement it (inmemory does).
 //
 // Filter combination semantics are part of the contract:
 //   - Within a single field, multiple values combine with OR
