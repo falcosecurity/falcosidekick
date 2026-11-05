@@ -276,6 +276,16 @@ function OutputDetail({ entry, status }: { entry: OutputConfigEntry | null; stat
                 </div>
               </div>
             )}
+            {status.last_warning && (
+              <div className="mt-2 flex flex-col gap-1">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-status-degraded-foreground">
+                  Last warning
+                </div>
+                <div className="rounded-md border border-status-degraded/30 bg-status-degraded/10 px-2 py-1.5 font-mono text-xs break-all text-status-degraded-foreground">
+                  {status.last_warning}
+                </div>
+              </div>
+            )}
           </section>
         )}
 

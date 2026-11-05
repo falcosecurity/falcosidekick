@@ -103,6 +103,13 @@ export function OutputStatusGrid() {
                       {s.last_error}
                     </div>
                   )}
+                  {s.last_warning && (
+                    <div
+                      className="col-span-full min-w-0 rounded-md border border-status-degraded/30 bg-status-degraded/10 px-2 py-1 text-xs text-status-degraded-foreground [overflow-wrap:anywhere]"
+                    >
+                      {s.last_warning}
+                    </div>
+                  )}
                 </div>
               )
             })}
