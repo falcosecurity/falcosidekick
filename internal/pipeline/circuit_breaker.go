@@ -17,6 +17,7 @@
 package pipeline
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -58,7 +59,9 @@ func (s CircuitState) String() string {
 
 // CircuitBreaker implements the circuit breaker pattern per output.
 type CircuitBreaker struct {
-	lastFailure  time.Time
+	lastFailure time.Time
+	// changed is closed and replaced whenever admission may have changed, waking Wait.
+	changed      chan struct{}
 	cfg          output.CircuitBreakerConfig
 	generation   uint64
 	failureCount int
@@ -70,7 +73,57 @@ type CircuitBreaker struct {
 
 // NewCircuitBreaker creates a CircuitBreaker from the given config.
 func NewCircuitBreaker(cfg *output.CircuitBreakerConfig) *CircuitBreaker {
-	return &CircuitBreaker{cfg: *cfg}
+	return &CircuitBreaker{cfg: *cfg, changed: make(chan struct{})}
+}
+
+// Wait blocks until a request could be admitted: the circuit is closed, or half-open with no probe running.
+// It returns ctx.Err() if ctx ends first. AllowRequest can still refuse when another caller takes the probe.
+func (cb *CircuitBreaker) Wait(ctx context.Context) error {
+	for {
+		cb.mu.Lock()
+		cb.advanceState()
+		var reopen time.Duration
+		ready := false
+		switch cb.state {
+		case CircuitClosed:
+			ready = true
+		case CircuitHalfOpen:
+			ready = !cb.probing
+		case CircuitOpen:
+			reopen = cb.cfg.ResetTimeout - time.Since(cb.lastFailure)
+		}
+		changed := cb.changed
+		cb.mu.Unlock()
+		if ready {
+			return nil
+		}
+		if err := waitForChange(ctx, changed, reopen); err != nil {
+			return err
+		}
+	}
+}
+
+// waitForChange returns when changed is closed, after reopen if positive, or with ctx.Err() when ctx ends.
+func waitForChange(ctx context.Context, changed <-chan struct{}, reopen time.Duration) error {
+	var timeout <-chan time.Time
+	if reopen > 0 {
+		timer := time.NewTimer(reopen)
+		defer timer.Stop()
+		timeout = timer.C
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-changed:
+	case <-timeout:
+	}
+	return nil
+}
+
+// notify wakes every Wait; it requires cb.mu held.
+func (cb *CircuitBreaker) notify() {
+	close(cb.changed)
+	cb.changed = make(chan struct{})
 }
 
 // GetState returns the current state, moving open to half-open once the reset timeout elapsed.
@@ -119,6 +172,7 @@ func (cb *CircuitBreaker) recordResult(generation uint64, success bool) {
 	}
 
 	cb.probing = false
+	defer cb.notify()
 	if success {
 		cb.failureCount = 0
 		if cb.state == CircuitHalfOpen {
@@ -150,4 +204,5 @@ func (cb *CircuitBreaker) transition(state CircuitState) {
 	cb.failureCount = 0
 	cb.successCount = 0
 	cb.probing = false
+	cb.notify()
 }

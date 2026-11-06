@@ -23,6 +23,8 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 )
 
+// runWorker delivers one event at a time; while the circuit is open a worker holds its event
+// in executeWithRetry and takes no other, so the queue waits for the destination.
 func (o *Output) runWorker(ctx context.Context) {
 	for {
 		select {

@@ -17,6 +17,7 @@
 package pipeline
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -318,4 +319,57 @@ func assertRequestBlocked(t *testing.T, cb *CircuitBreaker) {
 	complete, allowed := cb.AllowRequest()
 	assert.False(t, allowed)
 	assert.Nil(t, complete)
+}
+
+func TestCircuitBreakerWait(t *testing.T) {
+	cfg := &output.CircuitBreakerConfig{FailureThreshold: 1, SuccessThreshold: 1, ResetTimeout: time.Minute}
+	open := func() *CircuitBreaker {
+		cb := NewCircuitBreaker(cfg)
+		complete, allowed := cb.AllowRequest()
+		require.True(t, allowed)
+		complete(false)
+		require.Equal(t, CircuitOpen, cb.GetState())
+		return cb
+	}
+
+	t.Run("closed returns at once", func(t *testing.T) {
+		require.NoError(t, NewCircuitBreaker(cfg).Wait(context.Background()))
+	})
+	t.Run("open waits for the reset timeout", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			cb := open()
+			start := time.Now()
+			require.NoError(t, cb.Wait(context.Background()))
+			assert.Equal(t, cfg.ResetTimeout, time.Since(start))
+			assert.Equal(t, CircuitHalfOpen, cb.GetState())
+		})
+	})
+	t.Run("half-open waits for the running probe", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			cb := open()
+			time.Sleep(cfg.ResetTimeout)
+			complete, allowed := cb.AllowRequest()
+			require.True(t, allowed, "the probe")
+			done := make(chan error)
+			go func() { done <- cb.Wait(context.Background()) }()
+			synctest.Wait()
+			select {
+			case <-done:
+				t.Fatal("Wait returned while the probe runs")
+			default:
+			}
+			complete(true)
+			require.NoError(t, <-done)
+			assert.Equal(t, CircuitClosed, cb.GetState())
+		})
+	})
+	t.Run("context ends the wait", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			cb := open()
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			require.ErrorIs(t, cb.Wait(ctx), context.DeadlineExceeded)
+			assert.Equal(t, CircuitOpen, cb.GetState())
+		})
+	})
 }

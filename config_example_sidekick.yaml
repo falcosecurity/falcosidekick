@@ -112,6 +112,7 @@ runtime_defaults:
     initial_interval: 1s      # first retry backoff
     max_interval: 30s         # maximum retry backoff
     multiplier: 2.0           # exponential backoff multiplier
+  # While the circuit is open, workers stop taking events and the queue waits.
   circuit_breaker:
     failure_threshold: 5      # consecutive failures to open circuit
     success_threshold: 2      # successes in half-open to close circuit
