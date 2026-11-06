@@ -20,16 +20,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
+	"strconv"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
-
-// yamlTypeMismatchLine matches yaml.v3 type errors, which quote a prefix of the scalar.
-var yamlTypeMismatchLine = regexp.MustCompile(`^line (\d+): cannot unmarshal `)
 
 // OutputsConfig holds output definitions loaded from one or more output files and their paths.
 type OutputsConfig struct {
@@ -80,17 +77,34 @@ func LoadOutputs(paths []string) (*OutputsConfig, error) {
 	return merged, nil
 }
 
+// safeYAMLError keeps positions and fixed parser texts; construction messages quote values.
 func safeYAMLError(err error) error {
-	typeErr, ok := errors.AsType[*yaml.TypeError](err)
-	if !ok {
-		return err
+	var failures []*yaml.LoadError
+	if all, ok := errors.AsType[*yaml.LoadErrors](err); ok {
+		failures = all.Errors
+	} else if one, ok := errors.AsType[*yaml.LoadError](err); ok {
+		failures = []*yaml.LoadError{one}
 	}
-	lines := make([]string, len(typeErr.Errors))
-	for i, line := range typeErr.Errors {
-		lines[i] = "invalid structure"
-		if m := yamlTypeMismatchLine.FindStringSubmatch(line); m != nil {
-			lines[i] = "line " + m[1] + ": invalid structure"
+	if len(failures) == 0 {
+		return errors.New("yaml: invalid structure")
+	}
+	lines := make([]string, len(failures))
+	for i, failure := range failures {
+		if failure.Stage == yaml.ConstructorStage {
+			lines[i] = atLine(failure.Mark.Line, "invalid structure")
+			continue
+		}
+		lines[i] = atLine(failure.Mark.Line, failure.Message)
+		if failure.ContextMsg != "" {
+			lines[i] = atLine(failure.ContextMark.Line, failure.ContextMsg) + ", " + lines[i]
 		}
 	}
 	return errors.New("yaml: " + strings.Join(lines, "; "))
+}
+
+func atLine(line int, text string) string {
+	if line <= 0 {
+		return text
+	}
+	return "line " + strconv.Itoa(line) + ": " + text
 }
