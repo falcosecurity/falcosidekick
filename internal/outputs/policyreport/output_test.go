@@ -26,6 +26,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 	k8stesting "k8s.io/client-go/testing"
@@ -275,6 +277,24 @@ func TestSendSerializesWritesPerReport(t *testing.T) {
 	wg.Wait()
 	assert.Len(t, rules(t, getReport(t, client, "a")), workers*perWorker/2)
 	assert.Len(t, rules(t, getReport(t, client, "b")), workers*perWorker/2)
+}
+
+// The pipeline context has no deadline during normal delivery: the client bounds each API request.
+func TestRequestTimeoutBoundsAnUnansweredRequest(t *testing.T) {
+	server := testutil.HangingHTTPServer(t)
+	cfg, err := loadRESTConfig(testutil.WriteKubeconfig(t, server.URL, "", "token"))
+	require.NoError(t, err)
+	assert.Equal(t, requestTimeout, cfg.Timeout)
+
+	cfg.Timeout = testutil.CancelAfter
+	client, err := dynamic.NewForConfig(cfg)
+	require.NoError(t, err)
+	d := newDriver(&config{MaxEvents: defaultMaxEvents}, client, nil, nil)
+	start := time.Now()
+	err = d.Send(context.Background(), testutil.CreateValidEvent())
+	require.Error(t, err)
+	assert.Less(t, time.Since(start), testutil.ReturnWithin)
+	assert.False(t, output.IsPermanent(err), "a timeout is retried")
 }
 
 func TestCreateOutputConfig(t *testing.T) {
