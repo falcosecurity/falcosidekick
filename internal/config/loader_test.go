@@ -119,6 +119,39 @@ listen_portt: 4000
 	assert.Contains(t, err.Error(), "listen_portt")
 }
 
+func TestLoadFileKeysAreCaseInsensitiveAndEnvWins(t *testing.T) {
+	cfgFile := filepath.Join(t.TempDir(), "sidekick.yaml")
+	require.NoError(t, os.WriteFile(cfgFile, []byte("Listen_Port: 2802\nLog_Level: debug\nruntime_defaults:\n  Queue_Size: 7\n"), 0o600))
+	t.Setenv("FALCOSIDEKICK_LOG_LEVEL", "error")
+
+	cfg, err := Load(cfgFile)
+	require.NoError(t, err)
+	assert.Equal(t, 2802, cfg.ListenPort)
+	assert.Equal(t, 7, cfg.RuntimeDefaults.QueueSize, "nested keys merge over the defaults")
+	assert.Equal(t, 2, cfg.RuntimeDefaults.Workers, "nested defaults the file does not set are kept")
+	assert.Equal(t, "error", string(cfg.LogLevel), "the environment overrides the file")
+}
+
+func TestLoadParseErrorsNeverQuoteTheFile(t *testing.T) {
+	const sentinel = "s3cret-sentinel"
+	for _, tc := range []struct {
+		name, content, want string
+	}{
+		{name: "unknown alias", content: "log_level: *" + sentinel + "\n", want: "yaml: line 1: invalid anchor or alias"},
+		{name: "unterminated quote", content: "log_level: \"" + sentinel + "\n", want: "yaml: lines 1-2: invalid syntax"},
+		{name: "duplicate key", content: "log_level: info\nlog_level: " + sentinel + "\n", want: "yaml: line 2: invalid structure"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfgFile := filepath.Join(t.TempDir(), "sidekick.yaml")
+			require.NoError(t, os.WriteFile(cfgFile, []byte(tc.content), 0o600))
+			_, err := Load(cfgFile)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+			assert.NotContains(t, err.Error(), sentinel)
+		})
+	}
+}
+
 func TestLoadInvalidFilePath(t *testing.T) {
 	_, err := Load("/nonexistent/config.yaml")
 	require.Error(t, err)

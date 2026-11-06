@@ -17,7 +17,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"strings"
 
@@ -48,9 +50,13 @@ func ResolveSecrets(outputName string, cfg map[string]any, schema output.Schema)
 			continue
 		}
 
+		// The error names the field, not the path or the OS error: the path can arrive through the API.
 		data, err := os.ReadFile(filePath) //nolint:gosec // reading user-configured secret file
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("output %q: %s_file: file does not exist", outputName, field.Name)
+		}
 		if err != nil {
-			return fmt.Errorf("output %q: secret %q: read %q: %w", outputName, field.Name, filePath, err)
+			return fmt.Errorf("output %q: %s_file: cannot read file", outputName, field.Name)
 		}
 
 		parent[leafKey] = strings.TrimRight(string(data), "\n\r")

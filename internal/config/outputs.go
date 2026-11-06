@@ -77,7 +77,18 @@ func LoadOutputs(paths []string) (*OutputsConfig, error) {
 	return merged, nil
 }
 
-// safeYAMLError keeps positions and fixed parser texts; construction messages quote values.
+// yamlStageProblems name each failing yaml stage; the library's messages can quote the input,
+// such as an alias name or the character the scanner stopped at.
+var yamlStageProblems = map[yaml.Stage]string{
+	yaml.ReaderStage:      "unreadable input",
+	yaml.ScannerStage:     "invalid syntax",
+	yaml.ParserStage:      "invalid syntax",
+	yaml.ComposerStage:    "invalid anchor or alias",
+	yaml.ResolverStage:    "invalid tag",
+	yaml.ConstructorStage: "invalid structure",
+}
+
+// safeYAMLError keeps the line and the failing stage of each yaml error, never its message.
 func safeYAMLError(err error) error {
 	var failures []*yaml.LoadError
 	if all, ok := errors.AsType[*yaml.LoadErrors](err); ok {
@@ -90,14 +101,16 @@ func safeYAMLError(err error) error {
 	}
 	lines := make([]string, len(failures))
 	for i, failure := range failures {
-		if failure.Stage == yaml.ConstructorStage {
-			lines[i] = atLine(failure.Mark.Line, "invalid structure")
+		problem, known := yamlStageProblems[failure.Stage]
+		if !known {
+			problem = "invalid document"
+		}
+		// ContextMark is where the failing construct started, such as an unterminated quote.
+		if start, end := failure.ContextMark.Line, failure.Mark.Line; start > 0 && start < end {
+			lines[i] = "lines " + strconv.Itoa(start) + "-" + strconv.Itoa(end) + ": " + problem
 			continue
 		}
-		lines[i] = atLine(failure.Mark.Line, failure.Message)
-		if failure.ContextMsg != "" {
-			lines[i] = atLine(failure.ContextMark.Line, failure.ContextMsg) + ", " + lines[i]
-		}
+		lines[i] = atLine(failure.Mark.Line, problem)
 	}
 	return errors.New("yaml: " + strings.Join(lines, "; "))
 }

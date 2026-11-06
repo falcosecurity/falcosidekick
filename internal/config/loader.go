@@ -18,10 +18,12 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
+	"go.yaml.in/yaml/v4"
 )
 
 // Load reads configuration from a YAML file and environment variables.
@@ -33,8 +35,11 @@ func Load(configPath string) (*Config, error) {
 	applyDefaults(v)
 
 	if configPath != "" {
-		v.SetConfigFile(configPath)
-		if err := v.ReadInConfig(); err != nil {
+		settings, err := readCoreConfig(configPath)
+		if err != nil {
+			return nil, err
+		}
+		if err := v.MergeConfigMap(settings); err != nil {
 			return nil, fmt.Errorf("config read %q: %w", configPath, err)
 		}
 	}
@@ -56,4 +61,18 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+// readCoreConfig parses the core file with the YAML library and safe errors of the output files:
+// viper's own parser returns messages that quote the input.
+func readCoreConfig(path string) (map[string]any, error) {
+	data, err := os.ReadFile(path) //nolint:gosec // user-provided config file path
+	if err != nil {
+		return nil, fmt.Errorf("config read %q: %w", path, err)
+	}
+	var settings map[string]any
+	if err := yaml.Unmarshal(data, &settings); err != nil {
+		return nil, fmt.Errorf("config read %q: %w", path, safeYAMLError(err))
+	}
+	return settings, nil
 }

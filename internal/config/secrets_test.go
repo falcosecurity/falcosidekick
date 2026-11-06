@@ -127,6 +127,25 @@ func TestResolveSecrets(t *testing.T) {
 	}
 }
 
+func TestResolveSecretsErrorsNameTheFieldOnly(t *testing.T) {
+	const sentinel = "s3cret-sentinel"
+	schema := output.Schema{Fields: []output.SchemaField{{Name: "auth.password", Secret: true}}}
+	dir := t.TempDir()
+	for _, tc := range []struct {
+		name, path, want string
+	}{
+		{name: "missing", path: filepath.Join(dir, sentinel, "password"), want: `output "kafka": auth.password_file: file does not exist`},
+		{name: "directory", path: dir, want: `output "kafka": auth.password_file: cannot read file`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := map[string]any{"auth": map[string]any{"password_file": tc.path}}
+			err := ResolveSecrets("kafka", cfg, schema)
+			require.EqualError(t, err, tc.want)
+			assert.NotContains(t, err.Error(), dir)
+		})
+	}
+}
+
 func TestResolveSecretsTargetEndpointFile(t *testing.T) {
 	schema := output.Schema{Fields: []output.SchemaField{{Name: "secret_endpoint", Secret: true}}}
 	cfg := map[string]any{"secret_endpoint_file": writeSecret(t, "/services/T/B/X\n")}
