@@ -131,7 +131,7 @@ func TestInvalidConfigIsRejectedWithoutEchoingValues(t *testing.T) {
 }
 
 func TestAPIAnswersNeverEchoInput(t *testing.T) {
-	core := withExtra("api:\n  allow_writes: true\nui:\n  enabled: true\n  event_source: inmemory\n")
+	core := withExtra("api:\n  allow_writes: true\n  secret_dirs: [\"" + t.TempDir() + "\"]\nui:\n  enabled: true\n  event_source: inmemory\n")
 	sk := startSidekickWith(t, core, outputYAML("inmemory", "capacity: 100"))
 
 	const (
@@ -147,13 +147,15 @@ func TestAPIAnswersNeverEchoInput(t *testing.T) {
 		{name: "event JSON", method: http.MethodPost, path: "/", body: `{"rule": "$V`, want: "invalid JSON"},
 		{name: "event priority", method: http.MethodPost, path: "/", body: event, want: "unknown priority"},
 		{name: "output JSON", method: http.MethodPut, path: outputPath, body: `{"config": "$V`, want: "invalid JSON"},
+		{name: "output field", method: http.MethodPut, path: outputPath, body: `{"version":0,"config":{},"$V":1}`, want: "unknown field"},
 		{name: "output method", method: http.MethodPut, path: outputPath,
-			body: `{"config":{"host":"http://127.0.0.1:1","method":"$V"}}`, want: "method: must be POST or PUT"},
+			body: `{"version":0,"config":{"host":"http://127.0.0.1:1","method":"$V"}}`, want: "method: must be POST or PUT"},
 		{name: "output ca_file", method: http.MethodPut, path: outputPath,
-			body: `{"config":{"host":"https://127.0.0.1:1","tls":{"ca_file":"/nonexistent-$V/ca.pem"}}}`, want: "ca_file: file does not exist"},
+			body: `{"version":0,"config":{"host":"https://127.0.0.1:1","tls":{"ca_file":"/nonexistent-$V/ca.pem"}}}`,
+			want: "tls.ca_file: must name a regular file of at most 1 MiB inside api.secret_dirs"},
 		{name: "output secret file", method: http.MethodPut, path: outputPath,
-			body: `{"config":{"host":"http://127.0.0.1:1","bearer_token_file":"/nonexistent-$V/token"}}`, want: "bearer_token_file: file does not exist",
-			status: http.StatusInternalServerError},
+			body: `{"version":0,"config":{"host":"http://127.0.0.1:1","bearer_token_file":"/nonexistent-$V/token"}}`,
+			want: "bearer_token_file: must name a regular file of at most 1 MiB inside api.secret_dirs"},
 		{name: "layout JSON", method: http.MethodPut, path: "/api/v1/pipeline/layout", body: `{"$V`, want: "invalid JSON"},
 		{name: "search page", method: http.MethodGet, path: searchPath + "page=$V", want: "page must be an integer"},
 		{name: "search limit", method: http.MethodGet, path: searchPath + "limit=$V", want: "limit must be an integer"},

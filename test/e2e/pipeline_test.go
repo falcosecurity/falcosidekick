@@ -19,12 +19,16 @@
 package e2e
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,6 +53,54 @@ func TestManagementListenerIsSeparate(t *testing.T) {
 		assert.Equal(t, tc.want, resp.StatusCode, "%s%s", tc.base, tc.path)
 	}
 	assert.Contains(t, sk.logs.String(), `"management_address":"127.0.0.1:`, "the API listens on loopback by default")
+}
+
+// D3: an API write may name a secret file only inside api.secret_dirs, and a write based on an old
+// version is refused instead of overwriting the newer one.
+func TestAPIWriteReadsSecretsOnlyFromSecretDirs(t *testing.T) {
+	tokens := make(chan string, 4)
+	receiver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokens <- r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(receiver.Close)
+	secrets, outside := t.TempDir(), t.TempDir()
+	inside := filepath.Join(secrets, "token")
+	require.NoError(t, os.WriteFile(inside, []byte("from-secret-dir\n"), 0o600))
+	stranger := filepath.Join(outside, "token")
+	require.NoError(t, os.WriteFile(stranger, []byte("outside-private"), 0o600))
+
+	core := withExtra("api:\n  allow_writes: true\n  secret_dirs: [\"" + secrets + "\"]\n")
+	sk := startSidekickWith(t, core, outputYAML("inmemory", "capacity: 10"))
+	put := func(version int, file string) (int, string) {
+		body := fmt.Sprintf(`{"version":%d,"config":{"host":%q,"bearer_token_file":%q,"runtime":{"health_check":false}}}`,
+			version, receiver.URL, file)
+		resp, err := httpDo(http.MethodPut, sk.apiURL+"/api/v1/pipeline/outputs/webhook", []byte(body))
+		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
+		answer, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		return resp.StatusCode, string(answer)
+	}
+
+	status, answer := put(0, stranger)
+	assert.Equal(t, http.StatusBadRequest, status, answer)
+	assert.Contains(t, answer, "inside api.secret_dirs")
+
+	status, answer = put(0, inside)
+	require.Equal(t, http.StatusOK, status, answer)
+	assert.NotContains(t, answer, "from-secret-dir")
+	sk.postEvent(t, newMarker(t))
+	select {
+	case token := <-tokens:
+		assert.Equal(t, "Bearer from-secret-dir", token)
+	case <-time.After(10 * time.Second):
+		t.Fatal("the webhook received nothing")
+	}
+
+	status, answer = put(0, inside)
+	assert.Equal(t, http.StatusConflict, status, answer)
+	assert.NotContains(t, sk.logs.String(), "outside-private")
 }
 
 // minimum_priority accepts any case; before, an unknown spelling ranked lowest and filtered nothing.

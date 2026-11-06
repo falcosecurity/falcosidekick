@@ -31,7 +31,10 @@ type Memory struct {
 	outputs    map[string]*core.OutputConfigEntry
 	coreConfig *core.ConfigEntry
 	layout     *core.PipelineLayout
-	mu         sync.RWMutex
+	// lastOutputVersion numbers output writes store-wide, so an output deleted and created
+	// again never repeats a version a client still holds.
+	lastOutputVersion int64
+	mu                sync.RWMutex
 }
 
 // NewMemory creates a memory-backed Database.
@@ -71,10 +74,11 @@ func (s *Memory) Provision(_ context.Context, req *core.ProvisionRequest) error 
 	}
 
 	for name, cfg := range req.Outputs {
+		s.lastOutputVersion++
 		s.outputs[name] = &core.OutputConfigEntry{
 			Name:        name,
 			Config:      utils.DeepCopyMap(cfg),
-			Version:     nextVersion(s.outputs[name]),
+			Version:     s.lastOutputVersion,
 			Provisioned: true,
 			UpdatedAt:   now,
 		}
@@ -141,10 +145,11 @@ func (s *Memory) SaveOutputConfig(_ context.Context, name string, cfg map[string
 	if existing != nil {
 		provisioned = existing.Provisioned
 	}
+	s.lastOutputVersion++
 	s.outputs[name] = &core.OutputConfigEntry{
 		Name:        name,
 		Config:      utils.DeepCopyMap(cfg),
-		Version:     nextVersion(existing),
+		Version:     s.lastOutputVersion,
 		Provisioned: provisioned,
 		UpdatedAt:   time.Now(),
 	}

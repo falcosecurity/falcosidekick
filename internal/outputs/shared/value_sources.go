@@ -18,7 +18,6 @@ package shared
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 
@@ -117,9 +116,9 @@ func (h ValueSources) resolveSources(kind string, valid func(string) bool) ([]st
 		}
 	}
 	for i, path := range h.Files {
-		b, err := os.ReadFile(path) //nolint:gosec // secret file paths are operator-configured
+		b, err := utils.ReadRegularFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("files[%d]: cannot read %s file", i, kind)
+			return nil, fmt.Errorf("files[%d]: %s", i, utils.FileProblem(err))
 		}
 		value := strings.TrimSpace(string(b))
 		if valid != nil && !valid(value) {

@@ -57,6 +57,9 @@ database:
 #                                        # They have no authentication: enable only on a
 #                                        # trusted network or with management.listen_address
 #                                        # 127.0.0.1.
+#   secret_dirs: []                      # absolute directories a file path sent through the
+#                                        # API must resolve into, such as a mounted secret
+#                                        # volume. Empty refuses every file path from the API.
 
 # metrics:
 #   max_label_values: 1000               # distinct values kept per label taken from events;

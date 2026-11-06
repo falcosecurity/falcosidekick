@@ -111,7 +111,7 @@ func TestHTTPDeliveryStatus_SafeErrorsAndRecovery(t *testing.T) {
 					for key, value := range route {
 						config[key] = value
 					}
-					require.NoError(t, rig.Reloader.ApplyOutput(t.Context(), provider.outputType.Name, config))
+					require.NoError(t, rig.Reloader.ApplyOutput(t.Context(), provider.outputType.Name, 0, config))
 
 					rig.Server.pipeline.ProcessEvent(t.Context(), testutil.CreateValidEvent())
 					waitForHTTPDeliveryStatus(t, rig, 0, 1)

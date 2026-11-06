@@ -114,6 +114,28 @@ outputs:
 	assert.Equal(t, "falco", auth["username"], "nested field preserved")
 }
 
+// An output written as "name:" with nothing after it decodes to nil; merging a later file into it
+// used to panic on the nil map.
+func TestLoadOutputsRejectsNullDefinition(t *testing.T) {
+	dir := t.TempDir()
+	first := filepath.Join(dir, "first.yaml")
+	second := filepath.Join(dir, "second.yaml")
+	require.NoError(t, os.WriteFile(first, []byte("outputs:\n  webhook:\n"), 0o600))
+	require.NoError(t, os.WriteFile(second, []byte("outputs:\n  webhook:\n    host: https://h\n"), 0o600))
+
+	for _, paths := range [][]string{{first}, {first, second}, {second, first}} {
+		_, err := LoadOutputs(paths)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `output "webhook" has no settings; write {} to use its defaults`)
+	}
+
+	empty := filepath.Join(dir, "empty.yaml")
+	require.NoError(t, os.WriteFile(empty, []byte("outputs:\n  webhook: {}\n"), 0o600))
+	cfg, err := LoadOutputs([]string{empty, second})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"host": "https://h"}, cfg.Outputs["webhook"])
+}
+
 func TestLoadOutputsNoFiles(t *testing.T) {
 	cfg, err := LoadOutputs(nil)
 	require.NoError(t, err)

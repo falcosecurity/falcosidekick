@@ -18,6 +18,7 @@ package core
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -33,10 +34,10 @@ type Config struct {
 	Management    ManagementConfig   `json:"management" mapstructure:"management"`
 	Database      DatabaseConfig     `json:"database" mapstructure:"database"`
 	UI            UIConfig           `json:"ui" mapstructure:"ui"`
+	API           APIConfig          `json:"api" mapstructure:"api"`
 	Metrics       MetricsConfig      `json:"metrics" mapstructure:"metrics"`
 	Reload        ReloadConfig       `json:"reload" mapstructure:"reload"`
 	Provisioning  ProvisioningConfig `json:"provisioning" mapstructure:"provisioning"`
-	API           APIConfig          `json:"api" mapstructure:"api"`
 	ListenPort    int                `json:"listen_port" mapstructure:"listen_port"`
 }
 
@@ -114,7 +115,24 @@ func (c ManagementConfig) Validate() utils.ValidationErrors {
 
 // APIConfig controls the management API.
 type APIConfig struct {
-	AllowWrites bool `json:"allow_writes" mapstructure:"allow_writes"`
+	// SecretDirs holds the directories an output file path sent through the API must resolve into.
+	// Empty refuses every file path sent through the API; output files are not restricted.
+	SecretDirs  []string `json:"secret_dirs" mapstructure:"secret_dirs"`
+	AllowWrites bool     `json:"allow_writes" mapstructure:"allow_writes"`
+}
+
+// Validate requires absolute secret directories.
+func (c APIConfig) Validate() utils.ValidationErrors {
+	var errs utils.ValidationErrors
+	for _, dir := range c.SecretDirs {
+		if !filepath.IsAbs(dir) {
+			errs.Add("secret_dirs", fmt.Sprintf("%q must be an absolute path", dir))
+		}
+	}
+	if len(errs) > 0 {
+		return errs
+	}
+	return nil
 }
 
 // ProvisioningConfig controls how file provisioning and UI writes interact.
@@ -141,6 +159,7 @@ func (c *Config) Validate() utils.ValidationErrors {
 	errs.Merge("ui", c.UI.Validate())
 	errs.Merge("reload", c.Reload.Validate())
 	errs.Merge("metrics", c.Metrics.Validate())
+	errs.Merge("api", c.API.Validate())
 
 	if len(errs) > 0 {
 		return errs

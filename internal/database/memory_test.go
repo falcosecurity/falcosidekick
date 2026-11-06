@@ -375,6 +375,24 @@ func TestOutputConfigVersionIncrement(t *testing.T) {
 	assert.Equal(t, 2, entry.Config["v"])
 }
 
+// A client holding version 1 of a deleted output must not match the output created again.
+func TestOutputConfigVersionIsNeverReused(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemory()
+
+	require.NoError(t, s.SaveOutputConfig(ctx, "slack", map[string]any{"v": 1}))
+	require.NoError(t, s.DeleteOutputConfig(ctx, "slack"))
+	require.NoError(t, s.SaveOutputConfig(ctx, "slack", map[string]any{"v": 2}))
+	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{Outputs: map[string]map[string]any{"webhook": {}}}))
+
+	slack, err := s.GetOutputConfig(ctx, "slack")
+	require.NoError(t, err)
+	webhook, err := s.GetOutputConfig(ctx, "webhook")
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), slack.Version)
+	assert.Equal(t, int64(3), webhook.Version)
+}
+
 func TestConcurrentAccess(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()

@@ -813,7 +813,7 @@ func TestReloaderApplyOutput_RequiresBind(t *testing.T) {
 		InitialOutputs:  map[string]map[string]any{},
 	})
 
-	err = r.ApplyOutput(context.Background(), "slack", map[string]any{"secret_endpoint": "x"})
+	err = r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "x"})
 	require.ErrorIs(t, err, ErrReloaderNotBound)
 
 	err = r.RemoveOutput(context.Background(), "slack")
@@ -855,7 +855,7 @@ func TestReloaderApplyOutput_AddsNewOutput(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{})
 
-	require.NoError(t, r.ApplyOutput(context.Background(), "slack", map[string]any{"secret_endpoint": "https://hooks.slack.com/ui"}))
+	require.NoError(t, r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "https://hooks.slack.com/ui"}))
 
 	assert.Contains(t, env.d.OutputNames(), "slack", "ApplyOutput must add the output to the dispatcher")
 
@@ -878,9 +878,41 @@ func TestReloaderApplyOutput_ReplacesExistingOutput(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{"slack": {"secret_endpoint": "old"}})
 
-	require.NoError(t, r.ApplyOutput(context.Background(), "slack", map[string]any{"secret_endpoint": "new"}))
+	require.NoError(t, r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "new"}))
 
 	assert.Contains(t, env.d.OutputNames(), "slack")
+}
+
+// Two writers that read the same version: the second must not overwrite the first.
+func TestReloaderApplyOutput_StaleVersionConflicts(t *testing.T) {
+	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
+	require.NoError(t, err)
+
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		Catalog:         cat,
+		Dispatcher:      env.d,
+		Database:        db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
+		Deps:            output.Deps{Logger: slog.Default()},
+		Logger:          slog.Default(),
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+	ctx := context.Background()
+
+	require.NoError(t, r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "first"}))
+	require.ErrorIs(t, r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "create again"}), ErrVersionConflict)
+
+	require.NoError(t, r.ApplyOutput(ctx, "slack", 1, map[string]any{"secret_endpoint": "second"}))
+	require.ErrorIs(t, r.ApplyOutput(ctx, "slack", 1, map[string]any{"secret_endpoint": "lost update"}), ErrVersionConflict)
+
+	stored, err := db.GetOutputConfig(ctx, "slack")
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), stored.Version)
+	assert.Equal(t, "second", stored.Config["secret_endpoint"])
 }
 
 func TestReloaderApplyOutput_UnknownTypeRejected(t *testing.T) {
@@ -892,7 +924,7 @@ func TestReloaderApplyOutput_UnknownTypeRejected(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{})
 
-	err = r.ApplyOutput(context.Background(), "not-a-real-output", map[string]any{})
+	err = r.ApplyOutput(context.Background(), "not-a-real-output", 0, map[string]any{})
 	require.ErrorIs(t, err, ErrUnknownOutputType)
 	assert.Empty(t, env.d.OutputNames(), "dispatcher must not gain the unknown output")
 }
@@ -906,7 +938,7 @@ func TestReloaderApplyOutput_InitFailureLeavesStateUnchanged(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{})
 
-	err = r.ApplyOutput(context.Background(), "broken", map[string]any{})
+	err = r.ApplyOutput(context.Background(), "broken", 0, map[string]any{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "apply init")
 	assert.Empty(t, env.d.OutputNames(), "dispatcher must be untouched on Init failure")
@@ -922,7 +954,7 @@ func TestReloaderApplyOutput_RejectedConfigNeverEchoesValues(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{})
 
-	err = r.ApplyOutput(context.Background(), "webhook", map[string]any{"host": "https://u:" + sentinel + "@ho st/x"})
+	err = r.ApplyOutput(context.Background(), "webhook", 0, map[string]any{"host": "https://u:" + sentinel + "@ho st/x"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "host: invalid URL")
 	assert.NotContains(t, err.Error(), sentinel)
@@ -1051,7 +1083,7 @@ func TestReloaderApplyThenReload_FileWinsOverUIEdit(t *testing.T) {
 
 	applyCtx, applyCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer applyCancel()
-	require.NoError(t, r.ApplyOutput(applyCtx, "slack", map[string]any{"secret_endpoint": "ui-value"}))
+	require.NoError(t, r.ApplyOutput(applyCtx, "slack", 0, map[string]any{"secret_endpoint": "ui-value"}))
 	require.Contains(t, env.d.OutputNames(), "slack")
 	require.Equal(t, map[string]any{"secret_endpoint": "ui-value"}, r.fileState["slack"],
 		"r.fileState must track the UI edit so the next file reload sees a Changed diff")
@@ -1187,7 +1219,7 @@ func TestReloaderApplyThenReload_PartialFailureNextReloadRestoresFile(t *testing
 	r.BindWorkerContext(env.workerRunCtx, time.Second)
 
 	db.SaveOutputConfigErr = errors.New("db save boom")
-	err = r.ApplyOutput(context.Background(), "slack", map[string]any{"secret_endpoint": "ui-value"})
+	err = r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "ui-value"})
 	require.ErrorIs(t, err, ErrDBSyncFailed,
 		"runtime apply succeeded but DB save failed; ApplyOutput must report ErrDBSyncFailed")
 	require.Contains(t, env.d.OutputNames(), "slack")
@@ -1228,7 +1260,7 @@ func TestReloaderReload_ReAddsNameAlreadyLiveAsReplace(t *testing.T) {
 	})
 	r.BindWorkerContext(env.workerRunCtx, time.Second)
 
-	require.NoError(t, r.ApplyOutput(context.Background(), "slack", map[string]any{"secret_endpoint": "ui-version"}))
+	require.NoError(t, r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "ui-version"}))
 	require.Contains(t, env.d.OutputNames(), "slack")
 	require.NotContains(t, r.fileState, "slack",
 		"UI-only apply must not write to the file-view")
@@ -1268,7 +1300,7 @@ func TestReloaderApplyOutput_DBSaveFailureReturnsErrDBSyncFailed(t *testing.T) {
 	})
 	r.BindWorkerContext(env.workerRunCtx, time.Second)
 
-	err = r.ApplyOutput(context.Background(), "slack", map[string]any{"secret_endpoint": "x"})
+	err = r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "x"})
 	require.ErrorIs(t, err, ErrDBSyncFailed)
 
 	assert.Contains(t, env.d.OutputNames(), "slack",

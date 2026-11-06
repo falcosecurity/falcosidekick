@@ -50,6 +50,9 @@ func Load(configPath string) (*Config, error) {
 	v.SetEnvPrefix("FALCOSIDEKICK")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
+	if err := bindEnv(v, reflect.TypeFor[Config](), ""); err != nil {
+		return nil, fmt.Errorf("config: %w", err)
+	}
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg, viper.DecodeHook(
@@ -64,6 +67,37 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+// bindEnv registers every key of t: viper's Unmarshal reads the environment only for keys it knows,
+// so a key without a default or a file value would otherwise ignore its variable.
+func bindEnv(v *viper.Viper, t reflect.Type, prefix string) error {
+	for field := range t.Fields() {
+		name, opts, _ := strings.Cut(field.Tag.Get("mapstructure"), ",")
+		if name == "-" || !field.IsExported() {
+			continue
+		}
+		ft := field.Type
+		if ft.Kind() == reflect.Pointer {
+			ft = ft.Elem()
+		}
+		if opts == "squash" {
+			if err := bindEnv(v, ft, prefix); err != nil {
+				return err
+			}
+			continue
+		}
+		if ft.Kind() == reflect.Struct {
+			if err := bindEnv(v, ft, prefix+name+"."); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := v.BindEnv(prefix + name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // readCoreConfig parses the core file with the YAML library and safe errors of the output files:

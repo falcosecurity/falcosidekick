@@ -79,7 +79,7 @@ func TestHTTPTargetConfigValidate(t *testing.T) {
 		{
 			name: "unreadable query file",
 			cfg:  HTTPTargetConfig{Host: "https://h", QueryParams: map[string]ValueSources{"t": {Files: []string{"/nonexistent/" + sentinel}}}},
-			want: `query_params["t"]: files[0]: cannot read query file`,
+			want: `query_params["t"]: files[0]: file does not exist`,
 		},
 	}
 	for _, tt := range tests {
@@ -166,7 +166,7 @@ func TestHTTPTargetConfigRereadsQueryFiles(t *testing.T) {
 
 	require.NoError(t, os.Remove(path))
 	_, err = cfg.DeliveryURL()
-	require.EqualError(t, err, `query_params["t"]: files[0]: cannot read query file`)
+	require.EqualError(t, err, `query_params["t"]: files[0]: file does not exist`)
 	assert.Contains(t, WrapDeliveryError("webhook", "target", err).Error(), "webhook target: cannot resolve target")
 }
 

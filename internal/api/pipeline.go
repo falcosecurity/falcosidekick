@@ -17,7 +17,11 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"io"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -133,11 +137,17 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "unknown output type: " + name})
 	}
 
-	var body struct {
-		Config map[string]any `json:"config"`
+	var body outputPutRequest
+	if err := decodeStrict(c.Body(), &body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request: " + err.Error()})
 	}
-	if err := c.Bind().JSON(&body); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid JSON"})
+	if body.Config == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "config must be an object"})
+	}
+	if body.Version == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "version is required: send the version read with GET, or 0 to create the output",
+		})
 	}
 
 	existing, handled := s.loadOutputEntryForMutation(c, name)
@@ -145,8 +155,13 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 		return nil
 	}
 	var existingCfg map[string]any
+	var existingVersion int64
 	if existing != nil {
-		existingCfg = existing.Config
+		existingCfg, existingVersion = existing.Config, existing.Version
+	}
+	// The merge below starts from this read; the reloader checks the version again under its lock.
+	if existingVersion != *body.Version {
+		return writeVersionConflict(c, name)
 	}
 
 	if field := containsSecretPlaceholder(body.Config, t); field != "" {
@@ -154,24 +169,57 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 			"error": "field '" + field + "' is a secret placeholder; omit the key to keep the existing value",
 		})
 	}
-	merged, err := mergeOutputConfigForSchema(existingCfg, body.Config, t.Schema)
+	stored, merged, err := mergeOutputConfigForSchema(existingCfg, body.Config, t.Schema)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
+	if err := checkFilePaths(stored, merged, t.Schema.Fields, s.secretDirs); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
 
-	if err := s.reloader.ApplyOutput(c.Context(), name, merged); err != nil {
+	if err := s.reloader.ApplyOutput(c.Context(), name, existingVersion, merged); err != nil {
 		return s.writeMutationError(c, name, "apply", err)
 	}
 
-	stored, err := s.database.GetOutputConfig(c.Context(), name)
+	saved, err := s.database.GetOutputConfig(c.Context(), name)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "reread output: " + err.Error()})
 	}
-	if stored == nil {
+	if saved == nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "stored output missing after save"})
 	}
-	masked := maskOutputConfig(stored, t)
+	masked := maskOutputConfig(saved, t)
 	return c.Status(fiber.StatusOK).JSON(masked)
+}
+
+// outputPutRequest is the body of PUT /api/v1/pipeline/outputs/:name.
+type outputPutRequest struct {
+	Config map[string]any `json:"config"`
+	// Version is the version read with GET, 0 to create the output.
+	Version *int64 `json:"version"`
+}
+
+// decodeStrict decodes one JSON value and rejects unknown fields and trailing data.
+// Its errors never quote the body, field names included.
+func decodeStrict(body []byte, v any) error {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(v); err != nil {
+		if strings.HasPrefix(err.Error(), "json: unknown field ") {
+			return errors.New("unknown field")
+		}
+		return errors.New("invalid JSON")
+	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return errors.New("unexpected data after the JSON value")
+	}
+	return nil
+}
+
+func writeVersionConflict(c fiber.Ctx, name string) error {
+	return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+		"error": "output '" + name + "' changed since the version sent; read it again and retry",
+	})
 }
 
 func (s *Server) handlePipelineOutputDelete(c fiber.Ctx) error {
@@ -201,8 +249,8 @@ func (s *Server) handlePipelineLayoutPut(c fiber.Ctx) error {
 	}
 
 	var layout core.PipelineLayout
-	if err := c.Bind().JSON(&layout); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid JSON"})
+	if err := decodeStrict(c.Body(), &layout); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request: " + err.Error()})
 	}
 
 	if err := s.database.SavePipelineLayout(c.Context(), &layout); err != nil {
@@ -270,6 +318,8 @@ func (s *Server) writeMutationError(c fiber.Ctx, name, verb string, err error) e
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "dispatcher stopped"})
 	case errors.Is(err, reload.ErrReloaderNotBound):
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "reloader not bound"})
+	case errors.Is(err, reload.ErrVersionConflict):
+		return writeVersionConflict(c, name)
 	case errors.Is(err, pipeline.ErrInvalidOutputConfig):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": verb + " output: " + err.Error()})
 	case errors.Is(err, reload.ErrDBSyncFailed):

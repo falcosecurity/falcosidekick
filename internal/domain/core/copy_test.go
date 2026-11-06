@@ -47,6 +47,18 @@ func TestDeepCopyWithoutTLS(t *testing.T) {
 	assert.Equal(t, 2801, cp.ListenPort)
 }
 
+func TestDeepCopyDoesNotAliasSlices(t *testing.T) {
+	original := &Config{
+		Metrics: MetricsConfig{ExtraLabels: []string{"k8s.ns.name"}},
+		API:     APIConfig{SecretDirs: []string{"/run/secrets"}},
+	}
+	cp := original.DeepCopy()
+	original.Metrics.ExtraLabels[0] = mutatedValue
+	original.API.SecretDirs[0] = mutatedValue
+	assert.Equal(t, []string{"k8s.ns.name"}, cp.Metrics.ExtraLabels)
+	assert.Equal(t, []string{"/run/secrets"}, cp.API.SecretDirs)
+}
+
 func TestDeepCopyDoesNotAliasScalars(t *testing.T) {
 	original := &Config{ListenPort: 2801, LogLevel: LogLevelInfo}
 	cp := original.DeepCopy()

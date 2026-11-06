@@ -107,6 +107,7 @@ export interface SchemaField {
   default?: unknown
   values?: string[]
   secret?: boolean
+  file?: boolean
   entry_fields?: SchemaField[]
 }
 

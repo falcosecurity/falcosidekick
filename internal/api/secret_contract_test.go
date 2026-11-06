@@ -200,7 +200,7 @@ func TestSecretContractPUT(t *testing.T) {
 			db := database.NewMemory()
 			require.NoError(t, db.SaveOutputConfig(t.Context(), "webhook", cfg))
 			rig := buildMutationRig(t, db, cat, true)
-			body := `{"config":` + tt.patch + `,"secret_fields":{"/password":false,"/headers/X-Key/secrets":false}}`
+			body := `{"version":1,"config":` + tt.patch + `}`
 			raw := requestSecretContract(t, rig.Server, http.MethodPut, "/api/v1/pipeline/outputs/webhook", body, http.StatusOK)
 
 			want := parseSecretContractConfig(t, `{"host":"https://example.invalid","endpoint":"/events","username":"reader",
@@ -261,7 +261,7 @@ func TestSecretContractPUTRejectsAmbiguousOrPlaceholderSecrets(t *testing.T) {
 			before, err := db.GetOutputConfig(t.Context(), "webhook")
 			require.NoError(t, err)
 			rig := buildMutationRig(t, db, cat, true)
-			raw := requestSecretContract(t, rig.Server, http.MethodPut, "/api/v1/pipeline/outputs/webhook", `{"config":`+tt.patch+`}`, http.StatusBadRequest)
+			raw := requestSecretContract(t, rig.Server, http.MethodPut, "/api/v1/pipeline/outputs/webhook", `{"version":1,"config":`+tt.patch+`}`, http.StatusBadRequest)
 			assert.Contains(t, string(raw), tt.reason)
 			for _, secret := range []string{"stored-private", "stored-header-private", "stored-alias-private", "replacement-private", "first-private", "second-private"} {
 				assert.NotContains(t, string(raw), secret)
@@ -298,7 +298,7 @@ func TestSecretContractNestedScalarAliases(t *testing.T) {
 				map[string]bool{"/AUTH/Password": true}, []string{"nested-private"})
 			before, err := db.GetOutputConfig(t.Context(), "kafka")
 			require.NoError(t, err)
-			raw := requestSecretContract(t, rig.Server, http.MethodPut, "/api/v1/pipeline/outputs/kafka", `{"config":`+tt.patch+`}`, tt.status)
+			raw := requestSecretContract(t, rig.Server, http.MethodPut, "/api/v1/pipeline/outputs/kafka", `{"version":1,"config":`+tt.patch+`}`, tt.status)
 			stored, err := db.GetOutputConfig(t.Context(), "kafka")
 			require.NoError(t, err)
 			if tt.status != http.StatusOK {

@@ -68,7 +68,7 @@ func HTTPConfigSchemaFields() []output.SchemaField {
 		{Name: "headers", Type: "map", Label: "Custom HTTP Headers", EntryFields: []output.SchemaField{
 			{Name: "values", Type: "string[]", Label: "Public Values"},
 			{Name: "secrets", Type: "string[]", Secret: true, Label: "Secret Values"},
-			{Name: "files", Type: "string[]", Label: "Secret File Paths"},
+			{Name: "files", Type: "string[]", File: true, Label: "Secret File Paths"},
 		}},
 	}, TLSClientSchemaFields()...)
 }

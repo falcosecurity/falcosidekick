@@ -225,9 +225,12 @@ fi
 log "10/10 UI-driven output PUT (updates provisioned webhook under allow_ui_updates=true; next file reload would restore the file version)"
 UI_WRITE_WAIT="${FSK_UI_WRITE_WAIT:-10}"
 pre_ui_sent="$(webhook_sent_total)"
+# A PUT carries the version it was read at; a stale one answers 409.
+webhook_version=$(curl_ok "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/pipeline/outputs/webhook" 2>/dev/null \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin).get("version", 0))' 2>/dev/null || echo 0)
 put_resp=$(curl -sS -w '\n%{http_code}' -X PUT \
   -H "Content-Type: application/json" \
-  -d '{"config":{"method":"POST"}}' \
+  -d "{\"version\":${webhook_version},\"config\":{\"method\":\"POST\"}}" \
   "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/pipeline/outputs/webhook" || true)
 status=$(echo "$put_resp" | tail -n1)
 if [[ "$status" == "200" ]]; then

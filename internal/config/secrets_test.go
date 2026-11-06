@@ -19,6 +19,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -131,11 +132,17 @@ func TestResolveSecretsErrorsNameTheFieldOnly(t *testing.T) {
 	const sentinel = "s3cret-sentinel"
 	schema := output.Schema{Fields: []output.SchemaField{{Name: "auth.password", Secret: true}}}
 	dir := t.TempDir()
+	fifo := filepath.Join(dir, "fifo")
+	require.NoError(t, syscall.Mkfifo(fifo, 0o600))
+	large := filepath.Join(dir, "large")
+	require.NoError(t, os.WriteFile(large, make([]byte, utils.MaxFileSize+1), 0o600))
 	for _, tc := range []struct {
 		name, path, want string
 	}{
 		{name: "missing", path: filepath.Join(dir, sentinel, "password"), want: `output "kafka": auth.password_file: file does not exist`},
-		{name: "directory", path: dir, want: `output "kafka": auth.password_file: cannot read file`},
+		{name: "directory", path: dir, want: `output "kafka": auth.password_file: not a regular file`},
+		{name: "fifo without a writer", path: fifo, want: `output "kafka": auth.password_file: not a regular file`},
+		{name: "too large", path: large, want: `output "kafka": auth.password_file: larger than 1 MiB`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := map[string]any{"auth": map[string]any{"password_file": tc.path}}

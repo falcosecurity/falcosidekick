@@ -23,6 +23,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/prometheus/client_golang/prometheus"
@@ -61,6 +62,19 @@ func TestRegisterStaticUI_NoAssets_NoInterception(t *testing.T) {
 }
 
 // D2: ingestion serves Falco, probes and Prometheus; management serves the API and the UI; neither serves the other.
+// Without read and idle deadlines a client that never finishes its request holds a connection
+// forever, and Shutdown does not close idle keep-alive connections.
+func TestListenersBoundSlowClients(t *testing.T) {
+	srv := buildTestServer(t, nil)
+	for name, app := range map[string]*fiber.App{"ingestion": srv.ingestion, "management": srv.app} {
+		cfg := app.Config()
+		assert.Equal(t, 30*time.Second, cfg.ReadTimeout, name)
+		assert.Equal(t, 30*time.Second, cfg.WriteTimeout, name)
+		assert.Equal(t, 2*time.Minute, cfg.IdleTimeout, name)
+		assert.True(t, cfg.Immutable, name)
+	}
+}
+
 func TestListenersAreSeparate(t *testing.T) {
 	srv := buildUITestServer(t, newUITestFS(), prometheus.NewRegistry())
 	status := func(app *fiber.App, method, path string) int {
