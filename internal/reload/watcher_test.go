@@ -184,6 +184,24 @@ func TestWatcherDebounceCoalesces(t *testing.T) {
 	})
 }
 
+func TestWatcherUnrelatedWritesDoNotPostponeReload(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "outputs.yaml")
+	writeFile(t, path, "outputs: {}")
+	synctest.Test(t, func(t *testing.T) {
+		h, cancel := runLoop(t, []string{path})
+		defer cancel()
+
+		h.events <- fsnotify.Event{Name: path, Op: fsnotify.Write}
+		for range 10 {
+			time.Sleep(testDebounce / 2)
+			h.events <- fsnotify.Event{Name: filepath.Join(dir, "app.log"), Op: fsnotify.Write}
+		}
+		synctest.Wait()
+		assert.Equal(t, int64(1), h.calls.Load(), "the reload fires one debounce after the config write")
+	})
+}
+
 // kqueue reports the new version directory but nothing for the later ..data rename.
 func TestWatcherReloadsWhenTargetChangesAfterTheLastEvent(t *testing.T) {
 	dir := t.TempDir()
