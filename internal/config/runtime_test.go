@@ -121,6 +121,48 @@ func TestMergeRuntimeConfigOverrides(t *testing.T) {
 	assert.Equal(t, event.PriorityWarning, resolved.MinPriority)
 }
 
+func TestMergeRuntimeConfigNormalizesPriority(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		defaults  event.Priority
+		perOutput event.Priority
+	}{
+		{name: "per output", perOutput: "WARNING"},
+		{name: "defaults", defaults: " Warning "},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := loadDefaults(t)
+			cfg.RuntimeDefaults.MinPriority = tc.defaults
+			resolved, err := MergeRuntimeConfig(cfg.RuntimeDefaults, "webhook", output.RuntimeConfig{MinPriority: tc.perOutput})
+			require.NoError(t, err)
+			assert.Equal(t, event.PriorityWarning, resolved.MinPriority)
+		})
+	}
+}
+
+func TestMergeRuntimeConfigRejectsNegativeOverrides(t *testing.T) {
+	cfg := loadDefaults(t)
+	for _, tc := range []struct {
+		name      string
+		want      string
+		perOutput output.RuntimeConfig
+	}{
+		{name: "queue size", perOutput: output.RuntimeConfig{QueueSize: -1}, want: "runtime.queue_size: must not be negative"},
+		{name: "workers", perOutput: output.RuntimeConfig{Workers: -2}, want: "runtime.workers: must not be negative"},
+		{name: "retry", perOutput: output.RuntimeConfig{Retry: &output.RetryConfig{MaxAttempts: -1, InitialInterval: -time.Second}},
+			want: "runtime.retry.max_attempts: must not be negative; runtime.retry.initial_interval: must not be negative"},
+		{name: "circuit breaker", perOutput: output.RuntimeConfig{CircuitBreaker: &output.CircuitBreakerConfig{ResetTimeout: -time.Second}},
+			want: "runtime.circuit_breaker.reset_timeout: must not be negative"},
+		{name: "batching", perOutput: output.RuntimeConfig{Batching: &output.BatchingConfig{Enabled: true, BatchSize: -5}},
+			want: "runtime.batching.batch_size: must not be negative"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := MergeRuntimeConfig(cfg.RuntimeDefaults, "webhook", tc.perOutput)
+			require.EqualError(t, err, `output "webhook": `+tc.want, "a negative value is a mistake, not a request for the default")
+		})
+	}
+}
+
 func TestMergeRuntimeConfigBatchingOverrides(t *testing.T) {
 	cfg := loadDefaults(t)
 	perOutput := output.RuntimeConfig{
