@@ -97,12 +97,16 @@ func (w *Watcher) loop(ctx context.Context, events <-chan fsnotify.Event, errs <
 			if ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove) == 0 {
 				continue
 			}
-			direct = direct || ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0 &&
+			watched := ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0 &&
 				slices.Contains(w.paths, filepath.Clean(ev.Name))
-			if timer == nil {
+			direct = direct || watched
+			// Any event arms the timer; only a watched path postpones it, so writes to
+			// other files in the directory cannot delay a reload indefinitely.
+			switch {
+			case timer == nil:
 				timer = time.NewTimer(w.debounce)
 				timerC = timer.C
-			} else {
+			case watched:
 				timer.Reset(w.debounce)
 			}
 
