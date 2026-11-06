@@ -17,7 +17,6 @@
 package shared
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -54,7 +53,7 @@ func (r RegionHosts) Resolve(region, host *string) utils.ValidationErrors {
 	}
 	regionHost, ok := r.Hosts[*region]
 	if !ok {
-		errs.Add("region", fmt.Sprintf("must be %s, got %q", strings.Join(r.Names(), "/"), *region))
+		errs.Add("region", "must be "+strings.Join(r.Names(), "/"))
 		return errs
 	}
 	if *host == "" {

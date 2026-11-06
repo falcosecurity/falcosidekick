@@ -474,7 +474,8 @@ func TestRunUIEnabledMissingEventSource(t *testing.T) {
 	outs := writeTestOutputs(t, "outputs:\n  webhook:\n    host: http://localhost:9999\n")
 	err := run(context.Background(), cfg, []string{outs})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "ui.event_source")
+	assert.Contains(t, err.Error(), "ui.event_source: output not found or does not implement ReadableStore")
+	assert.NotContains(t, err.Error(), "nonexistent")
 }
 
 func TestRunLifecycleCleanShutdown(t *testing.T) {

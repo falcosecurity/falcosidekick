@@ -17,7 +17,7 @@
 package logging
 
 import (
-	"fmt"
+	"errors"
 	"log/slog"
 	"os"
 
@@ -40,7 +40,7 @@ func NewLogger(level core.LogLevel, format core.LogFormat) (*slog.Logger, error)
 	case core.LogFormatText:
 		handler = slog.NewTextHandler(os.Stdout, opts)
 	default:
-		return nil, fmt.Errorf("logging: unsupported format %q", format)
+		return nil, errors.New("logging: unsupported format")
 	}
 
 	return slog.New(handler), nil
@@ -59,6 +59,6 @@ func parseLevel(level string) (slog.Level, error) {
 	case "error":
 		return slog.LevelError, nil
 	default:
-		return slog.LevelInfo, fmt.Errorf("logging: unsupported level %q", level)
+		return slog.LevelInfo, errors.New("logging: unsupported level")
 	}
 }

@@ -80,7 +80,7 @@ func TestValidation(t *testing.T) {
 		{name: "eu", raw: map[string]any{"api_key": testKey, "region": "eu"}, wantHost: hostEU},
 		{name: "eu upper case from v2", raw: map[string]any{"api_key": testKey, "region": "EU"}, wantHost: hostEU},
 		{name: "host overrides region", raw: map[string]any{"api_key": testKey, "region": "eu", "host": "https://proxy.example"}, wantHost: "https://proxy.example"},
-		{name: "unknown region", raw: map[string]any{"api_key": testKey, "region": "ap"}, wantErr: `region: must be us/eu, got "ap"`},
+		{name: "unknown region", raw: map[string]any{"api_key": testKey, "region": "ap"}, wantErr: `region: must be us/eu`},
 		{name: "missing api key", raw: map[string]any{}, wantErr: "api_key: is required"},
 		{name: "invalid header value", raw: map[string]any{"api_key": testKey + "\n"}, wantErr: "api_key: invalid header value"},
 		{name: "basic auth conflict", raw: map[string]any{"api_key": testKey, "username": "u", "password": "p"}, wantErr: "cannot combine api_key with basic auth"},

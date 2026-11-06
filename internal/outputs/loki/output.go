@@ -78,7 +78,7 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.LogFormat == "" {
 		c.LogFormat = formatJSON
 	} else if !validLogFormats[c.LogFormat] {
-		errs.Add("log_format", fmt.Sprintf("must be json/text, got %q", c.LogFormat))
+		errs.Add("log_format", "must be json/text")
 	}
 	if len(errs) > 0 {
 		return errs

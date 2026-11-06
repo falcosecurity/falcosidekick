@@ -80,7 +80,7 @@ func SchemaFields() []output.SchemaField {
 func (c *Config) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if c.Region != "" && !regionPattern.MatchString(c.Region) {
-		errs.Add("region", fmt.Sprintf("invalid region %q", c.Region))
+		errs.Add("region", "invalid region")
 	}
 	switch {
 	case c.AccessKeyID != "" && c.SecretAccessKey == "":

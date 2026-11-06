@@ -114,7 +114,7 @@ func (c *config) validate() utils.ValidationErrors {
 	}
 	switch {
 	case !slices.Contains(sites, c.Site):
-		errs.Add("site", fmt.Sprintf("must be one of %s, got %q", strings.Join(sites, "/"), c.Site))
+		errs.Add("site", "must be one of "+strings.Join(sites, "/"))
 	case c.Host == "":
 		c.Host, c.intakeHost = apiHost(c.Site), intakeHost(c.Site)
 	default:

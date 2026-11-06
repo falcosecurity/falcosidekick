@@ -84,7 +84,7 @@ func (c *config) validate() utils.ValidationErrors {
 	errs.Merge("hosts", shared.ValidateOrigins(c.Hosts))
 	errs.Merge("", c.HTTPTargetConfig.Validate(&targetOptions))
 	if c.ExpiresAfter < 0 {
-		errs.Add("expires_after", fmt.Sprintf("must be >= 0, got %d", c.ExpiresAfter))
+		errs.Add("expires_after", "must be >= 0")
 	}
 	if len(errs) > 0 {
 		return errs

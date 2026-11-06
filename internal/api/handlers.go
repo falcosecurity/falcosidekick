@@ -29,7 +29,7 @@ func (s *Server) handlePostEvent(c fiber.Ctx) error {
 	var evt event.Event
 	if err := c.Bind().JSON(&evt); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid JSON: " + err.Error(),
+			"error": "invalid JSON",
 		})
 	}
 

@@ -100,7 +100,7 @@ func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if c.MaxEvents < 1 {
-		errs.Add("max_events", fmt.Sprintf("must be at least 1, got %d", c.MaxEvents))
+		errs.Add("max_events", "must be at least 1")
 	}
 	if c.FalcoNamespace != "" && len(validation.IsDNS1123Label(c.FalcoNamespace)) > 0 {
 		errs.Add("falco_namespace", "must be a valid namespace name")

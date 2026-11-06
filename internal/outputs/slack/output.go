@@ -98,11 +98,11 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.OutputFormat == "" {
 		c.OutputFormat = formatAll
 	} else if !validOutputFormats[c.OutputFormat] {
-		errs.Add("output_format", fmt.Sprintf("must be all/fields/text, got %q", c.OutputFormat))
+		errs.Add("output_format", "must be all/fields/text")
 	}
 	if c.MessageFormat != "" {
 		if _, err := template.New("").Parse(c.MessageFormat); err != nil {
-			errs.Add("message_format", fmt.Sprintf("invalid Go template: %v", err))
+			errs.Add("message_format", "invalid Go template")
 		}
 	}
 	if c.Footer == "" {

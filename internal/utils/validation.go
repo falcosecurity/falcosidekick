@@ -17,7 +17,10 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"strings"
 )
 
@@ -45,6 +48,18 @@ func (ve ValidationErrors) Error() string {
 // Add appends a validation error for the given field.
 func (ve *ValidationErrors) Add(field, msg string) {
 	*ve = append(*ve, ValidationError{Field: field, Message: msg})
+}
+
+// CheckFile adds an error for field when path cannot be stat'ed.
+// The message names neither the path nor the OS error, which can disclose the file system layout.
+func (ve *ValidationErrors) CheckFile(field, path string) {
+	switch _, err := os.Stat(path); {
+	case err == nil:
+	case errors.Is(err, fs.ErrNotExist):
+		ve.Add(field, "file does not exist")
+	default:
+		ve.Add(field, "cannot access file")
+	}
 }
 
 // Merge appends nested errors with an optional field prefix.

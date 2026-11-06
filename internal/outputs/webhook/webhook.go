@@ -68,7 +68,7 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.Method == "" {
 		c.Method = defaultMethod
 	} else if !validMethods[c.Method] {
-		errs.Add("method", fmt.Sprintf("must be POST or PUT, got %q", c.Method))
+		errs.Add("method", "must be POST or PUT")
 	}
 	if len(errs) > 0 {
 		return errs

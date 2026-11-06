@@ -110,19 +110,19 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.Index == "" {
 		c.Index = defaultIndex
 	} else if !indexRegex.MatchString(c.Index) {
-		errs.Add("index", fmt.Sprintf("must be lowercase alphanumeric (a-z, 0-9, ., -, _), cannot start with -, _, +; got %q", c.Index))
+		errs.Add("index", "must be lowercase alphanumeric (a-z, 0-9, ., -, _), cannot start with -, _, +")
 	}
 	if c.Suffix == "" {
 		c.Suffix = defaultSuffix
 	} else if !validSuffixes[c.Suffix] {
-		errs.Add("index_suffix", fmt.Sprintf("must be daily/monthly/annually/none, got %q", c.Suffix))
+		errs.Add("index_suffix", "must be daily/monthly/annually/none")
 	}
 	if c.CreateIndexTemplate {
 		if c.NumberOfShards <= 0 {
-			errs.Add("number_of_shards", fmt.Sprintf("must be > 0 when create_index_template is true, got %d", c.NumberOfShards))
+			errs.Add("number_of_shards", "must be > 0 when create_index_template is true")
 		}
 		if c.NumberOfReplicas < 0 {
-			errs.Add("number_of_replicas", fmt.Sprintf("must be >= 0 when create_index_template is true, got %d", c.NumberOfReplicas))
+			errs.Add("number_of_replicas", "must be >= 0 when create_index_template is true")
 		}
 	}
 	errs.Merge("", c.ValidateCredential(shared.CredentialHeader{Field: "api_key", Header: "Authorization"}, c.APIKey))

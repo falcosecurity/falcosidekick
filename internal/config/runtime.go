@@ -35,7 +35,7 @@ func MergeRuntimeConfig(defaults output.RuntimeConfig, name string, perOutput ou
 	}
 	if perOutput.MinPriority != "" {
 		if _, err := event.ParsePriority(string(perOutput.MinPriority)); err != nil {
-			return resolved, fmt.Errorf("output %q: %w", name, err)
+			return resolved, fmt.Errorf("output %q: minimum_priority: must be a Falco priority", name)
 		}
 		resolved.MinPriority = perOutput.MinPriority
 	}

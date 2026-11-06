@@ -90,10 +90,10 @@ func (c *signalConfig) applyDefaults() {
 func (c *signalConfig) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if c.Protocol != protocolGRPC && c.Protocol != protocolHTTP {
-		errs.Add("protocol", fmt.Sprintf("must be grpc or http/protobuf, got %q", c.Protocol))
+		errs.Add("protocol", "must be grpc or http/protobuf")
 	}
 	if c.Compression != compressionNone && c.Compression != compressionGzip {
-		errs.Add("compression", fmt.Sprintf("must be none or gzip, got %q", c.Compression))
+		errs.Add("compression", "must be none or gzip")
 	}
 	if c.Timeout < 0 {
 		errs.Add("timeout", "must be positive")

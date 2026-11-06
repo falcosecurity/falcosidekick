@@ -98,7 +98,7 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.Bucket == "" {
 		errs.Add("bucket", "is required")
 	} else if !bucketPattern.MatchString(c.Bucket) || strings.Contains(c.Bucket, "..") {
-		errs.Add("bucket", fmt.Sprintf("invalid bucket name %q", c.Bucket))
+		errs.Add("bucket", "invalid bucket name")
 	}
 	c.Prefix = strings.Trim(c.Prefix, "/")
 	if c.Prefix == "" {
@@ -107,7 +107,7 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.ObjectCannedACL == "" {
 		c.ObjectCannedACL = defaultCannedACL
 	} else if !slices.Contains(cannedACLs, c.ObjectCannedACL) {
-		errs.Add("object_canned_acl", fmt.Sprintf("must be one of %s, got %q", strings.Join(cannedACLs, "/"), c.ObjectCannedACL))
+		errs.Add("object_canned_acl", "must be one of "+strings.Join(cannedACLs, "/"))
 	}
 	if len(errs) > 0 {
 		return errs

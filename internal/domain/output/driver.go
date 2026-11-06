@@ -216,7 +216,7 @@ func (q *SearchQuery) Normalize() error {
 		q.SortDesc = true
 	}
 	if !validSortFields[q.SortBy] {
-		return fmt.Errorf("search: invalid sort_by %q", q.SortBy)
+		return errors.New("search: sort_by must be timestamp/priority/rule/source")
 	}
 	return nil
 }
@@ -228,7 +228,7 @@ var validSortFields = map[string]bool{
 // ValidateGroupBy checks if a field is allowed for CountBy aggregation.
 func ValidateGroupBy(field string) error {
 	if !validGroupByFields[field] {
-		return fmt.Errorf("invalid group_by field: %q", field)
+		return errors.New("group_by must be priority/rule/source/tags/hostname")
 	}
 	return nil
 }

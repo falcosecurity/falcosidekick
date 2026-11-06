@@ -103,41 +103,32 @@ func TestHandleEventsSearch_ParsesAllFilters(t *testing.T) {
 	assert.Equal(t, 3, q.Page)
 }
 
-func TestHandleEventsSearch_InvalidPage(t *testing.T) {
+func TestHandleEventsInvalidQueryNeverEchoesInput(t *testing.T) {
+	const sentinel = "S3NTINEL"
 	srv := buildTestServerWithStore(t, &fakeReadableStore{})
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/events/search?page=abc", http.NoBody)
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, 400, resp.StatusCode)
-	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "invalid page")
-}
-
-func TestHandleEventsSearch_InvalidLimit(t *testing.T) {
-	srv := buildTestServerWithStore(t, &fakeReadableStore{})
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/events/search?limit=abc", http.NoBody)
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, 400, resp.StatusCode)
-}
-
-func TestHandleEventsSearch_InvalidSince(t *testing.T) {
-	srv := buildTestServerWithStore(t, &fakeReadableStore{})
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/events/search?since=forever", http.NoBody)
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, 400, resp.StatusCode)
-	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "invalid since")
+	for _, tc := range []struct {
+		name, target, want string
+	}{
+		{name: "page", target: "/api/v1/events/search?page=" + sentinel, want: "page must be an integer"},
+		{name: "limit", target: "/api/v1/events/search?limit=" + sentinel, want: "limit must be an integer"},
+		{name: "since", target: "/api/v1/events/search?since=" + sentinel, want: "since must be a non-negative duration"},
+		{name: "negative since", target: "/api/v1/events/search?since=-1h&rule=" + sentinel, want: "since must be a non-negative duration"},
+		{name: "sort_desc", target: "/api/v1/events/search?sort_desc=" + sentinel, want: "sort_desc must be a boolean"},
+		{name: "sort_by", target: "/api/v1/events/search?sort_by=" + sentinel, want: "search: sort_by must be timestamp/priority/rule/source"},
+		{name: "group_by", target: "/api/v1/events/count/" + sentinel, want: "group_by must be priority/rule/source/tags/hostname"},
+		{name: "count since", target: "/api/v1/events/count?since=" + sentinel, want: "since must be a non-negative duration"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.target, http.NoBody)
+			resp, err := srv.app.Test(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+			var body map[string]string
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+			assert.Equal(t, tc.want, body["error"])
+		})
+	}
 }
 
 func TestHandleEventsSearch_NoEventSource(t *testing.T) {
@@ -300,19 +291,6 @@ func TestHandleEventsCountBy_HonorsFreeTextFilter(t *testing.T) {
 	require.NotNil(t, captured.filters)
 	assert.Equal(t, "bash", captured.filters.Filter, "countBy handler must propagate free-text filter= to the store")
 	assert.Equal(t, []string{"exec"}, captured.filters.Rule)
-}
-
-func TestHandleEventsCountBy_InvalidField(t *testing.T) {
-	srv := buildTestServerWithStore(t, &fakeReadableStore{})
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/events/count/not-a-field", http.NoBody)
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, 400, resp.StatusCode)
-	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "not-a-field")
 }
 
 func TestHandleEventsCountBy_EmptyGroupsSerialization(t *testing.T) {

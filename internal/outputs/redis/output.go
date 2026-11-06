@@ -97,7 +97,7 @@ func (c *config) validate() utils.ValidationErrors {
 	switch c.StorageType {
 	case storageList, storageHashmap, storageStream:
 	default:
-		errs.Add("storage_type", fmt.Sprintf("must be list/hashmap/stream, got %q", c.StorageType))
+		errs.Add("storage_type", "must be list/hashmap/stream")
 	}
 	if c.MaxLen < 0 {
 		errs.Add("max_len", "must be 0 or greater")

@@ -85,7 +85,7 @@ func ParsePriority(s string) (Priority, error) {
 		return "", fmt.Errorf("empty priority")
 	}
 	if !allPriorities[p] {
-		return "", fmt.Errorf("unknown priority: %q", s)
+		return "", errors.New("unknown priority")
 	}
 	return p, nil
 }

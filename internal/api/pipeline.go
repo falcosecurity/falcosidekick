@@ -137,7 +137,7 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 		Config map[string]any `json:"config"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid JSON: " + err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid JSON"})
 	}
 
 	existing, handled := s.loadOutputEntryForMutation(c, name)
@@ -202,7 +202,7 @@ func (s *Server) handlePipelineLayoutPut(c fiber.Ctx) error {
 
 	var layout core.PipelineLayout
 	if err := c.Bind().JSON(&layout); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid JSON: " + err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid JSON"})
 	}
 
 	if err := s.database.SavePipelineLayout(c.Context(), &layout); err != nil {

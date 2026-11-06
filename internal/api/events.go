@@ -56,11 +56,8 @@ func parseFilters(c fiber.Ctx) (*output.Filters, error) {
 	}
 	if raw := c.Query("since"); raw != "" {
 		d, err := time.ParseDuration(raw)
-		if err != nil {
-			return nil, fmt.Errorf("invalid since: %w", err)
-		}
-		if d < 0 {
-			return nil, fmt.Errorf("invalid since: must be non-negative, got %s", d)
+		if err != nil || d < 0 {
+			return nil, errors.New("since must be a non-negative duration")
 		}
 		f.Since = d
 	}
@@ -78,14 +75,14 @@ func parseSearchQuery(c fiber.Ctx) (*output.SearchQuery, error) {
 	if raw := c.Query("page"); raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil {
-			return nil, fmt.Errorf("invalid page: %w", err)
+			return nil, errors.New("page must be an integer")
 		}
 		q.Page = n
 	}
 	if raw := c.Query("limit"); raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil {
-			return nil, fmt.Errorf("invalid limit: %w", err)
+			return nil, errors.New("limit must be an integer")
 		}
 		q.Limit = n
 	}
@@ -95,7 +92,7 @@ func parseSearchQuery(c fiber.Ctx) (*output.SearchQuery, error) {
 	if raw := c.Query("sort_desc"); raw != "" {
 		b, err := strconv.ParseBool(raw)
 		if err != nil {
-			return nil, fmt.Errorf("invalid sort_desc: %w", err)
+			return nil, errors.New("sort_desc must be a boolean")
 		}
 		q.SortDesc = b
 	}

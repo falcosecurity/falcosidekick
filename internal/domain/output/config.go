@@ -17,7 +17,6 @@
 package output
 
 import (
-	"fmt"
 	"math"
 	"time"
 
@@ -41,14 +40,14 @@ func (c *RuntimeConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 
 	if c.QueueSize <= 0 {
-		errs.Add("queue_size", fmt.Sprintf("must be positive, got %d", c.QueueSize))
+		errs.Add("queue_size", "must be positive")
 	}
 	if c.Workers <= 0 {
-		errs.Add("workers", fmt.Sprintf("must be positive, got %d", c.Workers))
+		errs.Add("workers", "must be positive")
 	}
 	if c.MinPriority != "" {
 		if _, err := event.ParsePriority(string(c.MinPriority)); err != nil {
-			errs.Add("minimum_priority", fmt.Sprintf("invalid priority %q", c.MinPriority))
+			errs.Add("minimum_priority", "must be a Falco priority")
 		}
 	}
 	if c.Retry == nil {
@@ -108,16 +107,16 @@ type RetryConfig struct {
 func (r *RetryConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if r.MaxAttempts <= 0 {
-		errs.Add("max_attempts", fmt.Sprintf("must be > 0, got %d", r.MaxAttempts))
+		errs.Add("max_attempts", "must be > 0")
 	}
 	if r.InitialInterval <= 0 {
-		errs.Add("initial_interval", fmt.Sprintf("must be > 0, got %v", r.InitialInterval))
+		errs.Add("initial_interval", "must be > 0")
 	}
 	if r.MaxInterval <= 0 {
-		errs.Add("max_interval", fmt.Sprintf("must be > 0, got %v", r.MaxInterval))
+		errs.Add("max_interval", "must be > 0")
 	}
 	if r.Multiplier <= 0 {
-		errs.Add("multiplier", fmt.Sprintf("must be > 0, got %f", r.Multiplier))
+		errs.Add("multiplier", "must be > 0")
 	}
 	if len(errs) > 0 {
 		return errs
@@ -145,13 +144,13 @@ type CircuitBreakerConfig struct {
 func (c *CircuitBreakerConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if c.FailureThreshold <= 0 {
-		errs.Add("failure_threshold", fmt.Sprintf("must be > 0, got %d", c.FailureThreshold))
+		errs.Add("failure_threshold", "must be > 0")
 	}
 	if c.SuccessThreshold <= 0 {
-		errs.Add("success_threshold", fmt.Sprintf("must be > 0, got %d", c.SuccessThreshold))
+		errs.Add("success_threshold", "must be > 0")
 	}
 	if c.ResetTimeout <= 0 {
-		errs.Add("reset_timeout", fmt.Sprintf("must be > 0, got %v", c.ResetTimeout))
+		errs.Add("reset_timeout", "must be > 0")
 	}
 	if len(errs) > 0 {
 		return errs
@@ -173,10 +172,10 @@ func (c *BatchingConfig) Validate() utils.ValidationErrors {
 	}
 	var errs utils.ValidationErrors
 	if c.BatchSize <= 0 {
-		errs.Add("batch_size", fmt.Sprintf("must be positive when enabled, got %d", c.BatchSize))
+		errs.Add("batch_size", "must be positive when enabled")
 	}
 	if c.FlushInterval <= 0 {
-		errs.Add("flush_interval", fmt.Sprintf("must be positive when enabled, got %s", c.FlushInterval))
+		errs.Add("flush_interval", "must be positive when enabled")
 	}
 	if len(errs) > 0 {
 		return errs

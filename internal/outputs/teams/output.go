@@ -80,7 +80,7 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.OutputFormat == "" {
 		c.OutputFormat = formatAll
 	} else if !validOutputFormats[c.OutputFormat] {
-		errs.Add("output_format", fmt.Sprintf("must be all/text/fields, got %q", c.OutputFormat))
+		errs.Add("output_format", "must be all/text/fields")
 	}
 	if c.ActivityImage == "" {
 		c.ActivityImage = defaultActivityImage

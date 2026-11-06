@@ -134,7 +134,7 @@ func (c *config) validate() utils.ValidationErrors {
 			errs.Add("tls", "is not used with tls_mode none")
 		}
 	default:
-		errs.Add("tls_mode", fmt.Sprintf("must be starttls/implicit/opportunistic/none, got %q", c.TLSMode))
+		errs.Add("tls_mode", "must be starttls/implicit/opportunistic/none")
 	}
 	if c.Port < 1 || c.Port > 65535 {
 		errs.Add("port", "must be between 1 and 65535")
@@ -144,7 +144,7 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.OutputFormat == "" {
 		c.OutputFormat = formatHTML
 	} else if c.OutputFormat != formatHTML && c.OutputFormat != formatText {
-		errs.Add("output_format", fmt.Sprintf("must be html/text, got %q", c.OutputFormat))
+		errs.Add("output_format", "must be html/text")
 	}
 	errs.Merge("tls", c.TLS.Validate())
 	if len(errs) > 0 {
@@ -177,7 +177,7 @@ func (c *config) validateAuth() utils.ValidationErrors {
 		requireField(&errs, "token", c.Token, authXOAuth2)
 	case authNone:
 	default:
-		errs.Add("auth_mechanism", fmt.Sprintf("must be plain/xoauth2/none, got %q", c.AuthMechanism))
+		errs.Add("auth_mechanism", "must be plain/xoauth2/none")
 		return errs
 	}
 	for _, field := range []struct {
