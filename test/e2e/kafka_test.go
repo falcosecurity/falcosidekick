@@ -502,8 +502,7 @@ func TestKafkaTLS(t *testing.T) {
 
 	t.Run("unknown CA stops startup", func(t *testing.T) {
 		logs := startSidekickFails(t, kafkaOutput(target(writeUnknownCA(t)), topic, "producer:\n  delivery_timeout: 2s\n"))
-		assert.Contains(t, logs, "health check")
-		assert.Contains(t, logs, "certificate signed by unknown authority")
+		assert.Contains(t, logs, "kafka healthcheck: TLS certificate verification failed")
 	})
 }
 

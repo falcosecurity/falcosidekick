@@ -115,8 +115,7 @@ func TestAWSSNSMissingTopicFailsStartup(t *testing.T) {
 	target := localstack(t)
 	topicARN := fmt.Sprintf("arn:aws:sns:%s:000000000000:fsk-e2e-absent-%s", awsRegion, newMarker(t))
 	logs := startSidekickFails(t, target.output("awssns", fmt.Sprintf("topic_arn: %q\n", topicARN)))
-	assert.Contains(t, logs, "awssns GetTopicAttributes: NotFound (HTTP 404)")
-	assert.Contains(t, logs, "destination rejects the configuration")
+	assert.Contains(t, logs, "health check: awssns GetTopicAttributes: HTTP 404 Not Found: NotFoundException")
 	assert.NotContains(t, logs, target.secret)
 }
 
