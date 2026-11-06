@@ -167,7 +167,11 @@ func TestAPIAnswersNeverEchoInput(t *testing.T) {
 			if tc.body != "" {
 				body = []byte(strings.ReplaceAll(tc.body, "$V", echoed))
 			}
-			resp, err := httpDo(tc.method, sk.url+strings.ReplaceAll(tc.path, "$V", echoed), body)
+			base := sk.url
+			if strings.HasPrefix(tc.path, "/api/") {
+				base = sk.apiURL
+			}
+			resp, err := httpDo(tc.method, base+strings.ReplaceAll(tc.path, "$V", echoed), body)
 			require.NoError(t, err)
 			defer func() { _ = resp.Body.Close() }()
 			answer, err := io.ReadAll(resp.Body)
@@ -248,7 +252,7 @@ func TestHostileDestinationsNeverReachDiagnostics(t *testing.T) {
 				}
 			}
 			for _, path := range []string{"/api/v1/pipeline/status", "/api/v1/pipeline"} {
-				resp, err := httpDo(http.MethodGet, sk.url+path, nil)
+				resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
 				require.NoError(t, err)
 				answer, err := io.ReadAll(resp.Body)
 				_ = resp.Body.Close()

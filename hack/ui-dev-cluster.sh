@@ -13,8 +13,8 @@
 #   ./hack/ui-dev-cluster.sh [options]
 #
 # Options:
-#   -l PORT         local port for port-forward (default: 2801)
-#   -p PORT         service port (default: 2801)
+#   -l PORT         local port for port-forward (default: 2802)
+#   -p PORT         management port in the pod (default: 2802)
 #   -k NAME         kind cluster name (default: auto-detect single cluster)
 #   --skip-build    reuse existing :local image; skip build + kind load
 #   --skip-deploy   do not apply webhook-receiver/Component CR (reuse deployed)
@@ -34,8 +34,8 @@ CLEAN_ON_EXIT=0
 SKIP_BUILD=0
 SKIP_DEPLOY=0
 SERVICE="falcosidekick"
-LOCAL_PORT="2801"
-BACKEND_PORT="2801"
+LOCAL_PORT="2802"
+BACKEND_PORT="2802"
 CLUSTER=""
 IMAGE="${FSK_IMAGE:-falcosidekick}:${FSK_TAG:-local}"
 
@@ -148,8 +148,9 @@ kctl -n "$NAMESPACE" rollout status "deployment/$SERVICE" --timeout=120s || {
   exit 1
 }
 
-log "step 5/5  port-forward svc/$SERVICE:$BACKEND_PORT -> localhost:$LOCAL_PORT"
-kubectl --context "$HELPER_CONTEXT" -n "$NAMESPACE" port-forward "svc/$SERVICE" "$LOCAL_PORT:$BACKEND_PORT" >"$PF_LOG" 2>&1 &
+# The API listens on the pod loopback; a deployment port-forward reaches it, the Service does not.
+log "step 5/5  port-forward deployment/$SERVICE:$BACKEND_PORT -> localhost:$LOCAL_PORT"
+kubectl --context "$HELPER_CONTEXT" -n "$NAMESPACE" port-forward "deployment/$SERVICE" "$LOCAL_PORT:$BACKEND_PORT" >"$PF_LOG" 2>&1 &
 PF_PID=$!
 
 for _ in $(seq 1 20); do

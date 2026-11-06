@@ -17,9 +17,11 @@
 package core
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMetricsConfigValidate(t *testing.T) {
@@ -134,8 +136,39 @@ func TestConfigValidateValid(t *testing.T) {
 		LogFormat:     LogFormatText,
 		Database:      DatabaseConfig{Backend: DatabaseInMemory},
 		Metrics:       MetricsConfig{MaxLabelValues: 1000},
+		Management:    ManagementConfig{ListenAddress: "127.0.0.1", ListenPort: 2802},
 	}
 	assert.Empty(t, cfg.Validate())
+}
+
+func TestConfigValidateManagementPort(t *testing.T) {
+	for _, tc := range []struct {
+		want string
+		port int
+	}{
+		{port: 0, want: "management.listen_port: must be 1-65535"},
+		{port: 65536, want: "management.listen_port: must be 1-65535"},
+		{port: 2801, want: "management.listen_port: must differ from listen_port"},
+		{port: 2802},
+	} {
+		t.Run(strconv.Itoa(tc.port), func(t *testing.T) {
+			cfg := Config{
+				ListenPort: 2801,
+				LogLevel:   LogLevelInfo,
+				LogFormat:  LogFormatText,
+				Database:   DatabaseConfig{Backend: DatabaseInMemory},
+				Metrics:    MetricsConfig{MaxLabelValues: 1000},
+				Management: ManagementConfig{ListenPort: tc.port},
+			}
+			errs := cfg.Validate()
+			if tc.want == "" {
+				assert.Empty(t, errs)
+				return
+			}
+			require.Len(t, errs, 1)
+			assert.Contains(t, errs[0].Error(), tc.want)
+		})
+	}
 }
 
 func TestConfigValidateInvalidPort(t *testing.T) {

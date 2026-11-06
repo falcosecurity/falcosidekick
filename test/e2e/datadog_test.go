@@ -356,7 +356,7 @@ func TestDatadogV2RejectedAppKeyFailsStartup(t *testing.T) {
 func TestDatadogV2KeysAbsentFromAPI(t *testing.T) {
 	_, sk := startDatadogV2(t, http.StatusAccepted)
 	for _, path := range []string{"/api/v1/config", "/api/v1/pipeline/outputs/datadog", "/api/v1/pipeline/status/datadog"} {
-		resp, err := httpDo(http.MethodGet, sk.url+path, nil)
+		resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
 		require.NoError(t, err)
 		body, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
@@ -370,7 +370,7 @@ func TestDatadogV2KeysAbsentFromAPI(t *testing.T) {
 func TestDatadogKeyAbsentFromAPI(t *testing.T) {
 	_, sk := startDatadog(t, http.StatusAccepted, datadogAPIKey)
 	for _, path := range []string{"/api/v1/config", "/api/v1/pipeline/outputs/datadog", "/api/v1/pipeline/status/datadog"} {
-		resp, err := httpDo(http.MethodGet, sk.url+path, nil)
+		resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
 		require.NoError(t, err)
 		body, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()

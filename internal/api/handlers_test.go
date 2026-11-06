@@ -71,7 +71,7 @@ func TestHandlePostEventValid(t *testing.T) {
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", bytes.NewReader(createValidEventJSON()))
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := srv.app.Test(req)
+	resp, err := srv.ingestion.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, 200, resp.StatusCode)
@@ -86,7 +86,7 @@ func TestHandlePostEventInvalidJSON(t *testing.T) {
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", bytes.NewReader([]byte(`{invalid`)))
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := srv.app.Test(req)
+	resp, err := srv.ingestion.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, 400, resp.StatusCode)
@@ -107,7 +107,7 @@ func TestHandlePostEventMissingRule(t *testing.T) {
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", bytes.NewReader(data))
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := srv.app.Test(req)
+	resp, err := srv.ingestion.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, 400, resp.StatusCode)
@@ -121,7 +121,7 @@ func TestHandleGetHealthz(t *testing.T) {
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", http.NoBody)
 
-	resp, err := srv.app.Test(req)
+	resp, err := srv.ingestion.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, 200, resp.StatusCode)
@@ -135,7 +135,7 @@ func TestHandleGetVersion(t *testing.T) {
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/version", http.NoBody)
 
-	resp, err := srv.app.Test(req)
+	resp, err := srv.ingestion.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, 200, resp.StatusCode)
@@ -153,9 +153,13 @@ func TestServerDefaults(t *testing.T) {
 	p, err := pipeline.NewPipeline(enricher, pipeline.NewDispatcher(nil), nil)
 	require.NoError(t, err)
 
-	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t)})
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Config: testConfig(t)})
 	require.NoError(t, err)
-	assert.Equal(t, "0.0.0.0:2801", srv.address)
+	assert.Equal(t, "0.0.0.0:2801", srv.address, "ingestion listens on every interface")
+	assert.Equal(t, "127.0.0.1:2802", srv.managementAddress, "the unauthenticated API stays local")
+
+	_, err = NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t)})
+	assert.EqualError(t, err, "server: config is required")
 }
 
 func TestNewServerRejectsNilPipeline(t *testing.T) {
@@ -231,7 +235,7 @@ func TestLegacyOutputsPathIsRemoved(t *testing.T) {
 func TestHandleGetVersionAliasAtAPIv1(t *testing.T) {
 	srv := buildTestServer(t, nil)
 
-	legacy, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/version", http.NoBody))
+	legacy, err := srv.ingestion.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/version", http.NoBody))
 	require.NoError(t, err)
 	defer legacy.Body.Close()
 	legacyBody, _ := io.ReadAll(legacy.Body)
@@ -271,13 +275,13 @@ func TestHandlePostEventWithMetrics(t *testing.T) {
 	require.NoError(t, err)
 	p.Start(context.Background(), func() {})
 
-	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Metrics: collector})
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Metrics: collector, Config: testConfig(t)})
 	require.NoError(t, err)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", bytes.NewReader(createValidEventJSON()))
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := srv.app.Test(req)
+	resp, err := srv.ingestion.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, 200, resp.StatusCode)
@@ -292,11 +296,11 @@ func TestNewServerWithMetricsRegistry(t *testing.T) {
 	require.NoError(t, err)
 
 	reg := prometheus.NewRegistry()
-	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Registry: reg})
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Registry: reg, Config: testConfig(t)})
 	require.NoError(t, err)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
-	resp, err := srv.app.Test(req)
+	resp, err := srv.ingestion.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, 200, resp.StatusCode)

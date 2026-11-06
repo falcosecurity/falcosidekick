@@ -94,7 +94,7 @@ func TestIngestionIsNotAWrite(t *testing.T) {
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/",
 		bytes.NewReader([]byte(`{"rule":"r","time":"2026-11-05T10:00:00Z","priority":"Warning","output_fields":{"a":"b"}}`)))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := srv.app.Test(req)
+	resp, err := srv.ingestion.Test(req)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -117,11 +117,14 @@ func TestWritesWarningOnlyOffLoopback(t *testing.T) {
 		t.Run(tc.address, func(t *testing.T) {
 			var logs bytes.Buffer
 			rig := buildMutationRig(t, database.NewMemory(), newMutationTestCatalog(t), true)
+			cfg := testConfig(t)
+			cfg.Management.ListenAddress = tc.address
+			cfg.API.AllowWrites = tc.allowWrites
 			_, err := NewServer(&ServerConfig{
 				Pipeline: rig.Server.pipeline,
 				Catalog:  rig.Server.catalog,
 				Logger:   slog.New(slog.NewTextHandler(&logs, nil)),
-				Config:   &core.Config{ListenAddress: tc.address, API: core.APIConfig{AllowWrites: tc.allowWrites}},
+				Config:   cfg,
 			})
 			require.NoError(t, err)
 			assert.Equal(t, tc.warn, strings.Contains(logs.String(), "API writes are enabled without authentication"))

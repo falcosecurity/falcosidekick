@@ -9,6 +9,7 @@
 # Options:
 #   -n COUNT      number of events to send (default: 1000)
 #   -u URL        falcosidekick POST URL (default: http://localhost:2801/)
+#   -a URL        falcosidekick API base URL for the summary (default: http://localhost:2802)
 #   -c PAR        parallel worker processes (default: 20)
 #   -w SECONDS    spread events over the last N seconds (default: 86400 = 24h)
 #   -q            quiet mode (no per-request progress)
@@ -23,14 +24,16 @@ set -euo pipefail
 
 COUNT=1000
 URL="http://localhost:2801/"
+API="http://localhost:2802"
 PAR=20
 WINDOW=86400
 QUIET=0
 
-while getopts ":n:u:c:w:qh" opt; do
+while getopts ":n:u:a:c:w:qh" opt; do
   case "$opt" in
     n) COUNT="$OPTARG" ;;
     u) URL="$OPTARG" ;;
+    a) API="${OPTARG%/}" ;;
     c) PAR="$OPTARG" ;;
     w) WINDOW="$OPTARG" ;;
     q) QUIET=1 ;;
@@ -188,7 +191,7 @@ if (( QUIET == 0 )); then
 
 if command -v python3 >/dev/null 2>&1; then
   echo "==> pipeline/status:"
-  curl -s "${BASE}/api/v1/pipeline/status" | python3 -c 'import json,sys
+  curl -s "${API}/api/v1/pipeline/status" | python3 -c 'import json,sys
 try:
   d = json.load(sys.stdin)
   for o in d.get("outputs", []):
@@ -198,14 +201,14 @@ except Exception as e:
   print("  (unable to parse status: " + str(e) + ")")'
   echo ""
   echo "==> total events in store:"
-  curl -s "${BASE}/api/v1/events/count" | python3 -c 'import json,sys
+  curl -s "${API}/api/v1/events/count" | python3 -c 'import json,sys
 try:
   print("  " + str(json.load(sys.stdin).get("count",0)) + " events")
 except Exception:
   print("  (unable)")'
   echo ""
   echo "==> by priority (last 24h):"
-  curl -s "${BASE}/api/v1/events/count/priority?since=24h" | python3 -c 'import json,sys
+  curl -s "${API}/api/v1/events/count/priority?since=24h" | python3 -c 'import json,sys
 try:
   g = json.load(sys.stdin).get("groups",{}) or {}
   for k,v in sorted(g.items(), key=lambda x: -x[1]):
@@ -214,7 +217,7 @@ except Exception:
   print("  (unable)")'
   echo ""
   echo "==> timestamp spread (most recent 5000 events):"
-  curl -s "${BASE}/api/v1/events/search?limit=5000&sort_by=timestamp&sort_desc=true" \
+  curl -s "${API}/api/v1/events/search?limit=5000&sort_by=timestamp&sort_desc=true" \
     | WINDOW="$WINDOW" python3 -c '
 import json, os, sys
 from datetime import datetime, timezone

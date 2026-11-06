@@ -60,6 +60,15 @@ func writeTestConfig(t *testing.T, content string) string {
 	return p
 }
 
+// writeServerConfig writes a core file with free ingestion and management ports on 127.0.0.1, then extra.
+func writeServerConfig(t *testing.T, extra string) (path string, port, managementPort int) {
+	t.Helper()
+	port, managementPort = findFreePort(t), findFreePort(t)
+	path = writeTestConfig(t, fmt.Sprintf(
+		"listen_port: %d\nlisten_address: 127.0.0.1\nmanagement:\n  listen_port: %d\n%s", port, managementPort, extra))
+	return path, port, managementPort
+}
+
 func writeTestOutputs(t *testing.T, content string) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "outputs.yaml")
@@ -479,8 +488,7 @@ func TestRunUIEnabledMissingEventSource(t *testing.T) {
 }
 
 func TestRunLifecycleCleanShutdown(t *testing.T) {
-	port := findFreePort(t)
-	cfg := writeTestConfig(t, fmt.Sprintf("listen_port: %d\nlisten_address: 127.0.0.1", port))
+	cfg, port, _ := writeServerConfig(t, "")
 	outs := writeTestOutputs(t, "outputs:\n  webhook:\n    host: http://127.0.0.1:19999\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -509,7 +517,8 @@ func TestRunServerStartFailure(t *testing.T) {
 	port := ln.Addr().(*net.TCPAddr).Port
 	defer func() { _ = ln.Close() }()
 
-	cfg := writeTestConfig(t, fmt.Sprintf("listen_port: %d\nlisten_address: 127.0.0.1", port))
+	cfg := writeTestConfig(t, fmt.Sprintf("listen_port: %d\nlisten_address: 127.0.0.1\nmanagement:\n  listen_port: %d",
+		port, findFreePort(t)))
 	outs := writeTestOutputs(t, "outputs:\n  webhook:\n    host: http://127.0.0.1:19999\n")
 
 	done := make(chan error, 1)
@@ -527,8 +536,7 @@ func TestRunServerStartFailure(t *testing.T) {
 }
 
 func TestRunSIGHUPReload(t *testing.T) {
-	port := findFreePort(t)
-	cfg := writeTestConfig(t, fmt.Sprintf("listen_port: %d\nlisten_address: 127.0.0.1", port))
+	cfg, port, _ := writeServerConfig(t, "")
 	outs := writeTestOutputs(t, "outputs:\n  webhook:\n    host: http://127.0.0.1:19999\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -561,11 +569,7 @@ func TestRunSIGHUPReload(t *testing.T) {
 }
 
 func TestRunPollerDetectsChange(t *testing.T) {
-	port := findFreePort(t)
-	cfg := writeTestConfig(t, fmt.Sprintf(
-		"listen_port: %d\nlisten_address: 127.0.0.1\nreload:\n  poll_interval: 100ms",
-		port,
-	))
+	cfg, port, _ := writeServerConfig(t, "reload:\n  poll_interval: 100ms")
 
 	dir := t.TempDir()
 	outsPath := filepath.Join(dir, "outputs.yaml")
@@ -597,11 +601,7 @@ func TestRunPollerDetectsChange(t *testing.T) {
 }
 
 func TestRunPollDisabledCleanShutdown(t *testing.T) {
-	port := findFreePort(t)
-	cfg := writeTestConfig(t, fmt.Sprintf(
-		"listen_port: %d\nlisten_address: 127.0.0.1\nreload:\n  poll_interval: 0s",
-		port,
-	))
+	cfg, port, _ := writeServerConfig(t, "reload:\n  poll_interval: 0s")
 	outs := writeTestOutputs(t, "outputs:\n  webhook:\n    host: http://127.0.0.1:19999\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -623,8 +623,7 @@ func TestRunPollDisabledCleanShutdown(t *testing.T) {
 }
 
 func TestRunNoOutputPathsCleanShutdown(t *testing.T) {
-	port := findFreePort(t)
-	cfg := writeTestConfig(t, fmt.Sprintf("listen_port: %d\nlisten_address: 127.0.0.1", port))
+	cfg, port, _ := writeServerConfig(t, "")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -718,11 +717,7 @@ func TestResolveUIAssetsEnabledWithEmbed(t *testing.T) {
 }
 
 func TestRunUIEnabledBinaryRoutingMatchesTag(t *testing.T) {
-	port := findFreePort(t)
-	cfg := writeTestConfig(t, fmt.Sprintf(
-		"listen_port: %d\nlisten_address: 127.0.0.1\nui:\n  enabled: true\n  event_source: inmemory",
-		port,
-	))
+	cfg, port, managementPort := writeServerConfig(t, "ui:\n  enabled: true\n  event_source: inmemory")
 	outs := writeTestOutputs(t, "outputs:\n  inmemory:\n    capacity: 1000\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -734,23 +729,23 @@ func TestRunUIEnabledBinaryRoutingMatchesTag(t *testing.T) {
 	}()
 
 	waitForServer(t, port)
+	waitForServer(t, managementPort)
 
-	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", port)) //nolint:noctx // test helper
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", managementPort)) //nolint:noctx // test helper
 	require.NoError(t, err)
 	_ = resp.Body.Close()
 	if ui.Enabled {
 		assert.Equal(t, http.StatusOK, resp.StatusCode,
-			"GET / on builtinui build with ui.enabled=true must serve the embedded index")
+			"GET / on the management listener of a builtinui build with ui.enabled=true serves the embedded index")
 		assert.Contains(t, resp.Header.Get("Content-Type"), "text/html")
 	} else {
-		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode,
-			"GET / on stub build must fall through to Fiber's 405 (POST / registered, no UI assets)")
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode, "a stub build serves no UI")
 	}
 
-	healthResp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/healthz", port)) //nolint:noctx // test helper
+	ingestionRoot, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", port)) //nolint:noctx // test helper
 	require.NoError(t, err)
-	_ = healthResp.Body.Close()
-	assert.Equal(t, http.StatusOK, healthResp.StatusCode, "API must remain healthy in both build modes")
+	_ = ingestionRoot.Body.Close()
+	assert.Equal(t, http.StatusMethodNotAllowed, ingestionRoot.StatusCode, "the ingestion listener never serves the UI")
 
 	cancel()
 	select {
@@ -762,8 +757,7 @@ func TestRunUIEnabledBinaryRoutingMatchesTag(t *testing.T) {
 }
 
 func TestRunUIDisabledDoesNotServeStaticAssets(t *testing.T) {
-	port := findFreePort(t)
-	cfg := writeTestConfig(t, fmt.Sprintf("listen_port: %d\nlisten_address: 127.0.0.1", port))
+	cfg, _, managementPort := writeServerConfig(t, "")
 	outs := writeTestOutputs(t, "outputs:\n  webhook:\n    host: http://127.0.0.1:19999\n")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -774,13 +768,12 @@ func TestRunUIDisabledDoesNotServeStaticAssets(t *testing.T) {
 		done <- run(ctx, cfg, []string{outs})
 	}()
 
-	waitForServer(t, port)
+	waitForServer(t, managementPort)
 
-	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", port)) //nolint:noctx // test helper
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", managementPort)) //nolint:noctx // test helper
 	require.NoError(t, err)
 	_ = resp.Body.Close()
-	assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode,
-		"GET / must fall through to Fiber's 405 when ui.enabled=false")
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode, "with ui.enabled=false the management listener serves no UI")
 
 	cancel()
 	select {

@@ -10,7 +10,12 @@
 # =============================================================================
 
 listen_address: "0.0.0.0"    # IP address to bind (empty = all interfaces)
-listen_port: 2801             # HTTP port for receiving Falco events
+listen_port: 2801             # Falco events, /healthz, /version, /metrics
+
+# The API and the UI have their own listener; the API has no authentication.
+# management:
+#   listen_address: "127.0.0.1"
+#   listen_port: 2802
 
 # =============================================================================
 # Logging
@@ -50,7 +55,8 @@ database:
 # api:
 #   allow_writes: false                  # allow API routes that change outputs and layout.
 #                                        # They have no authentication: enable only on a
-#                                        # trusted network or with listen_address 127.0.0.1.
+#                                        # trusted network or with management.listen_address
+#                                        # 127.0.0.1.
 
 # metrics:
 #   max_label_values: 1000               # distinct values kept per label taken from events;

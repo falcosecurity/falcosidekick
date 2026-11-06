@@ -31,7 +31,7 @@ Override the image variant with `FSK_TAG=local-slim` (after `make image-slim`) t
 2. `kind load docker-image falcosidekick:local` (loads the image into kind's node cache).
 3. `kubectl apply` [`webhook-receiver.yaml`](webhook-receiver.yaml) + [`component.yaml`](component.yaml).
 4. Wait for the `webhook-receiver` Deployment and the falcosidekick pod (managed by the operator via the `Component` CR) to become `Ready` (90s timeout).
-5. Port-forward `svc/falcosidekick` to `localhost:28010`.
+5. Port-forward `svc/falcosidekick` (ingestion, 2801) to `localhost:28010` and the pod's management port (API and UI, 2802, on the pod loopback) to `localhost:28020`.
 6. HTTP smoke checks: `/healthz`, `/version`, `/api/v1/config`.
 7. Synthetic `POST /` event; verify webhook-receiver logs it.
 8. Trigger a real Falco rule via `kubectl run ... cat /etc/shadow`; verify falcosidekick logs a matching event.

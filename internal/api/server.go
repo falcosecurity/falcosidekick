@@ -18,10 +18,12 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"net"
+	"strconv"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/adaptor"
@@ -50,49 +52,38 @@ type ServerConfig struct {
 	Logger   *slog.Logger
 }
 
-// Server manages the Fiber HTTP application.
+// Server serves two listeners: ingestion (Falco events, health, version, metrics), reachable by every
+// Falco, and management (the API and the UI), local by default because the API has no authentication.
 type Server struct {
-	app          *fiber.App
-	pipeline     *pipeline.Pipeline
-	database     core.Database
-	catalog      *catalog.Catalog
-	metrics      core.MetricsCollector
-	tls          *core.TLSConfig
-	reloader     *reload.Reloader
-	logger       *slog.Logger
-	uiAssets     fs.FS
-	address      string
-	eventSource  string
-	provisioning core.ProvisioningConfig
-	allowWrites  bool
+	// app serves the management listener.
+	app *fiber.App
+	// ingestion serves the event listener.
+	ingestion         *fiber.App
+	pipeline          *pipeline.Pipeline
+	database          core.Database
+	catalog           *catalog.Catalog
+	metrics           core.MetricsCollector
+	tls               *core.TLSConfig
+	reloader          *reload.Reloader
+	logger            *slog.Logger
+	uiAssets          fs.FS
+	address           string
+	managementAddress string
+	eventSource       string
+	provisioning      core.ProvisioningConfig
+	allowWrites       bool
 }
 
-// NewServer creates a Fiber-based HTTP Server.
+// NewServer creates the Fiber applications of both listeners.
 func NewServer(cfg *ServerConfig) (*Server, error) {
-	var tls *core.TLSConfig
-	var eventSource string
-	var provisioning core.ProvisioningConfig
-	var allowWrites bool
-	address := "0.0.0.0"
-	port := 2801
-
 	if cfg.Pipeline == nil {
 		return nil, fmt.Errorf("server: pipeline is required")
 	}
 	if cfg.Catalog == nil {
 		return nil, fmt.Errorf("server: catalog is required")
 	}
-	if cfg.Config != nil {
-		tls = cfg.Config.TLS
-		eventSource = cfg.Config.UI.EventSource
-		provisioning = cfg.Config.Provisioning
-		allowWrites = cfg.Config.API.AllowWrites
-		if cfg.Config.ListenAddress != "" {
-			address = cfg.Config.ListenAddress
-		}
-		if cfg.Config.ListenPort != 0 {
-			port = cfg.Config.ListenPort
-		}
+	if cfg.Config == nil {
+		return nil, fmt.Errorf("server: config is required")
 	}
 
 	logger := cfg.Logger
@@ -101,38 +92,56 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 	}
 
 	s := &Server{
-		pipeline:     cfg.Pipeline,
-		database:     cfg.Database,
-		catalog:      cfg.Catalog,
-		metrics:      cfg.Metrics,
-		reloader:     cfg.Reloader,
-		uiAssets:     cfg.UIAssets,
-		logger:       logger,
-		address:      fmt.Sprintf("%s:%d", address, port),
-		eventSource:  eventSource,
-		provisioning: provisioning,
-		allowWrites:  allowWrites,
-		tls:          tls,
+		pipeline:          cfg.Pipeline,
+		database:          cfg.Database,
+		catalog:           cfg.Catalog,
+		metrics:           cfg.Metrics,
+		reloader:          cfg.Reloader,
+		uiAssets:          cfg.UIAssets,
+		logger:            logger,
+		address:           net.JoinHostPort(cfg.Config.ListenAddress, strconv.Itoa(cfg.Config.ListenPort)),
+		managementAddress: net.JoinHostPort(cfg.Config.Management.ListenAddress, strconv.Itoa(cfg.Config.Management.ListenPort)),
+		eventSource:       cfg.Config.UI.EventSource,
+		provisioning:      cfg.Config.Provisioning,
+		allowWrites:       cfg.Config.API.AllowWrites,
+		tls:               cfg.Config.TLS,
 	}
 
-	if allowWrites && !isLoopback(address) {
-		logger.Warn("API writes are enabled without authentication on a non-loopback address",
-			"listen_address", address)
+	if s.allowWrites && !isLoopback(cfg.Config.Management.ListenAddress) {
+		logger.Warn("API writes are enabled without authentication on a non-loopback management address",
+			"management_address", cfg.Config.Management.ListenAddress)
 	}
 
-	s.app = s.mountRoutes(cfg.Registry)
+	s.ingestion = s.mountIngestion(cfg.Registry)
+	s.app = s.mountManagement()
 	return s, nil
 }
 
-// mountRoutes declares static segments before :name so Fiber matches the literals first.
-func (s *Server) mountRoutes(registry *prometheus.Registry) *fiber.App {
+func newApp() *fiber.App {
 	app := fiber.New()
 	app.Use(recover.New())
 	app.Use(compress.New())
+	return app
+}
 
+// mountIngestion serves what Falco, Kubernetes probes and Prometheus reach from other hosts.
+func (s *Server) mountIngestion(registry *prometheus.Registry) *fiber.App {
+	app := newApp()
 	app.Post("/", s.handlePostEvent)
 	app.Get("/healthz", s.handleGetHealthz)
 	app.Get("/version", s.handleGetVersion)
+	if registry != nil {
+		handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+		app.Get("/metrics", adaptor.HTTPHandler(handler))
+	}
+	return app
+}
+
+// mountManagement declares static segments before :name so Fiber matches the literals first.
+// /healthz is also here, for a readiness probe on this listener.
+func (s *Server) mountManagement() *fiber.App {
+	app := newApp()
+	app.Get("/healthz", s.handleGetHealthz)
 
 	v1 := app.Group("/api/v1")
 
@@ -162,11 +171,6 @@ func (s *Server) mountRoutes(registry *prometheus.Registry) *fiber.App {
 	v1.Get("/config", s.handleGetConfig)
 	v1.Get("/version", s.handleGetVersion)
 
-	if registry != nil {
-		handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-		app.Get("/metrics", adaptor.HTTPHandler(handler))
-	}
-
 	registerStaticUI(app, s.uiAssets)
 
 	return app
@@ -181,7 +185,7 @@ func (s *Server) GetReadableStore() output.ReadableStore {
 	return rs
 }
 
-// Start listens for HTTP requests and blocks until the server stops.
+// Start listens on both addresses and blocks until one listener stops; TLS applies to both.
 func (s *Server) Start() error {
 	cfg := fiber.ListenConfig{DisableStartupMessage: true}
 	if s.tls != nil && s.tls.Enabled {
@@ -191,13 +195,17 @@ func (s *Server) Start() error {
 			cfg.CertClientFile = s.tls.CACertFile
 		}
 	}
-	s.logger.Info("listening", "address", s.address, "outputs", s.pipeline.Dispatcher().OutputNames())
-	return s.app.Listen(s.address, cfg)
+	s.logger.Info("listening", "address", s.address, "management_address", s.managementAddress,
+		"outputs", s.pipeline.Dispatcher().OutputNames())
+	stopped := make(chan error, 2)
+	go func() { stopped <- s.ingestion.Listen(s.address, cfg) }()
+	go func() { stopped <- s.app.Listen(s.managementAddress, cfg) }()
+	return <-stopped
 }
 
-// Shutdown gracefully stops the server, bounded by the caller's context.
+// Shutdown gracefully stops both listeners, bounded by the caller's context.
 func (s *Server) Shutdown(ctx context.Context) error {
-	return s.app.ShutdownWithContext(ctx)
+	return errors.Join(s.ingestion.ShutdownWithContext(ctx), s.app.ShutdownWithContext(ctx))
 }
 
 // isLoopback reports whether address only accepts local connections.

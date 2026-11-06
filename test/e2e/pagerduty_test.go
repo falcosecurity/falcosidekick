@@ -168,7 +168,7 @@ func TestPagerDutyDeliversEvent(t *testing.T) {
 
 func pagerdutyAPIBody(t *testing.T, sk *sidekick, path string) string {
 	t.Helper()
-	resp, err := httpDo(http.MethodGet, sk.url+path, nil)
+	resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusOK, resp.StatusCode, path)

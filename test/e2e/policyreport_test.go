@@ -307,7 +307,7 @@ func TestPolicyReportCredentialsAbsentFromLogsAndAPI(t *testing.T) {
 	sk.postEvent(t, newMarker(t))
 	sk.waitStatus(t, "policyreport", func(st outputStatus) bool { return st.FailedTotal == 1 })
 	for _, path := range []string{"/api/v1/config", "/api/v1/pipeline/outputs/policyreport", "/api/v1/pipeline/status/policyreport"} {
-		resp, err := httpDo(http.MethodGet, sk.url+path, nil)
+		resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
 		require.NoError(t, err)
 		body, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()

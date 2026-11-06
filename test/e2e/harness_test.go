@@ -80,11 +80,14 @@ func run(m *testing.M) (int, error) {
 
 // sidekick is one falcosidekick process; waitErr is valid once exited is closed.
 type sidekick struct {
-	waitErr     error
-	cmd         *exec.Cmd
-	logs        *syncBuffer
-	exited      chan struct{}
-	url         string
+	waitErr error
+	cmd     *exec.Cmd
+	logs    *syncBuffer
+	exited  chan struct{}
+	// url is the ingestion listener: events, health, version, metrics.
+	url string
+	// apiURL is the management listener: the API and the UI.
+	apiURL      string
 	outputsPath string
 }
 
@@ -134,13 +137,17 @@ func startSidekickWith(t *testing.T, core launchOptions, outputs string) *sideki
 	t.Helper()
 	s := launchSidekick(t, core, outputs)
 	deadline := time.After(startTimeout)
+	ready := func(url string) bool {
+		resp, err := httpDo(http.MethodGet, url+"/healthz", nil)
+		if err != nil {
+			return false
+		}
+		_ = resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}
 	for {
-		resp, err := httpDo(http.MethodGet, s.url+"/healthz", nil)
-		if err == nil {
-			_ = resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				return s
-			}
+		if ready(s.url) && ready(s.apiURL) {
+			return s
 		}
 		select {
 		case <-s.exited:
@@ -173,9 +180,11 @@ func startSidekickFailsWith(t *testing.T, core launchOptions, outputs string) st
 func launchSidekick(t *testing.T, opts launchOptions, outputs string) *sidekick {
 	t.Helper()
 	dir := t.TempDir()
-	port := freePort(t)
+	port, managementPort := freePort(t), freePort(t)
 	core := fmt.Sprintf(`listen_address: "127.0.0.1"
 listen_port: %d
+management:
+  listen_port: %d
 log_level: %q
 log_format: %q
 runtime_defaults:
@@ -190,7 +199,7 @@ runtime_defaults:
     failure_threshold: 100
     success_threshold: 1
     reset_timeout: 1s
-`, port, opts.logLevel, opts.logFormat) + opts.extra
+`, port, managementPort, opts.logLevel, opts.logFormat) + opts.extra
 	corePath := filepath.Join(dir, "sidekick.yaml")
 	outputsPath := filepath.Join(dir, "outputs.yaml")
 	require.NoError(t, os.WriteFile(corePath, []byte(core), 0o600))
@@ -200,6 +209,7 @@ runtime_defaults:
 		logs:        &syncBuffer{},
 		exited:      make(chan struct{}),
 		url:         fmt.Sprintf("http://127.0.0.1:%d", port),
+		apiURL:      fmt.Sprintf("http://127.0.0.1:%d", managementPort),
 		outputsPath: outputsPath,
 	}
 	s.cmd = exec.CommandContext(context.Background(), binary, "-c", corePath, "-o", outputsPath)
@@ -271,7 +281,7 @@ type outputStatus struct {
 
 func (s *sidekick) status(t *testing.T, name string) outputStatus {
 	t.Helper()
-	resp, err := httpDo(http.MethodGet, s.url+"/api/v1/pipeline/status/"+name, nil)
+	resp, err := httpDo(http.MethodGet, s.apiURL+"/api/v1/pipeline/status/"+name, nil)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusOK, resp.StatusCode)

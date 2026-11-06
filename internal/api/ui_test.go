@@ -24,6 +24,7 @@ import (
 	"testing"
 	"testing/fstest"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,18 +52,52 @@ func TestRegisterStaticUI_NoAssets_NoInterception(t *testing.T) {
 	root, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody))
 	require.NoError(t, err)
 	defer root.Body.Close()
-	assert.Equal(t, http.StatusMethodNotAllowed, root.StatusCode,
-		"GET / must fall through to Fiber's 405 (POST / is registered, GET / is not) when no UI assets are configured")
-
-	post, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", bytes.NewReader(createValidEventJSON())))
-	require.NoError(t, err)
-	defer post.Body.Close()
-	assert.Equal(t, http.StatusOK, post.StatusCode, "POST / event ingest must still work when no UI assets")
+	assert.Equal(t, http.StatusNotFound, root.StatusCode, "without UI assets the management listener serves only the API")
 
 	ver, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/version", http.NoBody))
 	require.NoError(t, err)
 	defer ver.Body.Close()
 	assert.Equal(t, http.StatusOK, ver.StatusCode)
+}
+
+// D2: ingestion serves Falco, probes and Prometheus; management serves the API and the UI; neither serves the other.
+func TestListenersAreSeparate(t *testing.T) {
+	srv := buildUITestServer(t, newUITestFS(), prometheus.NewRegistry())
+	status := func(app *fiber.App, method, path string) int {
+		var body io.Reader = http.NoBody
+		if method == http.MethodPost {
+			body = bytes.NewReader(createValidEventJSON())
+		}
+		resp, err := app.Test(httptest.NewRequestWithContext(t.Context(), method, path, body))
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		return resp.StatusCode
+	}
+	for _, tc := range []struct {
+		method, path string
+		ingestion    int
+		management   int
+	}{
+		{method: http.MethodPost, path: "/", ingestion: http.StatusOK, management: http.StatusMethodNotAllowed},
+		{method: http.MethodGet, path: "/healthz", ingestion: http.StatusOK, management: http.StatusOK},
+		{method: http.MethodGet, path: "/metrics", ingestion: http.StatusOK},
+		{method: http.MethodGet, path: "/api/v1/pipeline/status", ingestion: http.StatusNotFound, management: http.StatusOK},
+		{method: http.MethodGet, path: "/api/v1/events/search", ingestion: http.StatusNotFound},
+		{method: http.MethodGet, path: "/", ingestion: http.StatusMethodNotAllowed, management: http.StatusOK},
+	} {
+		t.Run(tc.method+" "+tc.path, func(t *testing.T) {
+			assert.Equal(t, tc.ingestion, status(srv.ingestion, tc.method, tc.path), "ingestion")
+			if tc.management != 0 {
+				assert.Equal(t, tc.management, status(srv.app, tc.method, tc.path), "management")
+			}
+		})
+	}
+	resp, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "# HELP", "metrics are served on ingestion only")
 }
 
 func TestRegisterStaticUI_AssetsPresent_ServesIndex(t *testing.T) {
@@ -104,56 +139,6 @@ func TestRegisterStaticUI_AssetsPresent_SkipsAPIPaths(t *testing.T) {
 	require.NoError(t, readErr)
 	assert.Contains(t, string(body), "version", "API path must return JSON, not index.html")
 	assert.NotEqual(t, uiTestIndexBody, string(body))
-}
-
-func TestRegisterStaticUI_AssetsPresent_SkipsHealthz(t *testing.T) {
-	srv := buildUITestServer(t, newUITestFS(), nil)
-
-	resp, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", http.NoBody))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, readErr := io.ReadAll(resp.Body)
-	require.NoError(t, readErr)
-	assert.Contains(t, string(body), `"status":"ok"`)
-}
-
-func TestRegisterStaticUI_AssetsPresent_SkipsVersion(t *testing.T) {
-	srv := buildUITestServer(t, newUITestFS(), nil)
-
-	resp, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/version", http.NoBody))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, readErr := io.ReadAll(resp.Body)
-	require.NoError(t, readErr)
-	assert.Contains(t, string(body), "version", "/version must return version JSON, not index.html")
-	assert.NotEqual(t, uiTestIndexBody, string(body))
-}
-
-func TestRegisterStaticUI_AssetsPresent_SkipsMetrics(t *testing.T) {
-	registry := prometheus.NewRegistry()
-	srv := buildUITestServer(t, newUITestFS(), registry)
-
-	resp, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	body, readErr := io.ReadAll(resp.Body)
-	require.NoError(t, readErr)
-	assert.NotContains(t, string(body), uiTestIndexBody, "/metrics must return Prometheus text, not index.html")
-}
-
-func TestRegisterStaticUI_AssetsPresent_PostRootStillIngests(t *testing.T) {
-	srv := buildUITestServer(t, newUITestFS(), nil)
-
-	resp, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", bytes.NewReader(createValidEventJSON())))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "POST / must remain the event-ingest handler even with UI assets registered")
 }
 
 func TestRegisterStaticUI_AssetsPresent_UnregisteredAPIPathReturns404(t *testing.T) {
@@ -249,7 +234,7 @@ func TestServerConfigUIAssetsOptional(t *testing.T) {
 	p, err := pipeline.NewPipeline(enricher, pipeline.NewDispatcher(nil), nil)
 	require.NoError(t, err)
 
-	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), UIAssets: nil})
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), UIAssets: nil, Config: testConfig(t)})
 	require.NoError(t, err, "NewServer must accept UIAssets: nil")
 	assert.NotNil(t, srv)
 }

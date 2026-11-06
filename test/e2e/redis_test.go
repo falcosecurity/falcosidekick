@@ -175,7 +175,7 @@ func TestRedisReportsUnreachableServer(t *testing.T) {
 
 func outputConfig(t *testing.T, sk *sidekick, name string) string {
 	t.Helper()
-	resp, err := httpDo(http.MethodGet, sk.url+"/api/v1/pipeline/outputs/"+name, nil)
+	resp, err := httpDo(http.MethodGet, sk.apiURL+"/api/v1/pipeline/outputs/"+name, nil)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
 	require.Equal(t, http.StatusOK, resp.StatusCode)

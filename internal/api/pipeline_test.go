@@ -422,7 +422,7 @@ func TestHandlePipelineComposite(t *testing.T) {
 	p.Start(context.Background(), func() {})
 
 	srv, err := NewServer(&ServerConfig{
-		Pipeline: p, Database: db, Catalog: cat,
+		Pipeline: p, Database: db, Catalog: cat, Config: testConfig(t),
 	})
 	require.NoError(t, err)
 
