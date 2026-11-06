@@ -464,6 +464,15 @@ func TestServerCapabilities(t *testing.T) {
 		err := d.Send(context.Background(), testutil.CreateValidEvent())
 		require.Error(t, err)
 		assert.Equal(t, "smtp rcpt: server replied 550", err.Error())
+		assert.True(t, output.IsPermanent(err), "5yz is a permanent negative completion")
+	})
+	t.Run("recipient deferred", func(t *testing.T) {
+		srv := newFakeServer(t, func(s *fakeServer) { s.rcptReply = "451 4.3.0 try again later" })
+		d := newTestDriver(t, serverConfig(t, srv))
+		err := d.Send(context.Background(), testutil.CreateValidEvent())
+		require.Error(t, err)
+		assert.Equal(t, "smtp rcpt: server replied 451", err.Error())
+		assert.False(t, output.IsPermanent(err), "4yz is a transient negative completion")
 	})
 }
 

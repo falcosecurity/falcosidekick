@@ -24,6 +24,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
+	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
@@ -44,6 +45,11 @@ func (e *apiError) Error() string {
 
 // Unwrap returns the original failure for programmatic inspection.
 func (e *apiError) Unwrap() error { return e.cause }
+
+// Is matches output.ErrPermanent for 4xx answers a retry cannot change; a 409 conflict can resolve on retry.
+func (e *apiError) Is(target error) bool {
+	return target == output.ErrPermanent && e.code != http.StatusConflict && shared.IsPermanentHTTPStatus(int(e.code))
+}
 
 // Format keeps diagnostic formatting from exposing the wrapped cause.
 func (e *apiError) Format(state fmt.State, verb rune) {

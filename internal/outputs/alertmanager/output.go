@@ -121,7 +121,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 
 	body, err := json.Marshal(alerts)
 	if err != nil {
-		return shared.WrapDeliveryError("alertmanager", "marshal", err)
+		return shared.WrapDeliveryError("alertmanager", shared.OpMarshal, err)
 	}
 
 	targets := make([]string, 0, len(d.cfg.Hosts))

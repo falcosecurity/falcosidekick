@@ -17,6 +17,7 @@ package shared_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -91,129 +92,16 @@ func secretQuery() map[string]any {
 
 const wantQuery = "team=a+b&team=c&token=t%26k"
 
+type httpTarget struct {
+	config func(host string) map[string]any
+	name   string
+	send   string
+	health string
+	kind   output.Type
+}
+
 func TestDriversDeliverToExactTargets(t *testing.T) {
-	tests := []struct {
-		config func(host string) map[string]any
-		name   string
-		send   string
-		health string
-		kind   output.Type
-	}{
-		{
-			name: "webhook default endpoint", kind: webhook.OutputType,
-			config: func(h string) map[string]any { return map[string]any{"host": h} },
-			send:   "POST /",
-		},
-		{
-			name: "webhook base and endpoint", kind: webhook.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/gw/", "endpoint": "/events", "query_params": secretQuery()}
-			},
-			send: "POST /gw/events?" + wantQuery,
-		},
-		{
-			name: "webhook secret endpoint", kind: webhook.OutputType,
-			config: func(h string) map[string]any { return map[string]any{"host": h, "secret_endpoint": "/hook/abc"} },
-			send:   "POST /hook/abc",
-		},
-		{
-			name: "slack", kind: slack.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/proxy", "secret_endpoint": "/services/T/B/X", "query_params": secretQuery()}
-			},
-			send: "POST /proxy/services/T/B/X?" + wantQuery,
-		},
-		{
-			name: "loki default endpoint", kind: loki.OutputType,
-			config: func(h string) map[string]any { return map[string]any{"host": h} },
-			send:   "POST /loki/api/v1/push", health: "GET /ready",
-		},
-		{
-			name: "loki base path", kind: loki.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/tenant", "endpoint": "/push", "query_params": secretQuery()}
-			},
-			send: "POST /tenant/push?" + wantQuery, health: "GET /tenant/ready?" + wantQuery,
-		},
-		{
-			name: "elasticsearch", kind: elasticsearch.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{
-					"host": h, "base_path": "/es", "index_suffix": "none", "pipeline": "a&b c", "query_params": secretQuery(),
-				}
-			},
-			send: "PUT /es/falco/_create/test-uuid-001?pipeline=a%26b+c&" + wantQuery, health: "GET /es?" + wantQuery,
-		},
-		{
-			name: "alertmanager default endpoint", kind: alertmanager.OutputType,
-			config: func(h string) map[string]any { return map[string]any{"hosts": []string{h}} },
-			send:   "POST /api/v2/alerts", health: "GET /-/healthy",
-		},
-		{
-			name: "alertmanager base path with endpoint suffix in base", kind: alertmanager.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"hosts": []string{h}, "base_path": "/am/alerts", "endpoint": "/alerts", "query_params": secretQuery()}
-			},
-			send: "POST /am/alerts/alerts?" + wantQuery, health: "GET /am/alerts/-/healthy?" + wantQuery,
-		},
-		{
-			name: "teams", kind: teams.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/wf", "secret_endpoint": "/workflows/1/triggers/manual/paths/invoke", "query_params": secretQuery()}
-			},
-			send: "POST /wf/workflows/1/triggers/manual/paths/invoke?" + wantQuery,
-		},
-		{
-			name: "discord", kind: discord.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "secret_endpoint": "/api/webhooks/1/tok", "query_params": secretQuery()}
-			},
-			send: "POST /api/webhooks/1/tok?" + wantQuery + "&wait=true", health: "GET /api/webhooks/1/tok?" + wantQuery,
-		},
-		{
-			name: "grafana oncall", kind: grafanaoncall.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/oncall", "secret_endpoint": "/integrations/v1/formatted_webhook/tok/", "query_params": secretQuery()}
-			},
-			send: "POST /oncall/integrations/v1/formatted_webhook/tok/?" + wantQuery,
-		},
-		{
-			name: "talon", kind: talon.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/talon", "query_params": secretQuery()}
-			},
-			send: "POST /talon/?" + wantQuery, health: "GET /talon/healthz?" + wantQuery,
-		},
-		{
-			name: "cloudevents", kind: cloudevents.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/ce", "endpoint": "/in", "query_params": secretQuery()}
-			},
-			send: "POST /ce/in?" + wantQuery,
-		},
-		{
-			name: "pagerduty", kind: pagerduty.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/pd", "routing_key": "rk", "query_params": secretQuery()}
-			},
-			send: "POST /pd/v2/enqueue?" + wantQuery,
-		},
-		{
-			name: "opsgenie", kind: opsgenie.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/og", "api_key": "k", "query_params": secretQuery()}
-			},
-			send: "POST /og/v2/alerts?" + wantQuery, health: "GET /og/v2/heartbeats?" + wantQuery,
-		},
-		{
-			name: "datadog v1", kind: datadog.OutputType,
-			config: func(h string) map[string]any {
-				return map[string]any{"host": h, "base_path": "/dd", "api_key": "k", "query_params": secretQuery()}
-			},
-			send: "POST /dd/api/v1/events?" + wantQuery, health: "GET /dd/api/v1/validate?" + wantQuery,
-		},
-	}
-	for _, tt := range tests {
+	for _, tt := range httpTargets {
 		t.Run(tt.name, func(t *testing.T) {
 			var log requestLog
 			server := log.server(t)
@@ -229,6 +117,138 @@ func TestDriversDeliverToExactTargets(t *testing.T) {
 			assert.Equal(t, want, log.uris)
 		})
 	}
+}
+
+// A rejected event is not retried; an unavailable destination is.
+func TestHTTPDriversClassifyRejections(t *testing.T) {
+	for _, tt := range httpTargets {
+		for status, permanent := range map[int]bool{http.StatusBadRequest: true, http.StatusServiceUnavailable: false} {
+			t.Run(fmt.Sprintf("%s/%d", tt.name, status), func(t *testing.T) {
+				_, server := testutil.NewRecorder(t, status, "")
+				driver, err := tt.kind.New(tt.config(server.URL), output.Deps{})
+				require.NoError(t, err)
+				err = driver.Send(context.Background(), testutil.CreateValidEvent())
+				require.Error(t, err)
+				assert.Equal(t, permanent, output.IsPermanent(err), err.Error())
+			})
+		}
+	}
+}
+
+var httpTargets = []httpTarget{
+	{
+		name: "webhook default endpoint", kind: webhook.OutputType,
+		config: func(h string) map[string]any { return map[string]any{"host": h} },
+		send:   "POST /",
+	},
+	{
+		name: "webhook base and endpoint", kind: webhook.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/gw/", "endpoint": "/events", "query_params": secretQuery()}
+		},
+		send: "POST /gw/events?" + wantQuery,
+	},
+	{
+		name: "webhook secret endpoint", kind: webhook.OutputType,
+		config: func(h string) map[string]any { return map[string]any{"host": h, "secret_endpoint": "/hook/abc"} },
+		send:   "POST /hook/abc",
+	},
+	{
+		name: "slack", kind: slack.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/proxy", "secret_endpoint": "/services/T/B/X", "query_params": secretQuery()}
+		},
+		send: "POST /proxy/services/T/B/X?" + wantQuery,
+	},
+	{
+		name: "loki default endpoint", kind: loki.OutputType,
+		config: func(h string) map[string]any { return map[string]any{"host": h} },
+		send:   "POST /loki/api/v1/push", health: "GET /ready",
+	},
+	{
+		name: "loki base path", kind: loki.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/tenant", "endpoint": "/push", "query_params": secretQuery()}
+		},
+		send: "POST /tenant/push?" + wantQuery, health: "GET /tenant/ready?" + wantQuery,
+	},
+	{
+		name: "elasticsearch", kind: elasticsearch.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{
+				"host": h, "base_path": "/es", "index_suffix": "none", "pipeline": "a&b c", "query_params": secretQuery(),
+			}
+		},
+		send: "PUT /es/falco/_create/test-uuid-001?pipeline=a%26b+c&" + wantQuery, health: "GET /es?" + wantQuery,
+	},
+	{
+		name: "alertmanager default endpoint", kind: alertmanager.OutputType,
+		config: func(h string) map[string]any { return map[string]any{"hosts": []string{h}} },
+		send:   "POST /api/v2/alerts", health: "GET /-/healthy",
+	},
+	{
+		name: "alertmanager base path with endpoint suffix in base", kind: alertmanager.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"hosts": []string{h}, "base_path": "/am/alerts", "endpoint": "/alerts", "query_params": secretQuery()}
+		},
+		send: "POST /am/alerts/alerts?" + wantQuery, health: "GET /am/alerts/-/healthy?" + wantQuery,
+	},
+	{
+		name: "teams", kind: teams.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/wf", "secret_endpoint": "/workflows/1/triggers/manual/paths/invoke", "query_params": secretQuery()}
+		},
+		send: "POST /wf/workflows/1/triggers/manual/paths/invoke?" + wantQuery,
+	},
+	{
+		name: "discord", kind: discord.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "secret_endpoint": "/api/webhooks/1/tok", "query_params": secretQuery()}
+		},
+		send: "POST /api/webhooks/1/tok?" + wantQuery + "&wait=true", health: "GET /api/webhooks/1/tok?" + wantQuery,
+	},
+	{
+		name: "grafana oncall", kind: grafanaoncall.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/oncall", "secret_endpoint": "/integrations/v1/formatted_webhook/tok/", "query_params": secretQuery()}
+		},
+		send: "POST /oncall/integrations/v1/formatted_webhook/tok/?" + wantQuery,
+	},
+	{
+		name: "talon", kind: talon.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/talon", "query_params": secretQuery()}
+		},
+		send: "POST /talon/?" + wantQuery, health: "GET /talon/healthz?" + wantQuery,
+	},
+	{
+		name: "cloudevents", kind: cloudevents.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/ce", "endpoint": "/in", "query_params": secretQuery()}
+		},
+		send: "POST /ce/in?" + wantQuery,
+	},
+	{
+		name: "pagerduty", kind: pagerduty.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/pd", "routing_key": "rk", "query_params": secretQuery()}
+		},
+		send: "POST /pd/v2/enqueue?" + wantQuery,
+	},
+	{
+		name: "opsgenie", kind: opsgenie.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/og", "api_key": "k", "query_params": secretQuery()}
+		},
+		send: "POST /og/v2/alerts?" + wantQuery, health: "GET /og/v2/heartbeats?" + wantQuery,
+	},
+	{
+		name: "datadog v1", kind: datadog.OutputType,
+		config: func(h string) map[string]any {
+			return map[string]any{"host": h, "base_path": "/dd", "api_key": "k", "query_params": secretQuery()}
+		},
+		send: "POST /dd/api/v1/events?" + wantQuery, health: "GET /dd/api/v1/validate?" + wantQuery,
+	},
 }
 
 func TestBatchAndTemplateRoutes(t *testing.T) {

@@ -380,7 +380,9 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 		start := time.Now()
 		err := sendFunc(ctx)
 		duration := time.Since(start)
-		complete(err == nil)
+		permanent := err != nil && output.IsPermanent(err)
+		// A permanent rejection proves the destination answers, so it does not count against the circuit.
+		complete(err == nil || permanent)
 
 		if err == nil {
 			now := time.Now()
@@ -398,6 +400,9 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 		}
 
 		lastErr = err
+		if permanent {
+			break
+		}
 	}
 
 	o.recordFailure(ctx, count, lastErr)

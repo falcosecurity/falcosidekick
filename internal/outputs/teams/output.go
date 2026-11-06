@@ -122,7 +122,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 	payload, err := d.buildPayload(evt)
 	if err != nil {
-		return shared.WrapDeliveryError(name, "marshal", err)
+		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	return d.sender.SendRaw(ctx, http.MethodPost, target, payload, "application/json")
 }

@@ -194,7 +194,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 	body, err := d.marshalEvent(evt)
 	if err != nil {
-		return shared.WrapDeliveryError("elasticsearch", "marshal", err)
+		return shared.WrapDeliveryError("elasticsearch", shared.OpMarshal, err)
 	}
 
 	method, route := http.MethodPost, "/"+d.resolveIndex()+"/_doc"

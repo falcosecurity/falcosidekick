@@ -98,7 +98,7 @@ func (d *driver) Init(context.Context) error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	input, err := d.publishInput(evt)
 	if err != nil {
-		return shared.WrapDeliveryError(name, "marshal", err)
+		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	_, err = d.client.Publish(ctx, input)
 	return d.cfg.WrapError(name, "Publish", err)

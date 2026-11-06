@@ -186,7 +186,7 @@ func (d *driver) Init(context.Context) error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	msg, err := d.message(evt)
 	if err != nil {
-		return shared.WrapDeliveryError(name, "marshal", err)
+		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	if err := d.acquire(ctx); err != nil {
 		return shared.WrapDeliveryError(name, "write", err)

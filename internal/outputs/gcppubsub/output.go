@@ -240,7 +240,7 @@ func (d *driver) Init(ctx context.Context) error {
 func (d *driver) message(evt *event.Event) (*pubsub.Message, error) {
 	data, err := json.Marshal(evt)
 	if err != nil {
-		return nil, shared.WrapDeliveryError(name, "marshal", err)
+		return nil, shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	return &pubsub.Message{Data: data, Attributes: d.cfg.CustomAttributes}, nil
 }
@@ -262,12 +262,16 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		results = append(results, d.publisher.Publish(ctx, msg))
 	}
 	var first error
-	failed := 0
+	failed, permanent := 0, 0
 	for _, res := range results {
 		if _, err := res.Get(ctx); err != nil {
 			failed++
+			safe := safeError("publish", err)
+			if output.IsPermanent(safe) {
+				permanent++
+			}
 			if first == nil {
-				first = safeError("publish", err)
+				first = safe
 			}
 		}
 	}
@@ -277,7 +281,11 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if len(results) == 1 {
 		return first
 	}
-	return fmt.Errorf("%d of %d messages failed: %w", failed, len(results), first)
+	reason := strings.TrimPrefix(first.Error(), output.ErrPermanent.Error()+": ")
+	if permanent == failed {
+		return fmt.Errorf("%w: %d of %d messages failed: %s", output.ErrPermanent, failed, len(results), reason)
+	}
+	return fmt.Errorf("%d of %d messages failed: %s", failed, len(results), reason)
 }
 
 // HealthCheck treats PermissionDenied as transient: the Publisher role lacks pubsub.topics.get.
@@ -304,7 +312,7 @@ func safeError(operation string, err error) error {
 		return shared.WrapDeliveryError(name, operation, err)
 	}
 	if errors.Is(err, pubsub.ErrOversizedMessage) {
-		return fmt.Errorf("%s %s: message too large", name, operation)
+		return fmt.Errorf("%w: %s %s: message too large", output.ErrPermanent, name, operation)
 	}
 	if st, ok := status.FromError(err); ok {
 		switch st.Code() {
@@ -313,10 +321,19 @@ func safeError(operation string, err error) error {
 		case codes.DeadlineExceeded:
 			return shared.WrapDeliveryError(name, operation, context.DeadlineExceeded)
 		default:
-			return fmt.Errorf("%s %s: %s", name, operation, st.Code())
+			if retriablePublishCodes[st.Code()] {
+				return fmt.Errorf("%s %s: %s", name, operation, st.Code())
+			}
+			return fmt.Errorf("%w: %s %s: %s", output.ErrPermanent, name, operation, st.Code())
 		}
 	}
 	return shared.WrapDeliveryError(name, operation, err)
+}
+
+// retriablePublishCodes are the codes the generated TopicAdminClient retries for Publish.
+var retriablePublishCodes = map[codes.Code]bool{
+	codes.Aborted: true, codes.Canceled: true, codes.Internal: true, codes.ResourceExhausted: true,
+	codes.Unknown: true, codes.Unavailable: true, codes.DeadlineExceeded: true,
 }
 
 // Close flushes for at most closeTimeout; messages still pending then fail.

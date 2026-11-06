@@ -56,11 +56,11 @@ func (d *driver) buildBulkBody(events []*event.Event) ([]byte, error) {
 	for _, evt := range events {
 		action, err := bulkAction(index, evt.UUID)
 		if err != nil {
-			return nil, shared.WrapDeliveryError("elasticsearch", "marshal", err)
+			return nil, shared.WrapDeliveryError("elasticsearch", shared.OpMarshal, err)
 		}
 		data, err := d.marshalEvent(evt)
 		if err != nil {
-			return nil, shared.WrapDeliveryError("elasticsearch", "marshal", err)
+			return nil, shared.WrapDeliveryError("elasticsearch", shared.OpMarshal, err)
 		}
 		body = append(body, action...)
 		body = append(body, '\n')

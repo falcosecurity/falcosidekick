@@ -136,7 +136,7 @@ func (d *driver) Init(context.Context) error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	body, err := json.Marshal(evt)
 	if err != nil {
-		return shared.WrapDeliveryError(name, "marshal", err)
+		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	return d.put(ctx, d.objectKey(evt, ".json"), body, contentTypeJSON)
 }
@@ -149,7 +149,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	for _, evt := range events {
 		line, err := json.Marshal(evt)
 		if err != nil {
-			return shared.WrapDeliveryError(name, "marshal", err)
+			return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 		}
 		body = append(append(body, line...), '\n')
 	}

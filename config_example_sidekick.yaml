@@ -103,8 +103,12 @@ database:
 runtime_defaults:
   queue_size: 1000            # per-output event queue capacity
   workers: 2                  # worker goroutines per output
+  # A rejection that no retry can fix (HTTP 4xx except 408, 425 and 429,
+  # an untrusted certificate, an invalid payload, the destination's own
+  # permanent codes) fails the event at once and does not count toward
+  # opening the circuit.
   retry:
-    max_attempts: 3           # retries before marking event as failed
+    max_attempts: 3           # attempts before marking event as failed
     initial_interval: 1s      # first retry backoff
     max_interval: 30s         # maximum retry backoff
     multiplier: 2.0           # exponential backoff multiplier

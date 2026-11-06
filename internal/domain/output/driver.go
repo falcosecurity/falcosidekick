@@ -57,6 +57,14 @@ type WarningReporter interface {
 // ErrMisconfigured marks a HealthCheck failure that a retry cannot fix, so the configuration is refused.
 var ErrMisconfigured = errors.New("destination rejects the configuration")
 
+// ErrPermanent marks a delivery failure that a retry cannot fix.
+var ErrPermanent = errors.New("destination rejects the delivery")
+
+// IsPermanent reports whether retrying err cannot succeed.
+func IsPermanent(err error) bool {
+	return errors.Is(err, ErrPermanent) || errors.Is(err, ErrMisconfigured)
+}
+
 // ErrEmptyUUID indicates an empty UUID passed to GetEvent.
 var ErrEmptyUUID = errors.New("uuid is required")
 

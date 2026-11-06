@@ -121,7 +121,7 @@ func (d *driver) Init(context.Context) error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	body, err := json.Marshal(evt)
 	if err != nil {
-		return shared.WrapDeliveryError(name, "marshal", err)
+		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	_, err = d.client.SendMessage(ctx, &sqs.SendMessageInput{
 		QueueUrl:    sdkaws.String(d.cfg.QueueURL),
@@ -136,7 +136,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	for i, evt := range events {
 		body, err := json.Marshal(evt)
 		if err != nil {
-			return shared.WrapDeliveryError(name, "marshal", err)
+			return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 		}
 		bodies[i] = string(body)
 	}

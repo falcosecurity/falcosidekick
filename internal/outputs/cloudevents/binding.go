@@ -82,7 +82,7 @@ func ceString(s string) string {
 func newRequest(ctx context.Context, target string, evt *event.Event, source string, extensions map[string]string) (*http.Request, error) {
 	body, err := json.Marshal(evt)
 	if err != nil {
-		return nil, shared.WrapDeliveryError(name, "marshal", err)
+		return nil, shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(body))
 	if err != nil {

@@ -244,7 +244,16 @@ func (d *driver) produced(results kgo.ProduceResults) error {
 	for _, result := range results {
 		d.forgetRecreatedTopic(result.Record, result.Err)
 	}
-	return results.FirstErr()
+	return classifyProduceError(results.FirstErr())
+}
+
+// classifyProduceError marks broker rejections that kerr declares non-retriable as permanent;
+// UNKNOWN_SERVER_ERROR is declared non-retriable but is a server failure.
+func classifyProduceError(err error) error {
+	if e, ok := errors.AsType[*kerr.Error](err); ok && !e.Retriable && e != kerr.UnknownServerError {
+		return fmt.Errorf("%w: %w", output.ErrPermanent, err)
+	}
+	return err
 }
 
 // forgetRecreatedTopic lets the next attempt reach a deleted and recreated topic:

@@ -203,7 +203,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 	result, err := buildResult(evt)
 	if err != nil {
-		return safeError("marshal", err)
+		return safeError(shared.OpMarshal, err)
 	}
 	t := target{namespace: namespaceOf(evt.OutputFields)}
 	err = d.apply(ctx, t, result)

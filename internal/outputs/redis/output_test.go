@@ -258,6 +258,30 @@ func TestHealthCheckClassification(t *testing.T) {
 	}
 }
 
+func TestSendErrorPermanence(t *testing.T) {
+	tests := []struct {
+		reply     string
+		name      string
+		permanent bool
+	}{
+		{name: "wrong type", reply: "-WRONGTYPE Operation against a key holding the wrong kind of value\r\n", permanent: true},
+		{name: "no permission", reply: "-NOPERM User falco has no permissions to run the 'rpush' command\r\n", permanent: true},
+		{name: "loading", reply: "-LOADING Redis is loading the dataset in memory\r\n"},
+		{name: "read only replica", reply: "-READONLY You can't write against a read only replica.\r\n"},
+		{name: "out of memory", reply: "-OOM command not allowed when used memory > 'maxmemory'.\r\n"},
+		{name: "try again", reply: "-TRYAGAIN Multiple keys request during rehashing of slot\r\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := startFakeRedis(t, secret)
+			fake.reply("RPUSH", tt.reply)
+			err := newDriver(t, map[string]any{"address": fake.addr, "password": secret}).Send(context.Background(), testutil.CreateValidEvent())
+			require.Error(t, err)
+			assert.Equal(t, tt.permanent, output.IsPermanent(err), err.Error())
+		})
+	}
+}
+
 func TestHealthCheckUnreachableIsTransient(t *testing.T) {
 	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)

@@ -23,6 +23,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/smithy-go"
 
@@ -50,6 +52,15 @@ var permissionCodes = []string{
 	"AccessDenied", "AccessDeniedException", "AuthorizationError",
 	"KMSAccessDenied", "KmsAccessDenied", "KMS.AccessDeniedException",
 }
+
+// serviceThrottleCodes are transient S3, SQS and SNS client-fault codes missing from the SDK retry lists.
+var serviceThrottleCodes = map[string]struct{}{
+	"KmsThrottled": {}, "KMSThrottling": {}, "Throttled": {}, "ConcurrentAccess": {}, "OverLimit": {},
+}
+
+// sdkRetryable is the standard retryer's decision, extended with serviceThrottleCodes.
+var sdkRetryable = retry.IsErrorRetryables(append(slices.Clone(retry.DefaultRetryables),
+	retry.RetryableErrorCode{Codes: serviceThrottleCodes}))
 
 // misconfigurationStatus covers HEAD responses, which carry no error code.
 var misconfigurationStatus = map[int]bool{
@@ -112,6 +123,9 @@ func (c *Config) wrap(name, operation string, err error, denialIsFatal bool) err
 	if slices.Contains(misconfigurationCodes, code) || misconfigurationStatus[status] ||
 		denied && denialIsFatal || shared.IsTLSVerificationError(err) {
 		return fmt.Errorf("%w: %w", output.ErrMisconfigured, wrapped)
+	}
+	if api != nil && api.ErrorFault() == smithy.FaultClient && sdkRetryable.IsErrorRetryable(err) != aws.TrueTernary {
+		return fmt.Errorf("%w: %w", output.ErrPermanent, wrapped)
 	}
 	return wrapped
 }
