@@ -25,6 +25,8 @@ import (
 func applyDefaults(v *viper.Viper) {
 	v.SetDefault("listen_address", "0.0.0.0")
 	v.SetDefault("listen_port", 2801)
+	v.SetDefault("management.listen_address", "127.0.0.1")
+	v.SetDefault("management.listen_port", 2802)
 	v.SetDefault("log_level", "info")
 	v.SetDefault("log_format", "text")
 

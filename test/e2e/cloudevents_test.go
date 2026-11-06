@@ -215,7 +215,7 @@ func TestCloudEventsUnreachableAtStartup(t *testing.T) {
 func TestCloudEventsSecretAbsentFromAPI(t *testing.T) {
 	_, sk := startCloudEvents(t, http.StatusOK, "")
 	for _, path := range []string{"/api/v1/config", "/api/v1/pipeline/outputs/cloudevents", "/api/v1/pipeline/status/cloudevents"} {
-		resp, err := httpDo(http.MethodGet, sk.url+path, nil)
+		resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
 		require.NoError(t, err)
 		body, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()

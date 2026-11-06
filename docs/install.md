@@ -17,7 +17,7 @@ Start from [`config_example_sidekick.yaml`](../config_example_sidekick.yaml) and
 
 The same tags are published to `public.ecr.aws/falcosecurity/falcosidekick`. `latest` is still v2.
 
-The container runs as user 1234 and listens on port 2801.
+The container runs as user 1234. It receives Falco events on port 2801, which also serves `/healthz`, `/version` and `/metrics`. The API and the UI are on a separate management port, 2802, bound to `127.0.0.1` by default because the API has no authentication.
 
 ## Container
 
@@ -44,7 +44,19 @@ Check it:
 
 ```sh
 curl -s localhost:2801/healthz
-curl -s localhost:2801/api/v1/pipeline/status
+```
+
+The management port listens on the container's loopback, which `-p` cannot reach. To use the API or the UI from the host, bind it to every container interface and publish it on the host loopback only:
+
+```yaml
+# sidekick.yaml
+management:
+  listen_address: "0.0.0.0"
+```
+
+```sh
+docker run ... -p 2801:2801 -p 127.0.0.1:2802:2802 ...
+curl -s localhost:2802/api/v1/pipeline/status
 ```
 
 At startup each output probes its destination. A configuration error (rejected credentials, wrong path, untrusted certificate) stops the process with the reason in the log. An unreachable destination does not: the output starts as `degraded` (see [configuration](configuration.md#output-status)).
@@ -129,7 +141,7 @@ ui:
   event_source: inmemory
 ```
 
-The UI is served on the same port. Editing outputs from the UI also needs `api.allow_writes: true`. The API has no authentication: enable writes only on a trusted network.
+The UI is served on the management port, 2802, with the API. In Kubernetes reach it with `kubectl port-forward deploy/falcosidekick 2802`, which works with the default `127.0.0.1`. To expose it through a Service instead, set `management.listen_address: "0.0.0.0"` and restrict that Service to trusted clients: the API has no authentication. Editing outputs from the UI also needs `api.allow_writes: true`.
 
 ## Build from source
 

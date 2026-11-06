@@ -183,7 +183,7 @@ func TestTalonSecretAbsentFromLogsAndAPI(t *testing.T) {
 	_, rejected, _ := talon.snapshot()
 	require.Empty(t, rejected)
 	for _, path := range []string{"/api/v1/config", "/api/v1/pipeline/outputs/talon", "/api/v1/pipeline/status/talon"} {
-		resp, err := httpDo(http.MethodGet, sk.url+path, nil)
+		resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
 		require.NoError(t, err)
 		body, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()

@@ -81,7 +81,7 @@ func (a *awsTarget) requireSecretAbsent(t *testing.T, sk *sidekick, name string)
 	t.Helper()
 	assert.NotContains(t, sk.logs.String(), a.secret)
 	for _, path := range []string{"/api/v1/config", "/api/v1/pipeline/outputs/" + name, "/api/v1/pipeline/status/" + name} {
-		resp, err := httpDo(http.MethodGet, sk.url+path, nil)
+		resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
 		require.NoError(t, err)
 		body, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()

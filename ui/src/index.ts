@@ -1,7 +1,7 @@
 import { serve } from "bun"
 import index from "./index.html"
 
-const BACKEND = Bun.env.FALCOSIDEKICK_BACKEND ?? "http://localhost:2801"
+const BACKEND = Bun.env.FALCOSIDEKICK_BACKEND ?? "http://localhost:2802"
 const PORT = Number(Bun.env.UI_DEV_PORT ?? 5173)
 
 async function proxy(req: Request): Promise<Response> {
@@ -33,9 +33,6 @@ const server = serve({
   port: PORT,
   routes: {
     "/api/*": proxy,
-    "/healthz": proxy,
-    "/version": proxy,
-    "/metrics": proxy,
     "/*": index,
   },
   development: Bun.env.NODE_ENV !== "production" && {

@@ -23,7 +23,7 @@ bun test                        # unit and component tests via Bun test + happy-
 
 `bun run dev` starts [`src/index.ts`](src/index.ts), which:
 - serves `src/index.html` at `/*` with HMR and React Fast Refresh,
-- proxies `/api/**`, `/healthz`, `/version`, `/metrics` to `http://localhost:2801` (falcosidekick backend).
+- proxies `/api/**` to `http://localhost:2802`, the falcosidekick management listener.
 
 Override backend URL: `FALCOSIDEKICK_BACKEND=...`. Override dev port: `UI_DEV_PORT=...`.
 

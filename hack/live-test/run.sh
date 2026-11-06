@@ -11,21 +11,25 @@ NAMESPACE="$HELPER_NAMESPACE"
 MANIFESTS=("$HERE/webhook-receiver.yaml" "$HERE/component.yaml")
 IMAGE="${FSK_IMAGE:-falcosidekick}:${FSK_TAG:-local}"
 LOCAL_PORT="${FSK_LOCAL_PORT:-28010}"
+MGMT_LOCAL_PORT="${FSK_MGMT_LOCAL_PORT:-28020}"
 TIMEOUT_READY="${FSK_TIMEOUT_READY:-90s}"
 FALCO_PROPAGATION_WAIT="${FSK_FALCO_WAIT:-30}"
 WEBHOOK_WAIT="${FSK_WEBHOOK_WAIT:-8}"
 
 FAIL=0
 PF_PID=""
+MGMT_PF_PID=""
 
 log()  { printf '[live-test] %s\n' "$*"; }
 fail() { printf '[live-test][FAIL] %s\n' "$*" >&2; FAIL=$((FAIL+1)); }
 
 cleanup() {
-  if [[ -n "$PF_PID" ]] && kill -0 "$PF_PID" 2>/dev/null; then
-    kill "$PF_PID" 2>/dev/null || true
-    wait "$PF_PID" 2>/dev/null || true
-  fi
+  for pid in "$PF_PID" "$MGMT_PF_PID"; do
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+    fi
+  done
   if [[ "$HELPER_APPLIED" -eq 1 ]]; then
     log "teardown: deleting resources owned by this helper"
   fi
@@ -78,6 +82,11 @@ log "  ok: pod Ready [criterion 1]"
 log "5/9 starting port-forward to falcosidekick:2801 -> localhost:$LOCAL_PORT"
 kubectl --context "$HELPER_CONTEXT" -n "$NAMESPACE" port-forward svc/falcosidekick "$LOCAL_PORT:2801" >/dev/null 2>&1 &
 PF_PID=$!
+# The management listener (API, UI) is on the pod loopback, which a pod port-forward reaches.
+FSK_POD=$(kctl -n "$NAMESPACE" get pod -l app.kubernetes.io/name=falcosidekick -o jsonpath='{.items[0].metadata.name}')
+log "  port-forward to $FSK_POD:2802 (management) -> localhost:$MGMT_LOCAL_PORT"
+kubectl --context "$HELPER_CONTEXT" -n "$NAMESPACE" port-forward "pod/$FSK_POD" "$MGMT_LOCAL_PORT:2802" >/dev/null 2>&1 &
+MGMT_PF_PID=$!
 sleep 2
 
 curl_ok() { curl -fsS --max-time 5 "$@" 2>&1; }
@@ -93,7 +102,7 @@ extract_input_total() {
 
 # webhook_sent_total reads sent_total for the "webhook" output from /api/v1/pipeline/status.
 webhook_sent_total() {
-  curl_ok "http://127.0.0.1:$LOCAL_PORT/api/v1/pipeline/status" 2>/dev/null \
+  curl_ok "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/pipeline/status" 2>/dev/null \
     | python3 -c 'import json,sys
 try:
   for o in json.load(sys.stdin).get("outputs", []):
@@ -118,7 +127,7 @@ else
   fail "/version unexpected: $body"
 fi
 
-if body=$(curl_ok "http://127.0.0.1:$LOCAL_PORT/api/v1/config") && [[ "$body" == *'listen_port'* ]]; then
+if body=$(curl_ok "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/config") && [[ "$body" == *'listen_port'* ]]; then
   log "  ok: /api/v1/config [criterion 4]"
 else
   fail "/api/v1/config unexpected: $body"
@@ -158,7 +167,7 @@ if [[ "$synthetic_delivered" -eq 1 ]]; then
 else
   fail "webhook output sent_total did not advance within ${WEBHOOK_WAIT}s (baseline=$webhook_baseline)"
   log "  diagnostic: pipeline status:"
-  curl_ok "http://127.0.0.1:$LOCAL_PORT/api/v1/pipeline/status" 2>&1 | sed 's/^/    /' >&2 || true
+  curl_ok "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/pipeline/status" 2>&1 | sed 's/^/    /' >&2 || true
 fi
 
 log "8/9 real Falco rule trigger (read /etc/shadow in a pod)"
@@ -203,11 +212,11 @@ if [[ "$falco_forwarded" -eq 1 ]]; then
 else
   fail "webhook sent_total did not advance after Falco trigger within ${FALCO_PROPAGATION_WAIT}s (baseline=$post_trigger_webhook)"
   log "  diagnostic: pipeline status:"
-  curl_ok "http://127.0.0.1:$LOCAL_PORT/api/v1/pipeline/status" 2>&1 | sed 's/^/    /' >&2 || true
+  curl_ok "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/pipeline/status" 2>&1 | sed 's/^/    /' >&2 || true
 fi
 
 log "9/10 UI shell (browser-shape request)"
-if decoded=$(curl -sS --compressed -H "Accept-Encoding: gzip" "http://127.0.0.1:$LOCAL_PORT/") && [[ "$decoded" == *'<html'* ]]; then
+if decoded=$(curl -sS --compressed -H "Accept-Encoding: gzip" "http://127.0.0.1:$MGMT_LOCAL_PORT/") && [[ "$decoded" == *'<html'* ]]; then
   log "  ok: GET / with Accept-Encoding returned UI HTML shell [criterion 8]"
 else
   fail "GET / with Accept-Encoding did not return decoded HTML (variant may be slim; set FSK_TAG=local-slim to skip this criterion)"
@@ -219,7 +228,7 @@ pre_ui_sent="$(webhook_sent_total)"
 put_resp=$(curl -sS -w '\n%{http_code}' -X PUT \
   -H "Content-Type: application/json" \
   -d '{"config":{"method":"POST"}}' \
-  "http://127.0.0.1:$LOCAL_PORT/api/v1/pipeline/outputs/webhook" || true)
+  "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/pipeline/outputs/webhook" || true)
 status=$(echo "$put_resp" | tail -n1)
 if [[ "$status" == "200" ]]; then
   log "  ok: PUT /api/v1/pipeline/outputs/webhook -> 200 [criterion 9a]"

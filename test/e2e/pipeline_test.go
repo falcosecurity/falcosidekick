@@ -30,6 +30,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// D2: the API answers only on the management listener; ingestion keeps events, health and metrics.
+func TestManagementListenerIsSeparate(t *testing.T) {
+	sk := startSidekick(t, outputYAML("inmemory", "capacity: 10"))
+	for _, tc := range []struct {
+		base, path string
+		want       int
+	}{
+		{base: sk.url, path: "/api/v1/pipeline/status", want: http.StatusNotFound},
+		{base: sk.url, path: "/api/v1/config", want: http.StatusNotFound},
+		{base: sk.url, path: "/metrics", want: http.StatusOK},
+		{base: sk.apiURL, path: "/api/v1/pipeline/status", want: http.StatusOK},
+		{base: sk.apiURL, path: "/metrics", want: http.StatusNotFound},
+	} {
+		resp, err := httpDo(http.MethodGet, tc.base+tc.path, nil)
+		require.NoError(t, err)
+		_ = resp.Body.Close()
+		assert.Equal(t, tc.want, resp.StatusCode, "%s%s", tc.base, tc.path)
+	}
+	assert.Contains(t, sk.logs.String(), `"management_address":"127.0.0.1:`, "the API listens on loopback by default")
+}
+
 // minimum_priority accepts any case; before, an unknown spelling ranked lowest and filtered nothing.
 func TestMinimumPriorityIgnoresCase(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))

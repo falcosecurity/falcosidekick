@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
+	"github.com/falcosecurity/falcosidekick/internal/config"
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -37,6 +38,14 @@ import (
 )
 
 const testEventSourceName = "inmemory"
+
+// testConfig returns the core configuration a deployment without a core file starts from.
+func testConfig(t *testing.T) *core.Config {
+	t.Helper()
+	cfg, err := config.Load("")
+	require.NoError(t, err)
+	return &cfg.Config
+}
 
 func newTestCatalog(t *testing.T) *catalog.Catalog {
 	t.Helper()
@@ -66,7 +75,7 @@ func buildTestServer(t *testing.T, outputs []*pipeline.Output) *Server {
 
 	p.Start(context.Background(), func() {})
 
-	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Logger: slog.Default()})
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Logger: slog.Default(), Config: testConfig(t)})
 	if err != nil {
 		t.Fatalf("build server: %v", err)
 	}
@@ -89,7 +98,7 @@ func buildTestServerWithDBAndCatalog(t *testing.T, db core.Database, cat *catalo
 	require.NoError(t, err)
 	p.Start(context.Background(), func() {})
 
-	srv, err := NewServer(&ServerConfig{Pipeline: p, Database: db, Catalog: cat})
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Database: db, Catalog: cat, Config: testConfig(t)})
 	require.NoError(t, err)
 	return srv
 }
@@ -172,11 +181,9 @@ func buildTestServerWithStore(t *testing.T, store *fakeReadableStore) *Server {
 	require.NoError(t, err)
 	p.Start(context.Background(), func() {})
 
-	srv, err := NewServer(&ServerConfig{
-		Pipeline: p,
-		Catalog:  newTestCatalog(t),
-		Config:   &core.Config{UI: core.UIConfig{EventSource: testEventSourceName}},
-	})
+	coreCfg := testConfig(t)
+	coreCfg.UI.EventSource = testEventSourceName
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Config: coreCfg})
 	require.NoError(t, err)
 	return srv
 }
@@ -197,6 +204,7 @@ func buildUITestServer(t *testing.T, assets fs.FS, registry *prometheus.Registry
 		Catalog:  newTestCatalog(t),
 		UIAssets: assets,
 		Registry: registry,
+		Config:   testConfig(t),
 	})
 	require.NoError(t, err)
 	return srv

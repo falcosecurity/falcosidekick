@@ -31,6 +31,9 @@ func TestLoadDefaults(t *testing.T) {
 
 	assert.Equal(t, "0.0.0.0", cfg.ListenAddress)
 	assert.Equal(t, 2801, cfg.ListenPort)
+	assert.Equal(t, "127.0.0.1", cfg.Management.ListenAddress, "the API listens on loopback by default")
+	assert.Equal(t, 2802, cfg.Management.ListenPort)
+	assert.Equal(t, 1000, cfg.Metrics.MaxLabelValues)
 	assert.Equal(t, "info", string(cfg.LogLevel))
 	assert.Equal(t, "text", string(cfg.LogFormat))
 	assert.False(t, cfg.UI.Enabled)

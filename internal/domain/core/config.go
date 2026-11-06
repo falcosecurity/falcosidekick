@@ -30,6 +30,7 @@ type Config struct {
 	LogFormat     LogFormat          `json:"log_format" mapstructure:"log_format"`
 	LogLevel      LogLevel           `json:"log_level" mapstructure:"log_level"`
 	ListenAddress string             `json:"listen_address" mapstructure:"listen_address"`
+	Management    ManagementConfig   `json:"management" mapstructure:"management"`
 	Database      DatabaseConfig     `json:"database" mapstructure:"database"`
 	UI            UIConfig           `json:"ui" mapstructure:"ui"`
 	Metrics       MetricsConfig      `json:"metrics" mapstructure:"metrics"`
@@ -93,6 +94,24 @@ func validMetricLabel(name string) bool {
 	return true
 }
 
+// ManagementConfig is the listener of the API and the UI, apart from event ingestion.
+type ManagementConfig struct {
+	ListenAddress string `json:"listen_address" mapstructure:"listen_address"`
+	ListenPort    int    `json:"listen_port" mapstructure:"listen_port"`
+}
+
+// Validate checks the management listener.
+func (c ManagementConfig) Validate() utils.ValidationErrors {
+	var errs utils.ValidationErrors
+	if c.ListenPort < 1 || c.ListenPort > 65535 {
+		errs.Add("listen_port", "must be 1-65535")
+	}
+	if len(errs) > 0 {
+		return errs
+	}
+	return nil
+}
+
 // APIConfig controls the management API.
 type APIConfig struct {
 	AllowWrites bool `json:"allow_writes" mapstructure:"allow_writes"`
@@ -110,6 +129,10 @@ func (c *Config) Validate() utils.ValidationErrors {
 
 	if c.ListenPort < 1 || c.ListenPort > 65535 {
 		errs.Add("listen_port", "must be 1-65535")
+	}
+	errs.Merge("management", c.Management.Validate())
+	if c.Management.ListenPort == c.ListenPort {
+		errs.Add("management.listen_port", "must differ from listen_port")
 	}
 
 	errs.Merge("", c.LogLevel.Validate())
