@@ -165,10 +165,12 @@ var httpOutputDefaults = map[string]map[string]any{
 		"ClusterID":       "",
 		"ClientID":        "",
 		"SubjectTemplate": "falco.<priority>.<rule>",
+		"MinimumPriority": "",
 	},
 	"NATS": {
 		"HostPort":        "",
 		"SubjectTemplate": "falco.<priority>.<rule>",
+		"MinimumPriority": "",
 	},
 	"Opsgenie": {
 		"Region":          "us",
@@ -335,14 +337,14 @@ var outputDefaults = map[string]map[string]any{
 		"MinimumPriority": "",
 	},
 	"Wavefront": {
-		"EndpointType":        "",
-		"EndpointHost":        "",
-		"EndpointToken":       "",
-		"MetricName":          "falco.alert",
-		"EndpointMetricPort":  2878,
-		"MinimumPriority":     "",
-		"FlushIntervalSecods": 1,
-		"BatchSize":           10000,
+		"EndpointType":         "",
+		"EndpointHost":         "",
+		"EndpointToken":        "",
+		"MetricName":           "falco.alert",
+		"EndpointMetricPort":   2878,
+		"MinimumPriority":      "",
+		"FlushIntervalSeconds": 1,
+		"BatchSize":            10000,
 	},
 	"Syslog": {
 		"Host":            "",
@@ -590,7 +592,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Yandex.S3.Endpoint", "https://storage.yandexcloud.net")
 	v.SetDefault("Yandex.S3.Bucket", "")
 	v.SetDefault("Yandex.S3.Prefix", "falco")
-	v.SetDefault("Yamdex.S3.MinimumPriority", "")
+	v.SetDefault("Yandex.S3.MinimumPriority", "")
 
 	v.SetDefault("Yandex.DataStreams.Endpoint", "https://yds.serverless.yandexcloud.net")
 	v.SetDefault("Yandex.DataStreams.StreamName", "")
