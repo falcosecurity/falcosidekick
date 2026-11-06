@@ -100,7 +100,7 @@ func (d *driver) Init(_ context.Context) error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
-		return shared.WrapDeliveryError(name, "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	return d.sender.SendJSON(ctx, http.MethodPost, target, buildPayload(evt))
 }

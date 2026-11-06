@@ -35,14 +35,12 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared/aws/awstest"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
-const (
-	queueURL = "https://sqs.eu-west-1.amazonaws.com/123456789012/falco"
-	probeOp  = "GetQueueAttributes"
-)
+const queueURL = "https://sqs.eu-west-1.amazonaws.com/123456789012/falco"
 
 type sqsCall struct {
 	Body   map[string]any
@@ -74,9 +72,9 @@ func (f *fakeSQS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	var reply any
 	switch target {
-	case "SendMessage":
+	case opSendMessage:
 		reply = map[string]any{"MessageId": "m", "MD5OfMessageBody": digest(body["MessageBody"].(string))}
-	case "SendMessageBatch":
+	case opSendMessageBatch:
 		ok, failed := []any{}, []any{}
 		for _, e := range body["Entries"].([]any) {
 			entry := e.(map[string]any)
@@ -88,7 +86,7 @@ func (f *fakeSQS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ok = append(ok, map[string]any{"Id": id, "MessageId": "m" + id, "MD5OfMessageBody": digest(entry["MessageBody"].(string))})
 		}
 		reply = map[string]any{"Successful": ok, "Failed": failed}
-	case probeOp:
+	case opGetQueueAttributes:
 		reply = map[string]any{"Attributes": map[string]string{"QueueArn": "arn:aws:sqs:eu-west-1:123456789012:falco"}}
 	}
 	_ = json.NewEncoder(w).Encode(reply)
@@ -175,7 +173,7 @@ func TestSendMessage(t *testing.T) {
 	require.NoError(t, d.Send(context.Background(), evt))
 	calls := fake.received()
 	require.Len(t, calls, 1)
-	assert.Equal(t, "SendMessage", calls[0].Target)
+	assert.Equal(t, opSendMessage, calls[0].Target)
 	assert.Equal(t, queueURL, calls[0].Body["QueueUrl"])
 	assert.NotContains(t, calls[0].Body, "MessageAttributes")
 	want, err := json.Marshal(evt)
@@ -195,7 +193,7 @@ func TestSendBatchSplitsByEntries(t *testing.T) {
 	calls := fake.received()
 	require.Len(t, calls, 3)
 	for i, want := range []int{10, 10, 3} {
-		assert.Equal(t, "SendMessageBatch", calls[i].Target)
+		assert.Equal(t, opSendMessageBatch, calls[i].Target)
 		assert.Len(t, calls[i].Body["Entries"], want)
 	}
 }
@@ -226,8 +224,9 @@ func TestSendBatchPartialFailure(t *testing.T) {
 		events[i] = testutil.CreateValidEvent()
 	}
 	err := d.(output.BatchSender).SendBatch(context.Background(), events)
-	require.Error(t, err)
-	assert.Equal(t, "awssqs SendMessageBatch: 3/12 entries failed (InvalidMessageContents)", err.Error())
+	var diagnostic *shared.DeliveryError
+	require.ErrorAs(t, err, &diagnostic)
+	assert.Equal(t, name+" "+opSendMessageBatch+": 3/12 entries failed (InvalidMessageContents)", err.Error())
 	assert.Len(t, fake.received(), 2, "every request is sent")
 }
 
@@ -235,15 +234,16 @@ func TestErrors(t *testing.T) {
 	tests := []struct {
 		name         string
 		errType      string
+		want         string
 		status       int
 		misconfigure bool
 		denied       bool // transient for the probe only
 	}{
-		{name: "queue missing", status: 400, errType: "QueueDoesNotExist", misconfigure: true},
-		{name: "invalid token", status: 403, errType: "InvalidClientTokenId", misconfigure: true},
-		{name: "denied", status: 400, errType: "AccessDenied", misconfigure: true, denied: true},
-		{name: "throttled", status: 400, errType: "ThrottlingException"},
-		{name: "internal", status: 500, errType: "InternalError"},
+		{name: "queue missing", status: 400, errType: "QueueDoesNotExist", want: "HTTP 400 Bad Request: QueueDoesNotExist", misconfigure: true},
+		{name: "invalid token", status: 403, errType: "InvalidClientTokenId", want: "HTTP 403 Forbidden: InvalidClientTokenId", misconfigure: true},
+		{name: "denied", status: 400, errType: "AccessDenied", want: "HTTP 400 Bad Request: AccessDenied", misconfigure: true, denied: true},
+		{name: "throttled", status: 400, errType: "ThrottlingException", want: "HTTP 400 Bad Request: ThrottlingException"},
+		{name: "internal", status: 500, errType: "InternalError", want: "HTTP 500 Internal Server Error"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -251,15 +251,15 @@ func TestErrors(t *testing.T) {
 			fake := &fakeSQS{errStatus: tt.status, errType: tt.errType}
 			d := newDriver(t, startFake(t, fake), nil)
 			calls := map[string]error{
-				probeOp:            d.HealthCheck(context.Background()),
-				"SendMessage":      d.Send(context.Background(), testutil.CreateValidEvent()),
-				"SendMessageBatch": d.(output.BatchSender).SendBatch(context.Background(), []*event.Event{testutil.CreateValidEvent()}),
+				opGetQueueAttributes: d.HealthCheck(context.Background()),
+				opSendMessage:        d.Send(context.Background(), testutil.CreateValidEvent()),
+				opSendMessageBatch:   d.(output.BatchSender).SendBatch(context.Background(), []*event.Event{testutil.CreateValidEvent()}),
 			}
 			for op, err := range calls {
 				require.Error(t, err, op)
-				want := tt.misconfigure && (!tt.denied || op != probeOp)
+				want := tt.misconfigure && (!tt.denied || op != opGetQueueAttributes)
 				assert.Equal(t, want, errors.Is(err, output.ErrMisconfigured), err.Error())
-				assert.Contains(t, err.Error(), "awssqs "+op+": "+tt.errType)
+				assert.Equal(t, name+" "+op+": "+tt.want, err.Error())
 				for _, secret := range []string{awstest.AccessKeyID, awstest.SecretAccessKey, awstest.SessionToken} {
 					assert.NotContains(t, err.Error(), secret)
 				}
@@ -275,6 +275,6 @@ func TestHealthCheck(t *testing.T) {
 	require.NoError(t, d.HealthCheck(context.Background()))
 	calls := fake.received()
 	require.Len(t, calls, 1)
-	assert.Equal(t, probeOp, calls[0].Target)
+	assert.Equal(t, opGetQueueAttributes, calls[0].Target)
 	assert.Equal(t, []any{"QueueArn"}, calls[0].Body["AttributeNames"])
 }

@@ -66,9 +66,8 @@ func TestInitTemplateSafeHTTPError(t *testing.T) {
 	}, output.Deps{})
 	require.NoError(t, err)
 	err = d.Init(context.Background())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "index template create")
-	assert.Contains(t, err.Error(), "HTTP 403 Forbidden")
+	require.ErrorIs(t, err, output.ErrMisconfigured)
+	assert.Equal(t, "elasticsearch index template create: HTTP 403 Forbidden", err.Error())
 	assert.NotContains(t, err.Error(), "TEMPLATE_RESPONSE_SECRET")
 	assert.NotContains(t, err.Error(), "PATH_SECRET")
 	var diagnostic *shared.DeliveryError
@@ -175,7 +174,7 @@ func TestInitTemplateCreatesOnlyWhenAbsent(t *testing.T) {
 	}{
 		{name: "exists", head: http.StatusOK},
 		{name: "absent", head: http.StatusNotFound, wantPut: true},
-		{name: "unauthorized", head: http.StatusUnauthorized, wantErr: "index template check: elasticsearch response: HTTP 401 Unauthorized"},
+		{name: "unauthorized", head: http.StatusUnauthorized, wantErr: "elasticsearch index template check: HTTP 401 Unauthorized"},
 		{name: "server error is left to the first delivery", head: http.StatusInternalServerError},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

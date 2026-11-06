@@ -86,7 +86,7 @@ func newRequest(ctx context.Context, target string, evt *event.Event, source str
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(body))
 	if err != nil {
-		return nil, shared.WrapDeliveryError(name, "request", err)
+		return nil, shared.WrapDeliveryError(name, shared.OpRequest, err)
 	}
 	req.Header.Set("Content-Type", contentType)
 	for key, value := range attributes(evt, source, extensions) {

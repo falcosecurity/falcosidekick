@@ -258,24 +258,39 @@ func TestFanOutSucceedsIfOneHostWorks(t *testing.T) {
 }
 
 func TestFanOutFailsWhenAllHostsFail(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("down"))
-	}))
-	defer server.Close()
-
-	o := &driver{
-		cfg: config{
-			HTTPTargetConfig: shared.HTTPTargetConfig{Endpoint: defaultEndpoint},
-			Hosts:            []string{server.URL, server.URL},
-		},
-		sender: testutil.MustNewSender(t, "alertmanager"),
-		logger: slog.Default().With("output", "alertmanager"),
+	answer := func(status int) string {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte("down"))
+		}))
+		t.Cleanup(server.Close)
+		return server.URL
 	}
-
-	err := o.Send(context.Background(), testutil.CreateValidEvent())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "all 2 hosts failed")
+	unavailable, rejected := answer(http.StatusInternalServerError), answer(http.StatusBadRequest)
+	for _, tc := range []struct {
+		name      string
+		hosts     []string
+		permanent bool
+	}{
+		{name: "transient", hosts: []string{unavailable, unavailable}},
+		{name: "one host may recover", hosts: []string{rejected, unavailable}},
+		{name: "every host rejects", hosts: []string{rejected, rejected}, permanent: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			o := &driver{
+				cfg: config{
+					HTTPTargetConfig: shared.HTTPTargetConfig{Endpoint: defaultEndpoint},
+					Hosts:            tc.hosts,
+				},
+				sender: testutil.MustNewSender(t, "alertmanager"),
+				logger: slog.New(slog.DiscardHandler),
+			}
+			err := o.Send(context.Background(), testutil.CreateValidEvent())
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "alertmanager send: all 2 hosts failed, last: HTTP ")
+			assert.Equal(t, tc.permanent, output.IsPermanent(err))
+		})
+	}
 }
 
 func TestSingleHostSkipsFanOut(t *testing.T) {

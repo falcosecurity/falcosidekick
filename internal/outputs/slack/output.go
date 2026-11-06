@@ -31,11 +31,21 @@ import (
 )
 
 const (
+	name          = "slack"
 	defaultFooter = "https://github.com/falcosecurity/falcosidekick"
 	formatAll     = "all"
 	formatFields  = "fields"
 	formatText    = "text"
 )
+
+// webhookErrors are the codes Slack documents for incoming webhooks, mapped to whether a retry can succeed.
+// https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks#handling-errors
+var webhookErrors = map[string]bool{
+	"action_prohibited": false, "channel_is_archived": false, "channel_not_found": false, "invalid_payload": false,
+	"invalid_token": false, "no_active_hooks": false, "no_service": false, "no_service_id": false, "no_team": false,
+	"no_text": false, "posting_to_general_channel_denied": false, "team_disabled": false,
+	"too_many_attachments": false, "user_not_found": false, "rollup_error": true,
+}
 
 var targetOptions = shared.HTTPTargetOptions{DefaultHost: "https://hooks.slack.com", SecretEndpointRequired: true}
 
@@ -55,7 +65,7 @@ type config struct {
 // OutputType describes the Slack output for the catalog.
 var OutputType = output.Type{
 	New:      createOutput,
-	Name:     "slack",
+	Name:     name,
 	Category: "chat",
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
@@ -107,13 +117,13 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("slack config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("slack: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
-	sender, err := shared.NewSender("slack", &cfg.HTTPConfig)
+	sender, err := shared.NewSender(name, &cfg.HTTPConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -121,13 +131,13 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	o := &driver{
 		cfg:    cfg,
 		sender: sender,
-		logger: shared.ResolveLogger(deps.Logger, "slack"),
+		logger: shared.ResolveLogger(deps.Logger, name),
 	}
 
 	if cfg.MessageFormat != "" {
-		tmpl, err := template.New("slack").Parse(cfg.MessageFormat)
+		tmpl, err := template.New(name).Parse(cfg.MessageFormat)
 		if err != nil {
-			return nil, fmt.Errorf("slack: parse message template: %w", err)
+			return nil, fmt.Errorf("%s: parse message template: %w", name, err)
 		}
 		o.messageTmpl = tmpl
 	}
@@ -135,7 +145,7 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	return o, nil
 }
 
-func (d *driver) Name() string { return "slack" }
+func (d *driver) Name() string { return name }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
@@ -143,7 +153,7 @@ func (d *driver) Init(_ context.Context) error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
-		return shared.WrapDeliveryError("slack", "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	return d.sender.SendJSONCheckBody(ctx, http.MethodPost, target, d.buildPayload(evt), checkSlackResponse)
 }
@@ -159,12 +169,9 @@ func checkSlackResponse(body []byte) error {
 		return nil
 	}
 	code := string(body)
-	switch code {
-	case "action_prohibited", "channel_is_archived", "channel_not_found", "invalid_payload", "invalid_token",
-		"no_active_hooks", "no_service", "no_service_id", "no_team", "no_text", "posting_to_general_channel_denied",
-		"rollup_error", "team_disabled", "too_many_attachments", "user_not_found":
-		return shared.NewProtocolError("slack", code)
-	default:
-		return shared.NewProtocolError("slack", "unexpected response")
+	retriable, documented := webhookErrors[code]
+	if !documented {
+		return &shared.DeliveryError{Output: name, Operation: shared.OpResponse, Code: "unexpected response"}
 	}
+	return &shared.DeliveryError{Output: name, Operation: shared.OpResponse, Code: code, Permanent: !retriable}
 }

@@ -57,7 +57,7 @@ func TestSendBatchSafeErrorLogs(t *testing.T) {
 			require.NoError(t, err)
 			events := []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent(), testutil.CreateValidEvent()}
 			err = d.(output.BatchSender).SendBatch(context.Background(), events)
-			require.EqualError(t, err, "elasticsearch: bulk indexed 1/3, 2 failed")
+			require.EqualError(t, err, "elasticsearch response: bulk indexed 1/3, 2 failed")
 			for _, secret := range []string{"TYPE_SECRET", "REASON_SECRET", "PATH_SECRET"} {
 				assert.NotContains(t, logs.String(), secret)
 				assert.NotContains(t, err.Error(), secret)
@@ -269,14 +269,16 @@ func TestParseBulkResponseAccountsForEveryItem(t *testing.T) {
 	for _, tc := range []struct {
 		name, body, want string
 		expected         int
+		permanent        bool
 	}{
 		{name: "all created", body: `{"errors":false,"items":[` + created + `,` + created + `]}`, expected: 2},
 		{name: "already indexed", body: `{"errors":true,"items":[` + conflict + `,` + conflict + `]}`, expected: 2},
 		{name: "created and already indexed", body: `{"errors":true,"items":[` + created + `,` + conflict + `]}`, expected: 2},
-		{name: "one mapping failure", body: `{"errors":true,"items":[` + created + `,` + mapping + `,` + created + `]}`, expected: 3, want: "elasticsearch: bulk indexed 2/3, 1 failed"},
-		{name: "rejected", body: `{"errors":true,"items":[` + rejected + `,` + conflict + `]}`, expected: 2, want: "elasticsearch: bulk indexed 1/2, 1 failed"},
-		{name: "conflict of another type", body: `{"errors":true,"items":[` + other409 + `]}`, expected: 1, want: "elasticsearch: bulk indexed 0/1, 1 failed"},
-		{name: "item without create", body: `{"errors":true,"items":[{"index":{"status":201}}]}`, expected: 1, want: "elasticsearch: bulk indexed 0/1, 1 failed"},
+		{name: "one mapping failure", body: `{"errors":true,"items":[` + created + `,` + mapping + `,` + created + `]}`, expected: 3, want: "elasticsearch response: bulk indexed 2/3, 1 failed", permanent: true},
+		{name: "rejected", body: `{"errors":true,"items":[` + rejected + `,` + conflict + `]}`, expected: 2, want: "elasticsearch response: bulk indexed 1/2, 1 failed"},
+		{name: "mapping and rejected", body: `{"errors":true,"items":[` + mapping + `,` + rejected + `]}`, expected: 2, want: "elasticsearch response: bulk indexed 0/2, 2 failed"},
+		{name: "conflict of another type", body: `{"errors":true,"items":[` + other409 + `]}`, expected: 1, want: "elasticsearch response: bulk indexed 0/1, 1 failed"},
+		{name: "item without create", body: `{"errors":true,"items":[{"index":{"status":201}}]}`, expected: 1, want: "elasticsearch response: bulk indexed 0/1, 1 failed"},
 		{name: "errors flag hidden", body: `{"items":[` + created + `]}`, expected: 1, want: "incomplete bulk response"},
 		{name: "missing items", body: `{"errors":false}`, expected: 1, want: "incomplete bulk response"},
 		{name: "short items", body: `{"errors":false,"items":[` + created + `]}`, expected: 2, want: "incomplete bulk response"},
@@ -291,6 +293,7 @@ func TestParseBulkResponseAccountsForEveryItem(t *testing.T) {
 			}
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.want)
+			assert.Equal(t, tc.permanent, output.IsPermanent(err), "permanent only when every failed item is")
 		})
 	}
 }
@@ -345,7 +348,7 @@ func TestSendBatchRetryIndexesEachEventOnce(t *testing.T) {
 		events = append(events, evt)
 	}
 
-	require.EqualError(t, batch.SendBatch(context.Background(), events), "elasticsearch: bulk indexed 2/3, 1 failed")
+	require.EqualError(t, batch.SendBatch(context.Background(), events), "elasticsearch response: bulk indexed 2/3, 1 failed")
 	require.NoError(t, batch.SendBatch(context.Background(), events))
 	assert.Equal(t, map[string]int{"a": 1, "b": 1, "c": 1}, store.stored)
 }

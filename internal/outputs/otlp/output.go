@@ -20,9 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -30,7 +35,20 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-const name = "otlp"
+const (
+	name = "otlp"
+
+	signalTraces  = "traces"
+	signalLogs    = "logs"
+	signalMetrics = "metrics"
+)
+
+// retriableCodes are the gRPC codes the OTLP specification lets a client retry.
+// https://opentelemetry.io/docs/specs/otlp/#failures
+var retriableCodes = map[codes.Code]bool{
+	codes.Canceled: true, codes.DeadlineExceeded: true, codes.Aborted: true,
+	codes.OutOfRange: true, codes.Unavailable: true, codes.DataLoss: true,
+}
 
 // OutputType describes the OTLP output for the catalog.
 var OutputType = output.Type{
@@ -58,11 +76,11 @@ type driver struct {
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("otlp config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	cfg.applyDefaults()
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("otlp: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 	return &driver{cfg: cfg}, nil
 }
@@ -84,42 +102,42 @@ func (d *driver) init(ctx context.Context, res *sdkresource.Resource) error {
 	if c := d.cfg.Traces; c != nil {
 		settings, err := newExporterSettings(&c.signalConfig, "/v1/traces")
 		if err != nil {
-			return fmt.Errorf("otlp traces: %w", err)
+			return fmt.Errorf("%s %s: %w", name, signalTraces, err)
 		}
 		exporter, err := newSpanExporter(ctx, settings)
 		if err != nil {
-			return fmt.Errorf("otlp traces: %w", err)
+			return fmt.Errorf("%s %s: %w", name, signalTraces, err)
 		}
 		s := newTracesSignal(exporter, res, c)
-		d.signals = append(d.signals, signal{name: "traces", export: s.export, shutdown: s.shutdown, timeout: c.Timeout})
+		d.signals = append(d.signals, signal{name: signalTraces, export: s.export, shutdown: s.shutdown, timeout: c.Timeout})
 	}
 	if c := d.cfg.Logs; c != nil {
 		settings, err := newExporterSettings(c, "/v1/logs")
 		if err != nil {
-			return fmt.Errorf("otlp logs: %w", err)
+			return fmt.Errorf("%s %s: %w", name, signalLogs, err)
 		}
 		exporter, err := newLogExporter(ctx, settings)
 		if err != nil {
-			return fmt.Errorf("otlp logs: %w", err)
+			return fmt.Errorf("%s %s: %w", name, signalLogs, err)
 		}
 		s := newLogsSignal(exporter, res)
-		d.signals = append(d.signals, signal{name: "logs", export: s.export, shutdown: s.shutdown, timeout: c.Timeout})
+		d.signals = append(d.signals, signal{name: signalLogs, export: s.export, shutdown: s.shutdown, timeout: c.Timeout})
 	}
 	if c := d.cfg.Metrics; c != nil {
 		settings, err := newExporterSettings(&c.signalConfig, "/v1/metrics")
 		if err != nil {
-			return fmt.Errorf("otlp metrics: %w", err)
+			return fmt.Errorf("%s %s: %w", name, signalMetrics, err)
 		}
 		exporter, err := newMetricExporter(ctx, settings)
 		if err != nil {
-			return fmt.Errorf("otlp metrics: %w", err)
+			return fmt.Errorf("%s %s: %w", name, signalMetrics, err)
 		}
 		s, err := newMetricsSignal(exporter, res, c)
 		if err != nil {
 			_ = exporter.Shutdown(ctx)
-			return fmt.Errorf("otlp metrics: %w", err)
+			return fmt.Errorf("%s %s: %w", name, signalMetrics, err)
 		}
-		d.signals = append(d.signals, signal{name: "metrics", export: s.export, shutdown: s.shutdown, timeout: c.Timeout})
+		d.signals = append(d.signals, signal{name: signalMetrics, export: s.export, shutdown: s.shutdown, timeout: c.Timeout})
 	}
 	return nil
 }
@@ -130,15 +148,51 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if len(d.signals) == 0 {
-		return fmt.Errorf("otlp: %w", core.ErrNotReady)
+		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
-	var errs []error
+	var failures []*shared.DeliveryError
 	for _, s := range d.signals {
-		if err := s.export(ctx, events); err != nil {
-			errs = append(errs, fmt.Errorf("otlp %s: %w", s.name, err))
+		var httpStatus int
+		if err := s.export(withStatus(ctx, &httpStatus), events); err != nil {
+			failures = append(failures, newDeliveryError(s.name, httpStatus, err))
 		}
 	}
-	return errors.Join(errs...)
+	switch len(failures) {
+	case 0:
+		return nil
+	case 1:
+		return failures[0]
+	default:
+		return joinFailures(ctx, failures)
+	}
+}
+
+// newDeliveryError names a gRPC failure by its code, classified per the OTLP specification,
+// and an HTTP failure by the recorded status, since the exporter's text carries the response body.
+func newDeliveryError(signalName string, httpStatus int, err error) *shared.DeliveryError {
+	if st, ok := status.FromError(err); ok && st.Code() != codes.Canceled && st.Code() != codes.DeadlineExceeded {
+		return &shared.DeliveryError{
+			Cause: err, Output: name, Operation: signalName, Code: st.Code().String(), Permanent: !retriableCodes[st.Code()],
+		}
+	}
+	// The HTTP client returns *url.Error when no response settles the request, such as a refused redirect.
+	if _, transport := errors.AsType[*url.Error](err); !transport && httpStatus >= http.StatusMultipleChoices {
+		return &shared.DeliveryError{Cause: err, Output: name, Operation: signalName, Status: httpStatus}
+	}
+	return shared.NewDeliveryError(name, signalName, err)
+}
+
+// joinFailures reports several failed signals; the batch is permanent only when every signal failed for good.
+func joinFailures(ctx context.Context, failures []*shared.DeliveryError) *shared.DeliveryError {
+	reasons := make([]string, len(failures))
+	permanent := true
+	for i, failure := range failures {
+		reasons[i] = failure.Operation + ": " + failure.Reason()
+		permanent = permanent && output.IsPermanent(failure)
+	}
+	return &shared.DeliveryError{
+		Cause: ctx.Err(), Output: name, Operation: shared.OpSend, Code: strings.Join(reasons, "; "), Permanent: permanent,
+	}
 }
 
 // HealthCheck is a no-op: OTLP has no request that exports nothing.
@@ -146,14 +200,12 @@ func (d *driver) HealthCheck(context.Context) error { return nil }
 
 // Close needs no flush: exports are synchronous.
 func (d *driver) Close() error {
-	var errs []error
+	errs := make([]error, 0, len(d.signals))
 	for _, s := range d.signals {
 		ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
-		if err := s.shutdown(ctx); err != nil {
-			errs = append(errs, fmt.Errorf("otlp %s shutdown: %w", s.name, err))
-		}
+		errs = append(errs, s.shutdown(ctx))
 		cancel()
 	}
 	d.signals = nil
-	return errors.Join(errs...)
+	return shared.WrapDeliveryError(name, shared.OpClose, errors.Join(errs...))
 }

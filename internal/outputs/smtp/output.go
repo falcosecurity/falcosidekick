@@ -53,13 +53,16 @@ const (
 
 	// sessionTimeout bounds one SMTP session when the context has no deadline.
 	sessionTimeout = 30 * time.Second
-)
 
-var (
-	errNoStartTLS  = errors.New("server does not offer STARTTLS")
-	errNoAuth      = errors.New("server does not offer AUTH")
-	errNoMechanism = errors.New("server does not offer the auth mechanism")
-	errUnencrypted = errors.New("authentication requires TLS")
+	opQuit = "quit"
+	opMail = "mail"
+	opRcpt = "rcpt"
+	opData = "data"
+
+	codeNoStartTLS  = "server does not offer STARTTLS"
+	codeNoAuth      = "server does not offer AUTH"
+	codeNoMechanism = "server does not offer the auth mechanism"
+	codeUnencrypted = "authentication requires TLS"
 )
 
 type config struct {
@@ -225,15 +228,15 @@ func (c *config) validateAddresses() utils.ValidationErrors {
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("smtp config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("smtp: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
 	tlsConfig, err := shared.BuildTLSConfig(&cfg.TLS)
 	if err != nil {
-		return nil, fmt.Errorf("smtp tls: %w", err)
+		return nil, fmt.Errorf("%s tls: %w", name, err)
 	}
 	if tlsConfig.ServerName == "" {
 		tlsConfig.ServerName = cfg.Host
@@ -283,7 +286,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 	defer end()
 	if err := client.SendWithSMTPClient(conn, msg); err != nil {
-		return sendError(ctx, err)
+		return newDeliveryError(ctx, shared.OpSend, err)
 	}
 	// The server accepted the message; a failed QUIT does not undo that.
 	_ = client.CloseWithSMTPClient(conn)
@@ -294,11 +297,11 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 func (d *driver) HealthCheck(ctx context.Context) error {
 	client, conn, end, err := d.session(ctx)
 	if err != nil {
-		return classify(err)
+		return markMisconfigured(err)
 	}
 	defer end()
 	if err := client.CloseWithSMTPClient(conn); err != nil {
-		return classify(stageError(ctx, "quit", err))
+		return markMisconfigured(newDeliveryError(ctx, opQuit, err))
 	}
 	return nil
 }
@@ -312,7 +315,7 @@ func (d *driver) session(ctx context.Context) (client *mail.Client, conn *gosmtp
 		}
 	}
 	if timeout <= 0 {
-		return nil, nil, nil, shared.WrapDeliveryError(name, "connect", context.DeadlineExceeded)
+		return nil, nil, nil, shared.WrapDeliveryError(name, shared.OpConnect, context.DeadlineExceeded)
 	}
 
 	var (
@@ -338,7 +341,7 @@ func (d *driver) session(ctx context.Context) (client *mail.Client, conn *gosmtp
 	options := append(append([]mail.Option(nil), d.options...), mail.WithTimeout(timeout), mail.WithDialContextFunc(dial))
 	client, err = mail.NewClient(d.cfg.Host, options...)
 	if err != nil {
-		return nil, nil, nil, shared.WrapDeliveryError(name, "connect", err)
+		return nil, nil, nil, shared.WrapDeliveryError(name, shared.OpConnect, err)
 	}
 	end = func() {
 		stop()
@@ -349,41 +352,54 @@ func (d *driver) session(ctx context.Context) (client *mail.Client, conn *gosmtp
 	conn, err = client.DialToSMTPClientWithContext(ctx)
 	if err != nil {
 		end()
-		return nil, nil, nil, stageError(ctx, "connect", err)
+		return nil, nil, nil, newDeliveryError(ctx, shared.OpConnect, err)
 	}
 	return client, conn, end, nil
 }
 
-// replyError omits the server text, which can echo submitted values.
-type replyError struct {
-	cause error
-	stage string
-	code  int
-}
-
-func (e *replyError) Error() string {
-	return fmt.Sprintf("smtp %s: server replied %d", e.stage, e.code)
-}
-
-func (e *replyError) Unwrap() error { return e.cause }
-
-// Is matches output.ErrPermanent for 5yz replies, permanent negative completions in RFC 5321 section 4.2.1.
-func (e *replyError) Is(target error) bool {
-	return target == output.ErrPermanent && e.code >= 500 && e.code < 600
-}
-
-// stageError names the stage and never carries server text or credentials.
-func stageError(ctx context.Context, stage string, err error) error {
+// newDeliveryError reports an SMTP failure by stage and reply code; reply text can echo submitted values.
+// A 5yz reply is a permanent negative completion (RFC 5321 section 4.2.1).
+func newDeliveryError(ctx context.Context, operation string, err error) *shared.DeliveryError {
 	if ctxErr := contextError(ctx); ctxErr != nil {
-		return shared.WrapDeliveryError(name, stage, ctxErr)
+		return shared.NewDeliveryError(name, operation, ctxErr)
+	}
+	if sendErr, ok := errors.AsType[*mail.SendError](err); ok {
+		operation = sendStage(sendErr.Reason)
+	}
+	if code := replyCode(err); code != 0 {
+		return &shared.DeliveryError{
+			Cause: err, Output: name, Operation: operation,
+			Code: fmt.Sprintf("server replied %d", code), Permanent: code >= 500 && code < 600,
+		}
+	}
+	if code := capabilityFailure(err); code != "" {
+		return &shared.DeliveryError{Cause: err, Output: name, Operation: operation, Code: code, Permanent: true}
+	}
+	return shared.NewDeliveryError(name, operation, err)
+}
+
+func sendStage(reason mail.SendErrReason) string {
+	switch reason {
+	case mail.ErrSMTPMailFrom:
+		return opMail
+	case mail.ErrSMTPRcptTo:
+		return opRcpt
+	case mail.ErrSMTPData, mail.ErrSMTPDataClose, mail.ErrWriteContent:
+		return opData
+	default:
+		return shared.OpSend
+	}
+}
+
+// replyCode returns the server reply code carried by err, or 0.
+func replyCode(err error) int {
+	if sendErr, ok := errors.AsType[*mail.SendError](err); ok && sendErr.ErrorCode() != 0 {
+		return sendErr.ErrorCode()
 	}
 	if reply, ok := errors.AsType[*textproto.Error](err); ok {
-		return &replyError{stage: stage, code: reply.Code, cause: err}
+		return reply.Code
 	}
-	if known := knownError(err); known != nil {
-		return fmt.Errorf("smtp %s: %w", stage, known)
-	}
-	return shared.WrapDeliveryError(name, stage, err)
+	return 0
 }
 
 // contextError reports why ctx ended: the connection deadline equals it and can fire first.
@@ -397,45 +413,22 @@ func contextError(ctx context.Context) error {
 	return nil
 }
 
-// knownError matches text because go-mail reports a missing STARTTLS or AUTH extension only as text.
-func knownError(err error) error {
+// capabilityFailure names a server or mechanism mismatch; go-mail reports a missing STARTTLS or AUTH
+// extension only as text, so those two are matched on its fixed messages.
+func capabilityFailure(err error) string {
 	message := err.Error()
 	switch {
 	case errors.Is(err, gosmtp.ErrUnencrypted):
-		return errUnencrypted
+		return codeUnencrypted
 	case errors.Is(err, mail.ErrPlainAuthNotSupported), errors.Is(err, mail.ErrXOauth2AuthNotSupported):
-		return errNoMechanism
+		return codeNoMechanism
 	case strings.Contains(message, "does not support STARTTLS"):
-		return errNoStartTLS
+		return codeNoStartTLS
 	case strings.Contains(message, "does not support SMTP AUTH"):
-		return errNoAuth
-	}
-	return nil
-}
-
-// sendError reports a failed delivery by its SMTP stage and reply code.
-func sendError(ctx context.Context, err error) error {
-	if ctxErr := contextError(ctx); ctxErr != nil {
-		return shared.WrapDeliveryError(name, "send", ctxErr)
-	}
-	sendErr, ok := errors.AsType[*mail.SendError](err)
-	if !ok {
-		return shared.WrapDeliveryError(name, "send", err)
-	}
-	stage := "send"
-	switch sendErr.Reason {
-	case mail.ErrSMTPMailFrom:
-		stage = "mail"
-	case mail.ErrSMTPRcptTo:
-		stage = "rcpt"
-	case mail.ErrSMTPData, mail.ErrSMTPDataClose, mail.ErrWriteContent:
-		stage = "data"
+		return codeNoAuth
 	default:
+		return ""
 	}
-	if code := sendErr.ErrorCode(); code != 0 {
-		return &replyError{stage: stage, code: code, cause: err}
-	}
-	return shared.WrapDeliveryError(name, stage, err)
 }
 
 // misconfiguredReplies are permanent STARTTLS or AUTH replies: RFC 4954 section 6, RFC 3207 section 4, RFC 5321.
@@ -447,14 +440,17 @@ var misconfiguredReplies = map[int]bool{
 	538: true, // encryption required for mechanism
 }
 
-func classify(err error) error {
-	if reply, ok := errors.AsType[*replyError](err); ok && misconfiguredReplies[reply.code] {
-		return fmt.Errorf("%w: %w", output.ErrMisconfigured, err)
+// markMisconfigured flags a probe failure that no configuration-preserving retry can fix.
+func markMisconfigured(err error) error {
+	diagnostic, ok := errors.AsType[*shared.DeliveryError](err)
+	if !ok {
+		return err
 	}
-	for _, permanent := range []error{errUnencrypted, errNoMechanism, errNoStartTLS, errNoAuth} {
-		if errors.Is(err, permanent) {
-			return fmt.Errorf("%w: %w", output.ErrMisconfigured, err)
-		}
+	if diagnostic.Cause != nil && (misconfiguredReplies[replyCode(diagnostic.Cause)] ||
+		capabilityFailure(diagnostic.Cause) != "" || shared.IsTLSVerificationError(diagnostic.Cause)) {
+		marked := *diagnostic
+		marked.Misconfigured = true
+		return &marked
 	}
-	return shared.ClassifyMisconfiguration(err)
+	return err
 }

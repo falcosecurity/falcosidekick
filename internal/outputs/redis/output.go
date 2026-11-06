@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
 	goredis "github.com/redis/go-redis/v9"
@@ -120,10 +121,10 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	cfg := config{StorageType: storageList, Key: defaultKey}
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("redis config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("redis: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 	opts := &goredis.Options{
 		Addr:     cfg.Address,
@@ -138,7 +139,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	if cfg.TLSEnabled {
 		tlsCfg, err := shared.BuildTLSConfig(&cfg.TLS)
 		if err != nil {
-			return nil, fmt.Errorf("redis tls: %w", err)
+			return nil, fmt.Errorf("%s tls: %w", name, err)
 		}
 		opts.TLSConfig = tlsCfg
 	}
@@ -152,8 +153,9 @@ func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 // clientLogger logs the process-wide go-redis log at debug: its failures also reach the output status.
 type clientLogger struct{}
 
-func (clientLogger) Printf(ctx context.Context, format string, v ...any) {
-	slog.DebugContext(ctx, fmt.Sprintf(format, v...), "output", name)
+// Printf logs only the library's format string: its arguments can carry server replies.
+func (clientLogger) Printf(ctx context.Context, format string, _ ...any) {
+	slog.DebugContext(ctx, "redis client event", "output", name, "format", format)
 }
 
 var setClientLogger sync.Once
@@ -171,26 +173,31 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if d.client == nil {
-		return fmt.Errorf("redis: %w", core.ErrNotReady)
+		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
 	payloads := make([][]byte, len(events))
 	for i, evt := range events {
 		payload, err := json.Marshal(evt)
 		if err != nil {
-			return fmt.Errorf("redis marshal: %w", err)
+			return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 		}
 		payloads[i] = payload
 	}
+	var err error
 	if len(payloads) == 1 {
-		return wrap(d.store(ctx, d.client, events[0], payloads[0]).Err())
+		err = d.store(ctx, d.client, events[0], payloads[0]).Err()
+	} else {
+		_, err = d.client.Pipelined(ctx, func(pipe goredis.Pipeliner) error {
+			for i, evt := range events {
+				d.store(ctx, pipe, evt, payloads[i])
+			}
+			return nil
+		})
 	}
-	_, err := d.client.Pipelined(ctx, func(pipe goredis.Pipeliner) error {
-		for i, evt := range events {
-			d.store(ctx, pipe, evt, payloads[i])
-		}
-		return nil
-	})
-	return wrap(err)
+	if err != nil {
+		return newDeliveryError(shared.OpSend, err)
+	}
+	return nil
 }
 
 func (d *driver) store(ctx context.Context, c goredis.Cmdable, evt *event.Event, payload []byte) goredis.Cmder {
@@ -210,16 +217,15 @@ func (d *driver) store(ctx context.Context, c goredis.Cmdable, evt *event.Event,
 // HealthCheck sends PING, which also authenticates and selects the database.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil {
-		return fmt.Errorf("redis: %w", core.ErrNotReady)
+		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
 	err := d.client.Ping(ctx).Err()
 	if err == nil {
 		return nil
 	}
-	if isMisconfiguration(err) {
-		return fmt.Errorf("redis: %w: %w", output.ErrMisconfigured, err)
-	}
-	return wrap(err)
+	diagnostic := newDeliveryError(shared.OpHealthcheck, err)
+	diagnostic.Misconfigured = isMisconfiguration(err)
+	return diagnostic
 }
 
 // isMisconfiguration reports errors that no retry can fix.
@@ -236,17 +242,31 @@ func (d *driver) Close() error {
 	if d.client == nil {
 		return nil
 	}
-	return wrap(d.client.Close())
+	if err := d.client.Close(); err != nil {
+		return newDeliveryError(shared.OpClose, err)
+	}
+	return nil
 }
 
-func wrap(err error) error {
-	if err == nil {
-		return nil
+// replyPrefixes are the error prefixes Redis documents; the rest of a reply can echo submitted values.
+// https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-errors
+var replyPrefixes = map[string]bool{
+	"ERR": true, "WRONGTYPE": true, "WRONGPASS": true, "NOAUTH": true, "NOPERM": true, "LOADING": true,
+	"READONLY": true, "OOM": true, "BUSY": true, "NOSCRIPT": true, "MOVED": true, "ASK": true, "TRYAGAIN": true,
+	"CLUSTERDOWN": true, "CROSSSLOT": true, "MASTERDOWN": true, "EXECABORT": true, "NOREPLICAS": true,
+	"MISCONF": true, "NOTBUSY": true, "BUSYGROUP": true, "NOGROUP": true, "UNBLOCKED": true, "NOPROTO": true,
+}
+
+// newDeliveryError names a server error reply by its documented prefix only.
+func newDeliveryError(operation string, err error) *shared.DeliveryError {
+	if _, ok := errors.AsType[goredis.Error](err); !ok {
+		return shared.NewDeliveryError(name, operation, err)
 	}
-	if isPermanentReply(err) {
-		return fmt.Errorf("%w: redis: %w", output.ErrPermanent, err)
+	code, _, _ := strings.Cut(err.Error(), " ")
+	if !replyPrefixes[code] {
+		code = "server error"
 	}
-	return fmt.Errorf("redis: %w", err)
+	return &shared.DeliveryError{Cause: err, Output: name, Operation: operation, Code: code, Permanent: isPermanentReply(err)}
 }
 
 // isPermanentReply reports a server error reply outside the kinds go-redis retries, plus OOM and EXECABORT.

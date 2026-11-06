@@ -26,8 +26,6 @@ import (
 	"io"
 	"net/http"
 	"slices"
-
-	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
 const (
@@ -120,7 +118,7 @@ func (s *Sender) SendRaw(ctx context.Context, method, url string, body []byte, c
 func (s *Sender) SendGzipRaw(ctx context.Context, method, url string, body []byte, contentType string) error {
 	compressed, err := gzipCompress(body)
 	if err != nil {
-		return WrapDeliveryError(s.name, "gzip", err)
+		return WrapDeliveryError(s.name, OpGzip, err)
 	}
 	req, err := s.buildRequest(ctx, method, url, compressed, contentType)
 	if err != nil {
@@ -157,17 +155,22 @@ func (s *Sender) SendRawReadBody(ctx context.Context, method, url string, body [
 func (s *Sender) HealthCheck(ctx context.Context, url string, transient ...int) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return WrapDeliveryError(s.name, "healthcheck", err)
+		return WrapDeliveryError(s.name, OpHealthcheck, err)
 	}
 	return ClassifyMisconfiguration(s.Do(ctx, req), transient...)
 }
 
-// ClassifyMisconfiguration marks a 401, 403 or 404 not in transient, or an untrusted certificate, as misconfigured.
+// ClassifyMisconfiguration marks a Sender failure that is a 401, 403 or 404 not in transient,
+// or an untrusted certificate, as misconfigured.
 func ClassifyMisconfiguration(err error, transient ...int) error {
-	if isMisconfiguration(err, transient) {
-		return fmt.Errorf("%w: %w", output.ErrMisconfigured, err)
+	diagnostic, ok := errors.AsType[*DeliveryError](err)
+	if !ok || !isMisconfiguration(err, transient) {
+		return err
 	}
-	return err
+	marked := *diagnostic
+	marked.Misconfigured = true
+	marked.Cause = err
+	return &marked
 }
 
 func isMisconfiguration(err error, transient []int) bool {
@@ -187,7 +190,7 @@ func (s *Sender) Do(ctx context.Context, req *http.Request) error {
 	defer drain(resp)
 
 	if resp.StatusCode/100 != 2 {
-		return &DeliveryError{name: s.name, operation: "response", status: resp.StatusCode}
+		return &DeliveryError{Output: s.name, Operation: OpResponse, Status: resp.StatusCode}
 	}
 	return nil
 }
@@ -209,33 +212,34 @@ func (s *Sender) readBody(req *http.Request, check func([]byte) error) ([]byte, 
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, WrapDeliveryError(s.name, "read response", err)
+		return nil, WrapDeliveryError(s.name, OpReadResponse, err)
 	}
 	if check != nil {
 		if err := check(body); err != nil {
-			return nil, WrapDeliveryError(s.name, "response", err)
+			return nil, WrapDeliveryError(s.name, OpResponse, err)
 		}
 	}
 	return body, nil
 }
 
+// responseError keeps the code and permanence a check derives from the error body, never the body.
 func (s *Sender) responseError(resp *http.Response, check func([]byte) error) error {
-	diagnostic := &DeliveryError{name: s.name, operation: "response", status: resp.StatusCode}
+	diagnostic := &DeliveryError{Output: s.name, Operation: OpResponse, Status: resp.StatusCode}
 	if check == nil {
 		return diagnostic
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
 	if err != nil {
-		diagnostic.cause = err
+		diagnostic.Cause = err
 		return diagnostic
 	}
 	if len(body) > maxErrorBodyBytes {
 		return diagnostic
 	}
-	diagnostic.cause = check(body)
-	var protocol *DeliveryError
-	if errors.As(diagnostic.cause, &protocol) && protocol != nil {
-		diagnostic.reason = protocol.reason
+	diagnostic.Cause = check(body)
+	if protocol, ok := errors.AsType[*DeliveryError](diagnostic.Cause); ok && protocol != nil {
+		diagnostic.Code = protocol.Code
+		diagnostic.Permanent = protocol.Permanent
 	}
 	return diagnostic
 }
@@ -247,7 +251,7 @@ func (s *Sender) execute(req *http.Request) (*http.Response, error) {
 	}
 	req.Header.Set("User-Agent", userAgent)
 	if err := ApplyHeaders(req, s.headers); err != nil {
-		return nil, &DeliveryError{name: s.name, operation: "headers", reason: err.Error(), cause: err}
+		return nil, &DeliveryError{Output: s.name, Operation: OpHeaders, Code: err.Error(), Cause: err}
 	}
 	if s.basicUser != "" {
 		req.SetBasicAuth(s.basicUser, s.basicPass)
@@ -255,7 +259,7 @@ func (s *Sender) execute(req *http.Request) (*http.Response, error) {
 
 	resp, err := s.client.Do(req) //nolint:gosec // output URLs are user-configured
 	if err != nil {
-		return nil, WrapDeliveryError(s.name, "send", err)
+		return nil, WrapDeliveryError(s.name, OpSend, err)
 	}
 	return resp, nil
 }
@@ -263,7 +267,7 @@ func (s *Sender) execute(req *http.Request) (*http.Response, error) {
 func (s *Sender) buildRequest(ctx context.Context, method, url string, body []byte, contentType string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, WrapDeliveryError(s.name, "request", err)
+		return nil, WrapDeliveryError(s.name, OpRequest, err)
 	}
 	req.Header.Set("Content-Type", contentType)
 	return req, nil

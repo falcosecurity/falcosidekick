@@ -123,10 +123,10 @@ func validString(s string) bool {
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("cloudevents config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("cloudevents: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 	sender, err := shared.NewSender(name, &cfg.HTTPConfig)
 	if err != nil {
@@ -142,7 +142,7 @@ func (d *driver) Init(context.Context) error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
-		return shared.WrapDeliveryError(name, "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	req, err := newRequest(ctx, target, evt, d.cfg.Source, d.cfg.Extensions)
 	if err != nil {

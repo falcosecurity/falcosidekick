@@ -38,10 +38,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
-const (
-	topicARN = "arn:aws:sns:eu-central-1:123456789012:falco"
-	probeOp  = "GetTopicAttributes"
-)
+const topicARN = "arn:aws:sns:eu-central-1:123456789012:falco"
 
 // fakeSNS answers the SNS query protocol.
 type fakeSNS struct {
@@ -65,9 +62,9 @@ func (f *fakeSNS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	action := r.PostForm.Get("Action")
 	switch action {
-	case "Publish":
+	case opPublish:
 		_, _ = fmt.Fprint(w, `<PublishResponse><PublishResult><MessageId>m</MessageId></PublishResult></PublishResponse>`)
-	case probeOp:
+	case opGetTopicAttributes:
 		_, _ = fmt.Fprint(w, `<GetTopicAttributesResponse><GetTopicAttributesResult><Attributes/></GetTopicAttributesResult></GetTopicAttributesResponse>`)
 	}
 }
@@ -160,7 +157,7 @@ func TestPublishAttributes(t *testing.T) {
 	forms := fake.received()
 	require.Len(t, forms, 1)
 	form := forms[0]
-	assert.Equal(t, "Publish", form.Get("Action"))
+	assert.Equal(t, opPublish, form.Get("Action"))
 	assert.Equal(t, topicARN, form.Get("TopicArn"))
 	assert.Equal(t, evt.Output, form.Get("Message"))
 	assert.Equal(t, map[string][2]string{
@@ -227,28 +224,29 @@ func TestErrors(t *testing.T) {
 	tests := []struct {
 		name         string
 		code         string
+		want         string
 		status       int
 		misconfigure bool
 		denied       bool // transient for the probe only
 	}{
-		{name: "topic missing", status: 404, code: "NotFound", misconfigure: true},
-		{name: "authorization", status: 403, code: "AuthorizationError", misconfigure: true, denied: true},
-		{name: "invalid token", status: 403, code: "InvalidClientTokenId", misconfigure: true},
-		{name: "throttled", status: 400, code: "Throttling"},
-		{name: "internal", status: 500, code: "InternalError"},
+		{name: "topic missing", status: 404, code: "NotFound", want: "HTTP 404 Not Found: NotFoundException", misconfigure: true},
+		{name: "authorization", status: 403, code: "AuthorizationError", want: "HTTP 403 Forbidden: AuthorizationErrorException", misconfigure: true, denied: true},
+		{name: "invalid token", status: 403, code: "InvalidClientTokenId", want: "HTTP 403 Forbidden: InvalidClientTokenId", misconfigure: true},
+		{name: "throttled", status: 400, code: "Throttling", want: "HTTP 400 Bad Request: Throttling"},
+		{name: "internal", status: 500, code: "InternalError", want: "HTTP 500 Internal Server Error: InternalErrorException"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			awstest.Isolate(t)
 			d := newDriver(t, &fakeSNS{errStatus: tt.status, errCode: tt.code}, nil)
 			for op, err := range map[string]error{
-				probeOp:   d.HealthCheck(context.Background()),
-				"Publish": d.Send(context.Background(), testutil.CreateValidEvent()),
+				opGetTopicAttributes: d.HealthCheck(context.Background()),
+				opPublish:            d.Send(context.Background(), testutil.CreateValidEvent()),
 			} {
 				require.Error(t, err, op)
-				want := tt.misconfigure && (!tt.denied || op != probeOp)
+				want := tt.misconfigure && (!tt.denied || op != opGetTopicAttributes)
 				assert.Equal(t, want, errors.Is(err, output.ErrMisconfigured), err.Error())
-				assert.Contains(t, err.Error(), "awssns "+op+": "+tt.code)
+				assert.Equal(t, name+" "+op+": "+tt.want, err.Error())
 				for _, secret := range []string{awstest.AccessKeyID, awstest.SecretAccessKey, awstest.SessionToken} {
 					assert.NotContains(t, err.Error(), secret)
 				}
@@ -263,6 +261,6 @@ func TestHealthCheck(t *testing.T) {
 	d := newDriver(t, fake, nil)
 	require.NoError(t, d.HealthCheck(context.Background()))
 	form := fake.received()[0]
-	assert.Equal(t, probeOp, form.Get("Action"))
+	assert.Equal(t, opGetTopicAttributes, form.Get("Action"))
 	assert.Equal(t, topicARN, form.Get("TopicArn"))
 }

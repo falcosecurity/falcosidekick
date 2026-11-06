@@ -26,7 +26,10 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-const defaultMethod = "POST"
+const (
+	name          = "webhook"
+	defaultMethod = "POST"
+)
 
 var targetOptions = shared.HTTPTargetOptions{DefaultEndpoint: "/"}
 
@@ -40,7 +43,7 @@ type config struct {
 // OutputType describes the webhook output for the catalog.
 var OutputType = output.Type{
 	New:      createOutput,
-	Name:     "webhook",
+	Name:     name,
 	Category: "webhook",
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), output.SchemaField{
@@ -76,13 +79,13 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("webhook config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("webhook: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
-	sender, err := shared.NewSender("webhook", &cfg.HTTPConfig)
+	sender, err := shared.NewSender(name, &cfg.HTTPConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -93,14 +96,14 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	}, nil
 }
 
-func (d *driver) Name() string { return "webhook" }
+func (d *driver) Name() string { return name }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
-		return shared.WrapDeliveryError("webhook", "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	return d.sender.SendJSON(ctx, d.cfg.Method, target, evt)
 }

@@ -84,7 +84,7 @@ func formatEntry(logFormat string, evt *event.Event) []string {
 		if err == nil {
 			line = string(data)
 		} else {
-			slog.Warn("loki: json marshal failed, using raw output", "error", err)
+			slog.Warn("json marshal failed, using raw output", "output", name, "error", err)
 			line = evt.Output
 		}
 	} else {

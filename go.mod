@@ -15,6 +15,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gofiber/fiber/v3 v3.6.1
 	github.com/google/uuid v1.6.0
+	github.com/googleapis/gax-go/v2 v2.27.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/redis/go-redis/v9 v9.23.0
 	github.com/spf13/viper v1.21.0
@@ -90,7 +91,6 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.11 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.24 // indirect
-	github.com/googleapis/gax-go/v2 v2.27.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mattn/go-colorable v0.1.16 // indirect

@@ -227,6 +227,6 @@ func TestOTLPReportsUnreachableCollector(t *testing.T) {
 	st = sk.waitStatus(t, "otlp", func(st outputStatus) bool { return st.FailedTotal == 1 })
 	assert.Zero(t, st.SentTotal)
 	t.Logf("last_error: %s", st.LastError)
-	assert.Contains(t, st.LastError, "otlp traces")
+	assert.Equal(t, "otlp send: traces: Unavailable; logs: Unavailable; metrics: Unavailable", st.LastError)
 	assert.NotContains(t, sk.logs.String(), token)
 }

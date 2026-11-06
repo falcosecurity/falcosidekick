@@ -18,8 +18,8 @@ package aws
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -28,14 +28,14 @@ import (
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/smithy-go"
 
-	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
 const (
-	maxMessageRunes = 256
-	// credentialFailure prefixes SDK errors raised while resolving credentials, before sending.
+	// credentialFailure prefixes the error each generated service client returns when it cannot
+	// resolve credentials (service auth.go: fmt.Errorf("get identity: %w", err)); it has no type.
 	credentialFailure = "get identity:"
+	opCredentials     = "credentials"
 )
 
 // misconfigurationCodes are AWS error codes that no retry can fix.
@@ -69,72 +69,71 @@ var misconfigurationStatus = map[int]bool{
 	http.StatusNotFound:         true,
 }
 
-// apiError is an AWS error response reduced to its code, status and message.
-type apiError struct {
-	cause error
-	text  string
-}
-
-func (e *apiError) Error() string { return e.text }
-
-func (e *apiError) Unwrap() error { return e.cause }
-
-// WrapError names the output and operation without the credentials and marks unfixable errors misconfigured.
-func (c *Config) WrapError(name, operation string, err error) error {
-	return c.wrap(name, operation, err, true)
+// WrapError reports an AWS failure without server text; unfixable failures and permission denials are misconfigured.
+func (c *Config) WrapError(outputName, operation string, err error) error {
+	return c.wrap(outputName, operation, err, true)
 }
 
 // WrapProbeError is WrapError for health checks: a permission denial or a bare HEAD 403 stays transient.
-func (c *Config) WrapProbeError(name, operation string, err error) error {
-	return c.wrap(name, operation, err, false)
+func (c *Config) WrapProbeError(outputName, operation string, err error) error {
+	return c.wrap(outputName, operation, err, false)
 }
 
-func (c *Config) wrap(name, operation string, err error, denialIsFatal bool) error {
+func (c *Config) wrap(outputName, operation string, err error, denialIsFatal bool) error {
 	if err == nil {
 		return nil
 	}
-	var (
-		wrapped error
-		status  int
-		code    string
-	)
-	var responseErr *awshttp.ResponseError
-	if errors.As(err, &responseErr) {
-		status = responseErr.HTTPStatusCode()
+	if strings.Contains(err.Error(), credentialFailure) {
+		operation = opCredentials
 	}
-	var api smithy.APIError
-	if errors.As(err, &api) {
-		code = api.ErrorCode()
-		text := fmt.Sprintf("%s %s: %s", name, operation, code)
-		if status != 0 {
-			text += fmt.Sprintf(" (HTTP %d)", status)
-		}
-		if message := c.redact(api.ErrorMessage()); message != "" && message != code {
-			text += ": " + shared.TruncateRunes(message, maxMessageRunes)
-		}
-		wrapped = &apiError{cause: err, text: text}
-	} else {
-		if strings.Contains(err.Error(), credentialFailure) {
-			operation = "credentials"
-		}
-		wrapped = shared.WrapDeliveryError(name, operation, err)
+	var status int
+	if response, ok := errors.AsType[*awshttp.ResponseError](err); ok {
+		status = response.HTTPStatusCode()
 	}
+	api, isAPI := errors.AsType[smithy.APIError](err)
+	if !isAPI {
+		diagnostic := shared.NewDeliveryError(outputName, operation, err)
+		diagnostic.Misconfigured = misconfigurationStatus[status] || shared.IsTLSVerificationError(err)
+		return diagnostic
+	}
+	code := api.ErrorCode()
 	denied := slices.Contains(permissionCodes, code) || (code == "" || code == "Forbidden") && status == http.StatusForbidden
-	if slices.Contains(misconfigurationCodes, code) || misconfigurationStatus[status] ||
-		denied && denialIsFatal || shared.IsTLSVerificationError(err) {
-		return fmt.Errorf("%w: %w", output.ErrMisconfigured, wrapped)
+	return &shared.DeliveryError{
+		Cause:         err,
+		Output:        outputName,
+		Operation:     operation,
+		Code:          printableCode(api),
+		Status:        status,
+		Misconfigured: slices.Contains(misconfigurationCodes, code) || misconfigurationStatus[status] || denied && denialIsFatal,
+		Permanent:     api.ErrorFault() == smithy.FaultClient && sdkRetryable.IsErrorRetryable(err) != aws.TrueTernary,
 	}
-	if api != nil && api.ErrorFault() == smithy.FaultClient && sdkRetryable.IsErrorRetryable(err) != aws.TrueTernary {
-		return fmt.Errorf("%w: %w", output.ErrPermanent, wrapped)
-	}
-	return wrapped
 }
 
-func (c *Config) redact(message string) string {
-	for _, secret := range []string{c.SecretAccessKey, c.SessionToken, c.AccessKeyID} {
-		if secret != "" {
-			message = strings.ReplaceAll(message, secret, "[redacted]")
-		}
+// printableCode names a typed SDK error after its Go type: the SDK chose the type by matching the server
+// code against the service model, while ErrorCode can carry a server-supplied override. A generic error
+// is named only when its code is one the classification above already knows.
+func printableCode(api smithy.APIError) string {
+	if _, generic := api.(*smithy.GenericAPIError); !generic {
+		return reflect.Indirect(reflect.ValueOf(api)).Type().Name()
 	}
-	return message
+	if code := api.ErrorCode(); isClassifiedCode(code) {
+		return code
+	}
+	return ""
+}
+
+func isClassifiedCode(code string) bool {
+	_, throttle := retry.DefaultThrottleErrorCodes[code]
+	_, retryable := retry.DefaultRetryableErrorCodes[code]
+	_, service := serviceThrottleCodes[code]
+	return throttle || retryable || service || slices.Contains(misconfigurationCodes, code) || slices.Contains(permissionCodes, code)
+}
+
+// EntryCode names a per-entry batch failure code when the service model declares it, using registry
+// (for example sqs.TypeRegistry); any other code is server text and is withheld.
+func EntryCode(registry *smithy.TypeRegistry, code string) string {
+	if _, declared := registry.DeserializableError(code); declared || isClassifiedCode(code) {
+		return code
+	}
+	return "unrecognized error code"
 }

@@ -31,74 +31,89 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-// DeliveryError describes a failed HTTP delivery without formatting its cause.
+// Operations shared by outputs; a package-specific operation is a constant of its package.
+const (
+	OpBuildRequest  = "build request"
+	OpClose         = "close"
+	OpConnect       = "connect"
+	OpDial          = "dial"
+	OpGzip          = "gzip"
+	OpHeaders       = "headers"
+	OpHealthcheck   = "healthcheck"
+	OpMarshal       = "marshal"
+	OpReadResponse  = "read response"
+	OpRenderMessage = "render message"
+	OpRequest       = "request"
+	OpResponse      = "response"
+	OpSend          = "send"
+	OpTarget        = "target"
+	OpWrite         = "write"
+)
+
+// DeliveryError is the error every output returns for a failed delivery or probe.
+// Its text holds only fixed labels, a recognized code and an HTTP status, never server text or submitted values.
 type DeliveryError struct {
-	cause     error
-	name      string
-	operation string
-	reason    string
-	status    int
+	// Cause is the original failure, reachable through errors.Is and errors.As; it is never formatted.
+	// An error that sums up several failures holds only the context error they share, if any:
+	// errors.Is would otherwise match output.ErrPermanent on one part while the others can still succeed.
+	Cause error
+	// Output is the output package's name constant.
+	Output string
+	// Operation is a shared Op constant or a constant of the output package.
+	Operation string
+	// Code is a fixed label or a code the client library recognized.
+	Code string
+	// Status is the HTTP status of the response, 0 without one.
+	Status int
+	// Permanent is set when the destination's protocol says a retry cannot succeed.
+	Permanent bool
+	// Misconfigured is set when a probe failure refuses the configuration.
+	Misconfigured bool
 }
 
 func (e *DeliveryError) Error() string {
-	if e.status != 0 {
-		message := fmt.Sprintf("%s %s: HTTP %d", e.name, e.operation, e.status)
-		if statusText := http.StatusText(e.status); statusText != "" {
-			message += " " + statusText
+	return e.Output + " " + e.Operation + ": " + e.Reason()
+}
+
+// Reason renders the HTTP status and the code, without the output and operation.
+func (e *DeliveryError) Reason() string {
+	var status string
+	if e.Status != 0 {
+		status = fmt.Sprintf("HTTP %d", e.Status)
+		if text := http.StatusText(e.Status); text != "" {
+			status += " " + text
 		}
-		if e.reason != "" {
-			message += ": " + e.reason
-		}
-		return message
 	}
-	return fmt.Sprintf("%s %s: %s", e.name, e.operation, e.reason)
+	switch {
+	case status != "" && e.Code != "":
+		return status + ": " + e.Code
+	case status != "":
+		return status
+	case e.Code != "":
+		return e.Code
+	default:
+		return "failed"
+	}
 }
 
-// Unwrap returns the original failure for programmatic inspection.
-func (e *DeliveryError) Unwrap() error { return e.cause }
+// Unwrap returns Cause for programmatic inspection.
+func (e *DeliveryError) Unwrap() error { return e.Cause }
 
-// retriableClientStatus are 4xx answers that a later attempt can turn into success.
-var retriableClientStatus = map[int]bool{
-	http.StatusRequestTimeout:  true,
-	http.StatusTooEarly:        true,
-	http.StatusTooManyRequests: true,
-}
-
-// IsPermanentHTTPStatus reports whether a retry cannot change the answer: 4xx except 408, 425 and 429.
-func IsPermanentHTTPStatus(code int) bool {
-	return code >= 400 && code < 500 && !retriableClientStatus[code]
-}
-
-// Is matches output.ErrPermanent for failures that a retry with the same event cannot fix.
+// Is matches output.ErrPermanent for failures a retry with the same event cannot fix,
+// and output.ErrMisconfigured for probe failures that refuse the configuration.
 func (e *DeliveryError) Is(target error) bool {
-	if target != output.ErrPermanent {
+	switch target {
+	case output.ErrMisconfigured:
+		return e.Misconfigured
+	case output.ErrPermanent:
+		return e.Permanent || e.Misconfigured || IsPermanentHTTPStatus(e.Status) ||
+			IsTLSVerificationError(e.Cause) || e.Operation == OpMarshal || e.Operation == OpRenderMessage
+	default:
 		return false
 	}
-	if e.status != 0 {
-		return IsPermanentHTTPStatus(e.status)
-	}
-	return IsTLSVerificationError(e.cause) || e.operation == OpMarshal || e.operation == OpRenderMessage
 }
 
-// Operations whose failure repeats for the same event, so delivery errors in them are permanent.
-const (
-	OpMarshal       = "marshal"
-	OpRenderMessage = "render message"
-)
-
-// StatusCode returns the HTTP response status, or 0 when no response was received.
-func (e *DeliveryError) StatusCode() int { return e.status }
-
-// HTTPStatus returns the HTTP status carried by err, or 0 when there is none.
-func HTTPStatus(err error) int {
-	var diagnostic *DeliveryError
-	if errors.As(err, &diagnostic) && diagnostic != nil {
-		return diagnostic.status
-	}
-	return 0
-}
-
-// Format keeps diagnostic formatting from exposing the wrapped cause.
+// Format renders Error for every verb, so formatting never reaches Cause.
 func (e *DeliveryError) Format(state fmt.State, verb rune) {
 	if verb == 'q' {
 		_, _ = fmt.Fprintf(state, "%q", e.Error())
@@ -107,27 +122,48 @@ func (e *DeliveryError) Format(state fmt.State, verb rune) {
 	_, _ = io.WriteString(state, e.Error())
 }
 
-// MarshalText encodes the safe diagnostic, never the wrapped cause.
+// MarshalText encodes Error, never Cause.
 func (e *DeliveryError) MarshalText() ([]byte, error) { return []byte(e.Error()), nil }
 
-// WrapDeliveryError classifies a failure without copying its message; name and operation must be fixed labels.
-func WrapDeliveryError(name, operation string, cause error) error {
+// retriableClientStatus are 4xx answers that a later attempt can turn into success;
+// a 409 conflicts with the target's current state, which can change.
+var retriableClientStatus = map[int]bool{
+	http.StatusRequestTimeout:  true,
+	http.StatusConflict:        true,
+	http.StatusTooEarly:        true,
+	http.StatusTooManyRequests: true,
+}
+
+// IsPermanentHTTPStatus reports whether a retry cannot change the answer: 4xx except 408, 409, 425 and 429.
+func IsPermanentHTTPStatus(status int) bool {
+	return status >= 400 && status < 500 && !retriableClientStatus[status]
+}
+
+// HTTPStatus returns the HTTP status carried by err, or 0 when there is none.
+func HTTPStatus(err error) int {
+	if diagnostic, ok := errors.AsType[*DeliveryError](err); ok && diagnostic != nil {
+		return diagnostic.Status
+	}
+	return 0
+}
+
+// WrapDeliveryError reports a transport failure by its class; output and operation must be constants.
+// A cause that already holds a DeliveryError keeps its code, status and flags under the caller's operation.
+func WrapDeliveryError(outputName, operation string, cause error) error {
 	if cause == nil {
 		return nil
 	}
-	var diagnostic *DeliveryError
-	if errors.As(cause, &diagnostic) && diagnostic != nil {
-		return &DeliveryError{
-			name: diagnostic.name, operation: diagnostic.operation,
-			reason: diagnostic.reason, status: diagnostic.status, cause: cause,
-		}
-	}
-	return &DeliveryError{name: name, operation: operation, reason: classifyDeliveryError(cause, operation), cause: cause}
+	return NewDeliveryError(outputName, operation, cause)
 }
 
-// NewProtocolError reports a fixed or allowlisted provider code, never unvalidated response content.
-func NewProtocolError(name, code string) error {
-	return &DeliveryError{name: name, operation: "response", reason: code}
+// NewDeliveryError is WrapDeliveryError for a non-nil cause, returned as a struct a driver can refine.
+func NewDeliveryError(outputName, operation string, cause error) *DeliveryError {
+	if diagnostic, ok := errors.AsType[*DeliveryError](cause); ok && diagnostic != nil {
+		copied := *diagnostic
+		copied.Output, copied.Operation, copied.Cause = outputName, operation, cause
+		return &copied
+	}
+	return &DeliveryError{Output: outputName, Operation: operation, Code: classifyDeliveryError(cause, operation), Cause: cause}
 }
 
 // IsTLSVerificationError reports whether err is a server certificate the client does not trust.
@@ -184,15 +220,15 @@ func classifyDeliveryError(err error, operation string) string {
 	switch operation {
 	case OpMarshal:
 		return "cannot encode payload"
-	case "request", "build request", "healthcheck":
+	case OpRequest, OpBuildRequest, OpHealthcheck:
 		return "invalid request"
-	case "read response":
+	case OpReadResponse:
 		return "cannot read response"
-	case "response":
+	case OpResponse:
 		return "unexpected response"
-	case "gzip":
+	case OpGzip:
 		return "cannot compress payload"
-	case "target":
+	case OpTarget:
 		return "cannot resolve target"
 	case OpRenderMessage:
 		return "cannot render message template"

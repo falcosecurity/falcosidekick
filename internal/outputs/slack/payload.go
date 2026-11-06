@@ -105,7 +105,7 @@ func (d *driver) buildPayload(evt *event.Event) slackPayload {
 		if err := d.messageTmpl.Execute(&buf, evt); err == nil {
 			messageText = buf.String()
 		} else {
-			d.logger.Warn("message template execution failed", "error", shared.WrapDeliveryError("slack", shared.OpRenderMessage, err))
+			d.logger.Warn("message template execution failed", "error", shared.WrapDeliveryError(name, shared.OpRenderMessage, err))
 		}
 	}
 

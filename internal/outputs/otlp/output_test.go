@@ -20,6 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -35,10 +37,12 @@ import (
 	otellog "go.opentelemetry.io/otel/log"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
+	"google.golang.org/grpc/codes"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
@@ -334,28 +338,89 @@ func TestMetricExtraAttributes(t *testing.T) {
 }
 
 func TestExportErrorsKeepSecretsOut(t *testing.T) {
-	for _, protocol := range []string{protocolHTTP, protocolGRPC} {
-		t.Run(protocol, func(t *testing.T) {
+	for _, tc := range []struct {
+		protocol, want string
+	}{
+		{protocol: protocolHTTP, want: "otlp send: traces: HTTP 401 Unauthorized; logs: HTTP 401 Unauthorized; metrics: HTTP 401 Unauthorized"},
+		{protocol: protocolGRPC, want: "otlp send: traces: Unauthenticated; logs: Unauthenticated; metrics: Unauthenticated"},
+	} {
+		t.Run(tc.protocol, func(t *testing.T) {
 			var r *receiver
 			var endpoint string
-			if protocol == protocolHTTP {
+			if tc.protocol == protocolHTTP {
 				r, endpoint = startHTTPReceiver(t)
 				r.fail(3, http.StatusUnauthorized)
 			} else {
 				r, endpoint = startGRPCReceiver(t)
-				r.fail(3, 16) // Unauthenticated
+				r.fail(3, int(codes.Unauthenticated))
 			}
-			d := newDriver(t, allSignals(endpoint, protocol, map[string]any{
+			d := newDriver(t, allSignals(endpoint, tc.protocol, map[string]any{
 				"headers": map[string]any{"Authorization": map[string]any{"secrets": []string{"Bearer " + secret}}},
 			}))
 			err := d.Send(context.Background(), testutil.CreateValidEvent())
 			require.Error(t, err)
-			for _, s := range []string{"otlp traces", "otlp logs", "otlp metrics"} {
-				assert.Contains(t, err.Error(), s)
-			}
-			assert.NotContains(t, err.Error(), secret)
+			assert.Equal(t, tc.want, err.Error())
+			assert.True(t, output.IsPermanent(err))
+			assert.NotContains(t, fmt.Sprintf("%v %+v", err, err), secret)
 		})
 	}
+}
+
+func TestExportFailureClassification(t *testing.T) {
+	for _, tc := range []struct {
+		name, protocol, want string
+		fail                 int
+		permanent            bool
+	}{
+		{name: "http throttled", protocol: protocolHTTP, fail: http.StatusTooManyRequests, want: "otlp logs: HTTP 429 Too Many Requests"},
+		{name: "http unavailable", protocol: protocolHTTP, fail: http.StatusServiceUnavailable, want: "otlp logs: HTTP 503 Service Unavailable"},
+		{name: "http bad request", protocol: protocolHTTP, fail: http.StatusBadRequest, want: "otlp logs: HTTP 400 Bad Request", permanent: true},
+		{name: "grpc unavailable", protocol: protocolGRPC, fail: int(codes.Unavailable), want: "otlp logs: Unavailable"},
+		{name: "grpc resource exhausted", protocol: protocolGRPC, fail: int(codes.ResourceExhausted), want: "otlp logs: ResourceExhausted", permanent: true},
+		{name: "grpc invalid argument", protocol: protocolGRPC, fail: int(codes.InvalidArgument), want: "otlp logs: InvalidArgument", permanent: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var r *receiver
+			var endpoint string
+			if tc.protocol == protocolHTTP {
+				r, endpoint = startHTTPReceiver(t)
+			} else {
+				r, endpoint = startGRPCReceiver(t)
+			}
+			r.fail(1, tc.fail)
+			d := newDriver(t, map[string]any{"logs": map[string]any{"endpoint": endpoint, "protocol": tc.protocol}})
+			err := d.Send(context.Background(), testutil.CreateValidEvent())
+			require.Error(t, err)
+			assert.Equal(t, tc.want, err.Error())
+			assert.Equal(t, tc.permanent, output.IsPermanent(err))
+		})
+	}
+}
+
+func TestPartialSignalFailureIsRetriable(t *testing.T) {
+	permanent := newDeliveryError(signalLogs, http.StatusBadRequest, errors.New(secret))
+	transient := newDeliveryError(signalTraces, http.StatusServiceUnavailable, errors.New(secret))
+	err := joinFailures(context.Background(), []*shared.DeliveryError{permanent, transient})
+	assert.Equal(t, "otlp send: logs: HTTP 400 Bad Request; traces: HTTP 503 Service Unavailable", err.Error())
+	assert.False(t, output.IsPermanent(err), "a retry can still deliver the transient signal")
+	assert.True(t, output.IsPermanent(joinFailures(context.Background(), []*shared.DeliveryError{permanent, permanent})))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	canceled := joinFailures(ctx, []*shared.DeliveryError{permanent, transient})
+	assert.ErrorIs(t, canceled, context.Canceled)
+	assert.False(t, output.IsPermanent(canceled))
+}
+
+func TestHTTPRedirectPolicy(t *testing.T) {
+	r, endpoint := startHTTPReceiver(t)
+	redirect := httptest.NewServer(http.RedirectHandler(endpoint+"/v1/logs", http.StatusTemporaryRedirect))
+	t.Cleanup(redirect.Close)
+	d := newDriver(t, map[string]any{"logs": map[string]any{"endpoint": redirect.URL}})
+	err := d.Send(context.Background(), testutil.CreateValidEvent())
+	require.Error(t, err)
+	assert.Equal(t, "otlp logs: cross-origin redirect denied", err.Error(), "the shared policy refuses a redirect to another origin")
+	assert.Empty(t, r.snapshot().logs)
 }
 
 func TestHTTPSWithCAFile(t *testing.T) {

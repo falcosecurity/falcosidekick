@@ -199,7 +199,7 @@ func TestPutErrorIsSafe(t *testing.T) {
 	err := d.Send(context.Background(), testutil.CreateValidEvent())
 	require.Error(t, err)
 	assert.ErrorIs(t, err, output.ErrMisconfigured)
-	assert.Contains(t, err.Error(), "awss3 PutObject: InvalidAccessKeyId (HTTP 403)")
+	assert.Equal(t, name+" "+opPutObject+": HTTP 403 Forbidden: InvalidAccessKeyId", err.Error())
 	for _, secret := range []string{awstest.AccessKeyID, awstest.SecretAccessKey, awstest.SessionToken} {
 		assert.NotContains(t, err.Error(), secret)
 	}
@@ -236,7 +236,7 @@ func TestHealthCheck(t *testing.T) {
 			}
 			require.Error(t, err)
 			assert.Equal(t, tt.misconfigure, errorsIsMisconfigured(err), err.Error())
-			assert.Contains(t, err.Error(), "awss3 HeadBucket")
+			assert.Contains(t, err.Error(), name+" "+opHeadBucket)
 		})
 	}
 }

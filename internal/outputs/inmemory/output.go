@@ -29,6 +29,8 @@ import (
 )
 
 const (
+	name = "inmemory"
+
 	fieldPriority = "priority"
 	fieldRule     = "rule"
 	fieldSource   = "source"
@@ -42,7 +44,7 @@ const (
 // OutputType describes the in-memory event store for the output catalog.
 var OutputType = output.Type{
 	New:      createOutput,
-	Name:     "inmemory",
+	Name:     name,
 	Category: "store",
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
@@ -107,10 +109,10 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("inmemory config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("inmemory: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
 	return &driver{
@@ -128,7 +130,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	}, nil
 }
 
-func (d *driver) Name() string { return "inmemory" }
+func (d *driver) Name() string { return name }
 
 func (d *driver) Init(_ context.Context) error {
 	if d.ttl > 0 {

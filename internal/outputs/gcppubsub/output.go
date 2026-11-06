@@ -24,15 +24,16 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
-	"cloud.google.com/go/pubsub/v2"
+	pubsub "cloud.google.com/go/pubsub/v2/apiv1"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
+	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -44,14 +45,21 @@ import (
 const (
 	name = "gcppubsub"
 
-	// closeTimeout bounds the flush of buffered messages on Close.
-	closeTimeout = 10 * time.Second
+	opClient     = "client"
+	opPublish    = "publish"
+	opTopicCheck = "topic check"
 
 	// Resource limits: https://cloud.google.com/pubsub/quotas#resource_limits
 	maxAttributes        = 100
 	maxAttributeKeyBytes = 256
 	maxAttributeValBytes = 1024
+	maxRequestMessages   = 1000
+	maxRequestBytes      = 10_000_000
 	reservedPrefix       = "goog"
+
+	// tlsHandshakeFailure is the fixed text grpc-go gives a failed TLS handshake (internal/transport/http2_client.go);
+	// the status carries no other trace of it.
+	tlsHandshakeFailure = "transport: authentication handshake failed"
 )
 
 // Topic IDs: https://cloud.google.com/pubsub/docs/pubsub-basics#resource_names
@@ -64,6 +72,21 @@ var credentialTypes = map[string]option.CredentialsType{
 	string(option.ImpersonatedServiceAccount): option.ImpersonatedServiceAccount,
 	string(option.ExternalAccount):            option.ExternalAccount,
 }
+
+// retriablePublishCodes are the codes the generated TopicAdminClient retries for Publish (topic_admin_client.go).
+var retriablePublishCodes = map[codes.Code]bool{
+	codes.Aborted: true, codes.Canceled: true, codes.Internal: true, codes.ResourceExhausted: true,
+	codes.Unknown: true, codes.Unavailable: true, codes.DeadlineExceeded: true,
+}
+
+// misconfiguredProbeCodes refuse the configuration; PermissionDenied stays transient because
+// the Publisher role grants pubsub.topics.publish but not pubsub.topics.get.
+var misconfiguredProbeCodes = map[codes.Code]bool{
+	codes.NotFound: true, codes.Unauthenticated: true, codes.InvalidArgument: true,
+}
+
+// noRetry leaves retries to the pipeline.
+var noRetry = gax.WithRetry(func() gax.Retryer { return nil })
 
 type config struct {
 	CustomAttributes map[string]string `mapstructure:"custom_attributes"`
@@ -95,9 +118,9 @@ var OutputType = output.Type{
 }
 
 type driver struct {
-	client    *pubsub.Client
-	publisher *pubsub.Publisher
-	cfg       config
+	client *pubsub.TopicAdminClient
+	topic  string
+	cfg    config
 }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
@@ -195,7 +218,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	if errs := cfg.validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
-	return &driver{cfg: cfg}, nil
+	return &driver{cfg: cfg, topic: "projects/" + cfg.ProjectID + "/topics/" + cfg.Topic}, nil
 }
 
 func (d *driver) clientOptions() []option.ClientOption {
@@ -221,143 +244,105 @@ func (d *driver) Name() string { return name }
 
 // Init drops the credential load cause, which may quote the credentials.
 func (d *driver) Init(ctx context.Context) error {
-	client, err := pubsub.NewClient(ctx, d.cfg.ProjectID, d.clientOptions()...)
+	client, err := pubsub.NewTopicAdminClient(ctx, d.clientOptions()...)
 	if err != nil {
-		reason := "application default credentials not found"
+		code := "application default credentials not found"
 		switch {
 		case d.cfg.EmulatorHost != "":
-			reason = "cannot create client"
+			code = "cannot create client"
 		case d.cfg.credentialsJSON != nil:
-			reason = "cannot load credentials"
+			code = "cannot load credentials"
 		}
-		return fmt.Errorf("%s client: %w: %s", name, output.ErrMisconfigured, reason)
+		return &shared.DeliveryError{Output: name, Operation: opClient, Code: code, Misconfigured: true}
 	}
 	d.client = client
-	d.publisher = client.Publisher(d.cfg.Topic)
 	return nil
-}
-
-func (d *driver) message(evt *event.Event) (*pubsub.Message, error) {
-	data, err := json.Marshal(evt)
-	if err != nil {
-		return nil, shared.WrapDeliveryError(name, shared.OpMarshal, err)
-	}
-	return &pubsub.Message{Data: data, Attributes: d.cfg.CustomAttributes}, nil
 }
 
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.SendBatch(ctx, []*event.Event{evt})
 }
 
+// SendBatch publishes in requests within the Pub/Sub limits; each request succeeds or fails as a whole.
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
-	if d.publisher == nil {
+	if d.client == nil {
 		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
-	results := make([]*pubsub.PublishResult, 0, len(events))
+	messages := make([]*pubsubpb.PubsubMessage, 0, len(events))
 	for _, evt := range events {
-		msg, err := d.message(evt)
+		data, err := json.Marshal(evt)
 		if err != nil {
-			return err
+			return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 		}
-		results = append(results, d.publisher.Publish(ctx, msg))
+		messages = append(messages, &pubsubpb.PubsubMessage{Data: data, Attributes: d.cfg.CustomAttributes})
 	}
-	var first error
-	failed, permanent := 0, 0
-	for _, res := range results {
-		if _, err := res.Get(ctx); err != nil {
-			failed++
-			safe := safeError("publish", err)
-			if output.IsPermanent(safe) {
-				permanent++
-			}
-			if first == nil {
-				first = safe
-			}
+	for _, chunk := range splitRequests(messages) {
+		req := &pubsubpb.PublishRequest{Topic: d.topic, Messages: chunk}
+		if _, err := d.client.Publish(ctx, req, noRetry); err != nil {
+			return newDeliveryError(opPublish, err)
 		}
 	}
-	if first == nil {
-		return nil
-	}
-	if len(results) == 1 {
-		return first
-	}
-	reason := strings.TrimPrefix(first.Error(), output.ErrPermanent.Error()+": ")
-	if permanent == failed {
-		return fmt.Errorf("%w: %d of %d messages failed: %s", output.ErrPermanent, failed, len(results), reason)
-	}
-	return fmt.Errorf("%d of %d messages failed: %s", failed, len(results), reason)
+	return nil
 }
 
-// HealthCheck treats PermissionDenied as transient: the Publisher role lacks pubsub.topics.get.
+// splitRequests groups messages in order into requests of at most maxRequestMessages and maxRequestBytes;
+// a message larger than the limit goes alone and the service rejects it.
+func splitRequests(messages []*pubsubpb.PubsubMessage) [][]*pubsubpb.PubsubMessage {
+	var chunks [][]*pubsubpb.PubsubMessage
+	current := make([]*pubsubpb.PubsubMessage, 0, min(len(messages), maxRequestMessages))
+	size := 0
+	for _, msg := range messages {
+		msgSize := proto.Size(msg)
+		if len(current) > 0 && (len(current) == maxRequestMessages || size+msgSize > maxRequestBytes) {
+			chunks = append(chunks, current)
+			current, size = make([]*pubsubpb.PubsubMessage, 0, maxRequestMessages), 0
+		}
+		current = append(current, msg)
+		size += msgSize
+	}
+	if len(current) > 0 {
+		chunks = append(chunks, current)
+	}
+	return chunks
+}
+
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil {
 		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
-	_, err := d.client.TopicAdminClient.GetTopic(ctx, &pubsubpb.GetTopicRequest{Topic: d.publisher.String()})
+	_, err := d.client.GetTopic(ctx, &pubsubpb.GetTopicRequest{Topic: d.topic}, noRetry)
 	if err == nil {
 		return nil
 	}
-	safe := safeError("topic check", err)
-	switch status.Code(err) {
-	case codes.NotFound, codes.Unauthenticated, codes.InvalidArgument:
-		return fmt.Errorf("%w: %w", output.ErrMisconfigured, safe)
-	default:
-		return safe
-	}
+	diagnostic := newDeliveryError(opTopicCheck, err)
+	st, _ := status.FromError(err)
+	diagnostic.Misconfigured = misconfiguredProbeCodes[st.Code()] || strings.Contains(st.Message(), tlsHandshakeFailure)
+	return diagnostic
 }
 
-// safeError omits the message, which can quote credentials or token responses.
-func safeError(operation string, err error) error {
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return shared.WrapDeliveryError(name, operation, err)
-	}
-	if errors.Is(err, pubsub.ErrOversizedMessage) {
-		return fmt.Errorf("%w: %s %s: message too large", output.ErrPermanent, name, operation)
-	}
-	if st, ok := status.FromError(err); ok {
-		switch st.Code() {
-		case codes.Canceled:
-			return shared.WrapDeliveryError(name, operation, context.Canceled)
-		case codes.DeadlineExceeded:
-			return shared.WrapDeliveryError(name, operation, context.DeadlineExceeded)
-		default:
-			if retriablePublishCodes[st.Code()] {
-				return fmt.Errorf("%s %s: %s", name, operation, st.Code())
-			}
-			return fmt.Errorf("%w: %s %s: %s", output.ErrPermanent, name, operation, st.Code())
+// newDeliveryError names a failure by its gRPC code; the status message can quote credentials or token responses.
+func newDeliveryError(operation string, err error) *shared.DeliveryError {
+	st, ok := status.FromError(err)
+	switch {
+	case !ok:
+		return shared.NewDeliveryError(name, operation, err)
+	case st.Code() == codes.Canceled:
+		return shared.NewDeliveryError(name, operation, context.Canceled)
+	case st.Code() == codes.DeadlineExceeded:
+		return shared.NewDeliveryError(name, operation, context.DeadlineExceeded)
+	default:
+		return &shared.DeliveryError{
+			Cause: err, Output: name, Operation: operation, Code: st.Code().String(),
+			Permanent: !retriablePublishCodes[st.Code()] || strings.Contains(st.Message(), tlsHandshakeFailure),
 		}
 	}
-	return shared.WrapDeliveryError(name, operation, err)
 }
 
-// retriablePublishCodes are the codes the generated TopicAdminClient retries for Publish.
-var retriablePublishCodes = map[codes.Code]bool{
-	codes.Aborted: true, codes.Canceled: true, codes.Internal: true, codes.ResourceExhausted: true,
-	codes.Unknown: true, codes.Unavailable: true, codes.DeadlineExceeded: true,
-}
-
-// Close flushes for at most closeTimeout; messages still pending then fail.
 func (d *driver) Close() error {
 	if d.client == nil {
 		return nil
 	}
-	stopped := make(chan struct{})
-	go func() {
-		d.publisher.Stop()
-		close(stopped)
-	}()
-	var flushErr error
-	timer := time.NewTimer(closeTimeout)
-	defer timer.Stop()
-	select {
-	case <-stopped:
-	case <-timer.C:
-		flushErr = fmt.Errorf("%s: flush did not complete within %s", name, closeTimeout)
-	}
 	client := d.client
 	d.client = nil
-	if err := client.Close(); err != nil && flushErr == nil {
-		return shared.WrapDeliveryError(name, "close", err)
-	}
-	return flushErr
+	return shared.WrapDeliveryError(name, shared.OpClose, client.Close())
 }

@@ -37,7 +37,10 @@ import (
 )
 
 const (
-	name = "awssqs"
+	name                 = "awssqs"
+	opSendMessage        = "SendMessage"
+	opSendMessageBatch   = "SendMessageBatch"
+	opGetQueueAttributes = "GetQueueAttributes"
 
 	// https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessageBatch.html
 	maxBatchEntries = 10
@@ -127,7 +130,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 		QueueUrl:    sdkaws.String(d.cfg.QueueURL),
 		MessageBody: sdkaws.String(string(body)),
 	})
-	return d.cfg.WrapError(name, "SendMessage", err)
+	return d.cfg.WrapError(name, opSendMessage, err)
 }
 
 // SendBatch fails when any entry fails; a request error stops the remaining requests.
@@ -155,17 +158,21 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 			Entries:  entries,
 		})
 		if err != nil {
-			return d.cfg.WrapError(name, "SendMessageBatch", err)
+			return d.cfg.WrapError(name, opSendMessageBatch, err)
 		}
 		failed += len(out.Failed)
 		for _, f := range out.Failed {
-			if code := sdkaws.ToString(f.Code); !slices.Contains(codes, code) {
+			if code := sharedaws.EntryCode(sqs.TypeRegistry, sdkaws.ToString(f.Code)); !slices.Contains(codes, code) {
 				codes = append(codes, code)
 			}
 		}
 	}
 	if failed > 0 {
-		return fmt.Errorf("%s SendMessageBatch: %d/%d entries failed (%s)", name, failed, len(events), strings.Join(codes, ", "))
+		return &shared.DeliveryError{
+			Output:    name,
+			Operation: opSendMessageBatch,
+			Code:      fmt.Sprintf("%d/%d entries failed (%s)", failed, len(events), strings.Join(codes, ", ")),
+		}
 	}
 	return nil
 }
@@ -195,7 +202,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 		QueueUrl:       sdkaws.String(d.cfg.QueueURL),
 		AttributeNames: []sqstypes.QueueAttributeName{sqstypes.QueueAttributeNameQueueArn},
 	})
-	return d.cfg.WrapProbeError(name, "GetQueueAttributes", err)
+	return d.cfg.WrapProbeError(name, opGetQueueAttributes, err)
 }
 
 func (d *driver) Close() error { return nil }

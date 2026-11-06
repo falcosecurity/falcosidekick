@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
@@ -587,7 +589,7 @@ func TestCloseIsBoundedByDeliveryTimeout(t *testing.T) {
 	err := o.Close()
 	assert.Less(t, time.Since(start), 5*time.Second)
 	if err != nil {
-		assert.ErrorContains(t, err, "kafka flush")
+		assert.ErrorContains(t, err, "kafka close")
 	}
 }
 
@@ -644,7 +646,7 @@ func TestHealthCheckUnreachableBrokerIsTransient(t *testing.T) {
 	err = d.HealthCheck(ctx)
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, output.ErrMisconfigured)
-	assert.Contains(t, err.Error(), "kafka:")
+	assert.Contains(t, err.Error(), "kafka healthcheck")
 }
 
 func TestAsyncFailureWithoutHandlerOnlyLogs(t *testing.T) {
@@ -653,7 +655,20 @@ func TestAsyncFailureWithoutHandlerOnlyLogs(t *testing.T) {
 	_ = o.Close()
 }
 
-func TestProduceErrorPermanence(t *testing.T) {
+// franz-go appends the broker's error message, which can echo submitted values.
+func TestDeliveryErrorKeepsOnlyProtocolCodes(t *testing.T) {
+	const echoed = "echoed-by-broker"
+	sasl := fmt.Errorf("%w: invalid credentials for user %s", kerr.SaslAuthenticationFailed, echoed)
+	err := newDeliveryError(shared.OpHealthcheck, sasl)
+	assert.Equal(t, "kafka healthcheck: SASL_AUTHENTICATION_FAILED", err.Error())
+	assert.ErrorIs(t, err, kerr.SaslAuthenticationFailed)
+	assert.NotContains(t, fmt.Sprintf("%v %+v %q", err, err, err), echoed)
+
+	network := newDeliveryError(shared.OpSend, fmt.Errorf("dial %s: %w", echoed, syscall.ECONNREFUSED))
+	assert.Equal(t, "kafka send: connection refused", network.Error())
+}
+
+func TestDeliveryErrorPermanence(t *testing.T) {
 	tests := []struct {
 		err       error
 		name      string
@@ -669,9 +684,9 @@ func TestProduceErrorPermanence(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.permanent, output.IsPermanent(classifyProduceError(tt.err)))
-			assert.ErrorIs(t, classifyProduceError(tt.err), tt.err)
+			err := newDeliveryError(shared.OpSend, tt.err)
+			assert.Equal(t, tt.permanent, output.IsPermanent(err))
+			assert.ErrorIs(t, err, tt.err)
 		})
 	}
-	assert.NoError(t, classifyProduceError(nil))
 }

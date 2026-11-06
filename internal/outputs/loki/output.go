@@ -30,6 +30,7 @@ import (
 )
 
 const (
+	name            = "loki"
 	defaultEndpoint = "/loki/api/v1/push"
 	readyRoute      = "/ready"
 )
@@ -48,7 +49,7 @@ type config struct {
 // OutputType describes the Loki output for the catalog.
 var OutputType = output.Type{
 	New:      createOutput,
-	Name:     "loki",
+	Name:     name,
 	Category: "logs",
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
@@ -88,13 +89,13 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("loki config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("loki: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
-	sender, err := shared.NewSender("loki", &cfg.HTTPConfig)
+	sender, err := shared.NewSender(name, &cfg.HTTPConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -115,19 +116,19 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	return &driver{
 		cfg:         cfg,
 		sender:      sender,
-		logger:      shared.ResolveLogger(deps.Logger, "loki"),
+		logger:      shared.ResolveLogger(deps.Logger, name),
 		extraLabels: extraLabels,
 	}, nil
 }
 
-func (d *driver) Name() string { return "loki" }
+func (d *driver) Name() string { return name }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
-		return shared.WrapDeliveryError("loki", "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	payload := buildPayload(d.cfg.LogFormat, d.extraLabels, evt)
 	return d.sender.SendGzipJSON(ctx, http.MethodPost, target, payload)
@@ -136,7 +137,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
-		return shared.WrapDeliveryError("loki", "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	payload := buildBatchPayload(d.cfg.LogFormat, d.extraLabels, events)
 	return d.sender.SendGzipJSON(ctx, http.MethodPost, target, payload)
@@ -145,7 +146,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 func (d *driver) HealthCheck(ctx context.Context) error {
 	target, err := d.cfg.URL(d.cfg.Host, readyRoute, nil)
 	if err != nil {
-		return shared.WrapDeliveryError("loki", "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	return d.sender.HealthCheck(ctx, target)
 }

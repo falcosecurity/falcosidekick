@@ -107,7 +107,7 @@ func (d *driver) Init(_ context.Context) error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
-		return shared.WrapDeliveryError(name, "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	return d.sender.SendJSON(ctx, http.MethodPost, target, buildPayload(evt))
 }
@@ -116,7 +116,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 func (d *driver) HealthCheck(ctx context.Context) error {
 	target, err := d.cfg.URL(d.cfg.Host, healthRoute, nil)
 	if err != nil {
-		return shared.WrapDeliveryError(name, "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	return d.sender.HealthCheck(ctx, target)
 }

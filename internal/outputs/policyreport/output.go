@@ -203,7 +203,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 	result, err := buildResult(evt)
 	if err != nil {
-		return safeError(shared.OpMarshal, err)
+		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	t := target{namespace: namespaceOf(evt.OutputFields)}
 	err = d.apply(ctx, t, result)
@@ -211,7 +211,10 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 		d.logger.Info("namespace not found, writing to the fallback namespace", "fallback", d.fallback)
 		err = d.apply(ctx, target{namespace: d.fallback}, result)
 	}
-	return safeError("write report", err)
+	if err != nil {
+		return newDeliveryError(opWriteReport, err)
+	}
+	return nil
 }
 
 // apply serializes local writes per report and retries when another writer changed it in between.
@@ -288,17 +291,17 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	if err == nil || apierrors.IsNotFound(err) {
 		return nil
 	}
-	return classify("read clusterreport", err)
+	return probeError(opReadClusterReport, err)
 }
 
 func (d *driver) checkAPI(ctx context.Context) error {
 	raw, err := d.discovery.Get().AbsPath("/apis", group, version).Do(ctx).Raw()
 	if err != nil {
-		return classify("discovery", err)
+		return probeError(opDiscovery, err)
 	}
 	var list metav1.APIResourceList
 	if err := json.Unmarshal(raw, &list); err != nil {
-		return safeError("discovery", err)
+		return newDeliveryError(opDiscovery, err)
 	}
 	served := make(map[string]bool, len(list.APIResources))
 	for i := range list.APIResources {
@@ -306,17 +309,11 @@ func (d *driver) checkAPI(ctx context.Context) error {
 	}
 	for _, resource := range []string{reportsGVR.Resource, clusterReportsGVR.Resource} {
 		if !served[resource] {
-			return fmt.Errorf("%s: %w: %s/%s does not serve %s", name, output.ErrMisconfigured, group, version, resource)
+			return &shared.DeliveryError{
+				Output: name, Operation: opDiscovery, Misconfigured: true,
+				Code: group + "/" + version + " does not serve " + resource,
+			}
 		}
 	}
 	return nil
-}
-
-func classify(operation string, err error) error {
-	safe := safeError(operation, err)
-	if apierrors.IsNotFound(err) || apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) ||
-		shared.IsTLSVerificationError(err) {
-		return fmt.Errorf("%s: %w: %w", name, output.ErrMisconfigured, safe)
-	}
-	return fmt.Errorf("%s: %w", name, safe)
 }

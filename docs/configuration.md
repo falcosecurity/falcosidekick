@@ -24,7 +24,7 @@ Output files reload without a restart when they change: file events (including K
 
 `runtime_defaults` in the core file applies to every output. An output can override it under its own `runtime:` key: queue size, workers, retry with exponential backoff, circuit breaker, batching (Elasticsearch, Loki, Kafka) and `minimum_priority`.
 
-Only failures a later attempt can fix are retried: network errors, timeouts, HTTP 408, 425, 429 and 5xx, and each destination's transient codes (for example AWS throttling, Kafka retriable errors, SMTP 4yz replies). A rejection such as HTTP 400, 401, 403 or 404, an untrusted certificate, a payload the destination refuses or an SMTP 5yz reply fails the event on the first attempt and does not count toward opening the circuit, since the destination answered.
+Only failures a later attempt can fix are retried: network errors, timeouts, HTTP 408, 409, 425, 429 and 5xx, and each destination's transient codes (for example AWS throttling, Kafka retriable errors, SMTP 4yz replies). A rejection such as HTTP 400, 401, 403 or 404, an untrusted certificate, a payload the destination refuses or an SMTP 5yz reply fails the event on the first attempt and does not count toward opening the circuit, since the destination answered.
 
 ## Destination health check
 

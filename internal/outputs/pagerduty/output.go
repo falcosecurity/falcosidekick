@@ -92,10 +92,10 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("pagerduty config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("pagerduty: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 	sender, err := shared.NewSender(name, &cfg.HTTPConfig)
 	if err != nil {
@@ -111,7 +111,7 @@ func (d *driver) Init(context.Context) error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.URL(d.cfg.Host, enqueueRoute, nil)
 	if err != nil {
-		return shared.WrapDeliveryError(name, "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	return d.sender.SendJSON(ctx, http.MethodPost, target, buildEvent(evt, d.cfg.RoutingKey))
 }

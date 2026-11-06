@@ -32,7 +32,11 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-const name = "awssns"
+const (
+	name                 = "awssns"
+	opPublish            = "Publish"
+	opGetTopicAttributes = "GetTopicAttributes"
+)
 
 type config struct {
 	TopicARN         string `mapstructure:"topic_arn"`
@@ -101,7 +105,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	_, err = d.client.Publish(ctx, input)
-	return d.cfg.WrapError(name, "Publish", err)
+	return d.cfg.WrapError(name, opPublish, err)
 }
 
 func (d *driver) publishInput(evt *event.Event) (*sns.PublishInput, error) {
@@ -126,7 +130,7 @@ func (d *driver) publishInput(evt *event.Event) (*sns.PublishInput, error) {
 // HealthCheck sends GetTopicAttributes, which needs sns:GetTopicAttributes.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	_, err := d.client.GetTopicAttributes(ctx, &sns.GetTopicAttributesInput{TopicArn: sdkaws.String(d.cfg.TopicARN)})
-	return d.cfg.WrapProbeError(name, "GetTopicAttributes", err)
+	return d.cfg.WrapProbeError(name, opGetTopicAttributes, err)
 }
 
 func (d *driver) Close() error { return nil }

@@ -37,11 +37,14 @@ import (
 )
 
 const (
-	defaultIndex    = "falco"
-	defaultSuffix   = "daily"
-	suffixNone      = "none"
-	defaultShards   = 3
-	defaultReplicas = 3
+	name             = "elasticsearch"
+	opTemplateCheck  = "index template check"
+	opTemplateCreate = "index template create"
+	defaultIndex     = "falco"
+	defaultSuffix    = "daily"
+	suffixNone       = "none"
+	defaultShards    = 3
+	defaultReplicas  = 3
 
 	queryFilterPath = "filter_path"
 	queryPipeline   = "pipeline"
@@ -69,7 +72,7 @@ type config struct {
 // OutputType describes the Elasticsearch output for the catalog.
 var OutputType = output.Type{
 	New:      createOutput,
-	Name:     "elasticsearch",
+	Name:     name,
 	Category: "logs",
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
@@ -133,13 +136,13 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	// Absent keys keep these defaults; explicit values, including 0, replace them.
 	cfg := config{NumberOfShards: defaultShards, NumberOfReplicas: defaultReplicas}
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("elasticsearch config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("elasticsearch: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
-	sender, err := shared.NewSender("elasticsearch", &cfg.HTTPConfig)
+	sender, err := shared.NewSender(name, &cfg.HTTPConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -149,12 +152,12 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 
 	return &driver{
 		sender: sender,
-		logger: shared.ResolveLogger(deps.Logger, "elasticsearch"),
+		logger: shared.ResolveLogger(deps.Logger, name),
 		cfg:    cfg,
 	}, nil
 }
 
-func (d *driver) Name() string { return "elasticsearch" }
+func (d *driver) Name() string { return name }
 
 // Init fails only on a misconfiguration; otherwise the first delivery retries the template.
 func (d *driver) Init(ctx context.Context) error {
@@ -194,7 +197,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 	body, err := d.marshalEvent(evt)
 	if err != nil {
-		return shared.WrapDeliveryError("elasticsearch", shared.OpMarshal, err)
+		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 
 	method, route := http.MethodPost, "/"+d.resolveIndex()+"/_doc"
@@ -203,7 +206,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 	target, err := d.cfg.URL(d.cfg.Host, route, d.pipelineQuery())
 	if err != nil {
-		return shared.WrapDeliveryError("elasticsearch", "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 
 	err = d.sender.SendRaw(ctx, method, target, body, "application/json")
@@ -227,7 +230,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	query.Set(queryFilterPath, bulkFilterPath)
 	target, err := d.cfg.URL(d.cfg.Host, "/_bulk", query)
 	if err != nil {
-		return shared.WrapDeliveryError("elasticsearch", "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 
 	respBody, err := d.sender.SendRawReadBody(ctx, http.MethodPost, target, body, "application/json")
@@ -241,7 +244,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 func (d *driver) HealthCheck(ctx context.Context) error {
 	target, err := d.cfg.URL(d.cfg.Host, "", nil)
 	if err != nil {
-		return shared.WrapDeliveryError("elasticsearch", "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	// GET / needs the cluster monitor privilege an index-only user can lack, so 403 is transient.
 	return d.sender.HealthCheck(ctx, target, http.StatusForbidden)

@@ -101,7 +101,7 @@ CloudEvents 1.0 over HTTP in binary mode: `ce-specversion`, `ce-id` (event UUID)
 
 ## Google Cloud Pub/Sub
 
-Publishes the event JSON to `topic` in `project_id`, with `custom_attributes` as message attributes. Without `credentials` the output uses Application Default Credentials, which covers GKE Workload Identity. Startup reads the topic: a missing topic or rejected credentials stop startup; without `pubsub.topics.get` the output starts degraded. `emulator_host` targets the emulator without TLS or authentication. The `PUBSUB_EMULATOR_HOST` environment variable, when set in the process, overrides the client for every Pub/Sub output.
+Publishes the event JSON to `topic` in `project_id`, with `custom_attributes` as message attributes. Without `credentials` the output uses Application Default Credentials, which covers GKE Workload Identity. Startup reads the topic: a missing topic or rejected credentials stop startup; without `pubsub.topics.get` the output starts degraded. `emulator_host` targets the emulator without TLS or authentication. The `PUBSUB_EMULATOR_HOST` environment variable, when set in the process, overrides the client for every Pub/Sub output. Each publish is one request with no client-side buffering or retry; a batch is split into requests of at most 1000 messages and 10 MB. A failed request fails the batch, so a retry can publish again the messages of the requests before it.
 
 ## Syslog
 
@@ -124,6 +124,7 @@ One output for traces, logs and metrics; each section present enables that signa
 - Metrics: the cumulative counter `falcosecurity.falco.rules.matches` by rule, priority, source and hostname, plus `extra_attributes`; a retried event is not counted twice.
 - Resource `service.name` is `falcosidekick`. Attributes use the `falco.` prefix; output fields keep their names.
 - Not probed at startup: OTLP has no request that exports nothing.
+- `http/protobuf` uses the same HTTP client as the other HTTP outputs, so redirects to another origin are refused. gRPC failures follow the OTLP retry rules: only `CANCELLED`, `DEADLINE_EXCEEDED`, `ABORTED`, `OUT_OF_RANGE`, `UNAVAILABLE` and `DATA_LOSS` are retried. When one signal fails, a retry exports every enabled signal again.
 
 ## PolicyReport
 

@@ -45,6 +45,6 @@ func resolveSASL(cfg *config) (kgo.Opt, error) {
 	case "", configNone:
 		return nil, nil
 	default:
-		return nil, fmt.Errorf("kafka: unsupported SASL mechanism %q", cfg.Auth.SASL)
+		return nil, fmt.Errorf("%s: unsupported SASL mechanism %q", name, cfg.Auth.SASL)
 	}
 }
