@@ -41,8 +41,8 @@ func outputYAML(name, body string) string {
 	return name + ":\n  " + strings.Join(lines, "\n  ") + "\n"
 }
 
-func withExtra(extra string) coreOptions {
-	opts := defaultCore
+func withExtra(extra string) launchOptions {
+	opts := defaultLaunch
 	opts.extra = extra
 	return opts
 }
@@ -51,14 +51,14 @@ func TestInvalidConfigIsRejectedWithoutEchoingValues(t *testing.T) {
 	webhook := outputYAML("webhook", "host: http://127.0.0.1:1")
 	kafka := "brokers: [127.0.0.1:1]\ntopic: t\n"
 	for _, tc := range []struct {
-		core    coreOptions
 		name    string
 		outputs string
 		want    string
+		core    launchOptions
 	}{
-		{name: "log_level", core: coreOptions{logLevel: echoed, logFormat: "json"}, outputs: webhook,
+		{name: "log_level", core: launchOptions{logLevel: echoed, logFormat: "json"}, outputs: webhook,
 			want: "log_level: must be trace/debug/info/warning/error"},
-		{name: "log_format", core: coreOptions{logLevel: "info", logFormat: echoed}, outputs: webhook,
+		{name: "log_format", core: launchOptions{logLevel: "info", logFormat: echoed}, outputs: webhook,
 			want: "log_format: must be text/json"},
 		{name: "database backend", core: withExtra("database:\n  backend: " + echoed + "\n"), outputs: webhook,
 			want: "backend: must be inmemory/sqlite/postgres"},
@@ -119,7 +119,7 @@ func TestInvalidConfigIsRejectedWithoutEchoingValues(t *testing.T) {
 			t.Parallel()
 			core := tc.core
 			if core.logLevel == "" {
-				core = defaultCore
+				core = defaultLaunch
 			}
 			logs := startSidekickFailsWith(t, core, tc.outputs)
 			assert.Contains(t, logs, tc.want)

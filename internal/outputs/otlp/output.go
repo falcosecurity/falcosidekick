@@ -50,10 +50,11 @@ type exportFunc func(ctx context.Context, events []*event.Event) error
 
 // signal is one enabled OTLP signal with its own exporter.
 type signal struct {
-	export   exportFunc
-	shutdown func(ctx context.Context) error
-	name     string
-	timeout  time.Duration
+	export    exportFunc
+	shutdown  func(ctx context.Context) error
+	closeIdle func()
+	name      string
+	timeout   time.Duration
 }
 
 type driver struct {
@@ -97,7 +98,9 @@ func (d *driver) init(ctx context.Context, res *sdkresource.Resource) error {
 			return fmt.Errorf("%s %s: %w", name, signalTraces, err)
 		}
 		s := newTracesSignal(exporter, res, c)
-		d.signals = append(d.signals, signal{name: signalTraces, export: s.export, shutdown: s.shutdown, timeout: c.Timeout})
+		d.signals = append(d.signals, signal{
+			name: signalTraces, export: s.export, shutdown: s.shutdown, closeIdle: settings.closeIdleConnections, timeout: c.Timeout,
+		})
 	}
 	if c := d.cfg.Logs; c != nil {
 		settings, err := newExporterSettings(c, "/v1/logs")
@@ -109,7 +112,9 @@ func (d *driver) init(ctx context.Context, res *sdkresource.Resource) error {
 			return fmt.Errorf("%s %s: %w", name, signalLogs, err)
 		}
 		s := newLogsSignal(exporter, res)
-		d.signals = append(d.signals, signal{name: signalLogs, export: s.export, shutdown: s.shutdown, timeout: c.Timeout})
+		d.signals = append(d.signals, signal{
+			name: signalLogs, export: s.export, shutdown: s.shutdown, closeIdle: settings.closeIdleConnections, timeout: c.Timeout,
+		})
 	}
 	if c := d.cfg.Metrics; c != nil {
 		settings, err := newExporterSettings(&c.signalConfig, "/v1/metrics")
@@ -125,7 +130,9 @@ func (d *driver) init(ctx context.Context, res *sdkresource.Resource) error {
 			_ = exporter.Shutdown(ctx)
 			return fmt.Errorf("%s %s: %w", name, signalMetrics, err)
 		}
-		d.signals = append(d.signals, signal{name: signalMetrics, export: s.export, shutdown: s.shutdown, timeout: c.Timeout})
+		d.signals = append(d.signals, signal{
+			name: signalMetrics, export: s.export, shutdown: s.shutdown, closeIdle: settings.closeIdleConnections, timeout: c.Timeout,
+		})
 	}
 	return nil
 }
@@ -165,6 +172,7 @@ func (d *driver) Close() error {
 		ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
 		errs = append(errs, s.shutdown(ctx))
 		cancel()
+		s.closeIdle()
 	}
 	d.signals = nil
 	return shared.WrapDeliveryError(name, shared.OpClose, errors.Join(errs...))

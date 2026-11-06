@@ -184,4 +184,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-func (d *driver) Close() error { return nil }
+func (d *driver) Close() error {
+	d.sender.Close()
+	return nil
+}

@@ -459,8 +459,10 @@ func TestSlackInit(t *testing.T) {
 }
 
 func TestSlackClose(t *testing.T) {
-	o := &driver{}
-	assert.NoError(t, o.Close())
+	d, err := OutputType.New(map[string]any{"secret_endpoint": "/services/T/B/X"}, output.Deps{})
+	require.NoError(t, err)
+	assert.NoError(t, d.Close())
+	assert.NoError(t, d.Close(), "Close is idempotent")
 }
 
 func TestBuildPayloadFieldShortDetection(t *testing.T) {

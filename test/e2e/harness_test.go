@@ -104,23 +104,25 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
-// coreOptions changes the core configuration every test starts from.
-type coreOptions struct {
+// launchOptions changes the core configuration every test starts from.
+type launchOptions struct {
 	logLevel  string
 	logFormat string
 	// extra holds top-level keys absent from the default core configuration.
 	extra string
+	// env adds variables to the process environment.
+	env []string
 }
 
-var defaultCore = coreOptions{logLevel: "debug", logFormat: "json"}
+var defaultLaunch = launchOptions{logLevel: "debug", logFormat: "json"}
 
 // startSidekick runs the binary with one retry attempt so failures surface quickly.
 func startSidekick(t *testing.T, outputs string) *sidekick {
 	t.Helper()
-	return startSidekickWith(t, defaultCore, outputs)
+	return startSidekickWith(t, defaultLaunch, outputs)
 }
 
-func startSidekickWith(t *testing.T, core coreOptions, outputs string) *sidekick {
+func startSidekickWith(t *testing.T, core launchOptions, outputs string) *sidekick {
 	t.Helper()
 	s := launchSidekick(t, core, outputs)
 	deadline := time.After(startTimeout)
@@ -144,10 +146,10 @@ func startSidekickWith(t *testing.T, core coreOptions, outputs string) *sidekick
 
 func startSidekickFails(t *testing.T, outputs string) string {
 	t.Helper()
-	return startSidekickFailsWith(t, defaultCore, outputs)
+	return startSidekickFailsWith(t, defaultLaunch, outputs)
 }
 
-func startSidekickFailsWith(t *testing.T, core coreOptions, outputs string) string {
+func startSidekickFailsWith(t *testing.T, core launchOptions, outputs string) string {
 	t.Helper()
 	s := launchSidekick(t, core, outputs)
 	select {
@@ -160,7 +162,7 @@ func startSidekickFailsWith(t *testing.T, core coreOptions, outputs string) stri
 	return s.logs.String()
 }
 
-func launchSidekick(t *testing.T, opts coreOptions, outputs string) *sidekick {
+func launchSidekick(t *testing.T, opts launchOptions, outputs string) *sidekick {
 	t.Helper()
 	dir := t.TempDir()
 	port := freePort(t)
@@ -192,6 +194,7 @@ runtime_defaults:
 		url:    fmt.Sprintf("http://127.0.0.1:%d", port),
 	}
 	s.cmd = exec.CommandContext(context.Background(), binary, "-c", corePath, "-o", outputsPath)
+	s.cmd.Env = append(os.Environ(), opts.env...)
 	s.cmd.Stdout, s.cmd.Stderr = s.logs, s.logs
 	require.NoError(t, s.cmd.Start())
 	go func() {

@@ -31,6 +31,10 @@ import (
 const (
 	userAgent         = "falcosidekick/v3"
 	maxErrorBodyBytes = 4096
+	// maxResponseBytes bounds a success body an output parses, such as an Elasticsearch bulk answer.
+	maxResponseBytes = 10 << 20
+	// maxDrainBytes is read from an unused body so the connection can be reused; a longer body closes it.
+	maxDrainBytes = 64 << 10
 )
 
 // Sender handles HTTP request execution and response checking for output drivers.
@@ -210,9 +214,12 @@ func (s *Sender) readBody(req *http.Request, check func([]byte) error) ([]byte, 
 	if resp.StatusCode/100 != 2 {
 		return nil, s.responseError(resp, check)
 	}
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
 		return nil, WrapDeliveryError(s.name, OpReadResponse, err)
+	}
+	if len(body) > maxResponseBytes {
+		return nil, &DeliveryError{Output: s.name, Operation: OpReadResponse, Code: "response too large"}
 	}
 	if check != nil {
 		if err := check(body); err != nil {
@@ -288,6 +295,11 @@ func gzipCompress(data []byte) ([]byte, error) {
 
 // drain reads the body to EOF so HTTP/1.1 can reuse the connection.
 func drain(resp *http.Response) {
-	_, _ = io.Copy(io.Discard, resp.Body)
+	_, _ = io.CopyN(io.Discard, resp.Body, maxDrainBytes)
 	_ = resp.Body.Close()
+}
+
+// Close releases the idle connections; a request still running keeps its own.
+func (s *Sender) Close() {
+	s.client.CloseIdleConnections()
 }

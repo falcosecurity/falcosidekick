@@ -428,6 +428,8 @@ func TestAlertmanagerInit(t *testing.T) {
 }
 
 func TestAlertmanagerClose(t *testing.T) {
-	o := &driver{}
-	assert.NoError(t, o.Close())
+	d, err := OutputType.New(map[string]any{"hosts": []string{"http://127.0.0.1:1"}}, output.Deps{})
+	require.NoError(t, err)
+	assert.NoError(t, d.Close())
+	assert.NoError(t, d.Close(), "Close is idempotent")
 }

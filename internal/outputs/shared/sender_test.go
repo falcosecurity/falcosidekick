@@ -22,8 +22,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,6 +61,44 @@ func TestSenderSendJSON(t *testing.T) {
 	var decoded map[string]string
 	require.NoError(t, json.Unmarshal(captured.body, &decoded))
 	assert.Equal(t, "value", decoded["key"])
+}
+
+func TestSenderCloseReleasesIdleConnections(t *testing.T) {
+	var conns atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	server.Start()
+	t.Cleanup(server.Close)
+	sender, err := NewSender("webhook", &HTTPConfig{})
+	require.NoError(t, err)
+	send := func() {
+		require.NoError(t, sender.SendRaw(context.Background(), http.MethodPost, server.URL, []byte("{}"), "application/json"))
+	}
+
+	send()
+	send()
+	assert.Equal(t, int32(1), conns.Load(), "the idle connection is reused")
+	sender.Close()
+	send()
+	assert.Equal(t, int32(2), conns.Load(), "Close drops the idle connection")
+}
+
+func TestSenderBoundsResponseBodies(t *testing.T) {
+	large := strings.Repeat("x", maxResponseBytes+1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, large) }))
+	t.Cleanup(server.Close)
+	sender, err := NewSender("elasticsearch", &HTTPConfig{})
+	require.NoError(t, err)
+
+	_, err = sender.SendRawReadBody(context.Background(), http.MethodPost, server.URL, []byte("{}"), "application/json")
+	require.EqualError(t, err, "elasticsearch read response: response too large")
+	assert.False(t, output.IsPermanent(err), "the destination answered 2xx; a retry is safe for idempotent writes")
+	assert.NoError(t, sender.SendRaw(context.Background(), http.MethodPost, server.URL, []byte("{}"), "application/json"),
+		"a body the output does not parse is drained up to a bound and the delivery succeeds")
 }
 
 func TestSenderSendRaw(t *testing.T) {

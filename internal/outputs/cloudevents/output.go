@@ -154,4 +154,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 // HealthCheck is a no-op: receivers have no standard probe and may take any request as an event.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
-func (d *driver) Close() error { return nil }
+func (d *driver) Close() error {
+	d.sender.Close()
+	return nil
+}
