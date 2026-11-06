@@ -26,6 +26,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,6 +55,8 @@ const (
 
 	clientQPS   = 50
 	clientBurst = 100
+	// requestTimeout bounds one API request, like the request timeout of the AWS and SMTP outputs.
+	requestTimeout = 30 * time.Second
 )
 
 var (
@@ -159,6 +162,8 @@ func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
 	cfg = rest.CopyConfig(cfg)
 	cfg.UserAgent = "falcosidekick"
 	cfg.QPS, cfg.Burst = clientQPS, clientBurst
+	// client-go sets no request timeout by default; an API server that never answers would hold a worker.
+	cfg.Timeout = requestTimeout
 	return cfg, nil
 }
 

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	pubsub "cloud.google.com/go/pubsub/v2/apiv1"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
@@ -58,6 +59,9 @@ const (
 	maxRequestMessages   = 1000
 	maxRequestBytes      = 10_000_000
 	reservedPrefix       = "goog"
+
+	// requestTimeout bounds one RPC, like the request timeout of the AWS and SMTP outputs.
+	requestTimeout = 30 * time.Second
 )
 
 // Field numbers of PublishRequest, which the request size counts.
@@ -129,6 +133,13 @@ type driver struct {
 	client *pubsub.TopicAdminClient
 	topic  string
 	cfg    config
+	// timeout bounds an RPC whose context has no deadline.
+	timeout time.Duration
+}
+
+// callOptions leave retries to the pipeline and bound each RPC: the generated client sets no deadline.
+func (d *driver) callOptions() []gax.CallOption {
+	return []gax.CallOption{noRetry, gax.WithTimeout(d.timeout)}
 }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
@@ -226,7 +237,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	if errs := cfg.validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
-	return &driver{cfg: cfg, topic: "projects/" + cfg.ProjectID + "/topics/" + cfg.Topic}, nil
+	return &driver{cfg: cfg, topic: "projects/" + cfg.ProjectID + "/topics/" + cfg.Topic, timeout: requestTimeout}, nil
 }
 
 func (d *driver) clientOptions() []option.ClientOption {
@@ -289,7 +300,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	failed := 0
 	for _, chunk := range chunks {
 		req := &pubsubpb.PublishRequest{Topic: d.topic, Messages: chunk}
-		if _, err := d.client.Publish(ctx, req, noRetry); err != nil {
+		if _, err := d.client.Publish(ctx, req, d.callOptions()...); err != nil {
 			failures = append(failures, newDeliveryError(opPublish, err))
 			failed += len(chunk)
 		}
@@ -337,7 +348,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil {
 		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
-	_, err := d.client.GetTopic(ctx, &pubsubpb.GetTopicRequest{Topic: d.topic}, noRetry)
+	_, err := d.client.GetTopic(ctx, &pubsubpb.GetTopicRequest{Topic: d.topic}, d.callOptions()...)
 	if err == nil {
 		return nil
 	}

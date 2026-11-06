@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"cloud.google.com/go/pubsub/v2/pstest"
@@ -430,6 +431,25 @@ func TestReturnsWhenContextEnds(t *testing.T) {
 
 	require.NoError(t, d.Close())
 	assert.NoError(t, d.Close(), "Close is idempotent")
+}
+
+// The pipeline context has no deadline during normal delivery: the driver bounds each RPC itself.
+func TestRequestTimeoutBoundsAnUnansweredRPC(t *testing.T) {
+	assert.Equal(t, requestTimeout, newDriver(t, emulatorConfig(fakeServer(t))).timeout)
+	d := initDriver(t, map[string]any{"project_id": testProject, "topic": testTopic, "emulator_host": testutil.HangingTCPServer(t)})
+	d.timeout = testutil.CancelAfter
+	for name, call := range map[string]func() error{
+		"Send":        func() error { return d.Send(context.Background(), testutil.CreateValidEvent()) },
+		"HealthCheck": func() error { return d.HealthCheck(context.Background()) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			start := time.Now()
+			err := call()
+			require.Error(t, err)
+			assert.Less(t, time.Since(start), testutil.ReturnWithin)
+			assert.False(t, output.IsPermanent(err), "a timeout is retried")
+		})
+	}
 }
 
 func TestSendAfterCloseIsNotReady(t *testing.T) {
