@@ -81,6 +81,29 @@ func TestLoadEnvOverride(t *testing.T) {
 	assert.Equal(t, "error", string(cfg.LogLevel))
 }
 
+// Keys without a default are read from the environment too.
+func TestLoadEnvOnlyKeys(t *testing.T) {
+	cfg, err := Load("")
+	require.NoError(t, err)
+	assert.Nil(t, cfg.TLS, "no TLS block without TLS settings")
+
+	t.Setenv("FALCOSIDEKICK_TLS_ENABLED", "true")
+	t.Setenv("FALCOSIDEKICK_TLS_CERT_FILE", "/certs/tls.crt")
+	t.Setenv("FALCOSIDEKICK_PROVISIONING_ALLOW_UI_UPDATES", "true")
+	t.Setenv("FALCOSIDEKICK_RUNTIME_DEFAULTS_MINIMUM_PRIORITY", "warning")
+	t.Setenv("FALCOSIDEKICK_RUNTIME_DEFAULTS_HEALTH_CHECK", "false")
+
+	cfg, err = Load("")
+	require.NoError(t, err)
+	require.NotNil(t, cfg.TLS)
+	assert.True(t, cfg.TLS.Enabled)
+	assert.Equal(t, "/certs/tls.crt", cfg.TLS.CertFile)
+	assert.True(t, cfg.Provisioning.AllowUIUpdates)
+	assert.Equal(t, "Warning", cfg.RuntimeDefaults.MinPriority.String())
+	require.NotNil(t, cfg.RuntimeDefaults.HealthCheck)
+	assert.False(t, *cfg.RuntimeDefaults.HealthCheck)
+}
+
 func TestLoadMetricsExtraLabels(t *testing.T) {
 	cfg, err := Load("")
 	require.NoError(t, err)

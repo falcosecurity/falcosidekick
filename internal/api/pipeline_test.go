@@ -502,7 +502,7 @@ func TestHandlePipelineOutputPut_CreatesNewUIOwned(t *testing.T) {
 	db := database.NewMemory()
 	srv := buildMutationTestServer(t, db)
 
-	body := bytes.NewReader([]byte(`{"config":{"secret_endpoint":"https://hooks.slack.com/new"}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"https://hooks.slack.com/new"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
@@ -526,7 +526,7 @@ func TestHandlePipelineOutputPut_MergesAbsentKeys(t *testing.T) {
 	}))
 	srv := buildMutationTestServer(t, db)
 
-	body := bytes.NewReader([]byte(`{"config":{"channel":"#new"}}`))
+	body := bytes.NewReader([]byte(`{"version":1,"config":{"channel":"#new"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
@@ -576,7 +576,7 @@ func TestHandlePipelineOutputPut_NestedPartialUpdatePreservesSiblings(t *testing
 	}))
 	rig := buildMutationRig(t, db, nestedMutationCatalog(t), true)
 
-	body := bytes.NewReader([]byte(`{"config":{"auth":{"username":"bob"}}}`))
+	body := bytes.NewReader([]byte(`{"version":1,"config":{"auth":{"username":"bob"}}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/kafka", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := rig.Server.app.Test(req)
@@ -606,7 +606,7 @@ func TestHandlePipelineOutputPut_NestedSecretPlaceholderRejected(t *testing.T) {
 	}))
 	rig := buildMutationRig(t, db, nestedMutationCatalog(t), true)
 
-	body := bytes.NewReader([]byte(`{"config":{"auth":{"password":"****"}}}`))
+	body := bytes.NewReader([]byte(`{"version":1,"config":{"auth":{"password":"****"}}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/kafka", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := rig.Server.app.Test(req)
@@ -660,7 +660,7 @@ func TestHandlePipelineOutputPut_RejectsSecretPlaceholder(t *testing.T) {
 	db := database.NewMemory()
 	srv := buildMutationTestServer(t, db)
 
-	body := bytes.NewReader([]byte(`{"config":{"secret_endpoint":"****"}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"****"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
@@ -680,7 +680,7 @@ func TestHandlePipelineOutputPut_UnknownTypeRejected(t *testing.T) {
 	db := database.NewMemory()
 	srv := buildMutationTestServer(t, db)
 
-	body := bytes.NewReader([]byte(`{"config":{}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/not-a-type", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
@@ -706,9 +706,9 @@ func TestHandlePipelineOutputPut_RejectedConfigNeverEchoesValues(t *testing.T) {
 		body string
 		want string
 	}{
-		{name: "malformed url", body: `{"config":{"host":"https://u:` + sentinel + `@ho st/x"}}`, want: "host: invalid URL"},
-		{name: "unsupported scheme", body: `{"config":{"host":"ftp://u:` + sentinel + `@host/x"}}`, want: "host: scheme must be http or https"},
-		{name: "wrong secret type", body: `{"config":{"host":"https://h","password":{"a":"` + sentinel + `"}}}`, want: "password: invalid type"},
+		{name: "malformed url", body: `{"version":0,"config":{"host":"https://u:` + sentinel + `@ho st/x"}}`, want: "host: invalid URL"},
+		{name: "unsupported scheme", body: `{"version":0,"config":{"host":"ftp://u:` + sentinel + `@host/x"}}`, want: "host: scheme must be http or https"},
+		{name: "wrong secret type", body: `{"version":0,"config":{"host":"https://h","password":{"a":"` + sentinel + `"}}}`, want: "password: invalid type"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -728,25 +728,11 @@ func TestHandlePipelineOutputPut_RejectedConfigNeverEchoesValues(t *testing.T) {
 	}
 }
 
-func TestHandlePipelineOutputPut_SecretFileFailureReturns500(t *testing.T) {
-	cat, err := catalog.New([]output.Type{webhook.OutputType})
-	require.NoError(t, err)
-	rig := buildMutationRig(t, database.NewMemory(), cat, true)
-
-	body := bytes.NewReader([]byte(`{"config":{"host":"https://h","password_file":"/nonexistent/secret"}}`))
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/webhook", body)
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := rig.Server.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-}
-
 func TestHandlePipelineOutputPut_InvalidBodyNeverEchoesValues(t *testing.T) {
 	const sentinel = "s3cret-sentinel"
 	for name, body := range map[string]string{
-		"scalar config": `{"config":"` + sentinel + `"}`,
-		"truncated":     `{"config":{"password":"` + sentinel,
+		"scalar config": `{"version":0,"config":"` + sentinel + `"}`,
+		"truncated":     `{"version":0,"config":{"password":"` + sentinel,
 	} {
 		t.Run(name, func(t *testing.T) {
 			srv := buildMutationTestServer(t, database.NewMemory())
@@ -762,6 +748,51 @@ func TestHandlePipelineOutputPut_InvalidBodyNeverEchoesValues(t *testing.T) {
 			assert.NotContains(t, string(respBody), "s3cret")
 		})
 	}
+}
+
+func TestHandlePipelineOutputPut_StrictEnvelope(t *testing.T) {
+	const sentinel = "s3cret-sentinel"
+	for _, tc := range []struct {
+		name, body, want string
+	}{
+		{name: "unknown field", body: `{"version":0,"config":{},"secret_fields":{}}`, want: "invalid request: unknown field"},
+		{name: "misspelled config", body: `{"version":0,"confg":{"channel":"#x"}}`, want: "invalid request: unknown field"},
+		{name: "secret as field name", body: `{"version":0,"config":{},"` + sentinel + `":1}`, want: "invalid request: unknown field"},
+		{name: "trailing data", body: `{"version":0,"config":{}} {"config":{}}`, want: "invalid request: unexpected data after the JSON value"},
+		{name: "syntax error", body: `{"version":0,"config":{"password":` + sentinel + `}}`, want: "invalid request: invalid JSON"},
+		{name: "null config", body: `{"version":0,"config":null}`, want: "config must be an object"},
+		{name: "no config", body: `{"version":0}`, want: "config must be an object"},
+		{name: "no version", body: `{"config":{}}`, want: "version is required"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := database.NewMemory()
+			srv := buildMutationTestServer(t, db)
+			raw := requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/slack", tc.body, http.StatusBadRequest)
+			assert.Contains(t, responseError(t, raw), tc.want)
+			assert.NotContains(t, string(raw), "s3cret")
+			stored, err := db.GetOutputConfig(t.Context(), "slack")
+			require.NoError(t, err)
+			assert.Nil(t, stored)
+		})
+	}
+}
+
+// Two clients read version 1; the second write must not silently drop the first one's change.
+func TestHandlePipelineOutputPut_StaleVersionReturns409(t *testing.T) {
+	db := database.NewMemory()
+	require.NoError(t, db.SaveOutputConfig(t.Context(), "slack", map[string]any{"secret_endpoint": "orig", "channel": "#a"}))
+	srv := buildMutationTestServer(t, db)
+
+	requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/slack", `{"version":1,"config":{"channel":"#first"}}`, http.StatusOK)
+	raw := requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/slack", `{"version":1,"config":{"username":"second"}}`, http.StatusConflict)
+	assert.Contains(t, responseError(t, raw), "changed since the version sent")
+	requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/slack", `{"version":0,"config":{}}`, http.StatusConflict)
+
+	stored, err := db.GetOutputConfig(t.Context(), "slack")
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), stored.Version)
+	assert.Equal(t, "#first", stored.Config["channel"])
+	assert.NotContains(t, stored.Config, "username")
 }
 
 func TestHandlePipelineOutputPut_BadJSONReturns400(t *testing.T) {
@@ -782,7 +813,7 @@ func TestHandlePipelineOutputPut_NoReloaderReturns503(t *testing.T) {
 	db := database.NewMemory()
 	srv := buildMutationTestServerNilReloader(t, db)
 
-	body := bytes.NewReader([]byte(`{"config":{}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
@@ -828,7 +859,7 @@ func TestHandlePipelineOutputPut_ProvisionedReturns409WhenUpdatesDisabled(t *tes
 	}))
 	srv := buildMutationTestServer(t, db)
 
-	body := bytes.NewReader([]byte(`{"config":{"secret_endpoint":"ui"}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"ui"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
@@ -853,7 +884,7 @@ func TestHandlePipelineOutputPut_ProvisionedSucceedsWhenUpdatesAllowed(t *testin
 	}))
 	rig := buildMutationRigWithProvisioning(t, db, newMutationTestCatalog(t), core.ProvisioningConfig{AllowUIUpdates: true})
 
-	body := bytes.NewReader([]byte(`{"config":{"secret_endpoint":"ui-edit"}}`))
+	body := bytes.NewReader([]byte(`{"version":1,"config":{"secret_endpoint":"ui-edit"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := rig.Server.app.Test(req)
@@ -946,6 +977,30 @@ func TestHandlePipelineLayoutPut_BadJSON(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
+// The :name parameter is kept as a database and dispatcher key after the request; fasthttp reuses
+// the request buffer, so a later request must not rewrite it.
+func TestOutputNameOutlivesTheRequest(t *testing.T) {
+	db := database.NewMemory()
+	srv := buildMutationTestServer(t, db)
+	requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/slack", `{"version":0,"config":{}}`, http.StatusOK)
+	for range 20 {
+		requestSecretContract(t, srv, http.MethodGet, "/api/v1/pipeline/outputs/zzzzz", "", http.StatusNotFound)
+	}
+
+	entries, err := db.GetOutputConfigs(t.Context())
+	require.NoError(t, err)
+	require.Contains(t, entries, "slack")
+	assert.Equal(t, "slack", entries["slack"].Name)
+	assert.Equal(t, []string{"slack"}, srv.pipeline.Dispatcher().OutputNames())
+}
+
+func TestHandlePipelineLayoutPut_RejectsUnknownFields(t *testing.T) {
+	srv := buildMutationTestServer(t, database.NewMemory())
+	raw := requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/layout",
+		`{"nodes":[{"id":"a","x":1,"y":2,"z":3}]}`, http.StatusBadRequest)
+	assert.Equal(t, "invalid request: unknown field", responseError(t, raw))
+}
+
 func TestHandlePipelineLayoutPut_NoDatabase(t *testing.T) {
 	srv := buildMutationTestServer(t, nil)
 
@@ -963,7 +1018,7 @@ func TestHandlePipelineOutputPut_DBReadErrorReturns500(t *testing.T) {
 	db := &databasetestutil.Mock{GetOutputConfigErr: errors.New("db read boom")}
 	srv := buildMutationTestServer(t, db)
 
-	body := bytes.NewReader([]byte(`{"config":{}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
@@ -980,7 +1035,7 @@ func TestHandlePipelineOutputPut_DispatcherStoppedReturns503(t *testing.T) {
 	defer cancel()
 	require.NoError(t, rig.Dispatcher.Shutdown(shutdownCtx, func() {}))
 
-	body := bytes.NewReader([]byte(`{"config":{"secret_endpoint":"x"}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"x"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := rig.Server.app.Test(req)
@@ -994,7 +1049,7 @@ func TestHandlePipelineOutputPut_ReloaderNotBoundReturns503(t *testing.T) {
 	// bindReloader=false exercises the unbound-Reloader path.
 	rig := buildMutationRig(t, db, newMutationTestCatalog(t), false)
 
-	body := bytes.NewReader([]byte(`{"config":{"secret_endpoint":"x"}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"x"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := rig.Server.app.Test(req)
@@ -1007,7 +1062,7 @@ func TestHandlePipelineOutputPut_DBSaveErrorReturns500(t *testing.T) {
 	db := &databasetestutil.Mock{SaveOutputConfigErr: errors.New("db save boom")}
 	srv := buildMutationTestServer(t, db)
 
-	body := bytes.NewReader([]byte(`{"config":{"secret_endpoint":"x"}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"x"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
@@ -1023,7 +1078,7 @@ func TestHandlePipelineOutputPut_EmptyName(t *testing.T) {
 	db := database.NewMemory()
 	srv := buildMutationTestServer(t, db)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/", bytes.NewReader([]byte(`{"config":{}}`)))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/", bytes.NewReader([]byte(`{"version":0,"config":{}}`)))
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
@@ -1144,7 +1199,7 @@ func TestMergeOutputConfig_NilExisting(t *testing.T) {
 
 func TestHandlePipelineOutputPut_NoDatabaseReturns503(t *testing.T) {
 	srv := buildMutationTestServer(t, nil)
-	body := bytes.NewReader([]byte(`{"config":{}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := srv.app.Test(req)
@@ -1180,7 +1235,7 @@ func TestHandlePipelineOutputPut_ApplyInitFailureReturns500(t *testing.T) {
 	require.NoError(t, err)
 	rig := buildMutationRig(t, db, cat, true)
 
-	body := bytes.NewReader([]byte(`{"config":{"secret_endpoint":"x"}}`))
+	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"x"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := rig.Server.app.Test(req)

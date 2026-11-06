@@ -65,6 +65,9 @@ func LoadOutputs(paths []string) (*OutputsConfig, error) {
 		}
 
 		for name, srcCfg := range partial.Outputs {
+			if srcCfg == nil {
+				return nil, fmt.Errorf("output config %q: output %q has no settings; write {} to use its defaults", path, name)
+			}
 			dstCfg, exists := merged.Outputs[name]
 			if !exists {
 				merged.Outputs[name] = srcCfg

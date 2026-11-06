@@ -101,7 +101,7 @@ func TestConfigValidation(t *testing.T) {
 		}}), want: "owned by the HTTP transport"},
 		{name: "header file missing", raw: traces(map[string]any{"endpoint": "http://c:4318", "headers": map[string]any{
 			"X-Token": map[string]any{"files": []string{"/nonexistent/" + secret}},
-		}}), want: "cannot read header file"},
+		}}), want: "files[0]: file does not exist"},
 		{name: "empty extra attribute", raw: map[string]any{"metrics": map[string]any{"endpoint": "http://c:4318", "extra_attributes": []string{" "}}}, want: "metrics.extra_attributes[0]"},
 		{name: "reserved extra attribute", raw: map[string]any{"metrics": map[string]any{"endpoint": "http://c:4318", "extra_attributes": []string{"falco.rule"}}}, want: "set on every data point"},
 		{name: "duplicate extra attribute", raw: map[string]any{"metrics": map[string]any{"endpoint": "http://c:4318", "extra_attributes": []string{"k8s.pod.name", "k8s.pod.name"}}}, want: "duplicate field"},

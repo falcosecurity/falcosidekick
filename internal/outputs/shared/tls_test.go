@@ -57,12 +57,26 @@ func TestBuildTLSConfigServerName(t *testing.T) {
 
 func TestBuildTLSConfigInvalidCAFile(t *testing.T) {
 	_, err := BuildTLSConfig(&TLSClientConfig{CAFile: "/nonexistent/ca.pem"})
-	require.EqualError(t, err, "tls.ca_file: cannot read file", "the path and the OS error stay out")
+	require.EqualError(t, err, "tls.ca_file: file does not exist", "the path and the OS error stay out")
 }
 
 func TestBuildTLSConfigInvalidCertKey(t *testing.T) {
-	_, err := BuildTLSConfig(&TLSClientConfig{CertFile: "/nonexistent/cert.pem", KeyFile: "/nonexistent/key.pem"})
-	require.EqualError(t, err, "tls.cert_file, tls.key_file: cannot load the key pair", "the paths and the OS error stay out")
+	dir := t.TempDir()
+	notPEM := filepath.Join(dir, "not.pem")
+	require.NoError(t, os.WriteFile(notPEM, []byte("not a certificate"), 0o600))
+	for _, tc := range []struct {
+		name, cert, key, want string
+	}{
+		{name: "missing cert", cert: "/nonexistent/cert.pem", key: notPEM, want: "tls.cert_file: file does not exist"},
+		{name: "missing key", cert: notPEM, key: "/nonexistent/key.pem", want: "tls.key_file: file does not exist"},
+		{name: "directory", cert: dir, key: notPEM, want: "tls.cert_file: not a regular file"},
+		{name: "invalid pair", cert: notPEM, key: notPEM, want: "tls.cert_file, tls.key_file: cannot load the key pair"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := BuildTLSConfig(&TLSClientConfig{CertFile: tc.cert, KeyFile: tc.key})
+			require.EqualError(t, err, tc.want, "the paths and the OS error stay out")
+		})
+	}
 }
 
 func TestBuildTLSConfigValidCA(t *testing.T) {

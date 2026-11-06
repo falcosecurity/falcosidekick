@@ -23,7 +23,9 @@ import (
 	"io/fs"
 	"log/slog"
 	"net"
+	"slices"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/adaptor"
@@ -70,6 +72,7 @@ type Server struct {
 	address           string
 	managementAddress string
 	eventSource       string
+	secretDirs        []string
 	provisioning      core.ProvisioningConfig
 	allowWrites       bool
 }
@@ -104,6 +107,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 		eventSource:       cfg.Config.UI.EventSource,
 		provisioning:      cfg.Config.Provisioning,
 		allowWrites:       cfg.Config.API.AllowWrites,
+		secretDirs:        slices.Clone(cfg.Config.API.SecretDirs),
 		tls:               cfg.Config.TLS,
 	}
 
@@ -117,8 +121,23 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 	return s, nil
 }
 
+// Connection bounds for slow or idle clients; fasthttp arms the write deadline after the handler
+// returns, so a long API write is not cut short.
+const (
+	readTimeout  = 30 * time.Second
+	writeTimeout = 30 * time.Second
+	idleTimeout  = 2 * time.Minute
+)
+
 func newApp() *fiber.App {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		// Request values, such as the :name parameter kept as a map key, are copied out of the
+		// connection buffer that fasthttp reuses for the next request.
+		Immutable:    true,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
+		IdleTimeout:  idleTimeout,
+	})
 	app.Use(recover.New())
 	app.Use(compress.New())
 	return app

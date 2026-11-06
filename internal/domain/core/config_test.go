@@ -171,6 +171,14 @@ func TestConfigValidateManagementPort(t *testing.T) {
 	}
 }
 
+func TestAPIConfigValidateSecretDirs(t *testing.T) {
+	assert.Empty(t, APIConfig{}.Validate())
+	assert.Empty(t, APIConfig{SecretDirs: []string{"/run/secrets"}}.Validate())
+	errs := APIConfig{SecretDirs: []string{"/run/secrets", "secrets"}}.Validate()
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Error(), `secret_dirs: "secrets" must be an absolute path`)
+}
+
 func TestConfigValidateInvalidPort(t *testing.T) {
 	cfg := Config{
 		ListenPort: 0,

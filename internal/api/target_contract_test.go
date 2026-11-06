@@ -55,7 +55,7 @@ func TestTargetSecretsStayOutOfAPIAndSurvivePartialPUT(t *testing.T) {
 	db := database.NewMemory()
 	rig := buildMutationRig(t, db, cat, true)
 
-	status, body := putOutput(t, rig, "webhook", `{"config":{
+	status, body := putOutput(t, rig, "webhook", `{"version":0,"config":{
 		"host":"https://collector.example","base_path":"/gw","secret_endpoint":"/hook/`+pathSecret+`",
 		"query_params":{"token":{"values":["public"],"secrets":["`+querySecret+`"]}}}}`)
 	require.Equal(t, http.StatusOK, status, body)
@@ -73,7 +73,7 @@ func TestTargetSecretsStayOutOfAPIAndSurvivePartialPUT(t *testing.T) {
 	assert.True(t, masked.SecretFields["/secret_endpoint"])
 	assert.True(t, masked.SecretFields["/query_params/token/secrets"])
 
-	status, body = putOutput(t, rig, "webhook", `{"config":{"method":"PUT"}}`)
+	status, body = putOutput(t, rig, "webhook", `{"version":1,"config":{"method":"PUT"}}`)
 	require.Equal(t, http.StatusOK, status, body)
 	stored, err := db.GetOutputConfig(t.Context(), "webhook")
 	require.NoError(t, err)
@@ -102,10 +102,10 @@ func TestPUTRejectsMisconfiguredDestination(t *testing.T) {
 	db := database.NewMemory()
 	rig := buildMutationRig(t, db, cat, true)
 
-	status, body := putOutput(t, rig, "loki", `{"config":{"host":"`+loki.URL+`"}}`)
+	status, body := putOutput(t, rig, "loki", `{"version":0,"config":{"host":"`+loki.URL+`"}}`)
 	require.Equal(t, http.StatusOK, status, body)
 
-	status, body = putOutput(t, rig, "loki", `{"config":{"base_path":"/missing"}}`)
+	status, body = putOutput(t, rig, "loki", `{"version":1,"config":{"base_path":"/missing"}}`)
 	assert.Equal(t, http.StatusBadRequest, status, body)
 	assert.Contains(t, body, "health check")
 	assert.Contains(t, body, "HTTP 404")
@@ -137,10 +137,10 @@ func TestPUTRejectsTargetViolationsAs400(t *testing.T) {
 		body   string
 		want   string
 	}{
-		{"removed url", "webhook", `{"config":{"host":"https://h","url":"https://h/` + sentinel + `"}}`, "unknown keys: url"},
-		{"removed webhook_url", "slack", `{"config":{"secret_endpoint":"/x","webhook_url":"https://h/` + sentinel + `"}}`, "unknown keys: webhook_url"},
-		{"both endpoints", "webhook", `{"config":{"host":"https://h","endpoint":"/a","secret_endpoint":"/` + sentinel + `"}}`, "cannot be combined"},
-		{"host with path", "webhook", `{"config":{"host":"https://h/` + sentinel + `"}}`, "host: must be scheme, host and port only"},
+		{"removed url", "webhook", `{"version":0,"config":{"host":"https://h","url":"https://h/` + sentinel + `"}}`, "unknown keys: url"},
+		{"removed webhook_url", "slack", `{"version":0,"config":{"secret_endpoint":"/x","webhook_url":"https://h/` + sentinel + `"}}`, "unknown keys: webhook_url"},
+		{"both endpoints", "webhook", `{"version":0,"config":{"host":"https://h","endpoint":"/a","secret_endpoint":"/` + sentinel + `"}}`, "cannot be combined"},
+		{"host with path", "webhook", `{"version":0,"config":{"host":"https://h/` + sentinel + `"}}`, "host: must be scheme, host and port only"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			rig := buildMutationRig(t, database.NewMemory(), cat, true)

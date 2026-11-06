@@ -31,6 +31,7 @@ func applyDefaults(v *viper.Viper) {
 	v.SetDefault("log_format", "text")
 
 	v.SetDefault("api.allow_writes", false)
+	v.SetDefault("api.secret_dirs", []string{})
 	v.SetDefault("ui.enabled", false)
 	v.SetDefault("ui.event_source", "inmemory")
 

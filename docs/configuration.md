@@ -14,7 +14,9 @@ Unknown keys are rejected at startup, in both files.
 
 ## Environment
 
-Core keys can be set as `FALCOSIDEKICK_<KEY>`, with dots turned into underscores: `FALCOSIDEKICK_LISTEN_PORT=2802`, `FALCOSIDEKICK_LOG_LEVEL=debug`. Outputs are configured only in files. For secrets, use the `_file` variant of a secret field (`password_file`, `api_key_file`, ...) and mount the file.
+Every core key can be set as `FALCOSIDEKICK_<KEY>`, with dots turned into underscores, also keys without a default: `FALCOSIDEKICK_LISTEN_PORT=2802`, `FALCOSIDEKICK_TLS_ENABLED=true`. Lists are comma-separated. Outputs are configured only in files. For secrets, use the `_file` variant of a secret field (`password_file`, `api_key_file`, ...) and mount the file.
+
+Every file an output reads (`_file` secrets, header and query `files`, TLS certificates and keys) must be a regular file of at most 1 MiB; symlinks to one, as in Kubernetes secret volumes, are fine. An output file that writes `name:` with nothing after it is rejected: write `name: {}` to use the defaults.
 
 ## Hot reload
 
@@ -70,6 +72,12 @@ Two listeners keep event ingestion apart from the API, which has no authenticati
 | `/api/v1/...` | management listener: events, pipeline status, output config and types, UI layout, `/api/v1/version` |
 
 Routes that change outputs or the layout answer 403 unless `api.allow_writes: true`. With writes on, keep `management.listen_address` on `127.0.0.1` or a trusted network.
+
+`PUT /api/v1/pipeline/outputs/<name>` takes `{"version": N, "config": {...}}` and nothing else. `version` is the one `GET` returned, or 0 to create the output; if the output changed in the meantime the answer is 409, so read it again and retry. Keys left out of `config` keep their stored value; a secret sent as `<name>_file` replaces the stored value, and the other way round.
+
+A file path sent through the API (a `_file` secret, header and query `files`, TLS files, `kubeconfig`) is accepted only if it resolves, after symlinks, to a regular file of at most 1 MiB inside one of the absolute directories in `api.secret_dirs`. The default, an empty list, refuses every such path. Paths already in the output file are kept as they are. The check matters because the output sends what it reads to a destination the same request chooses.
+
+Both listeners close a connection that takes more than 30s to send a request or to read the answer, or stays idle for 2 minutes.
 
 ## Server TLS
 

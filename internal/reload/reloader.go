@@ -58,6 +58,9 @@ var ErrUnknownOutputType = errors.New("reloader: unknown output type")
 // ErrDBSyncFailed means the runtime change is live but was not persisted to the database.
 var ErrDBSyncFailed = errors.New("reloader: database sync failed after runtime apply")
 
+// ErrVersionConflict is returned by ApplyOutput when the stored output changed after the caller read it.
+var ErrVersionConflict = errors.New("reloader: output changed since the version read")
+
 // Reloader applies output config changes from file reloads and UI writes, serialized by one mutex.
 type Reloader struct {
 	deps       output.Deps
@@ -113,7 +116,9 @@ func (r *Reloader) BindWorkerContext(workerRunCtx context.Context, retireTimeout
 }
 
 // ApplyOutput applies one UI-driven output config to the dispatcher and persists it.
-func (r *Reloader) ApplyOutput(ctx context.Context, name string, cfg map[string]any) error {
+// version is the stored version cfg was built from, 0 for an output not stored yet;
+// with a database, any other stored version returns ErrVersionConflict.
+func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, cfg map[string]any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -128,9 +133,23 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, cfg map[string]
 		return r.fail(start, SourceUI, "%w: %q", ErrUnknownOutputType, name)
 	}
 
+	if r.database != nil {
+		stored, err := r.database.GetOutputConfig(ctx, name)
+		if err != nil {
+			return r.fail(start, SourceUI, "apply read: %w", err)
+		}
+		var current int64
+		if stored != nil {
+			current = stored.Version
+		}
+		if current != version {
+			return r.fail(start, SourceUI, "%w", ErrVersionConflict)
+		}
+	}
+
 	cfgCopy := utils.DeepCopyMap(cfg)
 	if err := config.ResolveSecrets(name, cfgCopy, outputType.Schema); err != nil {
-		return r.fail(start, SourceUI, "apply secrets: %w", err)
+		return r.fail(start, SourceUI, "apply secrets: %w: %w", pipeline.ErrInvalidOutputConfig, err)
 	}
 
 	out, err := pipeline.BuildOutput(ctx, r.catalog, name, cfgCopy, r.runtimeDefaults, r.deps)

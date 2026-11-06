@@ -20,7 +20,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"os"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
@@ -63,9 +62,9 @@ func (c *TLSClientConfig) Validate() utils.ValidationErrors {
 func TLSClientSchemaFields() []output.SchemaField {
 	return []output.SchemaField{
 		{Name: "tls.insecure_skip_verify", Type: "bool", Default: false, Label: "Skip TLS Certificate Verification"},
-		{Name: "tls.ca_file", Type: "string", Label: "CA Certificate File"},
-		{Name: "tls.cert_file", Type: "string", Label: "Client Certificate File (mTLS)"},
-		{Name: "tls.key_file", Type: "string", Label: "Client Key File (mTLS)"},
+		{Name: "tls.ca_file", Type: "string", File: true, Label: "CA Certificate File"},
+		{Name: "tls.cert_file", Type: "string", File: true, Label: "Client Certificate File (mTLS)"},
+		{Name: "tls.key_file", Type: "string", File: true, Label: "Client Key File (mTLS)"},
 		{Name: "tls.server_name", Type: "string", Label: "Server Name Override"},
 	}
 }
@@ -83,9 +82,9 @@ func BuildTLSConfig(cfg *TLSClientConfig) (*tls.Config, error) {
 	}
 
 	if cfg.CAFile != "" {
-		caCert, err := os.ReadFile(cfg.CAFile)
+		caCert, err := utils.ReadRegularFile(cfg.CAFile)
 		if err != nil {
-			return nil, errors.New("tls.ca_file: cannot read file")
+			return nil, errors.New("tls.ca_file: " + utils.FileProblem(err))
 		}
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM(caCert) {
@@ -95,7 +94,15 @@ func BuildTLSConfig(cfg *TLSClientConfig) (*tls.Config, error) {
 	}
 
 	if cfg.CertFile != "" && cfg.KeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
+		certPEM, err := utils.ReadRegularFile(cfg.CertFile)
+		if err != nil {
+			return nil, errors.New("tls.cert_file: " + utils.FileProblem(err))
+		}
+		keyPEM, err := utils.ReadRegularFile(cfg.KeyFile)
+		if err != nil {
+			return nil, errors.New("tls.key_file: " + utils.FileProblem(err))
+		}
+		cert, err := tls.X509KeyPair(certPEM, keyPEM)
 		if err != nil {
 			return nil, errors.New("tls.cert_file, tls.key_file: cannot load the key pair")
 		}

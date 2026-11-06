@@ -83,7 +83,7 @@ var OutputType = output.Type{
 	Category: "other",
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
-			{Name: "kubeconfig", Type: "string", Label: "Kubeconfig file (in-cluster configuration when empty)"},
+			{Name: "kubeconfig", Type: "string", File: true, Label: "Kubeconfig file (in-cluster configuration when empty)"},
 			{Name: "falco_namespace", Type: "string", Label: "Namespace for events whose namespace does not exist"},
 			{Name: "max_events", Type: "int", Default: defaultMaxEvents, Label: "Max results per report"},
 			{Name: "prune_by_priority", Type: "bool", Default: false, Label: "Remove lowest severity results first"},

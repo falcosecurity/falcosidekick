@@ -51,7 +51,7 @@ Every criterion is a hard blocker: any failure exits the script non-zero.
 - **6** real Falco rule trigger (`cat /etc/shadow` in an alpine pod) causes the webhook output's `sent_total` to advance again.
 - **7** `falcosidekick_input_total{source="syscall"}` metric advances beyond baseline.
 - **8** `GET /` with a browser-shape `Accept-Encoding: gzip` returns 200 and decoded HTML (UI-embedded variant only; skipped when `FSK_TAG=local-slim`).
-- **9a** `PUT /api/v1/pipeline/outputs/webhook` returns 200.
+- **9a** `PUT /api/v1/pipeline/outputs/webhook`, with the version read by `GET`, returns 200.
 - **9b** after 9a, posting synthetic events shows the webhook output still delivering (the UI write applied, the output is live in the dispatcher).
 
 ## Files

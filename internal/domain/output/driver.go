@@ -170,7 +170,12 @@ type SchemaField struct {
 	Values      []string      `json:"values,omitempty"`
 	Required    bool          `json:"required"`
 	Secret      bool          `json:"secret,omitempty"`
+	// File marks a path, or a list of paths, the output reads; secret strings take theirs as <name>_file.
+	File bool `json:"file,omitempty"`
 }
+
+// HasFileVariant reports whether the field also accepts <name>_file, the path of a file holding the value.
+func (f *SchemaField) HasFileVariant() bool { return f.Secret && f.Type == "string" }
 
 // SearchQuery holds parameters for querying stored events.
 type SearchQuery struct {

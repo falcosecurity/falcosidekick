@@ -195,6 +195,6 @@ func HTTPTargetSchemaFields(opts *HTTPTargetOptions) []output.SchemaField {
 	return append(fields, output.SchemaField{Name: "query_params", Type: "map", Label: "Query Parameters", EntryFields: []output.SchemaField{
 		{Name: "values", Type: "string[]", Label: "Public Values"},
 		{Name: "secrets", Type: "string[]", Secret: true, Label: "Secret Values"},
-		{Name: "files", Type: "string[]", Label: "Secret File Paths"},
+		{Name: "files", Type: "string[]", File: true, Label: "Secret File Paths"},
 	}})
 }

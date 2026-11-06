@@ -16,7 +16,11 @@
 
 package core
 
-import "github.com/falcosecurity/falcosidekick/internal/utils"
+import (
+	"slices"
+
+	"github.com/falcosecurity/falcosidekick/internal/utils"
+)
 
 // DeepCopy returns a deep copy of c.
 func (c *Config) DeepCopy() *Config {
@@ -25,6 +29,8 @@ func (c *Config) DeepCopy() *Config {
 		tlsCopy := *c.TLS
 		cp.TLS = &tlsCopy
 	}
+	cp.Metrics.ExtraLabels = slices.Clone(c.Metrics.ExtraLabels)
+	cp.API.SecretDirs = slices.Clone(c.API.SecretDirs)
 	return &cp
 }
 
