@@ -176,6 +176,11 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 	if err := checkFilePaths(stored, merged, t.Schema.Fields, s.secretDirs); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
+	if t.CheckAPIWrite != nil {
+		if err := t.CheckAPIWrite(body.Config); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+	}
 
 	if err := s.reloader.ApplyOutput(c.Context(), name, existingVersion, merged); err != nil {
 		return s.writeMutationError(c, name, "apply", err)

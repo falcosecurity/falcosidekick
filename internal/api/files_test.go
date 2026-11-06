@@ -31,6 +31,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/database"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/gcppubsub"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
@@ -157,6 +158,23 @@ func TestPUTSecretFileReplacesStoredValue(t *testing.T) {
 
 	assert.Equal(t, map[string]any{"password": "new-value"}, mustMerge(t, map[string]any{"password_file": file}, `{"password":"new-value"}`))
 	assert.Equal(t, map[string]any{"password_file": file}, mustMerge(t, map[string]any{"password": "old"}, `{"password_file":"`+file+`"}`))
+}
+
+// D9: an output type can refuse values only output files may hold.
+func TestPUTRunsTheOutputAPIWriteCheck(t *testing.T) {
+	cat, err := catalog.New([]output.Type{gcppubsub.OutputType})
+	require.NoError(t, err)
+	db := database.NewMemory()
+	rig := buildMutationRig(t, db, cat, true)
+	credentials, err := json.Marshal(`{"type":"external_account","token_url":"https://attacker.example","credential_source":{"file":"/etc/hostname"}}`)
+	require.NoError(t, err)
+
+	raw := requestSecretContract(t, rig.Server, http.MethodPut, "/api/v1/pipeline/outputs/gcppubsub",
+		`{"version":0,"config":{"project_id":"p","topic":"t","credentials":`+string(credentials)+`}}`, http.StatusBadRequest)
+	assert.Equal(t, "credentials: a credential_source is accepted only from output files or credentials_file", responseError(t, raw))
+	stored, err := db.GetOutputConfig(t.Context(), "gcppubsub")
+	require.NoError(t, err)
+	assert.Nil(t, stored)
 }
 
 func mustMerge(t *testing.T, stored map[string]any, patch string) map[string]any {

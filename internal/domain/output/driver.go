@@ -142,10 +142,13 @@ func (r *HistogramRequest) Normalize() error {
 
 // Type describes an available output kind.
 type Type struct {
-	New      func(cfg map[string]any, deps Deps) (Driver, error) `json:"-"`
-	Name     string                                              `json:"name"`
-	Category string                                              `json:"category"`
-	Schema   Schema                                              `json:"schema"`
+	New func(cfg map[string]any, deps Deps) (Driver, error) `json:"-"`
+	// CheckAPIWrite, when set, refuses values an API write sends that only an output file may hold,
+	// such as settings that make the output read local resources. patch has the request's key spelling.
+	CheckAPIWrite func(patch map[string]any) error `json:"-"`
+	Name          string                           `json:"name"`
+	Category      string                           `json:"category"`
+	Schema        Schema                           `json:"schema"`
 }
 
 // Deps holds shared dependencies injected into outputs at creation.
