@@ -243,7 +243,9 @@ func TestLoadOutputsParseErrorsNeverQuoteValues(t *testing.T) {
 		{name: "scalar outputs", content: "outputs: \"" + sentinel + "\"\n", want: "line 1: invalid structure"},
 		{name: "scalar output", content: "outputs:\n  hook: \"" + sentinel + "\"\n", want: "line 2: invalid structure"},
 		{name: "scalar document", content: sentinel + "\n", want: "line 1: invalid structure"},
-		{name: "syntax error", content: "outputs:\n  hook:\n    url: \"" + sentinel + "\n", want: "line 3"},
+		{name: "syntax error", content: "outputs:\n  hook:\n    url: \"" + sentinel + "\n", want: "yaml: lines 3-4: invalid syntax"},
+		{name: "unknown alias", content: "outputs: *" + sentinel + "\n", want: "yaml: line 1: invalid anchor or alias"},
+		{name: "unexpected character", content: "outputs:\n  hook: @" + sentinel + "\n", want: "yaml: line 2: invalid syntax"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -267,6 +269,9 @@ func TestSafeYAMLErrorFailsClosed(t *testing.T) {
 	}}
 	assert.Equal(t, "yaml: line 2: invalid structure", safeYAMLError(construct).Error())
 
-	syntax := &yaml.LoadError{Stage: yaml.ParserStage, Message: "mapping values are not allowed in this context", Mark: yaml.Mark{Line: 2}}
-	assert.Equal(t, "yaml: line 2: mapping values are not allowed in this context", safeYAMLError(syntax).Error())
+	syntax := &yaml.LoadError{Stage: yaml.ParserStage, Message: "found s3cret-sentinel", Mark: yaml.Mark{Line: 2}}
+	assert.Equal(t, "yaml: line 2: invalid syntax", safeYAMLError(syntax).Error(), "parser text can quote the input")
+
+	future := &yaml.LoadError{Stage: yaml.Stage("future"), Message: "s3cret-sentinel", Mark: yaml.Mark{Line: 5}}
+	assert.Equal(t, "yaml: line 5: invalid document", safeYAMLError(future).Error())
 }

@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"slices"
 	"strings"
 
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -120,12 +119,19 @@ type clientLogger struct {
 
 func (clientLogger) Level() kgo.LogLevel { return kgo.LogLevelWarn }
 
-// Log forwards franz-go messages with error values reduced to their diagnostic: they can carry broker text.
+// logFields are the franz-go fields that identify a broker, topic, partition or group.
+var logFields = map[string]bool{"broker": true, "addr": true, "topic": true, "topic_id": true, "partition": true, "group": true}
+
+// Log forwards franz-go messages with errors reduced to their diagnostic and only the identifying fields:
+// other values, such as requests, can carry broker text.
 func (l clientLogger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
-	safe := slices.Clone(keyvals)
-	for i, value := range safe {
-		if err, ok := value.(error); ok {
-			safe[i] = newDeliveryError(opClient, err)
+	safe := make([]any, 0, len(keyvals))
+	for i := 0; i+1 < len(keyvals); i += 2 {
+		key, _ := keyvals[i].(string)
+		if err, ok := keyvals[i+1].(error); ok {
+			safe = append(safe, key, newDeliveryError(opClient, err))
+		} else if logFields[key] {
+			safe = append(safe, key, keyvals[i+1])
 		}
 	}
 	l.logger.Log(context.Background(), slogLevel(level), msg, safe...)

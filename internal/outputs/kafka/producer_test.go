@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -102,6 +103,23 @@ func TestClientLoggerMapsLevelsAndAttributes(t *testing.T) {
 			assert.EqualValues(t, 3, record["broker"])
 		})
 	}
+}
+
+func TestClientLoggerKeepsOnlyIdentifyingFields(t *testing.T) {
+	const sentinel = "BROKER_TEXT_SENTINEL"
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	clientLogger{logger: logger}.Log(kgo.LogLevelError, "produce failed",
+		"topic", "events", "partition", int32(2), "err", errors.New(sentinel), "req", sentinel, "skipped", 3, "dangling")
+
+	var record map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &record))
+	assert.Equal(t, "events", record["topic"])
+	assert.EqualValues(t, 2, record["partition"])
+	assert.Equal(t, "kafka client: request failed", record["err"])
+	assert.NotContains(t, record, "req")
+	assert.NotContains(t, record, "skipped")
+	assert.NotContains(t, buf.String(), sentinel)
 }
 
 func TestClientLogsDialFailureWithoutSecrets(t *testing.T) {

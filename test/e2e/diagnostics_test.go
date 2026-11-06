@@ -64,6 +64,8 @@ func TestInvalidConfigIsRejectedWithoutEchoingValues(t *testing.T) {
 			want: "backend: must be inmemory/sqlite/postgres"},
 		{name: "ui event_source", core: withExtra("ui:\n  enabled: true\n  event_source: " + echoed + "\n"), outputs: webhook,
 			want: "ui.event_source: output not found or does not implement ReadableStore"},
+		{name: "core yaml alias", core: withExtra("ui: *" + echoed + "\n"), outputs: webhook, want: "invalid anchor or alias"},
+		{name: "outputs yaml alias", outputs: "webhook: *" + echoed + "\n", want: "invalid anchor or alias"},
 		{name: "minimum_priority", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  minimum_priority: $V"),
 			want: "minimum_priority: must be a Falco priority"},
 		{name: "webhook method", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nmethod: $V"),
@@ -137,6 +139,8 @@ func TestAPIAnswersNeverEchoInput(t *testing.T) {
 	)
 	for _, tc := range []struct {
 		name, method, path, body, want string
+		// status is 400 unless set.
+		status int
 	}{
 		{name: "event JSON", method: http.MethodPost, path: "/", body: `{"rule": "$V`, want: "invalid JSON"},
 		{name: "event priority", method: http.MethodPost, path: "/", body: event, want: "unknown priority"},
@@ -145,6 +149,9 @@ func TestAPIAnswersNeverEchoInput(t *testing.T) {
 			body: `{"config":{"host":"http://127.0.0.1:1","method":"$V"}}`, want: "method: must be POST or PUT"},
 		{name: "output ca_file", method: http.MethodPut, path: outputPath,
 			body: `{"config":{"host":"https://127.0.0.1:1","tls":{"ca_file":"/nonexistent-$V/ca.pem"}}}`, want: "ca_file: file does not exist"},
+		{name: "output secret file", method: http.MethodPut, path: outputPath,
+			body: `{"config":{"host":"http://127.0.0.1:1","bearer_token_file":"/nonexistent-$V/token"}}`, want: "bearer_token_file: file does not exist",
+			status: http.StatusInternalServerError},
 		{name: "layout JSON", method: http.MethodPut, path: "/api/v1/pipeline/layout", body: `{"$V`, want: "invalid JSON"},
 		{name: "search page", method: http.MethodGet, path: searchPath + "page=$V", want: "page must be an integer"},
 		{name: "search limit", method: http.MethodGet, path: searchPath + "limit=$V", want: "limit must be an integer"},
@@ -163,7 +170,11 @@ func TestAPIAnswersNeverEchoInput(t *testing.T) {
 			defer func() { _ = resp.Body.Close() }()
 			answer, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
-			assert.Equal(t, http.StatusBadRequest, resp.StatusCode, string(answer))
+			status := tc.status
+			if status == 0 {
+				status = http.StatusBadRequest
+			}
+			assert.Equal(t, status, resp.StatusCode, string(answer))
 			assert.Contains(t, string(answer), tc.want)
 			assert.NotContains(t, string(answer), echoed)
 		})
