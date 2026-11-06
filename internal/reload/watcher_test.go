@@ -184,6 +184,31 @@ func TestWatcherDebounceCoalesces(t *testing.T) {
 	})
 }
 
+// kqueue reports the new version directory but nothing for the later ..data rename.
+func TestWatcherReloadsWhenTargetChangesAfterTheLastEvent(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "..v1"), 0o700))
+	writeFile(t, filepath.Join(dir, "..v1", "outputs.yaml"), "outputs: {}")
+	require.NoError(t, os.Symlink("..v1", filepath.Join(dir, "..data")))
+	path := filepath.Join(dir, "outputs.yaml")
+	require.NoError(t, os.Symlink(filepath.Join("..data", "outputs.yaml"), path))
+
+	synctest.Test(t, func(t *testing.T) {
+		h, cancel := runLoop(t, []string{path})
+		defer cancel()
+
+		require.NoError(t, os.Mkdir(filepath.Join(dir, "..v2"), 0o700))
+		writeFile(t, filepath.Join(dir, "..v2", "outputs.yaml"), "outputs:\n  slack: {}")
+		h.events <- fsnotify.Event{Name: filepath.Join(dir, "..v2"), Op: fsnotify.Create}
+		require.NoError(t, os.Symlink("..v2", filepath.Join(dir, "..data_tmp")))
+		require.NoError(t, os.Rename(filepath.Join(dir, "..data_tmp"), filepath.Join(dir, "..data")))
+
+		time.Sleep(2 * testDebounce)
+		synctest.Wait()
+		assert.Equal(t, int64(1), h.calls.Load())
+	})
+}
+
 func TestWatcherFiltersEvents(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")

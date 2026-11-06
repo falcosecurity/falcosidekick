@@ -75,9 +75,12 @@ func (w *Watcher) Run(ctx context.Context) error {
 	return w.loop(ctx, fsw.Events, fsw.Errors)
 }
 
+// loop compares symlink targets when the debounce fires, not on each event: kqueue
+// reports no event for a rename over an existing entry such as the ConfigMap ..data swap.
 func (w *Watcher) loop(ctx context.Context, events <-chan fsnotify.Event, errs <-chan error) error {
 	var timer *time.Timer
 	var timerC <-chan time.Time
+	direct := false
 
 	for {
 		select {
@@ -91,9 +94,11 @@ func (w *Watcher) loop(ctx context.Context, events <-chan fsnotify.Event, errs <
 			if !ok {
 				return nil
 			}
-			if !w.relevant(ev) {
+			if ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove) == 0 {
 				continue
 			}
+			direct = direct || ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0 &&
+				slices.Contains(w.paths, filepath.Clean(ev.Name))
 			if timer == nil {
 				timer = time.NewTimer(w.debounce)
 				timerC = timer.C
@@ -108,24 +113,17 @@ func (w *Watcher) loop(ctx context.Context, events <-chan fsnotify.Event, errs <
 			w.logger.Error("fsnotify error", "error", err)
 
 		case <-timerC:
-			w.logger.Info("output config file changed, reloading")
-			if err := w.reloadFn(); err != nil {
-				w.logger.Error("reload failed", "error", err)
+			if w.resolveTargets() || direct {
+				w.logger.Info("output config file changed, reloading")
+				if err := w.reloadFn(); err != nil {
+					w.logger.Error("reload failed", "error", err)
+				}
 			}
+			direct = false
 			timer = nil
 			timerC = nil
 		}
 	}
-}
-
-// relevant also accepts unrelated events after which a watched symlink resolves elsewhere.
-func (w *Watcher) relevant(ev fsnotify.Event) bool {
-	if ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename|fsnotify.Remove) == 0 {
-		return false
-	}
-	direct := ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0 &&
-		slices.Contains(w.paths, filepath.Clean(ev.Name))
-	return w.resolveTargets() || direct
 }
 
 // resolveTargets reports whether a target changed; an unresolvable path keeps its last target.
