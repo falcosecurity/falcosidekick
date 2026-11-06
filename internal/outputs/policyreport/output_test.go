@@ -279,6 +279,22 @@ func TestSendSerializesWritesPerReport(t *testing.T) {
 	assert.Len(t, rules(t, getReport(t, client, "b")), workers*perWorker/2)
 }
 
+// A write waiting for another write to the same report leaves when its context ends.
+func TestWriteWaitFollowsTheContext(t *testing.T) {
+	d, _ := newFakeDriver(t, nil)
+	busy := target{namespace: "falco"}
+	stripe := d.stripe(busy)
+	require.NoError(t, stripe.Acquire(context.Background(), 1))
+	defer stripe.Release(1)
+	assert.Same(t, stripe, d.stripe(target{namespace: "falco"}), "a report always maps to one stripe")
+
+	err := testutil.RequireReturnsOnCancel(t, "apply", func(ctx context.Context) error {
+		return d.apply(ctx, busy, map[string]any{})
+	})
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Len(t, d.stripes, writeStripes, "namespaces taken from events never grow the locks")
+}
+
 // The pipeline context has no deadline during normal delivery: the client bounds each API request.
 func TestRequestTimeoutBoundsAnUnansweredRequest(t *testing.T) {
 	server := testutil.HangingHTTPServer(t)

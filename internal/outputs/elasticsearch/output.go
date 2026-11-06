@@ -26,9 +26,10 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/sync/semaphore"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -89,10 +90,11 @@ var OutputType = output.Type{
 }
 
 type driver struct {
-	sender        *shared.Sender
-	logger        *slog.Logger
+	sender *shared.Sender
+	logger *slog.Logger
+	// templateGate admits one template check at a time; a waiting delivery leaves when its context ends.
+	templateGate  *semaphore.Weighted
 	cfg           config
-	templateMu    sync.Mutex
 	templateReady atomic.Bool
 }
 
@@ -151,9 +153,10 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	}
 
 	return &driver{
-		sender: sender,
-		logger: shared.ResolveLogger(deps.Logger, name),
-		cfg:    cfg,
+		sender:       sender,
+		logger:       shared.ResolveLogger(deps.Logger, name),
+		templateGate: semaphore.NewWeighted(1),
+		cfg:          cfg,
 	}, nil
 }
 
@@ -178,8 +181,10 @@ func (d *driver) ensureTemplate(ctx context.Context) error {
 	if !d.cfg.CreateIndexTemplate || d.templateReady.Load() {
 		return nil
 	}
-	d.templateMu.Lock()
-	defer d.templateMu.Unlock()
+	if err := d.templateGate.Acquire(ctx, 1); err != nil {
+		return shared.WrapDeliveryError(name, opTemplateCheck, err)
+	}
+	defer d.templateGate.Release(1)
 	if d.templateReady.Load() {
 		return nil
 	}
