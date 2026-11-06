@@ -17,20 +17,63 @@
 package utils
 
 import (
+	"reflect"
 	"strings"
-
-	"github.com/mitchellh/copystructure"
 )
 
-// DeepCopyMap returns a deep copy of a map[string]any, including nested
-// maps, slices, and other reference types. Falls back to returning the
-// original map on copy failure.
+// DeepCopyMap returns a copy of m that shares no map or slice with it.
 func DeepCopyMap(m map[string]any) map[string]any {
-	cp, err := copystructure.Copy(m)
-	if err != nil {
-		return m
+	if m == nil {
+		return nil
 	}
-	return cp.(map[string]any)
+	cp := make(map[string]any, len(m))
+	for k, v := range m {
+		cp[k] = deepCopyValue(v)
+	}
+	return cp
+}
+
+func deepCopyValue(v any) any {
+	switch typed := v.(type) {
+	case map[string]any:
+		return DeepCopyMap(typed)
+	case []any:
+		cp := make([]any, len(typed))
+		for i, item := range typed {
+			cp[i] = deepCopyValue(item)
+		}
+		return cp
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Map:
+		if rv.IsNil() {
+			return v
+		}
+		cp := reflect.MakeMapWithSize(rv.Type(), rv.Len())
+		for iter := rv.MapRange(); iter.Next(); {
+			cp.SetMapIndex(iter.Key(), copyReflected(iter.Value(), rv.Type().Elem()))
+		}
+		return cp.Interface()
+	case reflect.Slice:
+		if rv.IsNil() {
+			return v
+		}
+		cp := reflect.MakeSlice(rv.Type(), rv.Len(), rv.Len())
+		for i := range rv.Len() {
+			cp.Index(i).Set(copyReflected(rv.Index(i), rv.Type().Elem()))
+		}
+		return cp.Interface()
+	default:
+		return v
+	}
+}
+
+func copyReflected(v reflect.Value, elem reflect.Type) reflect.Value {
+	if !v.IsValid() || (v.Kind() == reflect.Interface && v.IsNil()) {
+		return reflect.Zero(elem)
+	}
+	return reflect.ValueOf(deepCopyValue(v.Interface())).Convert(elem)
 }
 
 // NavigateMap traverses a nested map by dot-separated path segments and

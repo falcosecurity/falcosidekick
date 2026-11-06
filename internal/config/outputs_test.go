@@ -24,7 +24,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
@@ -260,9 +260,13 @@ func TestLoadOutputsParseErrorsNeverQuoteValues(t *testing.T) {
 }
 
 func TestSafeYAMLErrorFailsClosed(t *testing.T) {
-	err := safeYAMLError(&yaml.TypeError{Errors: []string{"future text s3cret-sentinel"}})
-	assert.Equal(t, "yaml: invalid structure", err.Error())
+	assert.Equal(t, "yaml: invalid structure", safeYAMLError(errors.New("future text s3cret-sentinel")).Error())
 
-	plain := errors.New("yaml: line 2: mapping values are not allowed in this context")
-	assert.Equal(t, plain, safeYAMLError(plain))
+	construct := &yaml.LoadErrors{Errors: []*yaml.LoadError{
+		{Stage: yaml.ConstructorStage, Message: "cannot construct s3cret-sentinel", Mark: yaml.Mark{Line: 2}},
+	}}
+	assert.Equal(t, "yaml: line 2: invalid structure", safeYAMLError(construct).Error())
+
+	syntax := &yaml.LoadError{Stage: yaml.ParserStage, Message: "mapping values are not allowed in this context", Mark: yaml.Mark{Line: 2}}
+	assert.Equal(t, "yaml: line 2: mapping values are not allowed in this context", safeYAMLError(syntax).Error())
 }

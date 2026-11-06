@@ -18,7 +18,6 @@ package api
 
 import (
 	"bytes"
-	"compress/gzip"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -28,6 +27,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/valyala/fasthttp"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/pipeline"
@@ -203,35 +203,40 @@ func TestRegisterStaticUI_AssetsPresent_HeadMirrorsGet(t *testing.T) {
 	assert.Contains(t, resp.Header.Get("Content-Type"), "text/html")
 }
 
-func TestRegisterStaticUI_AcceptEncodingGzip_Returns200(t *testing.T) {
+func TestRegisterStaticUI_NegotiatesContentEncoding(t *testing.T) {
+	decoders := map[string]func(dst, src []byte) ([]byte, error){
+		"br":   fasthttp.AppendUnbrotliBytes,
+		"zstd": fasthttp.AppendUnzstdBytes,
+		"gzip": fasthttp.AppendGunzipBytes,
+	}
+	tests := []struct {
+		accept string
+		want   string
+	}{
+		{accept: "gzip, deflate, br", want: "br"},
+		{accept: "gzip", want: "gzip"},
+		{accept: "zstd;q=1, br;q=0.5", want: "zstd"},
+		{accept: "", want: ""},
+	}
 	srv := buildUITestServer(t, newUITestFS(), nil)
+	for _, tt := range tests {
+		t.Run(tt.accept, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
+			req.Header.Set("Accept-Encoding", tt.accept)
+			resp, err := srv.app.Test(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	require.Equal(t, http.StatusOK, resp.StatusCode,
-		"GET / with Accept-Encoding must return 200, not 405; real browsers always send Accept-Encoding")
-
-	body, readErr := io.ReadAll(resp.Body)
-	require.NoError(t, readErr)
-
-	switch resp.Header.Get("Content-Encoding") {
-	case "gzip":
-		gr, gzErr := gzip.NewReader(bytes.NewReader(body))
-		require.NoError(t, gzErr)
-		defer gr.Close()
-		decoded, decodeErr := io.ReadAll(gr)
-		require.NoError(t, decodeErr)
-		assert.Equal(t, uiTestIndexBody, string(decoded))
-	case "":
-		assert.Equal(t, uiTestIndexBody, string(body),
-			"response without Content-Encoding must be the uncompressed index body")
-	default:
-		assert.Equal(t, uiTestIndexBody, string(body),
-			"unexpected Content-Encoding %q; test only decodes gzip or identity", resp.Header.Get("Content-Encoding"))
+			require.Equal(t, http.StatusOK, resp.StatusCode, "browsers always send Accept-Encoding; GET / must not fail on it")
+			require.Equal(t, tt.want, resp.Header.Get("Content-Encoding"))
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			if decode, compressed := decoders[tt.want]; compressed {
+				body, err = decode(nil, body)
+				require.NoError(t, err)
+			}
+			assert.Equal(t, uiTestIndexBody, string(body))
+		})
 	}
 }
 

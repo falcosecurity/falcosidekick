@@ -18,6 +18,7 @@ package shared
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -147,7 +148,9 @@ func TestDecodeDriverConfigReportsEveryFieldInStableOrder(t *testing.T) {
 	assert.Equal(t, "count: invalid value; timeout: invalid value", err.Error())
 }
 
-func TestSafeDecodeMessageFailsClosed(t *testing.T) {
-	assert.Equal(t, "invalid value", safeDecodeMessage("future library text with "+sentinel))
-	assert.Equal(t, "invalid value", safeDecodeError(errors.New("plain "+sentinel)).Error())
+func TestSafeDecodeErrorFailsClosed(t *testing.T) {
+	assert.Equal(t, "invalid value", safeDecodeReason(errors.New("future library text with "+sentinel)))
+	assert.Equal(t, "invalid value", safeDecodeError(errors.New("plain "+sentinel), nil).Error())
+	joined := fmt.Errorf("wrapped: %w", errors.Join(errors.New("a "+sentinel), errors.New("b "+sentinel)))
+	assert.Equal(t, "invalid value; invalid value", safeDecodeError(joined, nil).Error())
 }
