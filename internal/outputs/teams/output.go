@@ -130,4 +130,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 // HealthCheck is a no-op: the trigger only accepts POST, and any POST runs the flow and posts a message.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
-func (d *driver) Close() error { return nil }
+func (d *driver) Close() error {
+	d.sender.Close()
+	return nil
+}

@@ -161,7 +161,10 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 // HealthCheck is a no-op: the endpoint only accepts POST, which delivers a message.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
-func (d *driver) Close() error { return nil }
+func (d *driver) Close() error {
+	d.sender.Close()
+	return nil
+}
 
 func checkSlackResponse(body []byte) error {
 	body = bytes.TrimSpace(body)

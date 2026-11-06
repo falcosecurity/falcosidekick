@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -184,6 +185,45 @@ func TestLoadAssumeRole(t *testing.T) {
 	assert.Contains(t, form, "ExternalId=ext-id")
 	assert.Contains(t, form, "RoleSessionName="+RoleSessionName)
 	assert.Contains(t, form, "RoleArn=arn%3Aaws%3Aiam%3A%3A123456789012%3Arole%2Ffalco")
+}
+
+// STS is built after the retry policy: a failed AssumeRole is one request, and the pipeline retries.
+func TestLoadAssumeRoleIsNotRetriedByTheSDK(t *testing.T) {
+	awstest.Isolate(t)
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "text/xml")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`<ErrorResponse><Error><Type>Receiver</Type><Code>ServiceUnavailable</Code></Error></ErrorResponse>`))
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("AWS_ENDPOINT_URL_STS", server.URL)
+
+	c := Config{Region: "eu-west-1", AccessKeyID: "AKIABASE", SecretAccessKey: "base", RoleARN: "arn:aws:iam::123456789012:role/falco"}
+	cfg, err := c.Load(context.Background(), "")
+	require.NoError(t, err)
+	_, err = cfg.Credentials.Retrieve(context.Background())
+	require.Error(t, err)
+	assert.Equal(t, int32(1), calls.Load())
+}
+
+func TestLoadRefusesCrossOriginRedirect(t *testing.T) {
+	awstest.Isolate(t)
+	var redirected atomic.Int32
+	other := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { redirected.Add(1) }))
+	t.Cleanup(other.Close)
+	service := httptest.NewServer(http.RedirectHandler(other.URL, http.StatusTemporaryRedirect))
+	t.Cleanup(service.Close)
+
+	c := Config{Region: "eu-west-1", AccessKeyID: "AKIABASE", SecretAccessKey: "base", Endpoint: service.URL}
+	cfg, err := c.Load(context.Background(), "")
+	require.NoError(t, err)
+	_, err = sts.NewFromConfig(cfg).GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
+	require.Error(t, err)
+	// net/http returns the refused redirect response with the policy error; the SDK reports the response.
+	assert.Equal(t, "awstest GetCallerIdentity: HTTP 307 Temporary Redirect", c.WrapError("awstest", "GetCallerIdentity", err).Error())
+	assert.Zero(t, redirected.Load(), "signed requests never reach another origin")
 }
 
 func TestLoadAssumeRoleRejected(t *testing.T) {

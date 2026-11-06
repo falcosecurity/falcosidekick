@@ -70,6 +70,13 @@ func newExporterSettings(cfg *signalConfig, defaultPath string) (*exporterSettin
 	return s, nil
 }
 
+// closeIdleConnections releases the idle connections of the HTTP client; the exporters' Shutdown does not.
+func (s *exporterSettings) closeIdleConnections() {
+	if s.httpClient != nil {
+		s.httpClient.CloseIdleConnections()
+	}
+}
+
 // recordResult lets newDeliveryError see a gRPC partial success.
 var recordResult = grpc.WithUnaryInterceptor(recordPartialSuccess)
 

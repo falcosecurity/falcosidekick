@@ -119,4 +119,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 // HealthCheck is a no-op: the Events API cannot check a routing key without opening an alert.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
-func (d *driver) Close() error { return nil }
+func (d *driver) Close() error {
+	d.sender.Close()
+	return nil
+}

@@ -19,7 +19,6 @@ package aws
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -28,7 +27,6 @@ import (
 
 	sdkaws "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
-	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
@@ -153,9 +151,18 @@ func (c *Config) Load(ctx context.Context, fallbackRegion string) (sdkaws.Config
 		return sdkaws.Config{}, errors.New("region: is required (set region or AWS_REGION)")
 	}
 
+	// The shared HTTP client applies the TLS settings, the proxy and the redirect policy of every HTTP output.
+	client, err := shared.BuildHTTPClient(&shared.HTTPConfig{TLS: c.TLS})
+	if err != nil {
+		return sdkaws.Config{}, err
+	}
+	client.Timeout = requestTimeout
 	cfg := base.Copy()
+	cfg.HTTPClient = client
+	cfg.Retryer = func() sdkaws.Retryer { return sdkaws.NopRetryer{} }
 	if c.RoleARN != "" {
-		provider := stscreds.NewAssumeRoleProvider(sts.NewFromConfig(base), c.RoleARN, func(o *stscreds.AssumeRoleOptions) {
+		// STS shares the transport and the retry policy; endpoint names the destination service, not STS.
+		provider := stscreds.NewAssumeRoleProvider(sts.NewFromConfig(cfg.Copy()), c.RoleARN, func(o *stscreds.AssumeRoleOptions) {
 			o.RoleSessionName = RoleSessionName
 			if c.ExternalID != "" {
 				o.ExternalID = sdkaws.String(c.ExternalID)
@@ -163,16 +170,19 @@ func (c *Config) Load(ctx context.Context, fallbackRegion string) (sdkaws.Config
 		})
 		cfg.Credentials = sdkaws.NewCredentialsCache(provider)
 	}
-	tlsCfg, err := shared.BuildTLSConfig(&c.TLS)
-	if err != nil {
-		return sdkaws.Config{}, fmt.Errorf("tls: %w", err)
-	}
-	cfg.HTTPClient = awshttp.NewBuildableClient().
-		WithTimeout(requestTimeout).
-		WithTransportOptions(func(tr *http.Transport) { tr.TLSClientConfig = tlsCfg })
-	cfg.Retryer = func() sdkaws.Retryer { return sdkaws.NopRetryer{} }
 	if c.Endpoint != "" {
 		cfg.BaseEndpoint = sdkaws.String(strings.TrimSuffix(c.Endpoint, "/"))
 	}
 	return cfg, nil
+}
+
+// CloseIdleConnections releases the idle connections of the HTTP client Load configured,
+// as a service client reports it in Options().HTTPClient.
+func CloseIdleConnections(client interface {
+	Do(*http.Request) (*http.Response, error)
+},
+) {
+	if closer, ok := client.(interface{ CloseIdleConnections() }); ok {
+		closer.CloseIdleConnections()
+	}
 }

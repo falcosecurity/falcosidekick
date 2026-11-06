@@ -250,7 +250,10 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	return d.sender.HealthCheck(ctx, target, http.StatusForbidden)
 }
 
-func (d *driver) Close() error { return nil }
+func (d *driver) Close() error {
+	d.sender.Close()
+	return nil
+}
 
 func (d *driver) pipelineQuery() url.Values {
 	query := url.Values{}

@@ -182,8 +182,10 @@ func TestElasticsearchHealthCheck(t *testing.T) {
 }
 
 func TestElasticsearchClose(t *testing.T) {
-	o := &driver{}
-	assert.NoError(t, o.Close())
+	d, err := OutputType.New(map[string]any{"host": "http://127.0.0.1:1"}, output.Deps{})
+	require.NoError(t, err)
+	assert.NoError(t, d.Close())
+	assert.NoError(t, d.Close(), "Close is idempotent")
 }
 
 func TestResolveIndexSuffixes(t *testing.T) {
