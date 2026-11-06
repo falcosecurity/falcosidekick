@@ -54,27 +54,35 @@ func TestWrapErrorPermanence(t *testing.T) {
 	tests := []struct {
 		err       error
 		name      string
+		status    int
 		permanent bool
 	}{
-		{name: "invalid message contents", err: &sqstypes.InvalidMessageContents{}, permanent: true},
-		{name: "sns invalid parameter", err: &snstypes.InvalidParameterException{}, permanent: true},
-		{name: "sqs throttled", err: &sqstypes.RequestThrottled{}},
-		{name: "sqs kms throttled", err: &sqstypes.KmsThrottled{}},
-		{name: "sns kms throttled", err: &snstypes.KMSThrottlingException{}},
-		{name: "sns throttled", err: &snstypes.ThrottledException{}},
-		{name: "sns concurrent access", err: &snstypes.ConcurrentAccessException{}},
-		{name: "sqs over limit", err: &sqstypes.OverLimit{}},
-		{name: "generic throttling", err: &smithy.GenericAPIError{Code: "ThrottlingException", Fault: smithy.FaultClient}},
-		{name: "request timeout", err: &smithy.GenericAPIError{Code: "RequestTimeout", Fault: smithy.FaultClient}},
-		{name: "server fault", err: &smithy.GenericAPIError{Code: "InternalError", Fault: smithy.FaultServer}},
-		{name: "unknown fault", err: &smithy.GenericAPIError{Code: "Whatever"}},
+		{name: "invalid message contents", status: http.StatusBadRequest, err: &sqstypes.InvalidMessageContents{}, permanent: true},
+		{name: "sns invalid parameter", status: http.StatusBadRequest, err: &snstypes.InvalidParameterException{}, permanent: true},
+		{name: "sqs throttled", status: http.StatusBadRequest, err: &sqstypes.RequestThrottled{}},
+		{name: "sqs kms throttled", status: http.StatusBadRequest, err: &sqstypes.KmsThrottled{}},
+		{name: "sns kms throttled", status: http.StatusBadRequest, err: &snstypes.KMSThrottlingException{}},
+		{name: "sns throttled", status: http.StatusBadRequest, err: &snstypes.ThrottledException{}},
+		{name: "sns concurrent access", status: http.StatusBadRequest, err: &snstypes.ConcurrentAccessException{}},
+		{name: "sqs over limit", status: http.StatusForbidden, err: &sqstypes.OverLimit{}},
+		{name: "generic throttling", status: http.StatusBadRequest, err: &smithy.GenericAPIError{Code: "ThrottlingException", Fault: smithy.FaultClient}},
+		{name: "request timeout", status: http.StatusBadRequest, err: &smithy.GenericAPIError{Code: "RequestTimeout", Fault: smithy.FaultClient}},
+		{name: "server fault", status: http.StatusInternalServerError, err: &smithy.GenericAPIError{Code: "InternalError", Fault: smithy.FaultServer}},
+		{name: "unknown fault", status: http.StatusBadRequest, err: &smithy.GenericAPIError{Code: "Whatever"}},
 		{name: "connection refused", err: fmt.Errorf("send: %w", syscall.ECONNREFUSED)},
 	}
 	c := &Config{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := c.WrapError("test", "op", &smithy.OperationError{ServiceID: "SQS", OperationName: "SendMessage", Err: tt.err})
-			assert.Equal(t, tt.permanent, output.IsPermanent(err), err.Error())
+			cause := tt.err
+			if tt.status != 0 {
+				cause = &awshttp.ResponseError{ResponseError: &smithyhttp.ResponseError{
+					Response: &smithyhttp.Response{Response: &http.Response{StatusCode: tt.status}},
+					Err:      tt.err,
+				}}
+			}
+			err := c.WrapError("test", "op", &smithy.OperationError{ServiceID: "SQS", OperationName: "SendMessage", Err: cause})
+			assert.Equal(t, tt.permanent, output.IsPermanent(err), "%s: the SDK's retry rule decides, not the HTTP status", err)
 		})
 	}
 }

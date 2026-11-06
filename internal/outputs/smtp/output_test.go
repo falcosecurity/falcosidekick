@@ -459,13 +459,22 @@ func TestServerCapabilities(t *testing.T) {
 		require.ErrorIs(t, err, output.ErrMisconfigured)
 		assert.Equal(t, "smtp connect: authentication requires TLS", err.Error())
 	})
-	t.Run("recipient rejected", func(t *testing.T) {
-		srv := newFakeServer(t, func(s *fakeServer) { s.rcptReply = "550 5.1.1 no such user secops@example.com" })
-		d := newTestDriver(t, serverConfig(t, srv))
+	const noSuchUser = "550 5.1.1 no such user secops@example.com"
+	t.Run("only recipient rejected", func(t *testing.T) {
+		srv := newFakeServer(t, func(s *fakeServer) { s.rcptReply = noSuchUser })
+		d := newTestDriver(t, serverConfig(t, srv, "to", []string{"secops@example.com"}))
 		err := d.Send(context.Background(), testutil.CreateValidEvent())
 		require.Error(t, err)
 		assert.Equal(t, "smtp rcpt: server replied 550", err.Error())
 		assert.True(t, output.IsPermanent(err), "5yz is a permanent negative completion")
+	})
+	t.Run("one of several recipients rejected", func(t *testing.T) {
+		srv := newFakeServer(t, func(s *fakeServer) { s.rcptReply = noSuchUser })
+		d := newTestDriver(t, serverConfig(t, srv))
+		err := d.Send(context.Background(), testutil.CreateValidEvent())
+		require.Error(t, err)
+		assert.Equal(t, "smtp rcpt: server replied 550", err.Error())
+		assert.False(t, output.IsPermanent(err), "go-mail keeps only the last reply, which does not show that every recipient was refused")
 	})
 	t.Run("recipient deferred", func(t *testing.T) {
 		srv := newFakeServer(t, func(s *fakeServer) { s.rcptReply = "451 4.3.0 try again later" })

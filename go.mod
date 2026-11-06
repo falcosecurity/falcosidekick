@@ -41,6 +41,7 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/net v0.62.0
 	google.golang.org/api v0.311.0
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261026165753-2ffab32bce7e
 	google.golang.org/grpc v1.85.0
 	k8s.io/apimachinery v0.37.2
 	k8s.io/client-go v0.37.2
@@ -117,7 +118,6 @@ require (
 	golang.org/x/time v0.16.0 // indirect
 	google.golang.org/genproto v0.0.0-20261012220534-4341edf3f941 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261012220534-4341edf3f941 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261026165753-2ffab32bce7e // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.37.2 // indirect

@@ -690,3 +690,65 @@ func TestDeliveryErrorPermanence(t *testing.T) {
 		})
 	}
 }
+
+func TestProducedBatchIsPermanentOnlyWhenEveryRecordIs(t *testing.T) {
+	record := func() *kgo.Record { return &kgo.Record{Topic: "events"} }
+	tooLarge := kgo.ProduceResult{Record: record(), Err: kerr.MessageTooLarge}
+	notEnoughReplicas := kgo.ProduceResult{Record: record(), Err: kerr.NotEnoughReplicas}
+	delivered := kgo.ProduceResult{Record: record()}
+	d := &driver{purged: make(map[string]time.Time)}
+
+	for _, tc := range []struct {
+		name      string
+		want      string
+		results   kgo.ProduceResults
+		permanent bool
+	}{
+		{name: "delivered", results: kgo.ProduceResults{delivered, delivered}},
+		{name: "one permanent", results: kgo.ProduceResults{tooLarge, delivered},
+			want: "kafka send: MESSAGE_TOO_LARGE", permanent: true},
+		{name: "permanent and transient", results: kgo.ProduceResults{tooLarge, notEnoughReplicas, delivered},
+			want: "kafka send: 2 of 3 records failed, first: MESSAGE_TOO_LARGE"},
+		{name: "transient and permanent", results: kgo.ProduceResults{notEnoughReplicas, tooLarge},
+			want: "kafka send: 2 of 2 records failed, first: NOT_ENOUGH_REPLICAS"},
+		{name: "every record permanent", results: kgo.ProduceResults{tooLarge, tooLarge},
+			want: "kafka send: 2 of 2 records failed, first: MESSAGE_TOO_LARGE", permanent: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := d.produced(context.Background(), tc.results)
+			if tc.want == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Equal(t, tc.want, err.Error())
+			assert.Equal(t, tc.permanent, output.IsPermanent(err), "order of the results must not decide")
+		})
+	}
+}
+
+func TestRecreatedTopicIsPurgedOncePerRecovery(t *testing.T) {
+	client, err := kgo.NewClient(kgo.SeedBrokers("127.0.0.1:1"))
+	require.NoError(t, err)
+	t.Cleanup(client.Close)
+	d := &driver{client: client, purged: make(map[string]time.Time)}
+	stale := &kgo.Record{Topic: "events", Timestamp: time.Now()}
+	other := &kgo.Record{Topic: "other", Timestamp: time.Now()}
+
+	d.forgetRecreatedTopic(stale, kerr.UnknownTopicID)
+	first := d.purged["events"]
+	require.False(t, first.IsZero(), "the first failure purges")
+
+	d.forgetRecreatedTopic(stale, kerr.UnknownTopicID)
+	assert.Equal(t, first, d.purged["events"], "a record produced before the purge does not purge again")
+
+	d.forgetRecreatedTopic(other, kerr.UnknownTopicID)
+	assert.False(t, d.purged["other"].IsZero(), "topics are tracked separately")
+
+	fresh := &kgo.Record{Topic: "events", Timestamp: time.Now().Add(time.Second)}
+	d.forgetRecreatedTopic(fresh, kerr.UnknownTopicID)
+	assert.True(t, d.purged["events"].After(first), "a record produced after the purge can purge a later recreation")
+
+	d.forgetRecreatedTopic(&kgo.Record{Topic: "unrelated"}, kerr.NotLeaderForPartition)
+	assert.NotContains(t, d.purged, "unrelated")
+}

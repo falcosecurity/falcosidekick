@@ -28,6 +28,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"strings"
@@ -89,7 +90,13 @@ func TestDeliveryErrorClassification(t *testing.T) {
 }
 
 func TestDeliveryErrorPermanence(t *testing.T) {
-	status := func(code int) error { return &DeliveryError{Output: "webhook", Operation: OpResponse, Status: code} }
+	sender, err := NewSender("webhook", &HTTPConfig{})
+	require.NoError(t, err)
+	status := func(code int) error {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(code) }))
+		defer server.Close()
+		return sender.SendRaw(context.Background(), http.MethodPost, server.URL, []byte("{}"), "application/json")
+	}
 	tests := []struct {
 		err       error
 		name      string
@@ -115,6 +122,7 @@ func TestDeliveryErrorPermanence(t *testing.T) {
 		{&DeliveryError{Output: "slack", Operation: OpResponse, Code: "rollup_error"}, "transient provider code", false},
 		{&DeliveryError{Output: "slack", Operation: OpResponse, Code: "invalid_token", Permanent: true}, "permanent provider code", true},
 		{&DeliveryError{Output: "kafka", Operation: OpHealthcheck, Code: "SASL_AUTHENTICATION_FAILED", Misconfigured: true}, "misconfigured", true},
+		{&DeliveryError{Output: "awssqs", Operation: "SendMessage", Code: "RequestThrottled", Status: http.StatusBadRequest}, "status alone decides nothing", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

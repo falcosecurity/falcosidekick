@@ -270,6 +270,9 @@ func TestSendErrorPermanence(t *testing.T) {
 		{name: "read only replica", reply: "-READONLY You can't write against a read only replica.\r\n"},
 		{name: "out of memory", reply: "-OOM command not allowed when used memory > 'maxmemory'.\r\n"},
 		{name: "try again", reply: "-TRYAGAIN Multiple keys request during rehashing of slot\r\n"},
+		{name: "busy script", reply: "-BUSY Redis is busy running a script. You can only call SCRIPT KILL or SHUTDOWN NOSCRIPT.\r\n"},
+		{name: "generic error", reply: "-ERR max number of clients reached\r\n"},
+		{name: "undocumented prefix", reply: "-SOMETHINGNEW unexpected\r\n"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -49,11 +49,14 @@ type sqsCall struct {
 
 // fakeSQS answers the SQS JSON protocol.
 type fakeSQS struct {
-	failIDs   map[string]bool
-	errType   string
-	calls     []sqsCall
-	errStatus int
-	mu        sync.Mutex
+	failIDs        map[string]bool
+	serverFaultIDs map[string]bool
+	errType        string
+	calls          []sqsCall
+	errStatus      int
+	// rejectOver rejects a whole batch request holding a body longer than it.
+	rejectOver int
+	mu         sync.Mutex
 }
 
 func (f *fakeSQS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -77,10 +80,21 @@ func (f *fakeSQS) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case opSendMessageBatch:
 		ok, failed := []any{}, []any{}
 		for _, e := range body["Entries"].([]any) {
+			if f.rejectOver > 0 && len(e.(map[string]any)["MessageBody"].(string)) > f.rejectOver {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = io.WriteString(w, `{"__type":"com.amazonaws.sqs#BatchRequestTooLong","message":"too long"}`)
+				return
+			}
+		}
+		for _, e := range body["Entries"].([]any) {
 			entry := e.(map[string]any)
 			id := entry["Id"].(string)
 			if f.failIDs[id] {
 				failed = append(failed, map[string]any{"Id": id, "Code": "InvalidMessageContents", "SenderFault": true})
+				continue
+			}
+			if f.serverFaultIDs[id] {
+				failed = append(failed, map[string]any{"Id": id, "Code": "InternalError", "SenderFault": false})
 				continue
 			}
 			ok = append(ok, map[string]any{"Id": id, "MessageId": "m" + id, "MD5OfMessageBody": digest(entry["MessageBody"].(string))})
@@ -227,7 +241,33 @@ func TestSendBatchPartialFailure(t *testing.T) {
 	var diagnostic *shared.DeliveryError
 	require.ErrorAs(t, err, &diagnostic)
 	assert.Equal(t, name+" "+opSendMessageBatch+": 3/12 entries failed (InvalidMessageContents)", err.Error())
+	assert.True(t, output.IsPermanent(err), "every failed entry is a sender fault")
 	assert.Len(t, fake.received(), 2, "every request is sent")
+}
+
+func TestSendBatchServerFaultIsRetried(t *testing.T) {
+	awstest.Isolate(t)
+	fake := &fakeSQS{failIDs: map[string]bool{"1": true}, serverFaultIDs: map[string]bool{"2": true}}
+	d := newDriver(t, startFake(t, fake), nil)
+	events := []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent(), testutil.CreateValidEvent()}
+	err := d.(output.BatchSender).SendBatch(context.Background(), events)
+	require.Error(t, err)
+	assert.Equal(t, name+" "+opSendMessageBatch+": 2/3 entries failed (InvalidMessageContents, unrecognized error code)", err.Error())
+	assert.False(t, output.IsPermanent(err), "a retry can deliver the entry the server failed")
+}
+
+func TestSendBatchRejectedRequestKeepsSendingTheRest(t *testing.T) {
+	awstest.Isolate(t)
+	fake := &fakeSQS{rejectOver: 1024}
+	d := newDriver(t, startFake(t, fake), nil)
+	large := testutil.CreateValidEvent()
+	large.Output = strings.Repeat("x", maxBatchBytes)
+	events := []*event.Event{testutil.CreateValidEvent(), large, testutil.CreateValidEvent()}
+	err := d.(output.BatchSender).SendBatch(context.Background(), events)
+	require.Error(t, err)
+	assert.Len(t, fake.received(), 3, "the requests after the rejected one are still sent")
+	assert.Equal(t, name+" "+opSendMessageBatch+": 1/3 entries failed (HTTP 400 Bad Request: BatchRequestTooLong)", err.Error())
+	assert.True(t, output.IsPermanent(err), "only the rejected request failed, for good")
 }
 
 func TestErrors(t *testing.T) {
@@ -238,10 +278,11 @@ func TestErrors(t *testing.T) {
 		status       int
 		misconfigure bool
 		denied       bool // transient for the probe only
+		permanent    bool
 	}{
-		{name: "queue missing", status: 400, errType: "QueueDoesNotExist", want: "HTTP 400 Bad Request: QueueDoesNotExist", misconfigure: true},
-		{name: "invalid token", status: 403, errType: "InvalidClientTokenId", want: "HTTP 403 Forbidden: InvalidClientTokenId", misconfigure: true},
-		{name: "denied", status: 400, errType: "AccessDenied", want: "HTTP 400 Bad Request: AccessDenied", misconfigure: true, denied: true},
+		{name: "queue missing", status: 400, errType: "QueueDoesNotExist", want: "HTTP 400 Bad Request: QueueDoesNotExist", misconfigure: true, permanent: true},
+		{name: "invalid token", status: 403, errType: "InvalidClientTokenId", want: "HTTP 403 Forbidden: InvalidClientTokenId", misconfigure: true, permanent: true},
+		{name: "denied", status: 400, errType: "AccessDenied", want: "HTTP 400 Bad Request: AccessDenied", misconfigure: true, denied: true, permanent: true},
 		{name: "throttled", status: 400, errType: "ThrottlingException", want: "HTTP 400 Bad Request: ThrottlingException"},
 		{name: "internal", status: 500, errType: "InternalError", want: "HTTP 500 Internal Server Error"},
 	}
@@ -257,8 +298,9 @@ func TestErrors(t *testing.T) {
 			}
 			for op, err := range calls {
 				require.Error(t, err, op)
-				want := tt.misconfigure && (!tt.denied || op != opGetQueueAttributes)
-				assert.Equal(t, want, errors.Is(err, output.ErrMisconfigured), err.Error())
+				probeDenied := tt.denied && op == opGetQueueAttributes
+				assert.Equal(t, tt.misconfigure && !probeDenied, errors.Is(err, output.ErrMisconfigured), err.Error())
+				assert.Equal(t, tt.permanent && !probeDenied, output.IsPermanent(err), "%s: an HTTP 400 alone is not permanent", err)
 				assert.Equal(t, name+" "+op+": "+tt.want, err.Error())
 				for _, secret := range []string{awstest.AccessKeyID, awstest.SecretAccessKey, awstest.SessionToken} {
 					assert.NotContains(t, err.Error(), secret)

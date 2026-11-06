@@ -33,7 +33,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -56,11 +58,17 @@ const (
 	maxRequestMessages   = 1000
 	maxRequestBytes      = 10_000_000
 	reservedPrefix       = "goog"
-
-	// tlsHandshakeFailure is the fixed text grpc-go gives a failed TLS handshake (internal/transport/http2_client.go);
-	// the status carries no other trace of it.
-	tlsHandshakeFailure = "transport: authentication handshake failed"
 )
+
+// Field numbers of PublishRequest, which the request size counts.
+var (
+	publishTopicField    = fieldNumber("topic")
+	publishMessagesField = fieldNumber("messages")
+)
+
+func fieldNumber(field protoreflect.Name) protowire.Number {
+	return (&pubsubpb.PublishRequest{}).ProtoReflect().Descriptor().Fields().ByName(field).Number()
+}
 
 // Topic IDs: https://cloud.google.com/pubsub/docs/pubsub-basics#resource_names
 var topicID = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9._~%+-]{2,254}$`)
@@ -276,26 +284,45 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		}
 		messages = append(messages, &pubsubpb.PubsubMessage{Data: data, Attributes: d.cfg.CustomAttributes})
 	}
-	for _, chunk := range splitRequests(messages) {
+	chunks := splitRequests(d.topic, messages)
+	var failures []*shared.DeliveryError
+	failed := 0
+	for _, chunk := range chunks {
 		req := &pubsubpb.PublishRequest{Topic: d.topic, Messages: chunk}
 		if _, err := d.client.Publish(ctx, req, noRetry); err != nil {
-			return newDeliveryError(opPublish, err)
+			failures = append(failures, newDeliveryError(opPublish, err))
+			failed += len(chunk)
 		}
 	}
-	return nil
+	switch {
+	case len(failures) == 0:
+		return nil
+	case len(chunks) == 1:
+		return failures[0]
+	}
+	permanent := true
+	for _, failure := range failures {
+		permanent = permanent && output.IsPermanent(failure)
+	}
+	return &shared.DeliveryError{
+		Cause: ctx.Err(), Output: name, Operation: opPublish, Permanent: permanent,
+		Code: fmt.Sprintf("%d of %d messages failed, first: %s", failed, len(messages), failures[0].Reason()),
+	}
 }
 
-// splitRequests groups messages in order into requests of at most maxRequestMessages and maxRequestBytes;
-// a message larger than the limit goes alone and the service rejects it.
-func splitRequests(messages []*pubsubpb.PubsubMessage) [][]*pubsubpb.PubsubMessage {
+// splitRequests groups messages in order into requests of at most maxRequestMessages and maxRequestBytes,
+// counting the encoded request: the topic field and each message with its field tag and length.
+// A message larger than the limit goes alone and the service rejects it.
+func splitRequests(topic string, messages []*pubsubpb.PubsubMessage) [][]*pubsubpb.PubsubMessage {
 	var chunks [][]*pubsubpb.PubsubMessage
 	current := make([]*pubsubpb.PubsubMessage, 0, min(len(messages), maxRequestMessages))
-	size := 0
+	base := protowire.SizeTag(publishTopicField) + protowire.SizeBytes(len(topic))
+	size := base
 	for _, msg := range messages {
-		msgSize := proto.Size(msg)
+		msgSize := protowire.SizeTag(publishMessagesField) + protowire.SizeBytes(proto.Size(msg))
 		if len(current) > 0 && (len(current) == maxRequestMessages || size+msgSize > maxRequestBytes) {
 			chunks = append(chunks, current)
-			current, size = make([]*pubsubpb.PubsubMessage, 0, maxRequestMessages), 0
+			current, size = make([]*pubsubpb.PubsubMessage, 0, maxRequestMessages), base
 		}
 		current = append(current, msg)
 		size += msgSize
@@ -316,11 +343,13 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	}
 	diagnostic := newDeliveryError(opTopicCheck, err)
 	st, _ := status.FromError(err)
-	diagnostic.Misconfigured = misconfiguredProbeCodes[st.Code()] || strings.Contains(st.Message(), tlsHandshakeFailure)
+	diagnostic.Misconfigured = misconfiguredProbeCodes[st.Code()]
 	return diagnostic
 }
 
 // newDeliveryError names a failure by its gRPC code; the status message can quote credentials or token responses.
+// A failed TLS handshake is Unavailable and retried: grpc-go reports an untrusted certificate and a connection
+// reset during the handshake with the same status and no typed cause.
 func newDeliveryError(operation string, err error) *shared.DeliveryError {
 	st, ok := status.FromError(err)
 	switch {
@@ -333,7 +362,7 @@ func newDeliveryError(operation string, err error) *shared.DeliveryError {
 	default:
 		return &shared.DeliveryError{
 			Cause: err, Output: name, Operation: operation, Code: st.Code().String(),
-			Permanent: !retriablePublishCodes[st.Code()] || strings.Contains(st.Message(), tlsHandshakeFailure),
+			Permanent: !retriablePublishCodes[st.Code()],
 		}
 	}
 }

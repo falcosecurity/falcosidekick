@@ -54,7 +54,8 @@ Pushes to `/loki/api/v1/push` under `base_path`; `tenant` sets `X-Scope-OrgID`. 
 - Sync (default) waits for the broker acknowledgement. `producer.delivery_timeout` (default 10s, minimum 1s) bounds each record and the flush on shutdown.
 - `producer.async: true` does not wait: an event counts as sent once buffered, and a later broker failure is counted as failed. Choose sync for exact counters.
 - Idempotent writes are on only with sync and `required_acks: all`.
-- Client warnings and errors (connection, TLS, SASL) go to the Falcosidekick log.
+- A failed record is retried unless Kafka marks its error non-retriable; a batch fails for good only when every failed record does.
+- Client warnings and errors (connection, TLS, SASL) go to the Falcosidekick log with the broker, topic, partition and group only.
 
 ## Microsoft Teams
 
@@ -96,12 +97,13 @@ CloudEvents 1.0 over HTTP in binary mode: `ce-specversion`, `ce-id` (event UUID)
 - `endpoint` replaces the service endpoint (LocalStack, S3-compatible stores, VPC endpoints). Each call is attempted once and bounded to 30s; the pipeline retries.
 - Startup stops when AWS rejects the credentials or the bucket, queue or topic does not exist. The probe reads the resource (`s3:ListBucket`, `sqs:GetQueueAttributes`, `sns:GetTopicAttributes`); without that permission the output starts degraded.
 - S3 writes one object per event, `<prefix>/<YYYY-MM-DD>/<event time>_<uuid>.json`, or one NDJSON object per batch. A retry overwrites the same key.
-- SQS sends batches with `SendMessageBatch`, 10 messages and 1 MiB per request; the batch fails when any message fails. FIFO queues are not supported.
+- SQS sends batches with `SendMessageBatch`, 10 messages and 1 MiB per request; every request is sent and the batch fails when any message fails. It fails for good only when every failed entry is a sender fault. FIFO queues are not supported.
+- AWS errors follow the SDK's retry rules, not the HTTP status: throttling answered with HTTP 400 is retried.
 - SNS sends the output text with the event as message attributes, or the event JSON with `raw_json: true`. Attribute names SNS rejects are left out.
 
 ## Google Cloud Pub/Sub
 
-Publishes the event JSON to `topic` in `project_id`, with `custom_attributes` as message attributes. Without `credentials` the output uses Application Default Credentials, which covers GKE Workload Identity. Startup reads the topic: a missing topic or rejected credentials stop startup; without `pubsub.topics.get` the output starts degraded. `emulator_host` targets the emulator without TLS or authentication. The `PUBSUB_EMULATOR_HOST` environment variable, when set in the process, overrides the client for every Pub/Sub output. Each publish is one request with no client-side buffering or retry; a batch is split into requests of at most 1000 messages and 10 MB. A failed request fails the batch, so a retry can publish again the messages of the requests before it.
+Publishes the event JSON to `topic` in `project_id`, with `custom_attributes` as message attributes. Without `credentials` the output uses Application Default Credentials, which covers GKE Workload Identity. Startup reads the topic: a missing topic or rejected credentials stop startup; without `pubsub.topics.get` the output starts degraded. `emulator_host` targets the emulator without TLS or authentication. The `PUBSUB_EMULATOR_HOST` environment variable, when set in the process, overrides the client for every Pub/Sub output. Each publish is one request with no client-side buffering or retry; a batch is split into requests of at most 1000 messages and 10 MB, counted as encoded. Every request is sent even when an earlier one fails; a failed request fails the batch, so a retry can publish again the messages other requests delivered. A failed TLS handshake is retried, and at startup it leaves the output degraded: gRPC reports an untrusted certificate and a connection reset during the handshake the same way.
 
 ## Syslog
 
@@ -109,11 +111,11 @@ RFC 5424 messages over UDP, TCP or TLS; TCP and TLS use octet-counting framing (
 
 ## SMTP
 
-One email per event, HTML or text. `tls_mode` is `starttls` (default, required), `implicit`, `opportunistic` or `none`. Credentials are sent only over TLS or to localhost. Startup connects, negotiates TLS and authenticates without sending mail: rejected credentials, a missing STARTTLS or an untrusted certificate stop startup.
+One email per event, HTML or text. `tls_mode` is `starttls` (default, required), `implicit`, `opportunistic` or `none`. Credentials are sent only over TLS or to localhost. Startup connects, negotiates TLS and authenticates without sending mail: rejected credentials, a missing STARTTLS or an untrusted certificate stop startup. A 5yz reply fails the event for good, a 4yz reply is retried. With several recipients a refused recipient is retried: the client library reports only the last recipient's reply.
 
 ## Redis
 
-Stores the event JSON with `storage_type` `list` (`RPUSH`, default), `hashmap` (`HSET`, field = event UUID) or `stream` (`XADD`, optional `max_len`). A batch goes out in one pipeline. Startup sends `PING`: rejected credentials, a missing ACL permission or an unknown database stop startup.
+Stores the event JSON with `storage_type` `list` (`RPUSH`, default), `hashmap` (`HSET`, field = event UUID) or `stream` (`XADD`, optional `max_len`). A batch goes out in one pipeline. Startup sends `PING`: rejected credentials, a missing ACL permission or an unknown database stop startup. A `WRONGTYPE`, `WRONGPASS`, `NOAUTH` or `NOPERM` reply fails the event for good; every other reply, such as `BUSY`, `LOADING` or `OOM`, is retried.
 
 ## OTLP
 
@@ -124,7 +126,8 @@ One output for traces, logs and metrics; each section present enables that signa
 - Metrics: the cumulative counter `falcosecurity.falco.rules.matches` by rule, priority, source and hostname, plus `extra_attributes`; a retried event is not counted twice.
 - Resource `service.name` is `falcosidekick`. Attributes use the `falco.` prefix; output fields keep their names.
 - Not probed at startup: OTLP has no request that exports nothing.
-- `http/protobuf` uses the same HTTP client as the other HTTP outputs, so redirects to another origin are refused. gRPC failures follow the OTLP retry rules: only `CANCELLED`, `DEADLINE_EXCEEDED`, `ABORTED`, `OUT_OF_RANGE`, `UNAVAILABLE` and `DATA_LOSS` are retried. When one signal fails, a retry exports every enabled signal again.
+- `http/protobuf` uses the same HTTP client as the other HTTP outputs, so redirects to another origin are refused.
+- Failures follow the [OTLP retry rules](https://opentelemetry.io/docs/specs/otlp/#failures): gRPC retries `CANCELLED`, `DEADLINE_EXCEEDED`, `ABORTED`, `OUT_OF_RANGE`, `UNAVAILABLE`, `DATA_LOSS`, and `RESOURCE_EXHAUSTED` when the collector sends `RetryInfo`; HTTP retries 429, 502, 503 and 504. A partial success is not retried. When one signal fails, a retry exports every enabled signal again; the event fails for good only when every failed signal does.
 
 ## PolicyReport
 

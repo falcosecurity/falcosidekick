@@ -248,13 +248,16 @@ func (d *driver) Close() error {
 	return nil
 }
 
-// replyPrefixes are the error prefixes Redis documents; the rest of a reply can echo submitted values.
+// replyPrefixes are the error prefixes Redis documents, mapped to whether the same command can never succeed:
+// a key of another type or rejected credentials. Every other reply, BUSY or LOADING included, is retried.
+// The rest of a reply can echo submitted values.
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-errors
 var replyPrefixes = map[string]bool{
-	"ERR": true, "WRONGTYPE": true, "WRONGPASS": true, "NOAUTH": true, "NOPERM": true, "LOADING": true,
-	"READONLY": true, "OOM": true, "BUSY": true, "NOSCRIPT": true, "MOVED": true, "ASK": true, "TRYAGAIN": true,
-	"CLUSTERDOWN": true, "CROSSSLOT": true, "MASTERDOWN": true, "EXECABORT": true, "NOREPLICAS": true,
-	"MISCONF": true, "NOTBUSY": true, "BUSYGROUP": true, "NOGROUP": true, "UNBLOCKED": true, "NOPROTO": true,
+	"WRONGTYPE": true, "WRONGPASS": true, "NOAUTH": true, "NOPERM": true,
+	"ERR": false, "LOADING": false, "READONLY": false, "OOM": false, "BUSY": false, "NOSCRIPT": false, "MOVED": false,
+	"ASK": false, "TRYAGAIN": false, "CLUSTERDOWN": false, "CROSSSLOT": false, "MASTERDOWN": false, "EXECABORT": false,
+	"NOREPLICAS": false, "MISCONF": false, "NOTBUSY": false, "BUSYGROUP": false, "NOGROUP": false, "UNBLOCKED": false,
+	"NOPROTO": false,
 }
 
 // newDeliveryError names a server error reply by its documented prefix only.
@@ -263,21 +266,9 @@ func newDeliveryError(operation string, err error) *shared.DeliveryError {
 		return shared.NewDeliveryError(name, operation, err)
 	}
 	code, _, _ := strings.Cut(err.Error(), " ")
-	if !replyPrefixes[code] {
+	permanent, documented := replyPrefixes[code]
+	if !documented {
 		code = "server error"
 	}
-	return &shared.DeliveryError{Cause: err, Output: name, Operation: operation, Code: code, Permanent: isPermanentReply(err)}
-}
-
-// isPermanentReply reports a server error reply outside the kinds go-redis retries, plus OOM and EXECABORT.
-func isPermanentReply(err error) bool {
-	if _, ok := errors.AsType[goredis.Error](err); !ok {
-		return false
-	}
-	transient := goredis.IsLoadingError(err) || goredis.IsReadOnlyError(err) || goredis.IsClusterDownError(err) ||
-		goredis.IsTryAgainError(err) || goredis.IsMasterDownError(err) || goredis.IsMaxClientsError(err) ||
-		goredis.IsNoReplicasError(err) || goredis.IsOOMError(err) || goredis.IsExecAbortError(err)
-	_, moved := goredis.IsMovedError(err)
-	_, ask := goredis.IsAskError(err)
-	return !transient && !moved && !ask
+	return &shared.DeliveryError{Cause: err, Output: name, Operation: operation, Code: code, Permanent: permanent}
 }

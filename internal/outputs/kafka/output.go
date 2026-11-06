@@ -95,9 +95,12 @@ type driver struct {
 	client      *kgo.Client
 	logger      *slog.Logger
 	lateFailure atomic.Pointer[func(error)]
-	opts        []kgo.Opt
-	cfg         config
-	inflight    sync.WaitGroup
+	// purged holds when each recreated topic was last purged, guarded by purgeMu.
+	purged   map[string]time.Time
+	opts     []kgo.Opt
+	cfg      config
+	inflight sync.WaitGroup
+	purgeMu  sync.Mutex
 }
 
 func (d *driver) SetLateFailureHandler(handler func(err error)) {
@@ -188,6 +191,7 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 		cfg:    cfg,
 		opts:   opts,
 		logger: logger,
+		purged: make(map[string]time.Time),
 	}, nil
 }
 
@@ -217,7 +221,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 		return nil
 	}
 
-	return d.produced(d.client.ProduceSync(ctx, record))
+	return d.produced(ctx, d.client.ProduceSync(ctx, record))
 }
 
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
@@ -241,17 +245,32 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		return nil
 	}
 
-	return d.produced(d.client.ProduceSync(ctx, records...))
+	return d.produced(ctx, d.client.ProduceSync(ctx, records...))
 }
 
-func (d *driver) produced(results kgo.ProduceResults) error {
+// produced reports the failed records; a batch is permanent only when every failed record is.
+func (d *driver) produced(ctx context.Context, results kgo.ProduceResults) error {
+	var failures []*shared.DeliveryError
 	for _, result := range results {
 		d.forgetRecreatedTopic(result.Record, result.Err)
+		if result.Err != nil {
+			failures = append(failures, newDeliveryError(shared.OpSend, result.Err))
+		}
 	}
-	if err := results.FirstErr(); err != nil {
-		return newDeliveryError(shared.OpSend, err)
+	switch len(failures) {
+	case 0:
+		return nil
+	case 1:
+		return failures[0]
 	}
-	return nil
+	permanent := true
+	for _, failure := range failures {
+		permanent = permanent && output.IsPermanent(failure)
+	}
+	return &shared.DeliveryError{
+		Cause: ctx.Err(), Output: name, Operation: shared.OpSend, Permanent: permanent,
+		Code: fmt.Sprintf("%d of %d records failed, first: %s", len(failures), len(results), failures[0].Reason()),
+	}
 }
 
 // newDeliveryError names a protocol failure by its kerr code: franz-go appends broker text that can echo values.
@@ -268,10 +287,20 @@ func newDeliveryError(operation string, err error) *shared.DeliveryError {
 
 // forgetRecreatedTopic lets the next attempt reach a deleted and recreated topic:
 // franz-go otherwise keeps failing it with UNKNOWN_TOPIC_ID.
+// A record produced before the last purge of its topic fails from the old topic ID and
+// does not purge again: that would drop records already queued for the recreated topic.
+// franz-go sets Timestamp when the record is produced.
 func (d *driver) forgetRecreatedTopic(record *kgo.Record, err error) {
-	if record != nil && errors.Is(err, kerr.UnknownTopicID) {
-		d.client.PurgeTopicsFromProducing(record.Topic)
+	if record == nil || !errors.Is(err, kerr.UnknownTopicID) {
+		return
 	}
+	d.purgeMu.Lock()
+	defer d.purgeMu.Unlock()
+	if last, ok := d.purged[record.Topic]; ok && !record.Timestamp.After(last) {
+		return
+	}
+	d.purged[record.Topic] = time.Now()
+	d.client.PurgeTopicsFromProducing(record.Topic)
 }
 
 func (d *driver) HealthCheck(ctx context.Context) error {
