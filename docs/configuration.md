@@ -26,6 +26,8 @@ Output files reload without a restart when they change: file events (including K
 
 A failure fails the event on the first attempt only when the destination's protocol says a retry cannot succeed; it then does not count toward opening the circuit, since the destination answered. Examples: HTTP 400, 401, 403 or 404 from an HTTP output, an untrusted certificate, a payload the destination refuses, an SMTP 5yz reply, a Kafka error marked non-retriable, a Redis `WRONGTYPE`, `WRONGPASS`, `NOAUTH` or `NOPERM` reply. Every other failure is retried within `retry.max_attempts`: network errors, timeouts, HTTP 408, 409, 425, 429 and 5xx, throttling such as AWS answering 400 with a throttling code, and any reply the output does not recognize. Outputs with their own protocol rules (AWS, Kafka, OTLP, Pub/Sub, Redis, SMTP) are described in [outputs](outputs.md). In a batch or a fan-out, the event fails for good only when every failed part does.
 
+After `circuit_breaker.failure_threshold` consecutive failures the circuit opens: workers stop taking events and the queue waits, so a destination outage does not turn queued events into failures. New events beyond `queue_size` are dropped. After `reset_timeout` one probe goes through; `success_threshold` successes close the circuit and the queue resumes. Events still waiting when the output is reloaded or stopped are counted as dropped.
+
 ## Destination health check
 
 At startup, on reload and on an API change, each output probes its destination for at most 5s:

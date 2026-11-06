@@ -473,10 +473,14 @@ func TestWorkerCircuitBreakerBlocks(t *testing.T) {
 	retireCtx, retireCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer retireCancel()
 	err := out.Retire(retireCtx)
-	require.NoError(t, err)
+	require.Error(t, err, "the queued events wait for the circuit beyond the retire deadline")
 
 	assert.Equal(t, int64(2), attempts.Load())
 	assert.Equal(t, CircuitOpen, out.circuitBreaker.GetState())
+	// A retire past its deadline cancels the workers and counts what they left asynchronously.
+	assert.Eventually(t, func() bool { return out.GetStatus().DroppedTotal == 8 }, time.Second, time.Millisecond,
+		"events never attempted are dropped when the output retires")
+	assert.Equal(t, 2, out.GetStatus().FailedTotal, "only attempted events fail")
 }
 
 func TestWorkerForceStopOnContextCancel(t *testing.T) {
@@ -596,16 +600,18 @@ func TestWorkerOldCompletionCannotReleaseHalfOpenProbe(t *testing.T) {
 				assert.Equal(t, CircuitHalfOpen, out.circuitBreaker.GetState())
 				close(probeRelease)
 				require.NoError(t, out.Retire(context.Background()))
+				// The blocked event waited for the probe instead of failing, then was delivered and closed the circuit.
+				assert.Equal(t, int64(1), unexpected.Load())
 				status := out.GetStatus()
 				if oldFails {
-					assert.Equal(t, 1, status.SentTotal)
-					assert.Equal(t, 3, status.FailedTotal)
-				} else {
 					assert.Equal(t, 2, status.SentTotal)
 					assert.Equal(t, 2, status.FailedTotal)
+				} else {
+					assert.Equal(t, 3, status.SentTotal)
+					assert.Equal(t, 1, status.FailedTotal)
 				}
 				assert.Empty(t, status.LastError)
-				assert.Equal(t, circuitStateHalfOpenName, status.CircuitState)
+				assert.Equal(t, circuitStateClosedName, status.CircuitState)
 			})
 		})
 	}
@@ -640,4 +646,63 @@ func TestWorkerRetryCanProbeAfterResetTimeout(t *testing.T) {
 		assert.Empty(t, status.LastError)
 		assert.Equal(t, circuitStateClosedName, status.CircuitState)
 	})
+}
+
+// D1: while the circuit is open the queue waits for the destination instead of failing its events.
+func TestOpenCircuitPausesTheQueue(t *testing.T) {
+	for _, batch := range []bool{false, true} {
+		t.Run(fmt.Sprintf("batch_%t", batch), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				cfg := defaultRuntimeDefaults()
+				cfg.Workers = 2
+				cfg.CircuitBreaker.FailureThreshold = 1
+				cfg.CircuitBreaker.SuccessThreshold = 1
+				if batch {
+					cfg = batchRuntimeDefaults(1, time.Millisecond)
+					cfg.Workers = 2
+					cfg.CircuitBreaker.FailureThreshold = 1
+					cfg.CircuitBreaker.SuccessThreshold = 1
+				}
+				var down atomic.Bool
+				down.Store(true)
+				var attempts, delivered atomic.Int64
+				send := func() error {
+					attempts.Add(1)
+					if down.Load() {
+						return fmt.Errorf("destination down")
+					}
+					delivered.Add(1)
+					return nil
+				}
+				out := NewOutput(&testutil.MockBatchDriver{
+					MockDriver: testutil.MockDriver{DriverName: "pause", SendFunc: func(context.Context, *event.Event) error { return send() }},
+					SendBatchFunc: func(_ context.Context, events []*event.Event) error {
+						return send()
+					},
+				}, cfg, nil)
+				out.Start(context.Background())
+				for range 10 {
+					out.Enqueue(newTestEvent())
+				}
+				synctest.Wait()
+				// Only the attempts in flight when the circuit opened fail, at most one per worker; then nothing is attempted.
+				inFlight := int(attempts.Load())
+				assert.LessOrEqual(t, inFlight, cfg.Workers)
+				status := out.GetStatus()
+				assert.Equal(t, circuitStateOpenName, status.CircuitState)
+				assert.Equal(t, inFlight, status.FailedTotal)
+				assert.GreaterOrEqual(t, status.QueueDepth, 10-2*cfg.Workers, "each worker holds at most one more event")
+
+				down.Store(false)
+				time.Sleep(cfg.CircuitBreaker.ResetTimeout)
+				synctest.Wait()
+				require.NoError(t, out.Retire(context.Background()))
+				status = out.GetStatus()
+				assert.Equal(t, 10-inFlight, status.SentTotal, "every queued event is delivered after the circuit recovers")
+				assert.Equal(t, inFlight, status.FailedTotal)
+				assert.Zero(t, status.DroppedTotal)
+				assert.Equal(t, circuitStateClosedName, status.CircuitState)
+			})
+		})
+	}
 }

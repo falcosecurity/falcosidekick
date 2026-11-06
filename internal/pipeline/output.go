@@ -251,10 +251,15 @@ func (o *Output) Enqueue(evt *event.Event) {
 	}
 }
 
-func (o *Output) recordDrop() {
-	o.droppedTotal.Add(1)
+func (o *Output) recordDrop() { o.recordDrops(1) }
+
+// recordDrops counts events that leave the output without a delivery attempt.
+func (o *Output) recordDrops(count int64) {
+	o.droppedTotal.Add(count)
 	if o.metrics != nil {
-		o.metrics.RecordDrop(context.Background(), o.driver.Name())
+		for range count {
+			o.metrics.RecordDrop(context.Background(), o.driver.Name())
+		}
 	}
 }
 
@@ -364,17 +369,16 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 		}
 
 		complete, allowed := o.circuitBreaker.AllowRequest()
+		// Before the first attempt the events wait for the circuit; once attempted, a refused retry ends them.
+		for !allowed && lastErr == nil {
+			if o.circuitBreaker.Wait(ctx) != nil {
+				o.recordDrops(count)
+				return
+			}
+			complete, allowed = o.circuitBreaker.AllowRequest()
+		}
 		if !allowed {
-			if lastErr != nil {
-				break
-			}
-			o.outcomeMu.Lock()
-			o.failedTotal.Add(count)
-			o.outcomeMu.Unlock()
-			if o.metrics != nil {
-				o.metrics.RecordOutput(ctx, o.driver.Name(), "circuit_open", 0)
-			}
-			return
+			break
 		}
 
 		start := time.Now()
