@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -211,6 +212,27 @@ func TestSendDoesNotFallBackOnOtherNotFound(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, "policyreport write report: HTTP 404 Not Found", err.Error())
 	assert.Len(t, client.Actions(), 2, "one get and one create, no fallback")
+}
+
+func TestSafeErrorPermanence(t *testing.T) {
+	resource := schema.GroupResource{Group: "openreports.io", Resource: "reports"}
+	tests := []struct {
+		err       error
+		name      string
+		permanent bool
+	}{
+		{name: "forbidden", err: apierrors.NewForbidden(resource, "falcosidekick", errors.New("denied")), permanent: true},
+		{name: "invalid", err: apierrors.NewBadRequest("invalid report"), permanent: true},
+		{name: "conflict", err: apierrors.NewConflict(resource, "falcosidekick", errors.New("changed"))},
+		{name: "too many requests", err: apierrors.NewTooManyRequests("slow down", 1)},
+		{name: "server error", err: apierrors.NewInternalError(errors.New("boom"))},
+		{name: "network", err: fmt.Errorf("dial: %w", syscall.ECONNREFUSED)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.permanent, output.IsPermanent(safeError("update", tt.err)))
+		})
+	}
 }
 
 func TestSendReportsReadErrorsSafely(t *testing.T) {

@@ -93,7 +93,7 @@ func (s *Sender) SetHeader(key, value string) {
 func (s *Sender) SendJSON(ctx context.Context, method, url string, payload any) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return WrapDeliveryError(s.name, "marshal", err)
+		return WrapDeliveryError(s.name, OpMarshal, err)
 	}
 	return s.SendRaw(ctx, method, url, body, "application/json")
 }
@@ -102,7 +102,7 @@ func (s *Sender) SendJSON(ctx context.Context, method, url string, payload any) 
 func (s *Sender) SendGzipJSON(ctx context.Context, method, url string, payload any) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return WrapDeliveryError(s.name, "marshal", err)
+		return WrapDeliveryError(s.name, OpMarshal, err)
 	}
 	return s.SendGzipRaw(ctx, method, url, body, "application/json")
 }
@@ -134,7 +134,7 @@ func (s *Sender) SendGzipRaw(ctx context.Context, method, url string, body []byt
 func (s *Sender) SendJSONCheckBody(ctx context.Context, method, url string, payload any, check func(body []byte) error) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return WrapDeliveryError(s.name, "marshal", err)
+		return WrapDeliveryError(s.name, OpMarshal, err)
 	}
 	req, err := s.buildRequest(ctx, method, url, body, "application/json")
 	if err != nil {

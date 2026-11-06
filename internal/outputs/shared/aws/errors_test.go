@@ -27,6 +27,8 @@ import (
 	"testing"
 
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
+	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
+	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/aws/smithy-go"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/stretchr/testify/assert"
@@ -46,6 +48,35 @@ func sdkError(status int, code, message string) error {
 		}}
 	}
 	return &smithy.OperationError{ServiceID: "S3", OperationName: "PutObject", Err: err}
+}
+
+func TestWrapErrorPermanence(t *testing.T) {
+	tests := []struct {
+		err       error
+		name      string
+		permanent bool
+	}{
+		{name: "invalid message contents", err: &sqstypes.InvalidMessageContents{}, permanent: true},
+		{name: "sns invalid parameter", err: &snstypes.InvalidParameterException{}, permanent: true},
+		{name: "sqs throttled", err: &sqstypes.RequestThrottled{}},
+		{name: "sqs kms throttled", err: &sqstypes.KmsThrottled{}},
+		{name: "sns kms throttled", err: &snstypes.KMSThrottlingException{}},
+		{name: "sns throttled", err: &snstypes.ThrottledException{}},
+		{name: "sns concurrent access", err: &snstypes.ConcurrentAccessException{}},
+		{name: "sqs over limit", err: &sqstypes.OverLimit{}},
+		{name: "generic throttling", err: &smithy.GenericAPIError{Code: "ThrottlingException", Fault: smithy.FaultClient}},
+		{name: "request timeout", err: &smithy.GenericAPIError{Code: "RequestTimeout", Fault: smithy.FaultClient}},
+		{name: "server fault", err: &smithy.GenericAPIError{Code: "InternalError", Fault: smithy.FaultServer}},
+		{name: "unknown fault", err: &smithy.GenericAPIError{Code: "Whatever"}},
+		{name: "connection refused", err: fmt.Errorf("send: %w", syscall.ECONNREFUSED)},
+	}
+	c := &Config{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := c.WrapError("test", "op", &smithy.OperationError{ServiceID: "SQS", OperationName: "SendMessage", Err: tt.err})
+			assert.Equal(t, tt.permanent, output.IsPermanent(err), err.Error())
+		})
+	}
 }
 
 func TestWrapErrorClassification(t *testing.T) {

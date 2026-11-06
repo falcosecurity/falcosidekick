@@ -383,6 +383,61 @@ func TestWorkerFailsAfterMaxRetries(t *testing.T) {
 	assert.Contains(t, out.lastError.Load().(string), "persistent error")
 }
 
+func TestWorkerDoesNotRetryPermanentFailures(t *testing.T) {
+	for name, permanent := range map[string]error{
+		"permanent":     fmt.Errorf("rejected: %w", output.ErrPermanent),
+		"misconfigured": fmt.Errorf("denied: %w", output.ErrMisconfigured),
+	} {
+		t.Run(name, func(t *testing.T) {
+			var attempts atomic.Int64
+			cfg := defaultRuntimeDefaults()
+			cfg.Retry = &output.RetryConfig{MaxAttempts: 4, InitialInterval: time.Millisecond, MaxInterval: time.Millisecond, Multiplier: 1}
+			out := NewOutput(&testutil.MockDriver{
+				DriverName: "test",
+				SendFunc: func(context.Context, *event.Event) error {
+					attempts.Add(1)
+					return permanent
+				},
+			}, cfg, nil)
+			out.Start(context.Background())
+			out.Enqueue(newTestEvent())
+			retireCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			require.NoError(t, out.Retire(retireCtx))
+
+			assert.Equal(t, int64(1), attempts.Load())
+			assert.Equal(t, int64(1), out.failedTotal.Load())
+			assert.Equal(t, permanent.Error(), out.lastError.Load())
+		})
+	}
+}
+
+// A destination that rejects events is reachable: permanent failures must not open the circuit.
+func TestPermanentFailuresDoNotOpenCircuit(t *testing.T) {
+	var attempts atomic.Int64
+	cfg := defaultRuntimeDefaults()
+	cfg.Workers = 1
+	cfg.Retry = &output.RetryConfig{MaxAttempts: 1, InitialInterval: time.Millisecond, MaxInterval: time.Millisecond, Multiplier: 1}
+	cfg.CircuitBreaker = &output.CircuitBreakerConfig{FailureThreshold: 2, SuccessThreshold: 1, ResetTimeout: 5 * time.Second}
+	out := NewOutput(&testutil.MockDriver{
+		DriverName: "test",
+		SendFunc: func(context.Context, *event.Event) error {
+			attempts.Add(1)
+			return fmt.Errorf("bad event: %w", output.ErrPermanent)
+		},
+	}, cfg, nil)
+	out.Start(context.Background())
+	for range 5 {
+		out.Enqueue(newTestEvent())
+	}
+	retireCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	require.NoError(t, out.Retire(retireCtx))
+
+	assert.Equal(t, int64(5), attempts.Load())
+	assert.Equal(t, CircuitClosed, out.circuitBreaker.GetState())
+}
+
 func TestWorkerCircuitBreakerBlocks(t *testing.T) {
 	var attempts atomic.Int64
 	cfg := defaultRuntimeDefaults()

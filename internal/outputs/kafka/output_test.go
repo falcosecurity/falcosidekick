@@ -652,3 +652,26 @@ func TestAsyncFailureWithoutHandlerOnlyLogs(t *testing.T) {
 	require.NoError(t, o.Send(context.Background(), &event.Event{Rule: "r", Priority: event.PriorityWarning, Time: time.Now(), OutputFields: map[string]any{}}))
 	_ = o.Close()
 }
+
+func TestProduceErrorPermanence(t *testing.T) {
+	tests := []struct {
+		err       error
+		name      string
+		permanent bool
+	}{
+		{name: "message too large", err: fmt.Errorf("%w (uncompressed_bytes=9)", kerr.MessageTooLarge), permanent: true},
+		{name: "topic authorization", err: kerr.TopicAuthorizationFailed, permanent: true},
+		{name: "invalid record", err: kerr.InvalidRecord, permanent: true},
+		{name: "unknown server error", err: kerr.UnknownServerError},
+		{name: "not leader", err: kerr.NotLeaderForPartition},
+		{name: "unknown topic", err: kerr.UnknownTopicOrPartition},
+		{name: "record timeout", err: kgo.ErrRecordTimeout},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.permanent, output.IsPermanent(classifyProduceError(tt.err)))
+			assert.ErrorIs(t, classifyProduceError(tt.err), tt.err)
+		})
+	}
+	assert.NoError(t, classifyProduceError(nil))
+}

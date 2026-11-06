@@ -19,6 +19,7 @@ package redis
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -242,5 +243,21 @@ func wrap(err error) error {
 	if err == nil {
 		return nil
 	}
+	if isPermanentReply(err) {
+		return fmt.Errorf("%w: redis: %w", output.ErrPermanent, err)
+	}
 	return fmt.Errorf("redis: %w", err)
+}
+
+// isPermanentReply reports a server error reply outside the kinds go-redis retries, plus OOM and EXECABORT.
+func isPermanentReply(err error) bool {
+	if _, ok := errors.AsType[goredis.Error](err); !ok {
+		return false
+	}
+	transient := goredis.IsLoadingError(err) || goredis.IsReadOnlyError(err) || goredis.IsClusterDownError(err) ||
+		goredis.IsTryAgainError(err) || goredis.IsMasterDownError(err) || goredis.IsMaxClientsError(err) ||
+		goredis.IsNoReplicasError(err) || goredis.IsOOMError(err) || goredis.IsExecAbortError(err)
+	_, moved := goredis.IsMovedError(err)
+	_, ask := goredis.IsAskError(err)
+	return !transient && !moved && !ask
 }

@@ -36,6 +36,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
 func TestDeliveryErrorClassification(t *testing.T) {
@@ -84,6 +86,40 @@ func TestDeliveryErrorClassification(t *testing.T) {
 		})
 	}
 	assert.NoError(t, WrapDeliveryError("webhook", "send", nil))
+}
+
+func TestDeliveryErrorPermanence(t *testing.T) {
+	status := func(code int) error { return &DeliveryError{name: "webhook", operation: "response", status: code} }
+	tests := []struct {
+		err       error
+		name      string
+		permanent bool
+	}{
+		{status(http.StatusBadRequest), "400", true},
+		{status(http.StatusUnauthorized), "401", true},
+		{status(http.StatusForbidden), "403", true},
+		{status(http.StatusNotFound), "404", true},
+		{status(http.StatusRequestEntityTooLarge), "413", true},
+		{status(http.StatusUnprocessableEntity), "422", true},
+		{status(http.StatusRequestTimeout), "408", false},
+		{status(http.StatusTooEarly), "425", false},
+		{status(http.StatusTooManyRequests), "429", false},
+		{status(http.StatusInternalServerError), "500", false},
+		{status(http.StatusServiceUnavailable), "503", false},
+		{WrapDeliveryError("webhook", "send", x509.UnknownAuthorityError{}), "untrusted certificate", true},
+		{WrapDeliveryError("webhook", "marshal", errors.New("bad")), "payload encoding", true},
+		{WrapDeliveryError("webhook", "render message", errors.New("bad")), "template rendering", true},
+		{WrapDeliveryError("webhook", "send", syscall.ECONNREFUSED), "connection refused", false},
+		{WrapDeliveryError("webhook", "send", context.DeadlineExceeded), "timeout", false},
+		{WrapDeliveryError("webhook", "send", context.Canceled), "canceled", false},
+		{NewProtocolError("slack", "invalid_token"), "provider code", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.permanent, output.IsPermanent(tt.err))
+			assert.Equal(t, tt.permanent, output.IsPermanent(WrapDeliveryError("other", "send", tt.err)), "kept through rewrapping")
+		})
+	}
 }
 
 func TestDeliveryErrorPreservesSafeDiagnosticNotUnsafeWrapper(t *testing.T) {

@@ -274,7 +274,8 @@ func TestSendFailures(t *testing.T) {
 		d := initDriver(t, emulatorConfig(srv))
 		err := d.Send(context.Background(), testutil.CreateValidEvent())
 		require.Error(t, err)
-		assert.Equal(t, "gcppubsub publish: NotFound", err.Error())
+		assert.Equal(t, "destination rejects the delivery: gcppubsub publish: NotFound", err.Error())
+		assert.True(t, output.IsPermanent(err))
 	})
 	t.Run("batch reports every failure", func(t *testing.T) {
 		srv := fakeServer(t, pstest.ServerReactorOption{
@@ -284,7 +285,8 @@ func TestSendFailures(t *testing.T) {
 		d := initDriver(t, emulatorConfig(srv))
 		err := d.SendBatch(context.Background(), []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent()})
 		require.Error(t, err)
-		assert.Equal(t, "2 of 2 messages failed: gcppubsub publish: PermissionDenied", err.Error())
+		assert.Equal(t, "destination rejects the delivery: 2 of 2 messages failed: gcppubsub publish: PermissionDenied", err.Error())
+		assert.True(t, output.IsPermanent(err), "every message was rejected for good")
 		assert.NotContains(t, err.Error(), sentinel)
 	})
 }
@@ -375,23 +377,30 @@ func TestCloseFlushesAndStopsPublishing(t *testing.T) {
 }
 
 func TestSafeError(t *testing.T) {
+	const rejected = "destination rejects the delivery: "
 	tests := []struct {
-		err  error
-		name string
-		want string
+		err       error
+		name      string
+		want      string
+		permanent bool
 	}{
 		{name: "canceled", err: context.Canceled, want: "gcppubsub publish: request canceled"},
 		{name: "deadline", err: fmt.Errorf("wrapped: %w", context.DeadlineExceeded), want: "gcppubsub publish: timeout (deadline exceeded)"},
 		{name: "status canceled", err: status.Error(codes.Canceled, sentinel), want: "gcppubsub publish: request canceled"},
 		{name: "status deadline", err: status.Error(codes.DeadlineExceeded, sentinel), want: "gcppubsub publish: timeout (deadline exceeded)"},
-		{name: "status", err: status.Error(codes.ResourceExhausted, sentinel), want: "gcppubsub publish: ResourceExhausted"},
-		{name: "oversized", err: pubsub.ErrOversizedMessage, want: "gcppubsub publish: message too large"},
+		{name: "resource exhausted", err: status.Error(codes.ResourceExhausted, sentinel), want: "gcppubsub publish: ResourceExhausted"},
+		{name: "unavailable", err: status.Error(codes.Unavailable, sentinel), want: "gcppubsub publish: Unavailable"},
+		{name: "not found", err: status.Error(codes.NotFound, sentinel), want: rejected + "gcppubsub publish: NotFound", permanent: true},
+		{name: "permission denied", err: status.Error(codes.PermissionDenied, sentinel), want: rejected + "gcppubsub publish: PermissionDenied", permanent: true},
+		{name: "invalid argument", err: status.Error(codes.InvalidArgument, sentinel), want: rejected + "gcppubsub publish: InvalidArgument", permanent: true},
+		{name: "oversized", err: pubsub.ErrOversizedMessage, want: rejected + "gcppubsub publish: message too large", permanent: true},
 		{name: "other", err: errors.New(sentinel), want: "gcppubsub publish: request failed"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := safeError("publish", tt.err)
 			assert.Equal(t, tt.want, err.Error())
+			assert.Equal(t, tt.permanent, output.IsPermanent(err))
 			assert.NotContains(t, fmt.Sprintf("%v %+v %s", err, err, err), sentinel)
 		})
 	}

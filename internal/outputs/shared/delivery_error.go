@@ -27,6 +27,8 @@ import (
 	"net"
 	"net/http"
 	"syscall"
+
+	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
 // DeliveryError describes a failed HTTP delivery without formatting its cause.
@@ -54,6 +56,35 @@ func (e *DeliveryError) Error() string {
 
 // Unwrap returns the original failure for programmatic inspection.
 func (e *DeliveryError) Unwrap() error { return e.cause }
+
+// retriableClientStatus are 4xx answers that a later attempt can turn into success.
+var retriableClientStatus = map[int]bool{
+	http.StatusRequestTimeout:  true,
+	http.StatusTooEarly:        true,
+	http.StatusTooManyRequests: true,
+}
+
+// IsPermanentHTTPStatus reports whether a retry cannot change the answer: 4xx except 408, 425 and 429.
+func IsPermanentHTTPStatus(code int) bool {
+	return code >= 400 && code < 500 && !retriableClientStatus[code]
+}
+
+// Is matches output.ErrPermanent for failures that a retry with the same event cannot fix.
+func (e *DeliveryError) Is(target error) bool {
+	if target != output.ErrPermanent {
+		return false
+	}
+	if e.status != 0 {
+		return IsPermanentHTTPStatus(e.status)
+	}
+	return IsTLSVerificationError(e.cause) || e.operation == OpMarshal || e.operation == OpRenderMessage
+}
+
+// Operations whose failure repeats for the same event, so delivery errors in them are permanent.
+const (
+	OpMarshal       = "marshal"
+	OpRenderMessage = "render message"
+)
 
 // StatusCode returns the HTTP response status, or 0 when no response was received.
 func (e *DeliveryError) StatusCode() int { return e.status }
@@ -151,7 +182,7 @@ func classifyDeliveryError(err error, operation string) string {
 		return "unexpected JSON type"
 	}
 	switch operation {
-	case "marshal":
+	case OpMarshal:
 		return "cannot encode payload"
 	case "request", "build request", "healthcheck":
 		return "invalid request"
@@ -163,7 +194,7 @@ func classifyDeliveryError(err error, operation string) string {
 		return "cannot compress payload"
 	case "target":
 		return "cannot resolve target"
-	case "render message":
+	case OpRenderMessage:
 		return "cannot render message template"
 	default:
 		return "request failed"

@@ -275,7 +275,7 @@ func (d *driver) Close() error { return nil }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	msg, err := d.message(evt)
 	if err != nil {
-		return shared.WrapDeliveryError(name, "render message", err)
+		return shared.WrapDeliveryError(name, shared.OpRenderMessage, err)
 	}
 	client, conn, end, err := d.session(ctx)
 	if err != nil {
@@ -366,6 +366,11 @@ func (e *replyError) Error() string {
 }
 
 func (e *replyError) Unwrap() error { return e.cause }
+
+// Is matches output.ErrPermanent for 5yz replies, permanent negative completions in RFC 5321 section 4.2.1.
+func (e *replyError) Is(target error) bool {
+	return target == output.ErrPermanent && e.code >= 500 && e.code < 600
+}
 
 // stageError names the stage and never carries server text or credentials.
 func stageError(ctx context.Context, stage string, err error) error {
