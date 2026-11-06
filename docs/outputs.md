@@ -130,7 +130,7 @@ One output for traces, logs and metrics; each section present enables that signa
 - Resource `service.name` is `falcosidekick`. Attributes use the `falco.` prefix; output fields keep their names.
 - Not probed at startup: OTLP has no request that exports nothing.
 - `http/protobuf` uses the same HTTP client as the other HTTP outputs, so redirects to another origin are refused.
-- Failures follow the [OTLP retry rules](https://opentelemetry.io/docs/specs/otlp/#failures): gRPC retries `CANCELLED`, `DEADLINE_EXCEEDED`, `ABORTED`, `OUT_OF_RANGE`, `UNAVAILABLE`, `DATA_LOSS`, and `RESOURCE_EXHAUSTED` when the collector sends `RetryInfo`; HTTP retries 429, 502, 503 and 504. A partial success is not retried. When one signal fails, a retry exports every enabled signal again; the event fails for good only when every failed signal does.
+- Failures follow the [OTLP retry rules](https://opentelemetry.io/docs/specs/otlp/#failures): gRPC retries `CANCELLED`, `DEADLINE_EXCEEDED`, `ABORTED`, `OUT_OF_RANGE`, `UNAVAILABLE`, `DATA_LOSS`, and `RESOURCE_EXHAUSTED` when the collector sends `RetryInfo`; HTTP retries 429, 502, 503 and 504. A partial success is not retried. When one signal fails and can be retried, the retry exports every enabled signal again, including those already accepted in full or in part, so the collector can receive them twice; the event fails for good only when every failed signal does.
 
 ## PolicyReport
 

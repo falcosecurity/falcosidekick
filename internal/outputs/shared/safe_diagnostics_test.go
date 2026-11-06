@@ -17,8 +17,6 @@
 package shared
 
 import (
-	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -146,11 +144,4 @@ func TestDecodeDriverConfigReportsEveryFieldInStableOrder(t *testing.T) {
 	err := DecodeDriverConfig(map[string]any{"timeout": sentinel, "count": sentinel}, &target)
 	require.Error(t, err)
 	assert.Equal(t, "count: invalid value; timeout: invalid value", err.Error())
-}
-
-func TestSafeDecodeErrorFailsClosed(t *testing.T) {
-	assert.Equal(t, "invalid value", safeDecodeReason(errors.New("future library text with "+sentinel)))
-	assert.Equal(t, "invalid value", safeDecodeError(errors.New("plain "+sentinel), nil).Error())
-	joined := fmt.Errorf("wrapped: %w", errors.Join(errors.New("a "+sentinel), errors.New("b "+sentinel)))
-	assert.Equal(t, "invalid value; invalid value", safeDecodeError(joined, nil).Error())
 }

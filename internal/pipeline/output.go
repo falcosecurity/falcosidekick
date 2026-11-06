@@ -78,70 +78,70 @@ func deriveStatusToken(circuit, lastError, lastWarning string, sentTotal int) He
 
 // Output is the runtime delivery unit for one output destination.
 type Output struct {
-	lastError      atomic.Value
 	driverWarning  atomic.Value
 	healthWarning  atomic.Value
 	batchSender    output.BatchSender
 	metrics        core.MetricsCollector
 	driver         output.Driver
-	lastSuccess    atomic.Value
 	queue          chan *event.Event
 	cancel         context.CancelFunc
 	circuitBreaker *CircuitBreaker
 	// retired is closed once Retire's workers exited and the driver closed, even past Retire's deadline.
 	retired chan struct{}
-	// predecessor is the replaced output while it drains.
-	predecessor atomic.Pointer[Output]
-	config      output.RuntimeConfig
-	rateWindow  rateWindow
-	workerDone  sync.WaitGroup
-	// outcomeMu guards base* and keeps counters consistent with last error and last success.
-	outcomeMu    sync.RWMutex
-	baseSent     int64
-	baseFailed   int64
-	baseDropped  int64
-	sentTotal    atomic.Int64
-	droppedTotal atomic.Int64
-	failedTotal  atomic.Int64
+	// outcome is shared with every output this one replaced, see inherit.
+	outcome    atomic.Pointer[outcome]
+	config     output.RuntimeConfig
+	workerDone sync.WaitGroup
 }
 
-// totals requires o.outcomeMu held for reading.
-func (o *Output) totals() (sent, failed, dropped int64) {
-	sent = o.baseSent + o.sentTotal.Load()
-	failed = o.baseFailed + o.failedTotal.Load()
-	dropped = o.baseDropped + o.droppedTotal.Load()
-	if p := o.predecessor.Load(); p != nil {
-		p.outcomeMu.RLock()
-		ps, pf, pd := p.totals()
-		p.outcomeMu.RUnlock()
-		sent, failed, dropped = sent+ps, failed+pf, dropped+pd
-	}
-	return sent, failed, dropped
+// outcome is the delivery record of one output name. A replacement shares its predecessor's record,
+// so what the predecessor still delivers, fails or drops while it retires lands in the same record.
+type outcome struct {
+	lastSuccess time.Time
+	lastError   string
+	rate        rateWindow
+	mu          sync.RWMutex
+	sent        int64
+	failed      int64
+	dropped     int64
 }
 
-// inherit links prev so the counters stay continuous, and carries its last outcome until o has one.
+type outcomeSnapshot struct {
+	lastSuccess           time.Time
+	lastError             string
+	sent, failed, dropped int64
+}
+
+func (r *outcome) succeeded(count int64, now time.Time) {
+	r.mu.Lock()
+	r.lastSuccess, r.lastError = now, ""
+	r.sent += count
+	r.mu.Unlock()
+	r.rate.record(count, now.Unix())
+}
+
+func (r *outcome) failedWith(count int64, err error) {
+	r.mu.Lock()
+	r.lastError = err.Error()
+	r.failed += count
+	r.mu.Unlock()
+}
+
+func (r *outcome) droppedN(count int64) {
+	r.mu.Lock()
+	r.dropped += count
+	r.mu.Unlock()
+}
+
+func (r *outcome) snapshot() outcomeSnapshot {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return outcomeSnapshot{lastSuccess: r.lastSuccess, lastError: r.lastError, sent: r.sent, failed: r.failed, dropped: r.dropped}
+}
+
+// inherit makes o continue prev's delivery record; it must run before o starts.
 func (o *Output) inherit(prev *Output) {
-	prev.outcomeMu.RLock()
-	o.lastSuccess.Store(prev.lastSuccess.Load())
-	o.lastError.Store(prev.lastError.Load())
-	prev.outcomeMu.RUnlock()
-	o.predecessor.Store(prev)
-}
-
-func (o *Output) absorb() {
-	o.outcomeMu.Lock()
-	defer o.outcomeMu.Unlock()
-	p := o.predecessor.Load()
-	if p == nil {
-		return
-	}
-	p.outcomeMu.RLock()
-	ps, pf, pd := p.totals()
-	p.outcomeMu.RUnlock()
-	o.baseSent += ps
-	o.baseFailed += pf
-	o.baseDropped += pd
-	o.predecessor.Store(nil)
+	o.outcome.Store(prev.outcome.Load())
 }
 
 const rateBuckets = 60
@@ -206,8 +206,7 @@ func NewOutput(driver output.Driver, cfg *output.RuntimeConfig, metrics core.Met
 	if bs, ok := driver.(output.BatchSender); ok && cfg.Batching != nil && cfg.Batching.Enabled {
 		o.batchSender = bs
 	}
-	o.lastSuccess.Store(time.Time{})
-	o.lastError.Store("")
+	o.outcome.Store(&outcome{})
 	o.driverWarning.Store("")
 	o.healthWarning.Store("")
 	if reporter, ok := driver.(output.WarningReporter); ok {
@@ -265,7 +264,7 @@ func (o *Output) recordDrop() { o.recordDrops(1) }
 
 // recordDrops counts events that leave the output without a delivery attempt.
 func (o *Output) recordDrops(count int64) {
-	o.droppedTotal.Add(count)
+	o.outcome.Load().droppedN(count)
 	if o.metrics != nil {
 		o.metrics.RecordDrop(context.Background(), o.driver.Name(), count)
 	}
@@ -328,27 +327,23 @@ func (o *Output) waitDone() {
 
 // GetStatus returns a snapshot of this output's counters and state.
 func (o *Output) GetStatus() OutputStatus {
-	o.outcomeMu.RLock()
-	sent64, failed64, dropped64 := o.totals()
-	sent, failed, dropped := int(sent64), int(failed64), int(dropped64)
-	lastErr := o.lastError.Load().(string)
-	lastSuccess := o.lastSuccess.Load().(time.Time)
-	o.outcomeMu.RUnlock()
+	record := o.outcome.Load()
+	s := record.snapshot()
 	circuit := o.circuitBreaker.GetState().String()
 	warning := o.lastWarning()
 	return OutputStatus{
 		Name:            o.driver.Name(),
-		Status:          deriveStatusToken(circuit, lastErr, warning, sent),
+		Status:          deriveStatusToken(circuit, s.lastError, warning, int(s.sent)),
 		QueueDepth:      len(o.queue),
 		QueueCapacity:   o.config.QueueSize,
-		SentTotal:       sent,
-		DroppedTotal:    dropped,
-		FailedTotal:     failed,
+		SentTotal:       int(s.sent),
+		DroppedTotal:    int(s.dropped),
+		FailedTotal:     int(s.failed),
 		CircuitState:    circuit,
-		LastSuccess:     lastSuccess,
-		LastError:       lastErr,
+		LastSuccess:     s.lastSuccess,
+		LastError:       s.lastError,
 		LastWarning:     warning,
-		EventsPerMinute: o.rateWindow.rate(time.Now().Unix()),
+		EventsPerMinute: record.rate.rate(time.Now().Unix()),
 	}
 }
 
@@ -366,6 +361,11 @@ func (o *Output) lastWarning() string {
 
 // executeWithRetry counts cancellation during backoff as a failure.
 func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc func(ctx context.Context) error) {
+	// Events a stopped worker still holds were never attempted.
+	if ctx.Err() != nil {
+		o.recordDrops(count)
+		return
+	}
 	var lastErr error
 	for attempt := 0; attempt < o.config.Retry.MaxAttempts; attempt++ {
 		if attempt > 0 {
@@ -399,14 +399,8 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 		complete(err == nil || permanent)
 
 		if err == nil {
-			now := time.Now()
-			o.outcomeMu.Lock()
-			o.lastSuccess.Store(now)
-			o.lastError.Store("")
-			o.sentTotal.Add(count)
-			o.outcomeMu.Unlock()
+			o.outcome.Load().succeeded(count, time.Now())
 			o.healthWarning.Store("")
-			o.rateWindow.record(count, now.Unix())
 			if o.metrics != nil {
 				o.metrics.RecordOutput(ctx, o.driver.Name(), "ok", count, duration)
 			}
@@ -423,10 +417,7 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 }
 
 func (o *Output) recordFailure(ctx context.Context, count int64, err error) {
-	o.outcomeMu.Lock()
-	o.lastError.Store(err.Error())
-	o.failedTotal.Add(count)
-	o.outcomeMu.Unlock()
+	o.outcome.Load().failedWith(count, err)
 	if o.metrics != nil {
 		o.metrics.RecordOutput(ctx, o.driver.Name(), "error", count, 0)
 		o.metrics.RecordError(ctx, o.driver.Name(), err)

@@ -285,6 +285,36 @@ func TestSendErrorPermanence(t *testing.T) {
 	}
 }
 
+// Exec returns only the first failed command: a permanent reply first must not hide a transient one.
+func TestSendBatchPermanentOnlyWhenEveryCommandIs(t *testing.T) {
+	const (
+		wrongType = "-WRONGTYPE Operation against a key holding the wrong kind of value\r\n"
+		oom       = "-OOM command not allowed when used memory > 'maxmemory'.\r\n"
+	)
+	batch := func() []*event.Event {
+		return []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent(), testutil.CreateValidEvent()}
+	}
+	for _, tc := range []struct {
+		name      string
+		want      string
+		replies   []string
+		permanent bool
+	}{
+		{name: "permanent then transient", replies: []string{wrongType, oom, ":1\r\n"}, want: "2 of 3 commands failed, first: WRONGTYPE"},
+		{name: "all permanent", replies: []string{wrongType, wrongType, ":1\r\n"}, want: "2 of 3 commands failed", permanent: true},
+		{name: "one failed", replies: []string{":1\r\n", oom, ":1\r\n"}, want: "1 of 3 commands failed, first: OOM"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := startFakeRedis(t, "")
+			fake.replyInOrder("RPUSH", tc.replies...)
+			err := newDriver(t, map[string]any{"address": fake.addr}).SendBatch(context.Background(), batch())
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+			assert.Equal(t, tc.permanent, output.IsPermanent(err))
+		})
+	}
+}
+
 // A proxy or server may echo submitted values in its error replies.
 func TestErrorsNeverCopyServerText(t *testing.T) {
 	const echoed = "echoed-by-server"

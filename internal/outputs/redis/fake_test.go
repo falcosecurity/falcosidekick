@@ -35,6 +35,7 @@ const replyOK = "+OK\r\n"
 // fakeRedis refuses HELLO so the client falls back to RESP2 AUTH and SELECT.
 type fakeRedis struct {
 	replies  map[string]string
+	queued   map[string][]string
 	password string
 	addr     string
 	commands [][]string
@@ -45,7 +46,7 @@ func startFakeRedis(t *testing.T, password string) *fakeRedis {
 	t.Helper()
 	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	f := &fakeRedis{password: password, addr: ln.Addr().String(), replies: map[string]string{}}
+	f := &fakeRedis{password: password, addr: ln.Addr().String(), replies: map[string]string{}, queued: map[string][]string{}}
 	var wg sync.WaitGroup
 	conns := make(chan net.Conn, 64)
 	go func() {
@@ -81,6 +82,13 @@ func (f *fakeRedis) reply(command, raw string) {
 	f.replies[command] = raw
 }
 
+// replyInOrder answers the next calls of a command with raws, one each, before any override.
+func (f *fakeRedis) replyInOrder(command string, raws ...string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.queued[command] = append(f.queued[command], raws...)
+}
+
 func (f *fakeRedis) received() [][]string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -111,6 +119,9 @@ func (f *fakeRedis) serve(conn net.Conn) {
 		f.mu.Lock()
 		f.commands = append(f.commands, cmd)
 		override, ok := f.replies[name]
+		if next := f.queued[name]; len(next) > 0 {
+			override, ok, f.queued[name] = next[0], true, next[1:]
+		}
 		f.mu.Unlock()
 		reply := override
 		if !ok {

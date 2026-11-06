@@ -139,20 +139,20 @@ func closeAll(outputs []*Output) <-chan struct{} {
 
 // Apply starts the outputs in set on runCtx, replacing the running ones with the same name, and removes
 // the names in remove, in one step. Then it retires every predecessor concurrently, bounded by retireCtx,
-// and returns the retirements that missed it; each successor absorbs its predecessor's counters once
-// that predecessor finished, even late. On ErrDispatcherStopped the caller still owns set and must close it.
+// and returns the retirements that missed it. A successor shares its predecessor's delivery record, so
+// what the predecessor does while it retires, even late, is counted. On ErrDispatcherStopped the caller
+// still owns set and must close it.
 func (d *Dispatcher) Apply(retireCtx, runCtx context.Context, set map[string]*Output, remove []string) error {
-	type retirement struct{ old, successor *Output }
 	d.mu.Lock()
 	if d.stopping {
 		d.mu.Unlock()
 		return ErrDispatcherStopped
 	}
-	var retirements []retirement
+	var retiring []*Output
 	for name, out := range set {
 		if old, exists := d.outputs[name]; exists {
 			out.inherit(old)
-			retirements = append(retirements, retirement{old: old, successor: out})
+			retiring = append(retiring, old)
 		}
 		out.Start(runCtx)
 		d.outputs[name] = out
@@ -160,25 +160,22 @@ func (d *Dispatcher) Apply(retireCtx, runCtx context.Context, set map[string]*Ou
 	for _, name := range remove {
 		if old, exists := d.outputs[name]; exists {
 			delete(d.outputs, name)
-			retirements = append(retirements, retirement{old: old})
+			retiring = append(retiring, old)
 		}
 	}
-	for _, r := range retirements {
-		d.retiring[r.old] = struct{}{}
+	for _, old := range retiring {
+		d.retiring[old] = struct{}{}
 	}
 	d.mu.Unlock()
 
-	errs := make([]error, len(retirements))
+	errs := make([]error, len(retiring))
 	var wg sync.WaitGroup
-	for i, r := range retirements {
-		wg.Go(func() { errs[i] = r.old.Retire(retireCtx) })
+	for i, old := range retiring {
+		wg.Go(func() { errs[i] = old.Retire(retireCtx) })
 		go func() {
-			<-r.old.Retired()
-			if r.successor != nil {
-				r.successor.absorb()
-			}
+			<-old.Retired()
 			d.mu.Lock()
-			delete(d.retiring, r.old)
+			delete(d.retiring, old)
 			d.mu.Unlock()
 		}()
 	}

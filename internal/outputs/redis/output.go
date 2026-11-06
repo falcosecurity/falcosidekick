@@ -183,21 +183,32 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		}
 		payloads[i] = payload
 	}
-	var err error
 	if len(payloads) == 1 {
-		err = d.store(ctx, d.client, events[0], payloads[0]).Err()
-	} else {
-		_, err = d.client.Pipelined(ctx, func(pipe goredis.Pipeliner) error {
-			for i, evt := range events {
-				d.store(ctx, pipe, evt, payloads[i])
-			}
-			return nil
-		})
+		if err := d.store(ctx, d.client, events[0], payloads[0]).Err(); err != nil {
+			return newDeliveryError(shared.OpSend, err)
+		}
+		return nil
 	}
-	if err != nil {
+	cmds, err := d.client.Pipelined(ctx, func(pipe goredis.Pipeliner) error {
+		for i, evt := range events {
+			d.store(ctx, pipe, evt, payloads[i])
+		}
+		return nil
+	})
+	if err == nil {
+		return nil
+	}
+	// Exec returns only the first failed command; every command's own result decides the batch.
+	var failures []*shared.DeliveryError
+	for _, cmd := range cmds {
+		if cmdErr := cmd.Err(); cmdErr != nil {
+			failures = append(failures, newDeliveryError(shared.OpSend, cmdErr))
+		}
+	}
+	if len(failures) == 0 {
 		return newDeliveryError(shared.OpSend, err)
 	}
-	return nil
+	return shared.JoinDeliveryErrors(ctx, name, shared.OpSend, failures, len(failures), len(cmds), "commands")
 }
 
 func (d *driver) store(ctx context.Context, c goredis.Cmdable, evt *event.Event, payload []byte) goredis.Cmder {

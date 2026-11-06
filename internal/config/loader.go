@@ -19,11 +19,14 @@ package config
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
 	"go.yaml.in/yaml/v4"
+
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 // Load reads configuration from a YAML file and environment variables.
@@ -57,7 +60,7 @@ func Load(configPath string) (*Config, error) {
 	), func(dc *mapstructure.DecoderConfig) {
 		dc.ErrorUnused = true
 	}); err != nil {
-		return nil, fmt.Errorf("config: %w", err)
+		return nil, fmt.Errorf("config: %w", utils.SafeDecodeError(err, reflect.TypeFor[Config]()))
 	}
 
 	return &cfg, nil

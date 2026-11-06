@@ -143,6 +143,8 @@ func TestLoadParseErrorsNeverQuoteTheFile(t *testing.T) {
 		{name: "unknown alias", content: "log_level: *" + sentinel + "\n", want: "yaml: line 1: invalid anchor or alias"},
 		{name: "unterminated quote", content: "log_level: \"" + sentinel + "\n", want: "yaml: lines 1-2: invalid syntax"},
 		{name: "duplicate key", content: "log_level: info\nlog_level: " + sentinel + "\n", want: "yaml: line 2: invalid structure"},
+		{name: "duration with spaces", content: "reload:\n  retire_timeout: \"" + sentinel + " x\"\n", want: "reload.retire_timeout"},
+		{name: "number", content: "listen_port: " + sentinel + "\n", want: "listen_port"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfgFile := filepath.Join(t.TempDir(), "sidekick.yaml")
