@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"go.opentelemetry.io/otel/attribute"
 	corev1 "k8s.io/api/core/v1"
 	errorsv1 "k8s.io/apimachinery/pkg/api/errors"
