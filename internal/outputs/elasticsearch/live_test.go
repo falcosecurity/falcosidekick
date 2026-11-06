@@ -185,8 +185,8 @@ func TestLiveElasticsearch(t *testing.T) {
 		batch := liveDriver(t, map[string]any{"host": base, "index": "fsk-live", "index_suffix": "none"}).(output.BatchSender)
 
 		events := []*event.Event{liveEvent("a", 1), liveEvent("b", "not-a-number"), liveEvent("c", 3)}
-		require.EqualError(t, batch.SendBatch(ctx, events), "elasticsearch: bulk indexed 2/3, 1 failed")
-		require.EqualError(t, batch.SendBatch(ctx, events), "elasticsearch: bulk indexed 2/3, 1 failed")
+		require.EqualError(t, batch.SendBatch(ctx, events), "elasticsearch response: bulk indexed 2/3, 1 failed")
+		require.EqualError(t, batch.SendBatch(ctx, events), "elasticsearch response: bulk indexed 2/3, 1 failed")
 		assert.Equal(t, 2.0, liveCount(t, base, "fsk-live"))
 
 		require.NoError(t, batch.SendBatch(ctx, []*event.Event{liveEvent("a", 1), liveEvent("c", 3), liveEvent("d", 4)}))
@@ -276,7 +276,7 @@ func TestLiveElasticsearchAuthentication(t *testing.T) {
 		}
 		d, err := createOutput(cfg, output.Deps{Logger: slog.New(slog.DiscardHandler)})
 		require.NoError(t, err)
-		require.ErrorContains(t, d.Init(ctx), "index template check: elasticsearch response: HTTP 401 Unauthorized")
+		require.ErrorContains(t, d.Init(ctx), "elasticsearch index template check: HTTP 401 Unauthorized")
 		require.ErrorContains(t, d.(output.BatchSender).SendBatch(ctx, events("denied")), "HTTP 401")
 		status, _ := liveRequest(t, base, http.MethodHead, "/_index_template/fsk-live-denied", "")
 		assert.Equal(t, http.StatusNotFound, status)

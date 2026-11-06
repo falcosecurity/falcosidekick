@@ -67,7 +67,7 @@ type kafkaProducer struct {
 // OutputType describes the Kafka output for the catalog.
 var OutputType = output.Type{
 	New:      createOutput,
-	Name:     "kafka",
+	Name:     name,
 	Category: "queue",
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
@@ -114,6 +114,10 @@ var (
 )
 
 const (
+	name           = "kafka"
+	opAsyncProduce = "async produce"
+	opClient       = "client"
+
 	defaultDeliveryTimeout = 10 * time.Second
 	// minDeliveryTimeout is the lowest record timeout franz-go accepts.
 	minDeliveryTimeout = time.Second
@@ -165,16 +169,16 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("kafka config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if !hasKey(raw, "producer", "delivery_timeout") {
 		cfg.Producer.DeliveryTimeout = defaultDeliveryTimeout
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("kafka: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
-	logger := shared.ResolveLogger(deps.Logger, "kafka")
+	logger := shared.ResolveLogger(deps.Logger, name)
 	opts, err := buildClientOpts(&cfg, logger)
 	if err != nil {
 		return nil, err
@@ -187,12 +191,12 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	}, nil
 }
 
-func (d *driver) Name() string { return "kafka" }
+func (d *driver) Name() string { return name }
 
 func (d *driver) Init(_ context.Context) error {
 	client, err := kgo.NewClient(d.opts...)
 	if err != nil {
-		return fmt.Errorf("kafka client: %w", err)
+		return fmt.Errorf("%s client: %w", name, err)
 	}
 	d.client = client
 	return nil
@@ -200,7 +204,7 @@ func (d *driver) Init(_ context.Context) error {
 
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	if d.client == nil {
-		return fmt.Errorf("kafka: %w", core.ErrNotReady)
+		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
 	record, err := d.buildRecord(evt)
 	if err != nil {
@@ -218,7 +222,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if d.client == nil {
-		return fmt.Errorf("kafka: %w", core.ErrNotReady)
+		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
 	records := make([]*kgo.Record, 0, len(events))
 	for _, event := range events {
@@ -244,16 +248,22 @@ func (d *driver) produced(results kgo.ProduceResults) error {
 	for _, result := range results {
 		d.forgetRecreatedTopic(result.Record, result.Err)
 	}
-	return classifyProduceError(results.FirstErr())
+	if err := results.FirstErr(); err != nil {
+		return newDeliveryError(shared.OpSend, err)
+	}
+	return nil
 }
 
-// classifyProduceError marks broker rejections that kerr declares non-retriable as permanent;
+// newDeliveryError names a protocol failure by its kerr code: franz-go appends broker text that can echo values.
 // UNKNOWN_SERVER_ERROR is declared non-retriable but is a server failure.
-func classifyProduceError(err error) error {
-	if e, ok := errors.AsType[*kerr.Error](err); ok && !e.Retriable && e != kerr.UnknownServerError {
-		return fmt.Errorf("%w: %w", output.ErrPermanent, err)
+func newDeliveryError(operation string, err error) *shared.DeliveryError {
+	if code, ok := errors.AsType[*kerr.Error](err); ok {
+		return &shared.DeliveryError{
+			Cause: err, Output: name, Operation: operation, Code: code.Message,
+			Permanent: !code.Retriable && code != kerr.UnknownServerError,
+		}
 	}
-	return err
+	return shared.NewDeliveryError(name, operation, err)
 }
 
 // forgetRecreatedTopic lets the next attempt reach a deleted and recreated topic:
@@ -266,16 +276,15 @@ func (d *driver) forgetRecreatedTopic(record *kgo.Record, err error) {
 
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil {
-		return fmt.Errorf("kafka: %w", core.ErrNotReady)
+		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
 	err := d.ping(ctx)
 	if err == nil {
 		return nil
 	}
-	if isMisconfiguration(err) {
-		return fmt.Errorf("kafka: %w: %w", output.ErrMisconfigured, err)
-	}
-	return fmt.Errorf("kafka: %w", err)
+	diagnostic := newDeliveryError(shared.OpHealthcheck, err)
+	diagnostic.Misconfigured = isMisconfiguration(err)
+	return diagnostic
 }
 
 // ping returns when ctx ends: franz-go Ping ignores ctx while the connection opens.
@@ -310,10 +319,7 @@ func (d *driver) Close() error {
 	d.client.Close()
 	// Close fails every record still buffered, so each callback runs.
 	d.inflight.Wait()
-	if err != nil {
-		return fmt.Errorf("kafka flush: %w", err)
-	}
-	return nil
+	return shared.WrapDeliveryError(name, shared.OpClose, err)
 }
 
 func hasKey(raw map[string]any, section, key string) bool {
@@ -332,8 +338,9 @@ func (d *driver) asyncCallback(record *kgo.Record, err error) {
 		return
 	}
 	d.forgetRecreatedTopic(record, err)
-	d.logger.Error("async produce failed", "error", err)
+	diagnostic := newDeliveryError(opAsyncProduce, err)
+	d.logger.Error("async produce failed", "error", diagnostic)
 	if handler := d.lateFailure.Load(); handler != nil {
-		(*handler)(fmt.Errorf("kafka async produce: %w", err))
+		(*handler)(diagnostic)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -52,7 +53,7 @@ func buildClientOpts(cfg *config, logger *slog.Logger) ([]kgo.Opt, error) {
 	if cfg.TLSEnabled {
 		tlsCfg, err := shared.BuildTLSConfig(&cfg.TLS)
 		if err != nil {
-			return nil, fmt.Errorf("kafka tls: %w", err)
+			return nil, fmt.Errorf("%s tls: %w", name, err)
 		}
 		opts = append(opts, kgo.DialTLSConfig(tlsCfg))
 	}
@@ -119,8 +120,15 @@ type clientLogger struct {
 
 func (clientLogger) Level() kgo.LogLevel { return kgo.LogLevelWarn }
 
+// Log forwards franz-go messages with error values reduced to their diagnostic: they can carry broker text.
 func (l clientLogger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
-	l.logger.Log(context.Background(), slogLevel(level), msg, keyvals...)
+	safe := slices.Clone(keyvals)
+	for i, value := range safe {
+		if err, ok := value.(error); ok {
+			safe[i] = newDeliveryError(opClient, err)
+		}
+	}
+	l.logger.Log(context.Background(), slogLevel(level), msg, safe...)
 }
 
 func slogLevel(level kgo.LogLevel) slog.Level {

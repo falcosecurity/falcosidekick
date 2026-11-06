@@ -190,17 +190,17 @@ func (c *config) validate() utils.ValidationErrors {
 		errs.Add("", "at least one of traces, logs or metrics is required")
 	}
 	if c.Traces != nil {
-		errs.Merge("traces", c.Traces.validate())
+		errs.Merge(signalTraces, c.Traces.validate())
 		if c.Traces.Duration < 0 {
-			errs.Add("traces.duration", "must be positive")
+			errs.Add(signalTraces+".duration", "must be positive")
 		}
 	}
 	if c.Logs != nil {
-		errs.Merge("logs", c.Logs.validate())
+		errs.Merge(signalLogs, c.Logs.validate())
 	}
 	if c.Metrics != nil {
-		errs.Merge("metrics", c.Metrics.validate())
-		errs.Merge("metrics", c.Metrics.validateAttributes())
+		errs.Merge(signalMetrics, c.Metrics.validate())
+		errs.Merge(signalMetrics, c.Metrics.validateAttributes())
 	}
 	if len(errs) > 0 {
 		return errs
@@ -210,7 +210,7 @@ func (c *config) validate() utils.ValidationErrors {
 
 func schemaFields() []output.SchemaField {
 	var fields []output.SchemaField
-	for _, signal := range []string{"traces", "logs", "metrics"} {
+	for _, signal := range []string{signalTraces, signalLogs, signalMetrics} {
 		fields = append(fields,
 			output.SchemaField{Name: signal + ".endpoint", Type: "string", Label: "Endpoint URL (enables " + signal + ")"},
 			output.SchemaField{Name: signal + ".protocol", Type: "enum", Values: []string{protocolHTTP, protocolGRPC}, Default: protocolHTTP, Label: "Protocol"},
@@ -224,10 +224,10 @@ func schemaFields() []output.SchemaField {
 			}
 		}
 		switch signal {
-		case "traces":
-			fields = append(fields, output.SchemaField{Name: "traces.duration", Type: "string", Default: "0s", Label: "Span Duration"})
-		case "metrics":
-			fields = append(fields, output.SchemaField{Name: "metrics.extra_attributes", Type: "string[]", Label: "Output Fields as Metric Attributes"})
+		case signalTraces:
+			fields = append(fields, output.SchemaField{Name: signal + ".duration", Type: "string", Default: "0s", Label: "Span Duration"})
+		case signalMetrics:
+			fields = append(fields, output.SchemaField{Name: signal + ".extra_attributes", Type: "string[]", Label: "Output Fields as Metric Attributes"})
 		}
 	}
 	return append(fields, shared.RuntimeConfigSchemaFields()...)

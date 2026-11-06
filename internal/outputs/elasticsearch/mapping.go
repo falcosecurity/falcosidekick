@@ -18,7 +18,6 @@ package elasticsearch
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
@@ -28,12 +27,12 @@ import (
 func (d *driver) createIndexTemplate(ctx context.Context) error {
 	templateURL, err := d.cfg.URL(d.cfg.Host, "/_index_template/"+d.cfg.Index, nil)
 	if err != nil {
-		return shared.WrapDeliveryError("elasticsearch", "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, templateURL, http.NoBody)
 	if err != nil {
-		return shared.WrapDeliveryError("elasticsearch", "build request", err)
+		return shared.WrapDeliveryError(name, shared.OpBuildRequest, err)
 	}
 	// Only a confirmed 404 creates the template; a PUT would overwrite an existing one.
 	switch checkErr := d.sender.Do(ctx, req); {
@@ -41,7 +40,7 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 		d.logger.Info("index template already exists", "index", d.cfg.Index)
 		return nil
 	case shared.HTTPStatus(checkErr) != http.StatusNotFound:
-		return fmt.Errorf("elasticsearch index template check: %w", checkErr)
+		return shared.WrapDeliveryError(name, opTemplateCheck, checkErr)
 	}
 
 	pattern := d.cfg.Index + "-*"
@@ -61,7 +60,7 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 	}
 
 	if err := d.sender.SendJSON(ctx, http.MethodPut, templateURL, tmpl); err != nil {
-		return fmt.Errorf("elasticsearch index template create: %w", err)
+		return shared.WrapDeliveryError(name, opTemplateCreate, err)
 	}
 
 	d.logger.Info("index template created", "index", d.cfg.Index)

@@ -83,10 +83,10 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("discord config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("discord: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 	sender, err := shared.NewSender(name, &cfg.HTTPConfig)
 	if err != nil {
@@ -105,7 +105,7 @@ func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	target, err := d.cfg.URL(d.cfg.Host, d.cfg.DeliveryRoute(), url.Values{waitParam: {"true"}})
 	if err != nil {
-		return shared.WrapDeliveryError(name, "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	return d.sender.SendJSON(ctx, http.MethodPost, target, d.buildPayload(evt))
 }
@@ -114,7 +114,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 func (d *driver) HealthCheck(ctx context.Context) error {
 	target, err := d.cfg.DeliveryURL()
 	if err != nil {
-		return shared.WrapDeliveryError(name, "target", err)
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	return d.sender.HealthCheck(ctx, target)
 }

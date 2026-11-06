@@ -187,7 +187,7 @@ func TestSendReportsCommandError(t *testing.T) {
 	d := newDriver(t, map[string]any{"address": fake.addr})
 	err := d.Send(context.Background(), testutil.CreateValidEvent())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "redis: WRONGTYPE")
+	assert.Contains(t, err.Error(), "redis send: WRONGTYPE")
 
 	err = d.SendBatch(context.Background(), []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent()})
 	require.Error(t, err)
@@ -282,6 +282,37 @@ func TestSendErrorPermanence(t *testing.T) {
 	}
 }
 
+// A proxy or server may echo submitted values in its error replies.
+func TestErrorsNeverCopyServerText(t *testing.T) {
+	const echoed = "echoed-by-server"
+	for _, tt := range []struct {
+		command string
+		reply   string
+		want    string
+		probe   bool
+	}{
+		{command: "RPUSH", reply: "-WRONGTYPE value " + echoed + "\r\n", want: "redis send: WRONGTYPE"},
+		{command: "RPUSH", reply: "-" + echoed + " unknown prefix\r\n", want: "redis send: server error"},
+		{command: "PING", reply: "-NOPERM user " + echoed + " has no permissions\r\n", want: "redis healthcheck: NOPERM", probe: true},
+		{command: "PING", reply: "-ERR " + echoed + "\r\n", want: "redis healthcheck: ERR", probe: true},
+	} {
+		t.Run(tt.reply, func(t *testing.T) {
+			fake := startFakeRedis(t, secret)
+			fake.reply(tt.command, tt.reply)
+			d := newDriver(t, map[string]any{"address": fake.addr, "password": secret})
+			var err error
+			if tt.probe {
+				err = d.HealthCheck(context.Background())
+			} else {
+				err = d.Send(context.Background(), testutil.CreateValidEvent())
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.want)
+			assert.NotContains(t, fmt.Sprintf("%v %+v %q", err, err, err), echoed)
+		})
+	}
+}
+
 func TestHealthCheckUnreachableIsTransient(t *testing.T) {
 	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -329,5 +360,5 @@ func TestCloseAfterInit(t *testing.T) {
 	require.NoError(t, drv.Close())
 	err = drv.Send(context.Background(), testutil.CreateValidEvent())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("%s: ", name))
+	assert.Contains(t, err.Error(), name+" send: ")
 }

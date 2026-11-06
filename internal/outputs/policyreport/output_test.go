@@ -230,7 +230,7 @@ func TestSafeErrorPermanence(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.permanent, output.IsPermanent(safeError("update", tt.err)))
+			assert.Equal(t, tt.permanent, output.IsPermanent(newDeliveryError(opWriteReport, tt.err)))
 		})
 	}
 }

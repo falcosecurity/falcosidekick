@@ -22,12 +22,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"syscall"
 	"testing"
 
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/aws/smithy-go"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -88,7 +88,7 @@ func TestWrapErrorClassification(t *testing.T) {
 		denied       bool // transient for WrapProbeError
 	}{
 		{name: "invalid client token", err: sdkError(403, "InvalidClientTokenId", "The security token included in the request is invalid."), misconfigure: true,
-			want: "test op: InvalidClientTokenId (HTTP 403): The security token included in the request is invalid."},
+			want: "test op: HTTP 403 Forbidden: InvalidClientTokenId"},
 		{name: "signature mismatch", err: sdkError(403, "SignatureDoesNotMatch", "signature"), misconfigure: true},
 		{name: "access denied", err: sdkError(403, "AccessDenied", "Access Denied"), misconfigure: true, denied: true},
 		{name: "access denied exception", err: sdkError(400, "AccessDeniedException", "denied"), misconfigure: true, denied: true},
@@ -97,7 +97,7 @@ func TestWrapErrorClassification(t *testing.T) {
 		{name: "sns authorization", err: sdkError(403, "AuthorizationError", "x"), misconfigure: true, denied: true},
 		{name: "no such bucket", err: sdkError(404, "NoSuchBucket", "The specified bucket does not exist"), misconfigure: true},
 		{name: "head bucket not found", err: sdkError(404, "NotFound", "Not Found"), misconfigure: true},
-		{name: "head bucket forbidden", err: sdkError(403, "Forbidden", "Forbidden"), misconfigure: true, denied: true, want: "test op: Forbidden (HTTP 403)"},
+		{name: "head bucket forbidden", err: sdkError(403, "Forbidden", "Forbidden"), misconfigure: true, denied: true, want: "test op: HTTP 403 Forbidden"},
 		{name: "head bucket wrong region", err: sdkError(301, "MovedPermanently", "Moved Permanently"), misconfigure: true},
 		{name: "queue missing", err: sdkError(400, "AWS.SimpleQueueService.NonExistentQueue", "x"), misconfigure: true},
 		{name: "queue missing json", err: sdkError(400, "QueueDoesNotExist", "x"), misconfigure: true},
@@ -106,8 +106,8 @@ func TestWrapErrorClassification(t *testing.T) {
 		{name: "throttled", err: sdkError(400, "Throttling", "Rate exceeded")},
 		{name: "slow down", err: sdkError(503, "SlowDown", "Please reduce your request rate.")},
 		{name: "internal error", err: sdkError(500, "InternalError", "x")},
-		{name: "code equal to message", err: sdkError(500, "InternalError", "InternalError"), want: "test op: InternalError (HTTP 500)"},
-		{name: "api error without status", err: sdkError(0, "InvalidParameter", "bad"), want: "test op: InvalidParameter: bad"},
+		{name: "unclassified generic code", err: sdkError(500, "InternalError", "InternalError"), want: "test op: HTTP 500 Internal Server Error"},
+		{name: "classified code without status", err: sdkError(0, "Throttling", "bad"), want: "test op: Throttling"},
 		{name: "connection refused", err: fmt.Errorf("send: %w", syscall.ECONNREFUSED), want: "test op: connection refused"},
 		{name: "deadline", err: fmt.Errorf("canceled: %w", context.DeadlineExceeded), want: "test op: timeout (deadline exceeded)"},
 		{name: "credentials", err: errors.New("get identity: failed to refresh cached credentials"), want: "test credentials: request failed"},
@@ -120,14 +120,13 @@ func TestWrapErrorClassification(t *testing.T) {
 			require.Error(t, err)
 			assert.Equal(t, tt.misconfigure, errors.Is(err, output.ErrMisconfigured), err.Error())
 			if tt.want != "" {
-				assert.Equal(t, tt.want, strings.TrimPrefix(err.Error(), output.ErrMisconfigured.Error()+": "))
+				assert.Equal(t, tt.want, err.Error())
 			}
 			assert.ErrorIs(t, err, tt.err, "the cause stays reachable")
 
 			probe := c.WrapProbeError("test", "op", tt.err)
 			assert.Equal(t, tt.misconfigure && !tt.denied, errors.Is(probe, output.ErrMisconfigured), probe.Error())
-			assert.Equal(t, strings.TrimPrefix(err.Error(), output.ErrMisconfigured.Error()+": "),
-				strings.TrimPrefix(probe.Error(), output.ErrMisconfigured.Error()+": "))
+			assert.Equal(t, err.Error(), probe.Error(), "the probe classifies differently, it reports the same")
 		})
 	}
 }
@@ -136,19 +135,36 @@ func TestWrapErrorNil(t *testing.T) {
 	assert.NoError(t, (&Config{}).WrapError("test", "op", nil))
 }
 
-func TestWrapErrorRedactsCredentials(t *testing.T) {
-	c := &Config{AccessKeyID: "AKIAEXAMPLEID", SecretAccessKey: "secret-key-value", SessionToken: "session-token-value"}
-	err := c.WrapError("test", "op", sdkError(403, "InvalidAccessKeyId",
-		"key AKIAEXAMPLEID secret secret-key-value token session-token-value"))
-	require.Error(t, err)
-	for _, secret := range []string{"AKIAEXAMPLEID", "secret-key-value", "session-token-value"} {
-		assert.NotContains(t, err.Error(), secret)
-		assert.NotContains(t, fmt.Sprintf("%v %+v %s", err, err, err), secret)
+// Credentials from the default chain are unknown to the driver, so no server text may pass.
+func TestWrapErrorNeverCopiesServerText(t *testing.T) {
+	const echoed = "AKIAECHOEDBYSERVER01"
+	message := echoed
+	overridden := echoed
+	typed := &sqstypes.InvalidMessageContents{Message: &message}
+	for name, err := range map[string]error{
+		"message":            sdkError(403, "InvalidAccessKeyId", "key "+echoed+" is invalid"),
+		"unrecognized code":  sdkError(400, echoed, "x"),
+		"typed sdk error":    &smithy.OperationError{Err: typed},
+		"query code header":  &smithy.OperationError{Err: &sqstypes.InvalidMessageContents{ErrorCodeOverride: &overridden}},
+		"generic with fault": &smithy.OperationError{Err: &smithy.GenericAPIError{Code: echoed, Message: echoed, Fault: smithy.FaultClient}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			wrapped := (&Config{}).WrapError("test", "op", err)
+			assert.NotContains(t, fmt.Sprintf("%v %+v %s %q", wrapped, wrapped, wrapped, wrapped), echoed)
+		})
 	}
-	assert.Contains(t, err.Error(), "[redacted]")
+	assert.Equal(t, "test op: HTTP 400 Bad Request", (&Config{}).WrapError("test", "op", sdkError(400, echoed, "x")).Error())
+	assert.Equal(t, "test op: InvalidMessageContents", (&Config{}).WrapError("test", "op", &smithy.OperationError{Err: typed}).Error())
 }
 
-func TestWrapErrorTruncatesMessage(t *testing.T) {
-	err := (&Config{}).WrapError("test", "op", sdkError(400, "Throttling", strings.Repeat("x", 1000)))
-	assert.Less(t, len(err.Error()), 400)
+func TestEntryCode(t *testing.T) {
+	for code, want := range map[string]string{
+		"InvalidMessageContents": "InvalidMessageContents",
+		"KmsThrottled":           "KmsThrottled",
+		"ThrottlingException":    "ThrottlingException",
+		"AKIAECHOEDBYSERVER01":   "unrecognized error code",
+		"":                       "unrecognized error code",
+	} {
+		assert.Equal(t, want, EntryCode(sqs.TypeRegistry, code), code)
+	}
 }

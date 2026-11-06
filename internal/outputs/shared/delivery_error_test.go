@@ -89,7 +89,7 @@ func TestDeliveryErrorClassification(t *testing.T) {
 }
 
 func TestDeliveryErrorPermanence(t *testing.T) {
-	status := func(code int) error { return &DeliveryError{name: "webhook", operation: "response", status: code} }
+	status := func(code int) error { return &DeliveryError{Output: "webhook", Operation: OpResponse, Status: code} }
 	tests := []struct {
 		err       error
 		name      string
@@ -112,7 +112,9 @@ func TestDeliveryErrorPermanence(t *testing.T) {
 		{WrapDeliveryError("webhook", "send", syscall.ECONNREFUSED), "connection refused", false},
 		{WrapDeliveryError("webhook", "send", context.DeadlineExceeded), "timeout", false},
 		{WrapDeliveryError("webhook", "send", context.Canceled), "canceled", false},
-		{NewProtocolError("slack", "invalid_token"), "provider code", false},
+		{&DeliveryError{Output: "slack", Operation: OpResponse, Code: "rollup_error"}, "transient provider code", false},
+		{&DeliveryError{Output: "slack", Operation: OpResponse, Code: "invalid_token", Permanent: true}, "permanent provider code", true},
+		{&DeliveryError{Output: "kafka", Operation: OpHealthcheck, Code: "SASL_AUTHENTICATION_FAILED", Misconfigured: true}, "misconfigured", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -122,8 +124,33 @@ func TestDeliveryErrorPermanence(t *testing.T) {
 	}
 }
 
+func TestDeliveryErrorText(t *testing.T) {
+	tests := []struct {
+		err  *DeliveryError
+		want string
+	}{
+		{&DeliveryError{Output: "redis", Operation: OpSend, Code: "WRONGTYPE"}, "redis send: WRONGTYPE"},
+		{&DeliveryError{Output: "webhook", Operation: OpResponse, Status: 400}, "webhook response: HTTP 400 Bad Request"},
+		{&DeliveryError{Output: "slack", Operation: OpResponse, Status: 403, Code: "invalid_token"}, "slack response: HTTP 403 Forbidden: invalid_token"},
+		{&DeliveryError{Output: "webhook", Operation: OpResponse, Status: 599}, "webhook response: HTTP 599"},
+		{&DeliveryError{Output: "webhook", Operation: OpSend}, "webhook send: failed"},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, tt.err.Error())
+		assertSafeDeliveryFormatting(t, tt.err)
+	}
+}
+
+func TestDeliveryErrorMisconfigured(t *testing.T) {
+	plain := &DeliveryError{Output: "kafka", Operation: OpHealthcheck, Code: "timeout"}
+	marked := &DeliveryError{Output: "kafka", Operation: OpHealthcheck, Code: "SASL_AUTHENTICATION_FAILED", Misconfigured: true}
+	assert.NotErrorIs(t, plain, output.ErrMisconfigured)
+	assert.ErrorIs(t, marked, output.ErrMisconfigured)
+	assert.ErrorIs(t, fmt.Errorf("build: %w", marked), output.ErrMisconfigured)
+}
+
 func TestDeliveryErrorPreservesSafeDiagnosticNotUnsafeWrapper(t *testing.T) {
-	safe := NewProtocolError("slack", "invalid_token")
+	safe := &DeliveryError{Output: "slack", Operation: OpResponse, Code: "invalid_token"}
 	cause := fmt.Errorf("private-token: %w", safe)
 	err := WrapDeliveryError("slack", "response", cause)
 	assert.Equal(t, "slack response: invalid_token", err.Error())
@@ -360,11 +387,10 @@ type diagnosticPayload struct{}
 func (diagnosticPayload) MarshalJSON() ([]byte, error) { return nil, errors.New("private-token") }
 
 func TestHTTPStatus(t *testing.T) {
-	response := &DeliveryError{name: "x", operation: "response", status: http.StatusConflict}
+	response := &DeliveryError{Output: "x", Operation: OpResponse, Status: http.StatusConflict}
 	assert.Equal(t, http.StatusConflict, HTTPStatus(response))
 	assert.Equal(t, http.StatusConflict, HTTPStatus(fmt.Errorf("wrapped: %w", response)))
 	assert.Equal(t, http.StatusConflict, HTTPStatus(WrapDeliveryError("y", "send", response)))
-	assert.Equal(t, http.StatusConflict, response.StatusCode())
 	assert.Zero(t, HTTPStatus(WrapDeliveryError("x", "send", io.EOF)))
 	assert.Zero(t, HTTPStatus(io.EOF))
 	assert.Zero(t, HTTPStatus(nil))

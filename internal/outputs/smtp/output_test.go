@@ -38,6 +38,7 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
@@ -454,9 +455,9 @@ func TestServerCapabilities(t *testing.T) {
 	}
 
 	t.Run("credentials without tls to a remote host", func(t *testing.T) {
-		err := classify(stageError(context.Background(), "connect", fmt.Errorf("SMTP AUTH failed: %w", gosmtp.ErrUnencrypted)))
+		err := markMisconfigured(newDeliveryError(context.Background(), shared.OpConnect, fmt.Errorf("SMTP AUTH failed: %w", gosmtp.ErrUnencrypted)))
 		require.ErrorIs(t, err, output.ErrMisconfigured)
-		assert.Equal(t, "destination rejects the configuration: smtp connect: authentication requires TLS", err.Error())
+		assert.Equal(t, "smtp connect: authentication requires TLS", err.Error())
 	})
 	t.Run("recipient rejected", func(t *testing.T) {
 		srv := newFakeServer(t, func(s *fakeServer) { s.rcptReply = "550 5.1.1 no such user secops@example.com" })

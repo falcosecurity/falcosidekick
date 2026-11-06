@@ -40,6 +40,8 @@ import (
 
 const (
 	name             = "awss3"
+	opPutObject      = "PutObject"
+	opHeadBucket     = "HeadBucket"
 	defaultPrefix    = "falco"
 	defaultCannedACL = string(s3types.ObjectCannedACLBucketOwnerFullControl)
 
@@ -166,7 +168,7 @@ func (d *driver) put(ctx context.Context, key string, body []byte, contentType s
 		// Object Lock buckets reject PutObject requests carrying no integrity value.
 		ChecksumAlgorithm: s3types.ChecksumAlgorithmCrc32,
 	})
-	return d.cfg.WrapError(name, "PutObject", err)
+	return d.cfg.WrapError(name, opPutObject, err)
 }
 
 // objectKey includes the event UUID so a retried delivery overwrites the same object.
@@ -186,7 +188,7 @@ func (d *driver) objectKey(evt *event.Event, ext string) string {
 // HealthCheck sends HeadBucket, which needs s3:ListBucket on the bucket.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	_, err := d.client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: sdkaws.String(d.cfg.Bucket)})
-	return d.cfg.WrapProbeError(name, "HeadBucket", err)
+	return d.cfg.WrapProbeError(name, opHeadBucket, err)
 }
 
 func (d *driver) Close() error { return nil }

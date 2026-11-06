@@ -62,7 +62,7 @@
 #   # Each entry accepts only values/secrets/files string lists (or null to clear).
 #   # Duplicate case aliases of those properties are rejected.
 #   # Framing, connection, proxy and compression headers are transport-owned.
-#   # Custom secret headers follow redirects, including redirects to other origins.
+#   # Redirects are followed only within the same origin; others are refused.
 #   tls:
 #     insecure_skip_verify: false
 #     ca_file: ""

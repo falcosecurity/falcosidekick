@@ -56,11 +56,11 @@ func (d *driver) buildBulkBody(events []*event.Event) ([]byte, error) {
 	for _, evt := range events {
 		action, err := bulkAction(index, evt.UUID)
 		if err != nil {
-			return nil, shared.WrapDeliveryError("elasticsearch", shared.OpMarshal, err)
+			return nil, shared.WrapDeliveryError(name, shared.OpMarshal, err)
 		}
 		data, err := d.marshalEvent(evt)
 		if err != nil {
-			return nil, shared.WrapDeliveryError("elasticsearch", shared.OpMarshal, err)
+			return nil, shared.WrapDeliveryError(name, shared.OpMarshal, err)
 		}
 		body = append(body, action...)
 		body = append(body, '\n')
@@ -83,14 +83,14 @@ func bulkAction(index, id string) ([]byte, error) {
 func (d *driver) parseBulkResponse(body []byte, expectedItems int) error {
 	var resp bulkResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return shared.WrapDeliveryError("elasticsearch", "response", err)
+		return shared.WrapDeliveryError(name, shared.OpResponse, err)
 	}
 	if resp.Errors == nil || len(resp.Items) != expectedItems {
 		d.logger.Error("bulk response incomplete", "expected", expectedItems, "items", len(resp.Items))
-		return shared.NewProtocolError("elasticsearch", "incomplete bulk response")
+		return &shared.DeliveryError{Output: name, Operation: shared.OpResponse, Code: "incomplete bulk response"}
 	}
 
-	var failed, existing int
+	var failed, rejected, existing int
 	for _, item := range resp.Items {
 		r := item.Create
 		switch {
@@ -102,6 +102,9 @@ func (d *driver) parseBulkResponse(body []byte, expectedItems int) error {
 		case r.Status >= 200 && r.Status < 300 && r.Error.Type == "":
 		default:
 			failed++
+			if shared.IsPermanentHTTPStatus(r.Status) {
+				rejected++
+			}
 			d.logger.Warn("bulk item failed",
 				"status", r.Status,
 				"error_type", classifyBulkError(r.Error.Type),
@@ -123,7 +126,12 @@ func (d *driver) parseBulkResponse(body []byte, expectedItems int) error {
 		"succeeded", succeeded,
 	)
 
-	return fmt.Errorf("elasticsearch: bulk indexed %d/%d, %d failed", succeeded, expectedItems, failed)
+	// A retry rewrites only the failed items: the others answer 409 and count as delivered.
+	return &shared.DeliveryError{
+		Output: name, Operation: shared.OpResponse,
+		Code:      fmt.Sprintf("bulk indexed %d/%d, %d failed", succeeded, expectedItems, failed),
+		Permanent: rejected == failed,
+	}
 }
 
 func classifyBulkError(code string) string {

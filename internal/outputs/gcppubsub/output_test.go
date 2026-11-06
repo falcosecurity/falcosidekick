@@ -23,10 +23,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
-	"time"
 
-	"cloud.google.com/go/pubsub/v2"
 	"cloud.google.com/go/pubsub/v2/apiv1/pubsubpb"
 	"cloud.google.com/go/pubsub/v2/pstest"
 	"github.com/stretchr/testify/assert"
@@ -64,7 +63,7 @@ func fakeServer(t *testing.T, opts ...pstest.ServerReactorOption) *pstest.Server
 	srv := pstest.NewServer(opts...)
 	t.Cleanup(func() { _ = srv.Close() })
 	d := initDriver(t, map[string]any{"project_id": testProject, "topic": testTopic, "emulator_host": srv.Addr})
-	_, err := d.client.TopicAdminClient.CreateTopic(context.Background(), &pubsubpb.Topic{Name: d.publisher.String()})
+	_, err := d.client.CreateTopic(context.Background(), &pubsubpb.Topic{Name: d.topic})
 	require.NoError(t, err)
 	return srv
 }
@@ -274,10 +273,10 @@ func TestSendFailures(t *testing.T) {
 		d := initDriver(t, emulatorConfig(srv))
 		err := d.Send(context.Background(), testutil.CreateValidEvent())
 		require.Error(t, err)
-		assert.Equal(t, "destination rejects the delivery: gcppubsub publish: NotFound", err.Error())
+		assert.Equal(t, "gcppubsub publish: NotFound", err.Error())
 		assert.True(t, output.IsPermanent(err))
 	})
-	t.Run("batch reports every failure", func(t *testing.T) {
+	t.Run("batch rejected in one request", func(t *testing.T) {
 		srv := fakeServer(t, pstest.ServerReactorOption{
 			FuncName: "Publish",
 			Reactor:  errorReactor{err: status.Error(codes.PermissionDenied, "denied "+sentinel)},
@@ -285,10 +284,49 @@ func TestSendFailures(t *testing.T) {
 		d := initDriver(t, emulatorConfig(srv))
 		err := d.SendBatch(context.Background(), []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent()})
 		require.Error(t, err)
-		assert.Equal(t, "destination rejects the delivery: 2 of 2 messages failed: gcppubsub publish: PermissionDenied", err.Error())
-		assert.True(t, output.IsPermanent(err), "every message was rejected for good")
+		assert.Equal(t, "gcppubsub publish: PermissionDenied", err.Error())
+		assert.True(t, output.IsPermanent(err))
 		assert.NotContains(t, err.Error(), sentinel)
 	})
+	t.Run("transient failure is not retried by the client", func(t *testing.T) {
+		calls := &countingReactor{err: status.Error(codes.Unavailable, sentinel)}
+		srv := fakeServer(t, pstest.ServerReactorOption{FuncName: "Publish", Reactor: calls})
+		d := initDriver(t, emulatorConfig(srv))
+		err := d.Send(context.Background(), testutil.CreateValidEvent())
+		require.Error(t, err)
+		assert.Equal(t, "gcppubsub publish: Unavailable", err.Error())
+		assert.False(t, output.IsPermanent(err))
+		assert.Equal(t, int64(1), calls.count.Load(), "the pipeline owns retries")
+	})
+}
+
+type countingReactor struct {
+	err   error
+	count atomic.Int64
+}
+
+func (r *countingReactor) React(any) (handled bool, ret any, err error) {
+	r.count.Add(1)
+	return true, nil, r.err
+}
+
+func TestSplitRequests(t *testing.T) {
+	sizes := func(chunks [][]*pubsubpb.PubsubMessage) []int {
+		n := make([]int, 0, len(chunks))
+		for _, c := range chunks {
+			n = append(n, len(c))
+		}
+		return n
+	}
+	small := make([]*pubsubpb.PubsubMessage, 2500)
+	for i := range small {
+		small[i] = &pubsubpb.PubsubMessage{Data: []byte("{}")}
+	}
+	assert.Equal(t, []int{1000, 1000, 500}, sizes(splitRequests(small)), "at most 1000 messages per request")
+
+	big := &pubsubpb.PubsubMessage{Data: make([]byte, 4_000_000)}
+	assert.Equal(t, []int{2, 1}, sizes(splitRequests([]*pubsubpb.PubsubMessage{big, big, big})), "at most 10 MB per request")
+	assert.Empty(t, splitRequests(nil))
 }
 
 func TestHealthCheck(t *testing.T) {
@@ -304,7 +342,7 @@ func TestHealthCheck(t *testing.T) {
 		{name: "rejected credentials", err: status.Error(codes.Unauthenticated, sentinel), want: "topic check: Unauthenticated", misconfigure: true},
 		{name: "invalid name", err: status.Error(codes.InvalidArgument, sentinel), want: "topic check: InvalidArgument", misconfigure: true},
 		{name: "no topics.get permission", err: status.Error(codes.PermissionDenied, sentinel), want: "topic check: PermissionDenied"},
-		{name: "unavailable is retried until the deadline", err: status.Error(codes.Unavailable, sentinel), want: "topic check: timeout (deadline exceeded)"},
+		{name: "unavailable", err: status.Error(codes.Unavailable, sentinel), want: "topic check: Unavailable"},
 		{name: "internal", err: status.Error(codes.Internal, sentinel), want: "topic check: Internal"},
 	}
 	for _, tt := range tests {
@@ -353,31 +391,19 @@ func TestReturnsWhenContextEnds(t *testing.T) {
 		})
 	}
 
-	start := time.Now()
-	err := d.Close()
-	assert.Less(t, time.Since(start), closeTimeout+testutil.ReturnWithin)
-	require.Error(t, err)
-	assert.Equal(t, "gcppubsub: flush did not complete within 10s", err.Error())
+	require.NoError(t, d.Close())
 	assert.NoError(t, d.Close(), "Close is idempotent")
 }
 
-func TestCloseFlushesAndStopsPublishing(t *testing.T) {
+func TestSendAfterCloseIsNotReady(t *testing.T) {
 	srv := fakeServer(t)
-	d := newDriver(t, emulatorConfig(srv))
-	require.NoError(t, d.Init(context.Background()))
-	res := d.publisher.Publish(context.Background(), &pubsub.Message{Data: []byte("{}")})
+	d := initDriver(t, emulatorConfig(srv))
 	require.NoError(t, d.Close())
-	_, err := res.Get(context.Background())
-	require.NoError(t, err, "Close delivers buffered messages")
-	assert.Len(t, srv.Messages(), 1)
-
-	err = d.Send(context.Background(), testutil.CreateValidEvent())
-	require.Error(t, err)
-	assert.Equal(t, "gcppubsub publish: request failed", err.Error())
+	assert.ErrorIs(t, d.Send(context.Background(), testutil.CreateValidEvent()), core.ErrNotReady)
 }
 
-func TestSafeError(t *testing.T) {
-	const rejected = "destination rejects the delivery: "
+func TestNewDeliveryError(t *testing.T) {
+	handshake := status.Error(codes.Unavailable, "connection error: desc = \"transport: authentication handshake failed: tls: "+sentinel+"\"")
 	tests := []struct {
 		err       error
 		name      string
@@ -390,15 +416,15 @@ func TestSafeError(t *testing.T) {
 		{name: "status deadline", err: status.Error(codes.DeadlineExceeded, sentinel), want: "gcppubsub publish: timeout (deadline exceeded)"},
 		{name: "resource exhausted", err: status.Error(codes.ResourceExhausted, sentinel), want: "gcppubsub publish: ResourceExhausted"},
 		{name: "unavailable", err: status.Error(codes.Unavailable, sentinel), want: "gcppubsub publish: Unavailable"},
-		{name: "not found", err: status.Error(codes.NotFound, sentinel), want: rejected + "gcppubsub publish: NotFound", permanent: true},
-		{name: "permission denied", err: status.Error(codes.PermissionDenied, sentinel), want: rejected + "gcppubsub publish: PermissionDenied", permanent: true},
-		{name: "invalid argument", err: status.Error(codes.InvalidArgument, sentinel), want: rejected + "gcppubsub publish: InvalidArgument", permanent: true},
-		{name: "oversized", err: pubsub.ErrOversizedMessage, want: rejected + "gcppubsub publish: message too large", permanent: true},
+		{name: "tls handshake", err: handshake, want: "gcppubsub publish: Unavailable", permanent: true},
+		{name: "not found", err: status.Error(codes.NotFound, sentinel), want: "gcppubsub publish: NotFound", permanent: true},
+		{name: "permission denied", err: status.Error(codes.PermissionDenied, sentinel), want: "gcppubsub publish: PermissionDenied", permanent: true},
+		{name: "invalid argument", err: status.Error(codes.InvalidArgument, sentinel), want: "gcppubsub publish: InvalidArgument", permanent: true},
 		{name: "other", err: errors.New(sentinel), want: "gcppubsub publish: request failed"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := safeError("publish", tt.err)
+			err := newDeliveryError(opPublish, tt.err)
 			assert.Equal(t, tt.want, err.Error())
 			assert.Equal(t, tt.permanent, output.IsPermanent(err))
 			assert.NotContains(t, fmt.Sprintf("%v %+v %s", err, err, err), sentinel)

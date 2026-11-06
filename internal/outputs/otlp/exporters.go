@@ -19,6 +19,7 @@ package otlp
 import (
 	"context"
 	"crypto/tls"
+	"net/http"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
@@ -36,10 +37,11 @@ import (
 
 // exporterSettings sets every option so OTEL_* variables cannot change it; the pipeline owns retries.
 type exporterSettings struct {
-	tls     *tls.Config
-	headers map[string]string
-	cfg     *signalConfig
-	target  target
+	tls        *tls.Config
+	httpClient *http.Client
+	headers    map[string]string
+	cfg        *signalConfig
+	target     target
 }
 
 func newExporterSettings(cfg *signalConfig, defaultPath string) (*exporterSettings, error) {
@@ -48,12 +50,42 @@ func newExporterSettings(cfg *signalConfig, defaultPath string) (*exporterSettin
 		return nil, err
 	}
 	s := &exporterSettings{cfg: cfg, headers: headers, target: cfg.target(defaultPath)}
-	if s.target.secure {
-		if s.tls, err = shared.BuildTLSConfig(&cfg.TLS); err != nil {
-			return nil, err
+	if s.grpc() {
+		if s.target.secure {
+			s.tls, err = shared.BuildTLSConfig(&cfg.TLS)
 		}
+		return s, err
 	}
+	// The shared client applies the redirect policy of every HTTP output.
+	var httpCfg shared.HTTPConfig
+	if s.target.secure {
+		httpCfg.TLS = cfg.TLS
+	}
+	if s.httpClient, err = shared.BuildHTTPClient(&httpCfg); err != nil {
+		return nil, err
+	}
+	s.httpClient.Timeout = cfg.Timeout
+	s.httpClient.Transport = statusRecorder{base: s.httpClient.Transport}
 	return s, nil
+}
+
+type statusKey struct{}
+
+// statusRecorder stores the response status in the export's context,
+// because the HTTP exporters return it only inside text that holds the response body.
+type statusRecorder struct{ base http.RoundTripper }
+
+func (r statusRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := r.base.RoundTrip(req)
+	if status, ok := req.Context().Value(statusKey{}).(*int); ok && resp != nil {
+		*status = resp.StatusCode
+	}
+	return resp, err
+}
+
+// withStatus returns a context whose HTTP export records the last response status in status.
+func withStatus(ctx context.Context, status *int) context.Context {
+	return context.WithValue(ctx, statusKey{}, status)
 }
 
 func (s *exporterSettings) grpc() bool { return s.cfg.Protocol == protocolGRPC }
@@ -84,13 +116,11 @@ func newSpanExporter(ctx context.Context, s *exporterSettings) (sdktrace.SpanExp
 		otlptracehttp.WithEndpoint(s.target.host),
 		otlptracehttp.WithURLPath(s.target.path),
 		otlptracehttp.WithHeaders(s.headers),
-		otlptracehttp.WithTimeout(s.cfg.Timeout),
+		otlptracehttp.WithHTTPClient(s.httpClient),
 		otlptracehttp.WithCompression(compression),
 		otlptracehttp.WithRetry(otlptracehttp.RetryConfig{Enabled: false}),
 	}
-	if s.target.secure {
-		opts = append(opts, otlptracehttp.WithTLSClientConfig(s.tls))
-	} else {
+	if !s.target.secure {
 		opts = append(opts, otlptracehttp.WithInsecure())
 	}
 	return otlptracehttp.New(ctx, opts...)
@@ -120,13 +150,11 @@ func newLogExporter(ctx context.Context, s *exporterSettings) (sdklog.Exporter, 
 		otlploghttp.WithEndpoint(s.target.host),
 		otlploghttp.WithURLPath(s.target.path),
 		otlploghttp.WithHeaders(s.headers),
-		otlploghttp.WithTimeout(s.cfg.Timeout),
+		otlploghttp.WithHTTPClient(s.httpClient),
 		otlploghttp.WithCompression(compression),
 		otlploghttp.WithRetry(otlploghttp.RetryConfig{Enabled: false}),
 	}
-	if s.target.secure {
-		opts = append(opts, otlploghttp.WithTLSClientConfig(s.tls))
-	} else {
+	if !s.target.secure {
 		opts = append(opts, otlploghttp.WithInsecure())
 	}
 	return otlploghttp.New(ctx, opts...)
@@ -158,14 +186,12 @@ func newMetricExporter(ctx context.Context, s *exporterSettings) (sdkmetric.Expo
 		otlpmetrichttp.WithEndpoint(s.target.host),
 		otlpmetrichttp.WithURLPath(s.target.path),
 		otlpmetrichttp.WithHeaders(s.headers),
-		otlpmetrichttp.WithTimeout(s.cfg.Timeout),
+		otlpmetrichttp.WithHTTPClient(s.httpClient),
 		otlpmetrichttp.WithCompression(compression),
 		otlpmetrichttp.WithRetry(otlpmetrichttp.RetryConfig{Enabled: false}),
 		otlpmetrichttp.WithTemporalitySelector(sdkmetric.DefaultTemporalitySelector),
 	}
-	if s.target.secure {
-		opts = append(opts, otlpmetrichttp.WithTLSClientConfig(s.tls))
-	} else {
+	if !s.target.secure {
 		opts = append(opts, otlpmetrichttp.WithInsecure())
 	}
 	return otlpmetrichttp.New(ctx, opts...)

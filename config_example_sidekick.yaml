@@ -103,7 +103,7 @@ database:
 runtime_defaults:
   queue_size: 1000            # per-output event queue capacity
   workers: 2                  # worker goroutines per output
-  # A rejection that no retry can fix (HTTP 4xx except 408, 425 and 429,
+  # A rejection that no retry can fix (HTTP 4xx except 408, 409, 425 and 429,
   # an untrusted certificate, an invalid payload, the destination's own
   # permanent codes) fails the event at once and does not count toward
   # opening the circuit.

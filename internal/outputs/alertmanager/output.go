@@ -33,6 +33,7 @@ import (
 )
 
 const (
+	name            = "alertmanager"
 	defaultEndpoint = "/api/v2/alerts"
 	healthRoute     = "/-/healthy"
 )
@@ -54,7 +55,7 @@ type config struct {
 // OutputType describes the Alertmanager output for the catalog.
 var OutputType = output.Type{
 	New:      createOutput,
-	Name:     "alertmanager",
+	Name:     name,
 	Category: "alerting",
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
@@ -94,13 +95,13 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("alertmanager config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("alertmanager: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
-	sender, err := shared.NewSender("alertmanager", &cfg.HTTPConfig)
+	sender, err := shared.NewSender(name, &cfg.HTTPConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -108,11 +109,11 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	return &driver{
 		cfg:    cfg,
 		sender: sender,
-		logger: shared.ResolveLogger(deps.Logger, "alertmanager"),
+		logger: shared.ResolveLogger(deps.Logger, name),
 	}, nil
 }
 
-func (d *driver) Name() string { return "alertmanager" }
+func (d *driver) Name() string { return name }
 
 func (d *driver) Init(_ context.Context) error { return nil }
 
@@ -121,14 +122,14 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 
 	body, err := json.Marshal(alerts)
 	if err != nil {
-		return shared.WrapDeliveryError("alertmanager", shared.OpMarshal, err)
+		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 
 	targets := make([]string, 0, len(d.cfg.Hosts))
 	for _, host := range d.cfg.Hosts {
 		target, err := d.cfg.URL(host, d.cfg.DeliveryRoute(), nil)
 		if err != nil {
-			return shared.WrapDeliveryError("alertmanager", "target", err)
+			return shared.WrapDeliveryError(name, shared.OpTarget, err)
 		}
 		targets = append(targets, target)
 	}
@@ -140,46 +141,43 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.fanOut(ctx, targets, body)
 }
 
-// fanOut succeeds if at least one host accepts the alert.
+// fanOut succeeds if at least one host accepts the alert; it fails for good only when every host rejects it.
 func (d *driver) fanOut(ctx context.Context, targets []string, body []byte) error {
-	var (
-		wg      sync.WaitGroup
-		mu      sync.Mutex
-		lastErr error
-		success int
-	)
-
+	errs := make([]error, len(targets))
+	var wg sync.WaitGroup
 	for hostIndex, url := range targets {
-		wg.Add(1)
-		go func(hostIndex int, url string) {
-			defer wg.Done()
-			if err := d.sender.SendRaw(ctx, http.MethodPost, url, body, "application/json"); err != nil {
-				d.logger.Warn("host failed", "host_index", hostIndex, "error", err)
-				mu.Lock()
-				lastErr = err
-				mu.Unlock()
-				return
+		wg.Go(func() {
+			errs[hostIndex] = d.sender.SendRaw(ctx, http.MethodPost, url, body, "application/json")
+			if errs[hostIndex] != nil {
+				d.logger.Warn("host failed", "host_index", hostIndex, "error", errs[hostIndex])
 			}
-			mu.Lock()
-			success++
-			mu.Unlock()
-		}(hostIndex, url)
+		})
 	}
-
 	wg.Wait()
 
-	if success == 0 {
-		return fmt.Errorf("alertmanager: all %d hosts failed: %w", len(targets), lastErr)
+	failed, permanent := 0, 0
+	var last *shared.DeliveryError
+	for _, err := range errs {
+		if err != nil {
+			failed++
+			last = shared.NewDeliveryError(name, shared.OpSend, err)
+			if output.IsPermanent(err) {
+				permanent++
+			}
+		}
 	}
-
-	failed := len(targets) - success
-	if failed > 0 {
-		d.logger.Warn("partial fan-out", "succeeded", success, "failed", failed, "total", len(targets))
-		d.reportWarning(fmt.Sprintf("%d of %d hosts failed: %v", failed, len(targets), lastErr))
-		return nil
+	switch {
+	case failed == len(targets):
+		return &shared.DeliveryError{
+			Cause: ctx.Err(), Output: name, Operation: shared.OpSend,
+			Code: fmt.Sprintf("all %d hosts failed, last: %s", failed, last.Reason()), Permanent: permanent == failed,
+		}
+	case failed > 0:
+		d.logger.Warn("partial fan-out", "succeeded", len(targets)-failed, "failed", failed, "total", len(targets))
+		d.reportWarning(fmt.Sprintf("%d of %d hosts failed, last: %s", failed, len(targets), last.Reason()))
+	default:
+		d.reportWarning("")
 	}
-
-	d.reportWarning("")
 	return nil
 }
 
@@ -196,13 +194,13 @@ func (d *driver) reportWarning(warning string) {
 // HealthCheck probes hosts concurrently so a slow host does not use up the others' budget.
 func (d *driver) HealthCheck(ctx context.Context) error {
 	if len(d.cfg.Hosts) == 0 {
-		return fmt.Errorf("alertmanager: no hosts configured")
+		return fmt.Errorf("%s: no hosts configured", name)
 	}
 	targets := make([]string, len(d.cfg.Hosts))
 	for i, host := range d.cfg.Hosts {
 		target, err := d.cfg.URL(host, healthRoute, nil)
 		if err != nil {
-			return shared.WrapDeliveryError("alertmanager", "target", err)
+			return shared.WrapDeliveryError(name, shared.OpTarget, err)
 		}
 		targets[i] = target
 	}
@@ -213,7 +211,6 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	}
 	wg.Wait()
 
-	var unreachable error
 	failed := 0
 	for _, err := range errs {
 		if errors.Is(err, output.ErrMisconfigured) {
@@ -221,11 +218,13 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 		}
 		if err != nil {
 			failed++
-			unreachable = err
 		}
 	}
 	if failed > 0 {
-		return fmt.Errorf("alertmanager: %d of %d hosts: %w", failed, len(d.cfg.Hosts), unreachable)
+		return &shared.DeliveryError{
+			Cause: ctx.Err(), Output: name, Operation: shared.OpHealthcheck,
+			Code: fmt.Sprintf("%d of %d hosts unreachable", failed, len(targets)),
+		}
 	}
 	return nil
 }

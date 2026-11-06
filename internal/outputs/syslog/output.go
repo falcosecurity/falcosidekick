@@ -141,10 +141,10 @@ func (c *config) validate() utils.ValidationErrors {
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
-		return nil, fmt.Errorf("syslog config: %w", err)
+		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("syslog: %s", errs.Error())
+		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
 	address := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
@@ -164,7 +164,7 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	case protocolTLS:
 		tlsCfg, err := shared.BuildTLSConfig(&cfg.TLS)
 		if err != nil {
-			return nil, fmt.Errorf("syslog tls: %w", err)
+			return nil, fmt.Errorf("%s tls: %w", name, err)
 		}
 		tlsDialer := &tls.Dialer{NetDialer: netDialer, Config: tlsCfg}
 		d.dial = func(ctx context.Context) (net.Conn, error) { return tlsDialer.DialContext(ctx, "tcp", address) }
@@ -189,7 +189,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 	if err := d.acquire(ctx); err != nil {
-		return shared.WrapDeliveryError(name, "write", err)
+		return shared.WrapDeliveryError(name, shared.OpWrite, err)
 	}
 	defer d.release()
 
@@ -199,7 +199,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 	if err := write(ctx, conn, msg); err != nil {
 		d.drop()
-		return shared.WrapDeliveryError(name, "write", err)
+		return shared.WrapDeliveryError(name, shared.OpWrite, err)
 	}
 	return nil
 }
@@ -210,7 +210,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 		return nil
 	}
 	if err := d.acquire(ctx); err != nil {
-		return shared.WrapDeliveryError(name, "dial", err)
+		return shared.WrapDeliveryError(name, shared.OpDial, err)
 	}
 	defer d.release()
 	if _, err := d.connection(ctx); err != nil {
@@ -246,7 +246,7 @@ func (d *driver) release() { <-d.sem }
 // connection replaces a connection the receiver closed; the caller holds sem.
 func (d *driver) connection(ctx context.Context) (net.Conn, error) {
 	if d.closed {
-		return nil, shared.WrapDeliveryError(name, "dial", errClosed)
+		return nil, shared.WrapDeliveryError(name, shared.OpDial, errClosed)
 	}
 	if d.conn != nil && d.cfg.Protocol != protocolUDP && peerClosed(d.conn) {
 		d.logger.Debug("receiver closed the connection, reconnecting")
@@ -259,7 +259,7 @@ func (d *driver) connection(ctx context.Context) (net.Conn, error) {
 	defer cancel()
 	conn, err := d.dial(dialCtx)
 	if err != nil {
-		return nil, shared.WrapDeliveryError(name, "dial", err)
+		return nil, shared.WrapDeliveryError(name, shared.OpDial, err)
 	}
 	d.conn = conn
 	return conn, nil

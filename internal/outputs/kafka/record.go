@@ -18,17 +18,17 @@ package kafka
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
 func (d *driver) buildRecord(evt *event.Event) (*kgo.Record, error) {
 	data, err := json.Marshal(evt)
 	if err != nil {
-		return nil, fmt.Errorf("kafka marshal: %w", err)
+		return nil, shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 
 	return &kgo.Record{
