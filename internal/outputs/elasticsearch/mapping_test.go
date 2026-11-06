@@ -165,6 +165,35 @@ func TestInitTemplateSkipped(t *testing.T) {
 	assert.False(t, called)
 }
 
+// A delivery waiting for another worker's template check leaves when its own context ends.
+func TestTemplateWaitFollowsTheContext(t *testing.T) {
+	server := testutil.HangingHTTPServer(t)
+	drv, err := createOutput(map[string]any{"host": server.URL, "create_index_template": true}, output.Deps{})
+	require.NoError(t, err)
+	d := drv.(*driver)
+
+	holder, release := context.WithCancel(context.Background())
+	t.Cleanup(release)
+	started := make(chan struct{})
+	go func() {
+		close(started)
+		_ = d.ensureTemplate(holder)
+	}()
+	<-started
+	held := func() bool {
+		if d.templateGate.TryAcquire(1) {
+			d.templateGate.Release(1)
+			return false
+		}
+		return true
+	}
+	require.Eventually(t, held, time.Second, time.Millisecond, "the first check holds the gate")
+
+	err = testutil.RequireReturnsOnCancel(t, "ensureTemplate", d.ensureTemplate)
+	assert.Equal(t, "elasticsearch index template check: timeout (deadline exceeded)", err.Error())
+	assert.False(t, output.IsPermanent(err))
+}
+
 func TestInitTemplateCreatesOnlyWhenAbsent(t *testing.T) {
 	for _, tc := range []struct {
 		name    string

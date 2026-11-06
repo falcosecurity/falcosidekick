@@ -21,13 +21,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io/fs"
 	"log/slog"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
+	"golang.org/x/sync/semaphore"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -57,6 +58,8 @@ const (
 	clientBurst = 100
 	// requestTimeout bounds one API request, like the request timeout of the AWS and SMTP outputs.
 	requestTimeout = 30 * time.Second
+	// writeStripes bounds the write locks; reports sharing a stripe are written one at a time.
+	writeStripes = 64
 )
 
 var (
@@ -92,10 +95,10 @@ type driver struct {
 	client    dynamic.Interface
 	discovery rest.Interface
 	logger    *slog.Logger
-	locks     map[target]*sync.Mutex
-	fallback  string
-	cfg       config
-	mu        sync.Mutex
+	// stripes serialize writes to one report; namespaces come from events, so the set is fixed, not per report.
+	stripes  [writeStripes]*semaphore.Weighted
+	fallback string
+	cfg      config
 }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
@@ -129,14 +132,17 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 }
 
 func newDriver(cfg *config, client dynamic.Interface, disc rest.Interface, logger *slog.Logger) *driver {
-	return &driver{
+	d := &driver{
 		cfg:       *cfg,
 		client:    client,
 		discovery: disc,
 		logger:    shared.ResolveLogger(logger, name),
-		locks:     make(map[target]*sync.Mutex),
 		fallback:  fallbackNamespace(cfg.FalcoNamespace),
 	}
+	for i := range d.stripes {
+		d.stripes[i] = semaphore.NewWeighted(1)
+	}
+	return d
 }
 
 // loadRESTConfig errors never carry the kubeconfig content.
@@ -224,9 +230,11 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 
 // apply serializes local writes per report and retries when another writer changed it in between.
 func (d *driver) apply(ctx context.Context, t target, result map[string]any) error {
-	lock := d.lock(t)
-	lock.Lock()
-	defer lock.Unlock()
+	stripe := d.stripe(t)
+	if err := stripe.Acquire(ctx, 1); err != nil {
+		return err
+	}
+	defer stripe.Release(1)
 
 	resource := d.resource(t)
 	var err error
@@ -263,15 +271,11 @@ func (d *driver) resource(t target) dynamic.ResourceInterface {
 	return d.client.Resource(reportsGVR).Namespace(t.namespace)
 }
 
-func (d *driver) lock(t target) *sync.Mutex {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	l, ok := d.locks[t]
-	if !ok {
-		l = &sync.Mutex{}
-		d.locks[t] = l
-	}
-	return l
+// stripe returns the semaphore of a report: the same report always maps to the same stripe.
+func (d *driver) stripe(t target) *semaphore.Weighted {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(t.namespace))
+	return d.stripes[h.Sum32()%writeStripes]
 }
 
 // isNamespaceNotFound reports a create refused because the namespace does not exist.
