@@ -38,13 +38,13 @@ type EnricherConfig struct {
 func (c *EnricherConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if c.TruncateEventThreshold < 0 {
-		errs.Add("truncate_event_threshold", fmt.Sprintf("must be >= 0, got %d", c.TruncateEventThreshold))
+		errs.Add("truncate_event_threshold", "must be >= 0")
 	}
 	if c.TruncateFieldThreshold < 0 {
-		errs.Add("truncate_field_threshold", fmt.Sprintf("must be >= 0, got %d", c.TruncateFieldThreshold))
+		errs.Add("truncate_field_threshold", "must be >= 0")
 	}
 	if c.TruncateEventThreshold > 0 && c.TruncateFieldThreshold <= truncateFieldSuffixLen {
-		errs.Add("truncate_field_threshold", fmt.Sprintf("must be > %d when event truncation is enabled, got %d", truncateFieldSuffixLen, c.TruncateFieldThreshold))
+		errs.Add("truncate_field_threshold", fmt.Sprintf("must be > %d when event truncation is enabled", truncateFieldSuffixLen))
 	}
 	if len(errs) > 0 {
 		return errs

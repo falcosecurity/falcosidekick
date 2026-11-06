@@ -80,7 +80,7 @@ func TestValidation(t *testing.T) {
 		{name: "eu", raw: map[string]any{"routing_key": testKey, "region": "eu"}, wantHost: hostEU},
 		{name: "eu upper case from v2", raw: map[string]any{"routing_key": testKey, "region": "EU"}, wantHost: hostEU},
 		{name: "host overrides region", raw: map[string]any{"routing_key": testKey, "region": "eu", "host": "https://proxy.example:8443"}, wantHost: "https://proxy.example:8443"},
-		{name: "unknown region", raw: map[string]any{"routing_key": testKey, "region": "ap"}, wantErr: `region: must be us/eu, got "ap"`},
+		{name: "unknown region", raw: map[string]any{"routing_key": testKey, "region": "ap"}, wantErr: `region: must be us/eu`},
 		{name: "missing routing key", raw: map[string]any{}, wantErr: "routing_key: is required"},
 		{name: "blank routing key", raw: map[string]any{"routing_key": "  "}, wantErr: "routing_key: is required"},
 		{name: "endpoint rejected", raw: map[string]any{"routing_key": testKey, "endpoint": "/x"}, wantErr: "endpoint: is not supported"},

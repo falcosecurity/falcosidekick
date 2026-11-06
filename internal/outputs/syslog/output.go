@@ -108,7 +108,7 @@ func (c *config) validate() utils.ValidationErrors {
 	switch c.Protocol {
 	case protocolTCP, protocolUDP, protocolTLS:
 	default:
-		errs.Add("protocol", fmt.Sprintf("must be tcp/udp/tls, got %q", c.Protocol))
+		errs.Add("protocol", "must be tcp/udp/tls")
 	}
 	if c.Port == 0 {
 		c.Port = defaultPort
@@ -121,7 +121,7 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.Format == "" {
 		c.Format = formatJSON
 	} else if c.Format != formatJSON && c.Format != formatCEF {
-		errs.Add("format", fmt.Sprintf("must be json/cef, got %q", c.Format))
+		errs.Add("format", "must be json/cef")
 	}
 	if c.Facility == "" {
 		c.Facility = defaultFacility

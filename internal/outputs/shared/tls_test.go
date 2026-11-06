@@ -57,14 +57,12 @@ func TestBuildTLSConfigServerName(t *testing.T) {
 
 func TestBuildTLSConfigInvalidCAFile(t *testing.T) {
 	_, err := BuildTLSConfig(&TLSClientConfig{CAFile: "/nonexistent/ca.pem"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "read CA file")
+	require.EqualError(t, err, "tls.ca_file: cannot read file", "the path and the OS error stay out")
 }
 
 func TestBuildTLSConfigInvalidCertKey(t *testing.T) {
 	_, err := BuildTLSConfig(&TLSClientConfig{CertFile: "/nonexistent/cert.pem", KeyFile: "/nonexistent/key.pem"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "load client cert/key")
+	require.EqualError(t, err, "tls.cert_file, tls.key_file: cannot load the key pair", "the paths and the OS error stay out")
 }
 
 func TestBuildTLSConfigValidCA(t *testing.T) {
@@ -83,8 +81,7 @@ func TestBuildTLSConfigInvalidCAPEM(t *testing.T) {
 	require.NoError(t, os.WriteFile(caFile, []byte("not-a-certificate"), 0o600))
 
 	_, err := BuildTLSConfig(&TLSClientConfig{CAFile: caFile})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no valid certificates")
+	require.EqualError(t, err, "tls.ca_file: no valid PEM certificate")
 }
 
 func TestBuildTLSConfigValidClientCert(t *testing.T) {

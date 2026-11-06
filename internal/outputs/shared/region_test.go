@@ -32,7 +32,7 @@ func TestRegionHostsResolve(t *testing.T) {
 		{name: "default", wantRegion: "us", wantHost: "https://us.example"},
 		{name: "upper case from v2", region: "EU", wantRegion: "eu", wantHost: "https://eu.example"},
 		{name: "explicit host wins", region: "eu", host: "https://proxy.example", wantRegion: "eu", wantHost: "https://proxy.example"},
-		{name: "unknown", region: "mars", wantErr: `region: must be us/ap/eu, got "mars"`},
+		{name: "unknown", region: "mars", wantErr: `region: must be us/ap/eu`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

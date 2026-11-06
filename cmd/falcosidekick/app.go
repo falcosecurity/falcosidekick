@@ -107,7 +107,7 @@ func NewApp(
 
 	if cfg.UI.Enabled {
 		if _, ok := dispatcher.GetReadableStore(cfg.UI.EventSource); !ok {
-			return nil, fmt.Errorf("ui.event_source %q: output not found or does not implement ReadableStore", cfg.UI.EventSource)
+			return nil, errors.New("ui.event_source: output not found or does not implement ReadableStore")
 		}
 	}
 

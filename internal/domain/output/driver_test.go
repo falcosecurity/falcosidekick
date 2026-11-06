@@ -176,7 +176,7 @@ func TestHistogramRequestNormalize(t *testing.T) {
 		{
 			name:    "invalid group_by",
 			req:     HistogramRequest{Filters: baseFilters, BucketMs: (15 * time.Minute).Milliseconds(), GroupBy: "uuid"},
-			wantErr: "invalid group_by",
+			wantErr: "histogram: group_by must be priority/rule/source/tags/hostname",
 		},
 	}
 

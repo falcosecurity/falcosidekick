@@ -310,7 +310,7 @@ func TestCreateOutputConfig(t *testing.T) {
 				assert.Equal(t, event.PriorityWarning, d.RuntimeConfig().MinPriority)
 			},
 		},
-		{name: "zero max_events", raw: map[string]any{"kubeconfig": kubeconfig, "max_events": 0}, wantErr: "max_events: must be at least 1, got 0"},
+		{name: "zero max_events", raw: map[string]any{"kubeconfig": kubeconfig, "max_events": 0}, wantErr: "max_events: must be at least 1"},
 		{name: "negative max_events", raw: map[string]any{"kubeconfig": kubeconfig, "max_events": -1}, wantErr: "max_events"},
 		{name: "invalid falco_namespace", raw: map[string]any{"kubeconfig": kubeconfig, "falco_namespace": "Not_Valid"}, wantErr: "falco_namespace: must be a valid namespace name"},
 		{name: "unknown key", raw: map[string]any{"kubeconfig": kubeconfig, "maxevents": 1}, wantErr: "unknown keys"},

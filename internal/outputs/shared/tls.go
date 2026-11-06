@@ -19,7 +19,7 @@ package shared
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
+	"errors"
 	"os"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -45,19 +45,13 @@ func (c *TLSClientConfig) Validate() utils.ValidationErrors {
 		errs.Add("cert_file", "is required when key_file is set")
 	}
 	if c.CAFile != "" {
-		if _, err := os.Stat(c.CAFile); err != nil {
-			errs.Add("ca_file", fmt.Sprintf("file does not exist: %v", err))
-		}
+		errs.CheckFile("ca_file", c.CAFile)
 	}
 	if c.CertFile != "" {
-		if _, err := os.Stat(c.CertFile); err != nil {
-			errs.Add("cert_file", fmt.Sprintf("file does not exist: %v", err))
-		}
+		errs.CheckFile("cert_file", c.CertFile)
 	}
 	if c.KeyFile != "" {
-		if _, err := os.Stat(c.KeyFile); err != nil {
-			errs.Add("key_file", fmt.Sprintf("file does not exist: %v", err))
-		}
+		errs.CheckFile("key_file", c.KeyFile)
 	}
 	if len(errs) > 0 {
 		return errs
@@ -77,6 +71,7 @@ func TLSClientSchemaFields() []output.SchemaField {
 }
 
 // BuildTLSConfig creates a *tls.Config from per-output TLS settings.
+// Its errors name the field, not the path or the OS error.
 func BuildTLSConfig(cfg *TLSClientConfig) (*tls.Config, error) {
 	tlsCfg := &tls.Config{
 		InsecureSkipVerify: cfg.InsecureSkipVerify, //nolint:gosec // user-configurable TLS verification
@@ -90,11 +85,11 @@ func BuildTLSConfig(cfg *TLSClientConfig) (*tls.Config, error) {
 	if cfg.CAFile != "" {
 		caCert, err := os.ReadFile(cfg.CAFile)
 		if err != nil {
-			return nil, fmt.Errorf("read CA file %q: %w", cfg.CAFile, err)
+			return nil, errors.New("tls.ca_file: cannot read file")
 		}
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM(caCert) {
-			return nil, fmt.Errorf("CA file %q contains no valid certificates", cfg.CAFile)
+			return nil, errors.New("tls.ca_file: no valid PEM certificate")
 		}
 		tlsCfg.RootCAs = pool
 	}
@@ -102,7 +97,7 @@ func BuildTLSConfig(cfg *TLSClientConfig) (*tls.Config, error) {
 	if cfg.CertFile != "" && cfg.KeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.KeyFile)
 		if err != nil {
-			return nil, fmt.Errorf("load client cert/key: %w", err)
+			return nil, errors.New("tls.cert_file, tls.key_file: cannot load the key pair")
 		}
 		tlsCfg.Certificates = []tls.Certificate{cert}
 	}

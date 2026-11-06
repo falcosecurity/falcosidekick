@@ -17,10 +17,45 @@
 package utils
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestValidationErrorsCheckFile(t *testing.T) {
+	dir := t.TempDir()
+	readable := filepath.Join(dir, "ca.pem")
+	require.NoError(t, os.WriteFile(readable, []byte("x"), 0o600))
+	locked := filepath.Join(dir, "locked")
+	require.NoError(t, os.Mkdir(locked, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(locked, "key.pem"), []byte("x"), 0o600))
+	require.NoError(t, os.Chmod(locked, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+	if _, err := os.Stat(filepath.Join(locked, "key.pem")); err == nil {
+		t.Skip("running with privileges that ignore directory permissions")
+	}
+
+	for _, tc := range []struct {
+		name, path, want string
+	}{
+		{name: "readable", path: readable},
+		{name: "missing", path: filepath.Join(dir, "missing.pem"), want: "ca_file: file does not exist"},
+		{name: "not accessible", path: filepath.Join(locked, "key.pem"), want: "ca_file: cannot access file"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var errs ValidationErrors
+			errs.CheckFile("ca_file", tc.path)
+			if tc.want == "" {
+				assert.Empty(t, errs)
+				return
+			}
+			assert.Equal(t, tc.want, errs.Error(), "neither the path nor the OS error is named")
+		})
+	}
+}
 
 func TestValidationErrorFormat(t *testing.T) {
 	err := ValidationError{Field: "port", Message: "must be > 0"}

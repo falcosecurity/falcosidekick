@@ -17,9 +17,6 @@
 package config
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
@@ -29,19 +26,19 @@ func validateTLS(ts *core.TLSConfig) utils.ValidationErrors {
 	if ts.Enabled {
 		if ts.CertFile == "" {
 			errs.Add("cert_file", "must be specified when TLS is enabled")
-		} else if _, err := os.Stat(ts.CertFile); err != nil {
-			errs.Add("cert_file", fmt.Sprintf("file does not exist: %v", err))
+		} else {
+			errs.CheckFile("cert_file", ts.CertFile)
 		}
 		if ts.KeyFile == "" {
 			errs.Add("key_file", "must be specified when TLS is enabled")
-		} else if _, err := os.Stat(ts.KeyFile); err != nil {
-			errs.Add("key_file", fmt.Sprintf("file does not exist: %v", err))
+		} else {
+			errs.CheckFile("key_file", ts.KeyFile)
 		}
 		if ts.MutualTLS {
 			if ts.CACertFile == "" {
 				errs.Add("ca_file", "must be specified when mutual TLS is enabled")
-			} else if _, err := os.Stat(ts.CACertFile); err != nil {
-				errs.Add("ca_file", fmt.Sprintf("file does not exist: %v", err))
+			} else {
+				errs.CheckFile("ca_file", ts.CACertFile)
 			}
 		}
 	}

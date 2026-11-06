@@ -285,9 +285,9 @@ func TestInitTemplateShardSettings(t *testing.T) {
 		{name: "explicit replicas", config: map[string]any{"number_of_replicas": 2}, wantShards: 3, wantReplicas: 2},
 		{name: "explicit zero replicas", config: map[string]any{"number_of_replicas": 0}, wantShards: 3, wantReplicas: 0},
 		{name: "string values", config: map[string]any{"number_of_shards": "2", "number_of_replicas": "0"}, wantShards: 2, wantReplicas: 0},
-		{name: "explicit zero shards", config: map[string]any{"number_of_shards": 0}, wantErr: "number_of_shards: must be > 0 when create_index_template is true, got 0"},
-		{name: "negative shards", config: map[string]any{"number_of_shards": -1}, wantErr: "number_of_shards: must be > 0 when create_index_template is true, got -1"},
-		{name: "negative replicas", config: map[string]any{"number_of_replicas": -1}, wantErr: "number_of_replicas: must be >= 0 when create_index_template is true, got -1"},
+		{name: "explicit zero shards", config: map[string]any{"number_of_shards": 0}, wantErr: "number_of_shards: must be > 0 when create_index_template is true"},
+		{name: "negative shards", config: map[string]any{"number_of_shards": -1}, wantErr: "number_of_shards: must be > 0 when create_index_template is true"},
+		{name: "negative replicas", config: map[string]any{"number_of_replicas": -1}, wantErr: "number_of_replicas: must be >= 0 when create_index_template is true"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var settings map[string]any

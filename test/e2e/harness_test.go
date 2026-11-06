@@ -104,10 +104,25 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
+// coreOptions changes the core configuration every test starts from.
+type coreOptions struct {
+	logLevel  string
+	logFormat string
+	// extra holds top-level keys absent from the default core configuration.
+	extra string
+}
+
+var defaultCore = coreOptions{logLevel: "debug", logFormat: "json"}
+
 // startSidekick runs the binary with one retry attempt so failures surface quickly.
 func startSidekick(t *testing.T, outputs string) *sidekick {
 	t.Helper()
-	s := launchSidekick(t, outputs)
+	return startSidekickWith(t, defaultCore, outputs)
+}
+
+func startSidekickWith(t *testing.T, core coreOptions, outputs string) *sidekick {
+	t.Helper()
+	s := launchSidekick(t, core, outputs)
 	deadline := time.After(startTimeout)
 	for {
 		resp, err := httpDo(http.MethodGet, s.url+"/healthz", nil)
@@ -129,7 +144,12 @@ func startSidekick(t *testing.T, outputs string) *sidekick {
 
 func startSidekickFails(t *testing.T, outputs string) string {
 	t.Helper()
-	s := launchSidekick(t, outputs)
+	return startSidekickFailsWith(t, defaultCore, outputs)
+}
+
+func startSidekickFailsWith(t *testing.T, core coreOptions, outputs string) string {
+	t.Helper()
+	s := launchSidekick(t, core, outputs)
 	select {
 	case <-s.exited:
 	case <-time.After(startTimeout):
@@ -140,14 +160,14 @@ func startSidekickFails(t *testing.T, outputs string) string {
 	return s.logs.String()
 }
 
-func launchSidekick(t *testing.T, outputs string) *sidekick {
+func launchSidekick(t *testing.T, opts coreOptions, outputs string) *sidekick {
 	t.Helper()
 	dir := t.TempDir()
 	port := freePort(t)
 	core := fmt.Sprintf(`listen_address: "127.0.0.1"
 listen_port: %d
-log_level: debug
-log_format: json
+log_level: %q
+log_format: %q
 runtime_defaults:
   queue_size: 100
   workers: 1
@@ -160,7 +180,7 @@ runtime_defaults:
     failure_threshold: 100
     success_threshold: 1
     reset_timeout: 1s
-`, port)
+`, port, opts.logLevel, opts.logFormat) + opts.extra
 	corePath := filepath.Join(dir, "sidekick.yaml")
 	outputsPath := filepath.Join(dir, "outputs.yaml")
 	require.NoError(t, os.WriteFile(corePath, []byte(core), 0o600))

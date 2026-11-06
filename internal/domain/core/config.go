@@ -104,7 +104,7 @@ func (c *Config) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 
 	if c.ListenPort < 1 || c.ListenPort > 65535 {
-		errs.Add("listen_port", fmt.Sprintf("must be 1-65535, got %d", c.ListenPort))
+		errs.Add("listen_port", "must be 1-65535")
 	}
 
 	errs.Merge("", c.LogLevel.Validate())
@@ -142,7 +142,7 @@ var ValidLogLevels = map[LogLevel]bool{
 func (l LogLevel) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if !ValidLogLevels[l] {
-		errs.Add("log_level", fmt.Sprintf("must be trace/debug/info/warning/error, got %q", l))
+		errs.Add("log_level", "must be trace/debug/info/warning/error")
 	}
 	return errs
 }
@@ -165,7 +165,7 @@ var ValidLogFormats = map[LogFormat]bool{
 func (f LogFormat) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if !ValidLogFormats[f] {
-		errs.Add("log_format", fmt.Sprintf("must be text/json, got %q", f))
+		errs.Add("log_format", "must be text/json")
 	}
 	return errs
 }
@@ -218,7 +218,7 @@ type DatabaseConfig struct {
 func (c *DatabaseConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if !ValidDatabaseBackends[c.Backend] {
-		errs.Add("backend", fmt.Sprintf("must be inmemory/sqlite/postgres, got %q", c.Backend))
+		errs.Add("backend", "must be inmemory/sqlite/postgres")
 	}
 	return errs
 }
@@ -233,10 +233,10 @@ type ReloadConfig struct {
 func (c *ReloadConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if c.PollInterval < 0 {
-		errs.Add("poll_interval", fmt.Sprintf("must be non-negative, got %s", c.PollInterval))
+		errs.Add("poll_interval", "must be non-negative")
 	}
 	if c.RetireTimeout < 0 {
-		errs.Add("retire_timeout", fmt.Sprintf("must be non-negative, got %s", c.RetireTimeout))
+		errs.Add("retire_timeout", "must be non-negative")
 	}
 	return errs
 }

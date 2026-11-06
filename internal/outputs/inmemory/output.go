@@ -89,16 +89,16 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.Capacity == 0 {
 		c.Capacity = defaultCapacity
 	} else if c.Capacity < 0 {
-		errs.Add("capacity", fmt.Sprintf("must be > 0, got %d", c.Capacity))
+		errs.Add("capacity", "must be > 0")
 	}
 	if c.TTL < 0 {
-		errs.Add("ttl", fmt.Sprintf("must be >= 0 (0 = no expiry), got %v", c.TTL))
+		errs.Add("ttl", "must be >= 0 (0 = no expiry)")
 	}
 	if c.TTL > 0 && c.GCInterval == 0 {
 		c.GCInterval = defaultGCInterval
 	}
 	if c.GCInterval < 0 {
-		errs.Add("gc_interval", fmt.Sprintf("must be >= 0, got %v", c.GCInterval))
+		errs.Add("gc_interval", "must be >= 0")
 	}
 	if len(errs) > 0 {
 		return errs

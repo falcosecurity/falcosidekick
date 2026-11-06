@@ -126,7 +126,7 @@ const (
 func (a *kafkaAuth) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if !validSASL[a.SASL] {
-		errs.Add("sasl", fmt.Sprintf("must be plain/scram_sha256/scram_sha512, got %q", a.SASL))
+		errs.Add("sasl", "must be plain/scram_sha256/scram_sha512")
 	}
 	if a.SASL != "" && (a.Username == "" || a.Password == "") {
 		errs.Add("username", "username and password are required when sasl is set")
@@ -137,16 +137,16 @@ func (a *kafkaAuth) validate() utils.ValidationErrors {
 func (p *kafkaProducer) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if !validCompression[p.Compression] {
-		errs.Add("compression", fmt.Sprintf("must be none/gzip/snappy/lz4/zstd, got %q", p.Compression))
+		errs.Add("compression", "must be none/gzip/snappy/lz4/zstd")
 	}
 	if !validBalancer[p.Balancer] {
-		errs.Add("balancer", fmt.Sprintf("must be round_robin/least_backup/sticky, got %q", p.Balancer))
+		errs.Add("balancer", "must be round_robin/least_backup/sticky")
 	}
 	if !validRequiredACKs[p.RequiredACKs] {
-		errs.Add("required_acks", fmt.Sprintf("must be all/one/none, got %q", p.RequiredACKs))
+		errs.Add("required_acks", "must be all/one/none")
 	}
 	if p.DeliveryTimeout < minDeliveryTimeout {
-		errs.Add("delivery_timeout", fmt.Sprintf("must be at least %s, got %s", minDeliveryTimeout, p.DeliveryTimeout))
+		errs.Add("delivery_timeout", "must be at least "+minDeliveryTimeout.String())
 	}
 	return errs
 }
