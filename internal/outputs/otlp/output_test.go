@@ -366,18 +366,29 @@ func TestExportErrorsKeepSecretsOut(t *testing.T) {
 	}
 }
 
+// TestExportFailureClassification follows https://opentelemetry.io/docs/specs/otlp/#failures.
 func TestExportFailureClassification(t *testing.T) {
 	for _, tc := range []struct {
 		name, protocol, want string
 		fail                 int
+		rejected             int64
+		retryInfo            bool
 		permanent            bool
 	}{
 		{name: "http throttled", protocol: protocolHTTP, fail: http.StatusTooManyRequests, want: "otlp logs: HTTP 429 Too Many Requests"},
+		{name: "http bad gateway", protocol: protocolHTTP, fail: http.StatusBadGateway, want: "otlp logs: HTTP 502 Bad Gateway"},
 		{name: "http unavailable", protocol: protocolHTTP, fail: http.StatusServiceUnavailable, want: "otlp logs: HTTP 503 Service Unavailable"},
+		{name: "http gateway timeout", protocol: protocolHTTP, fail: http.StatusGatewayTimeout, want: "otlp logs: HTTP 504 Gateway Timeout"},
 		{name: "http bad request", protocol: protocolHTTP, fail: http.StatusBadRequest, want: "otlp logs: HTTP 400 Bad Request", permanent: true},
+		{name: "http request timeout", protocol: protocolHTTP, fail: http.StatusRequestTimeout, want: "otlp logs: HTTP 408 Request Timeout", permanent: true},
+		{name: "http internal error", protocol: protocolHTTP, fail: http.StatusInternalServerError, want: "otlp logs: HTTP 500 Internal Server Error", permanent: true},
+		{name: "http partial success", protocol: protocolHTTP, rejected: 1, want: "otlp logs: partial success", permanent: true},
 		{name: "grpc unavailable", protocol: protocolGRPC, fail: int(codes.Unavailable), want: "otlp logs: Unavailable"},
 		{name: "grpc resource exhausted", protocol: protocolGRPC, fail: int(codes.ResourceExhausted), want: "otlp logs: ResourceExhausted", permanent: true},
+		{name: "grpc resource exhausted with retry info", protocol: protocolGRPC, fail: int(codes.ResourceExhausted), retryInfo: true,
+			want: "otlp logs: ResourceExhausted"},
 		{name: "grpc invalid argument", protocol: protocolGRPC, fail: int(codes.InvalidArgument), want: "otlp logs: InvalidArgument", permanent: true},
+		{name: "grpc partial success", protocol: protocolGRPC, rejected: 1, want: "otlp logs: partial success", permanent: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var r *receiver
@@ -388,18 +399,22 @@ func TestExportFailureClassification(t *testing.T) {
 				r, endpoint = startGRPCReceiver(t)
 			}
 			r.fail(1, tc.fail)
+			r.mu.Lock()
+			r.retryInfo, r.rejectedLogs = tc.retryInfo, tc.rejected
+			r.mu.Unlock()
 			d := newDriver(t, map[string]any{"logs": map[string]any{"endpoint": endpoint, "protocol": tc.protocol}})
 			err := d.Send(context.Background(), testutil.CreateValidEvent())
 			require.Error(t, err)
 			assert.Equal(t, tc.want, err.Error())
 			assert.Equal(t, tc.permanent, output.IsPermanent(err))
+			assert.NotContains(t, fmt.Sprintf("%v %+v", err, err), secret)
 		})
 	}
 }
 
 func TestPartialSignalFailureIsRetriable(t *testing.T) {
-	permanent := newDeliveryError(signalLogs, http.StatusBadRequest, errors.New(secret))
-	transient := newDeliveryError(signalTraces, http.StatusServiceUnavailable, errors.New(secret))
+	permanent := newDeliveryError(signalLogs, &exportResult{httpStatus: http.StatusBadRequest}, errors.New(secret))
+	transient := newDeliveryError(signalTraces, &exportResult{httpStatus: http.StatusServiceUnavailable}, errors.New(secret))
 	err := joinFailures(context.Background(), []*shared.DeliveryError{permanent, transient})
 	assert.Equal(t, "otlp send: logs: HTTP 400 Bad Request; traces: HTTP 503 Service Unavailable", err.Error())
 	assert.False(t, output.IsPermanent(err), "a retry can still deliver the transient signal")

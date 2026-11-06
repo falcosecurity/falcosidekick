@@ -190,7 +190,7 @@ func (s *Sender) Do(ctx context.Context, req *http.Request) error {
 	defer drain(resp)
 
 	if resp.StatusCode/100 != 2 {
-		return &DeliveryError{Output: s.name, Operation: OpResponse, Status: resp.StatusCode}
+		return &DeliveryError{Output: s.name, Operation: OpResponse, Status: resp.StatusCode, Permanent: IsPermanentHTTPStatus(resp.StatusCode)}
 	}
 	return nil
 }
@@ -222,9 +222,10 @@ func (s *Sender) readBody(req *http.Request, check func([]byte) error) ([]byte, 
 	return body, nil
 }
 
-// responseError keeps the code and permanence a check derives from the error body, never the body.
+// responseError keeps the code a check derives from the error body, never the body.
+// The answer is permanent when the HTTP status or the check says so.
 func (s *Sender) responseError(resp *http.Response, check func([]byte) error) error {
-	diagnostic := &DeliveryError{Output: s.name, Operation: OpResponse, Status: resp.StatusCode}
+	diagnostic := &DeliveryError{Output: s.name, Operation: OpResponse, Status: resp.StatusCode, Permanent: IsPermanentHTTPStatus(resp.StatusCode)}
 	if check == nil {
 		return diagnostic
 	}
@@ -239,7 +240,7 @@ func (s *Sender) responseError(resp *http.Response, check func([]byte) error) er
 	diagnostic.Cause = check(body)
 	if protocol, ok := errors.AsType[*DeliveryError](diagnostic.Cause); ok && protocol != nil {
 		diagnostic.Code = protocol.Code
-		diagnostic.Permanent = protocol.Permanent
+		diagnostic.Permanent = diagnostic.Permanent || protocol.Permanent
 	}
 	return diagnostic
 }

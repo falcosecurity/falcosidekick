@@ -20,14 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -42,13 +37,6 @@ const (
 	signalLogs    = "logs"
 	signalMetrics = "metrics"
 )
-
-// retriableCodes are the gRPC codes the OTLP specification lets a client retry.
-// https://opentelemetry.io/docs/specs/otlp/#failures
-var retriableCodes = map[codes.Code]bool{
-	codes.Canceled: true, codes.DeadlineExceeded: true, codes.Aborted: true,
-	codes.OutOfRange: true, codes.Unavailable: true, codes.DataLoss: true,
-}
 
 // OutputType describes the OTLP output for the catalog.
 var OutputType = output.Type{
@@ -152,9 +140,9 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	}
 	var failures []*shared.DeliveryError
 	for _, s := range d.signals {
-		var httpStatus int
-		if err := s.export(withStatus(ctx, &httpStatus), events); err != nil {
-			failures = append(failures, newDeliveryError(s.name, httpStatus, err))
+		var result exportResult
+		if err := s.export(withResult(ctx, &result), events); err != nil {
+			failures = append(failures, newDeliveryError(s.name, &result, err))
 		}
 	}
 	switch len(failures) {
@@ -164,34 +152,6 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		return failures[0]
 	default:
 		return joinFailures(ctx, failures)
-	}
-}
-
-// newDeliveryError names a gRPC failure by its code, classified per the OTLP specification,
-// and an HTTP failure by the recorded status, since the exporter's text carries the response body.
-func newDeliveryError(signalName string, httpStatus int, err error) *shared.DeliveryError {
-	if st, ok := status.FromError(err); ok && st.Code() != codes.Canceled && st.Code() != codes.DeadlineExceeded {
-		return &shared.DeliveryError{
-			Cause: err, Output: name, Operation: signalName, Code: st.Code().String(), Permanent: !retriableCodes[st.Code()],
-		}
-	}
-	// The HTTP client returns *url.Error when no response settles the request, such as a refused redirect.
-	if _, transport := errors.AsType[*url.Error](err); !transport && httpStatus >= http.StatusMultipleChoices {
-		return &shared.DeliveryError{Cause: err, Output: name, Operation: signalName, Status: httpStatus}
-	}
-	return shared.NewDeliveryError(name, signalName, err)
-}
-
-// joinFailures reports several failed signals; the batch is permanent only when every signal failed for good.
-func joinFailures(ctx context.Context, failures []*shared.DeliveryError) *shared.DeliveryError {
-	reasons := make([]string, len(failures))
-	permanent := true
-	for i, failure := range failures {
-		reasons[i] = failure.Operation + ": " + failure.Reason()
-		permanent = permanent && output.IsPermanent(failure)
-	}
-	return &shared.DeliveryError{
-		Cause: ctx.Err(), Output: name, Operation: shared.OpSend, Code: strings.Join(reasons, "; "), Permanent: permanent,
 	}
 }
 

@@ -286,7 +286,13 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 	defer end()
 	if err := client.SendWithSMTPClient(conn, msg); err != nil {
-		return newDeliveryError(ctx, shared.OpSend, err)
+		diagnostic := newDeliveryError(ctx, shared.OpSend, err)
+		// go-mail keeps only the last RCPT reply: with several recipients a 5yz there does not show
+		// that every recipient was refused, so the delivery stays retriable.
+		if diagnostic.Operation == opRcpt && len(d.cfg.To) > 1 {
+			diagnostic.Permanent = false
+		}
+		return diagnostic
 	}
 	// The server accepted the message; a failed QUIT does not undo that.
 	_ = client.CloseWithSMTPClient(conn)

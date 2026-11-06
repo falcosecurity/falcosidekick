@@ -31,10 +31,14 @@ const (
 )
 
 // newDeliveryError keeps only the API status: the server message names users and objects.
+// The Kubernetes API follows HTTP semantics, so a 4xx other than a conflict or throttling is permanent.
 func newDeliveryError(operation string, err error) *shared.DeliveryError {
 	var status apierrors.APIStatus
 	if errors.As(err, &status) && status.Status().Code != 0 {
-		return &shared.DeliveryError{Cause: err, Output: name, Operation: operation, Status: int(status.Status().Code)}
+		code := int(status.Status().Code)
+		return &shared.DeliveryError{
+			Cause: err, Output: name, Operation: operation, Status: code, Permanent: shared.IsPermanentHTTPStatus(code),
+		}
 	}
 	return shared.NewDeliveryError(name, operation, err)
 }

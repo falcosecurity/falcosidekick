@@ -101,12 +101,14 @@ func (e *DeliveryError) Unwrap() error { return e.Cause }
 
 // Is matches output.ErrPermanent for failures a retry with the same event cannot fix,
 // and output.ErrMisconfigured for probe failures that refuse the configuration.
+// Status alone decides nothing: the protocol that produced the error sets Permanent,
+// since a status such as AWS throttling's 400 can ask for a retry.
 func (e *DeliveryError) Is(target error) bool {
 	switch target {
 	case output.ErrMisconfigured:
 		return e.Misconfigured
 	case output.ErrPermanent:
-		return e.Permanent || e.Misconfigured || IsPermanentHTTPStatus(e.Status) ||
+		return e.Permanent || e.Misconfigured ||
 			IsTLSVerificationError(e.Cause) || e.Operation == OpMarshal || e.Operation == OpRenderMessage
 	default:
 		return false
@@ -134,7 +136,8 @@ var retriableClientStatus = map[int]bool{
 	http.StatusTooManyRequests: true,
 }
 
-// IsPermanentHTTPStatus reports whether a retry cannot change the answer: 4xx except 408, 409, 425 and 429.
+// IsPermanentHTTPStatus reports whether a plain HTTP API says a retry cannot change the answer:
+// 4xx except 408, 409, 425 and 429. Protocols with their own retry rules, such as AWS and OTLP, do not use it.
 func IsPermanentHTTPStatus(status int) bool {
 	return status >= 400 && status < 500 && !retriableClientStatus[status]
 }

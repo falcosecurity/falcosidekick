@@ -30,6 +30,7 @@ import (
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
@@ -69,24 +70,8 @@ func newExporterSettings(cfg *signalConfig, defaultPath string) (*exporterSettin
 	return s, nil
 }
 
-type statusKey struct{}
-
-// statusRecorder stores the response status in the export's context,
-// because the HTTP exporters return it only inside text that holds the response body.
-type statusRecorder struct{ base http.RoundTripper }
-
-func (r statusRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, err := r.base.RoundTrip(req)
-	if status, ok := req.Context().Value(statusKey{}).(*int); ok && resp != nil {
-		*status = resp.StatusCode
-	}
-	return resp, err
-}
-
-// withStatus returns a context whose HTTP export records the last response status in status.
-func withStatus(ctx context.Context, status *int) context.Context {
-	return context.WithValue(ctx, statusKey{}, status)
-}
+// recordResult lets newDeliveryError see a gRPC partial success.
+var recordResult = grpc.WithUnaryInterceptor(recordPartialSuccess)
 
 func (s *exporterSettings) grpc() bool { return s.cfg.Protocol == protocolGRPC }
 
@@ -100,6 +85,7 @@ func newSpanExporter(ctx context.Context, s *exporterSettings) (sdktrace.SpanExp
 			otlptracegrpc.WithTimeout(s.cfg.Timeout),
 			otlptracegrpc.WithCompressor(s.cfg.Compression),
 			otlptracegrpc.WithRetry(otlptracegrpc.RetryConfig{Enabled: false}),
+			otlptracegrpc.WithDialOption(recordResult),
 		}
 		if s.target.secure {
 			opts = append(opts, otlptracegrpc.WithTLSCredentials(credentials.NewTLS(s.tls)))
@@ -134,6 +120,7 @@ func newLogExporter(ctx context.Context, s *exporterSettings) (sdklog.Exporter, 
 			otlploggrpc.WithTimeout(s.cfg.Timeout),
 			otlploggrpc.WithCompressor(s.cfg.Compression),
 			otlploggrpc.WithRetry(otlploggrpc.RetryConfig{Enabled: false}),
+			otlploggrpc.WithDialOption(recordResult),
 		}
 		if s.target.secure {
 			opts = append(opts, otlploggrpc.WithTLSCredentials(credentials.NewTLS(s.tls)))
@@ -169,6 +156,7 @@ func newMetricExporter(ctx context.Context, s *exporterSettings) (sdkmetric.Expo
 			otlpmetricgrpc.WithTimeout(s.cfg.Timeout),
 			otlpmetricgrpc.WithCompressor(s.cfg.Compression),
 			otlpmetricgrpc.WithRetry(otlpmetricgrpc.RetryConfig{Enabled: false}),
+			otlpmetricgrpc.WithDialOption(recordResult),
 			temporality,
 		}
 		if s.target.secure {

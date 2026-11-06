@@ -19,6 +19,7 @@ package awssqs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -143,9 +144,18 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		}
 		bodies[i] = string(body)
 	}
-	var failed int
-	var codes []string
-	for _, chunk := range splitBatch(bodies) {
+	chunks := splitBatch(bodies)
+	var (
+		failed    int
+		codes     []string
+		permanent = true
+	)
+	addCode := func(code string) {
+		if !slices.Contains(codes, code) {
+			codes = append(codes, code)
+		}
+	}
+	for _, chunk := range chunks {
 		entries := make([]sqstypes.SendMessageBatchRequestEntry, len(chunk))
 		for i, body := range chunk {
 			entries[i] = sqstypes.SendMessageBatchRequestEntry{
@@ -158,23 +168,34 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 			Entries:  entries,
 		})
 		if err != nil {
-			return d.cfg.WrapError(name, opSendMessageBatch, err)
+			wrapped := d.cfg.WrapError(name, opSendMessageBatch, err)
+			if len(chunks) == 1 {
+				return wrapped
+			}
+			failed += len(chunk)
+			permanent = permanent && output.IsPermanent(wrapped)
+			if diagnostic, ok := errors.AsType[*shared.DeliveryError](wrapped); ok {
+				addCode(diagnostic.Reason())
+			}
+			continue
 		}
 		failed += len(out.Failed)
 		for _, f := range out.Failed {
-			if code := sharedaws.EntryCode(sqs.TypeRegistry, sdkaws.ToString(f.Code)); !slices.Contains(codes, code) {
-				codes = append(codes, code)
-			}
+			// SenderFault: the entry itself is wrong, so sending it again cannot succeed.
+			permanent = permanent && f.SenderFault
+			addCode(sharedaws.EntryCode(sqs.TypeRegistry, sdkaws.ToString(f.Code)))
 		}
 	}
-	if failed > 0 {
-		return &shared.DeliveryError{
-			Output:    name,
-			Operation: opSendMessageBatch,
-			Code:      fmt.Sprintf("%d/%d entries failed (%s)", failed, len(events), strings.Join(codes, ", ")),
-		}
+	if failed == 0 {
+		return nil
 	}
-	return nil
+	return &shared.DeliveryError{
+		Cause:     ctx.Err(),
+		Output:    name,
+		Operation: opSendMessageBatch,
+		Code:      fmt.Sprintf("%d/%d entries failed (%s)", failed, len(events), strings.Join(codes, ", ")),
+		Permanent: permanent,
+	}
 }
 
 // splitBatch sends a body larger than maxBatchBytes alone and lets SQS decide whether to accept it.

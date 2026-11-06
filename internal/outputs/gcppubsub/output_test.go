@@ -32,6 +32,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -318,15 +320,50 @@ func TestSplitRequests(t *testing.T) {
 		}
 		return n
 	}
+	const topic = "projects/" + testProject + "/topics/" + testTopic
 	small := make([]*pubsubpb.PubsubMessage, 2500)
 	for i := range small {
 		small[i] = &pubsubpb.PubsubMessage{Data: []byte("{}")}
 	}
-	assert.Equal(t, []int{1000, 1000, 500}, sizes(splitRequests(small)), "at most 1000 messages per request")
+	assert.Equal(t, []int{1000, 1000, 500}, sizes(splitRequests(topic, small)), "at most 1000 messages per request")
 
 	big := &pubsubpb.PubsubMessage{Data: make([]byte, 4_000_000)}
-	assert.Equal(t, []int{2, 1}, sizes(splitRequests([]*pubsubpb.PubsubMessage{big, big, big})), "at most 10 MB per request")
-	assert.Empty(t, splitRequests(nil))
+	assert.Equal(t, []int{2, 1}, sizes(splitRequests(topic, []*pubsubpb.PubsubMessage{big, big, big})), "at most 10 MB per request")
+	assert.Empty(t, splitRequests(topic, nil))
+
+	// Two messages whose own sizes add up to the limit exceed it once encoded in a request.
+	half := &pubsubpb.PubsubMessage{Data: make([]byte, maxRequestBytes/2-1-protowire.SizeVarint(maxRequestBytes/2))}
+	require.Equal(t, maxRequestBytes, 2*proto.Size(half))
+	chunks := splitRequests(topic, []*pubsubpb.PubsubMessage{half, half})
+	assert.Equal(t, []int{1, 1}, sizes(chunks))
+	for _, chunk := range chunks {
+		assert.LessOrEqual(t, proto.Size(&pubsubpb.PublishRequest{Topic: topic, Messages: chunk}), maxRequestBytes)
+	}
+}
+
+// rejectFull fails every Publish request that holds maxRequestMessages messages and lets the fake server handle the rest.
+type rejectFull struct{}
+
+func (rejectFull) React(req any) (handled bool, ret any, err error) {
+	if len(req.(*pubsubpb.PublishRequest).GetMessages()) == maxRequestMessages {
+		return true, nil, status.Error(codes.InvalidArgument, "rejected: "+sentinel)
+	}
+	return false, nil, nil
+}
+
+func TestRejectedRequestDoesNotStopTheOthers(t *testing.T) {
+	srv := fakeServer(t, pstest.ServerReactorOption{FuncName: "Publish", Reactor: rejectFull{}})
+	d := initDriver(t, emulatorConfig(srv))
+	events := make([]*event.Event, maxRequestMessages+1)
+	for i := range events {
+		events[i] = testutil.CreateValidEvent()
+	}
+	err := d.SendBatch(context.Background(), events)
+	require.Error(t, err)
+	assert.Equal(t, "gcppubsub publish: 1000 of 1001 messages failed, first: InvalidArgument", err.Error())
+	assert.True(t, output.IsPermanent(err), "the only failed request was rejected for good")
+	assert.Len(t, srv.Messages(), 1, "the request after the rejected one is published")
+	assert.NotContains(t, err.Error(), sentinel)
 }
 
 func TestHealthCheck(t *testing.T) {
@@ -416,7 +453,7 @@ func TestNewDeliveryError(t *testing.T) {
 		{name: "status deadline", err: status.Error(codes.DeadlineExceeded, sentinel), want: "gcppubsub publish: timeout (deadline exceeded)"},
 		{name: "resource exhausted", err: status.Error(codes.ResourceExhausted, sentinel), want: "gcppubsub publish: ResourceExhausted"},
 		{name: "unavailable", err: status.Error(codes.Unavailable, sentinel), want: "gcppubsub publish: Unavailable"},
-		{name: "tls handshake", err: handshake, want: "gcppubsub publish: Unavailable", permanent: true},
+		{name: "tls handshake", err: handshake, want: "gcppubsub publish: Unavailable"},
 		{name: "not found", err: status.Error(codes.NotFound, sentinel), want: "gcppubsub publish: NotFound", permanent: true},
 		{name: "permission denied", err: status.Error(codes.PermissionDenied, sentinel), want: "gcppubsub publish: PermissionDenied", permanent: true},
 		{name: "invalid argument", err: status.Error(codes.InvalidArgument, sentinel), want: "gcppubsub publish: InvalidArgument", permanent: true},

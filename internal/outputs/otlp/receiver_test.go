@@ -26,16 +26,19 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	collogs "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	colmetrics "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	coltrace "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // received holds the OTLP requests a receiver accepted.
@@ -54,7 +57,22 @@ type receiver struct {
 	// failures is the number of next requests answered with code.
 	failures int
 	code     int
-	mu       sync.Mutex
+	// retryInfo attaches RetryInfo to gRPC failures.
+	retryInfo bool
+	// rejectedLogs answers log exports with a partial success rejecting that many records.
+	rejectedLogs int64
+	mu           sync.Mutex
+}
+
+func (r *receiver) logsResponse() *collogs.ExportLogsServiceResponse {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.rejectedLogs == 0 {
+		return &collogs.ExportLogsServiceResponse{}
+	}
+	return &collogs.ExportLogsServiceResponse{PartialSuccess: &collogs.ExportLogsPartialSuccess{
+		RejectedLogRecords: r.rejectedLogs, ErrorMessage: "rejected " + secret,
+	}}
 }
 
 func (r *receiver) fail(n, code int) {
@@ -121,7 +139,7 @@ func (r *receiver) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		msg, resp, keep = m, &coltrace.ExportTraceServiceResponse{}, func(got *received) { got.traces = append(got.traces, m) }
 	case strings.HasSuffix(req.URL.Path, "/logs"):
 		m := &collogs.ExportLogsServiceRequest{}
-		msg, resp, keep = m, &collogs.ExportLogsServiceResponse{}, func(got *received) { got.logs = append(got.logs, m) }
+		msg, resp, keep = m, r.logsResponse(), func(got *received) { got.logs = append(got.logs, m) }
 	case strings.HasSuffix(req.URL.Path, "/metrics"):
 		m := &colmetrics.ExportMetricsServiceRequest{}
 		msg, resp, keep = m, &colmetrics.ExportMetricsServiceResponse{}, func(got *received) { got.metrics = append(got.metrics, m) }
@@ -150,7 +168,18 @@ func (r *receiver) admitGRPC(ctx context.Context, signal string) error {
 		encoding = values[0]
 	}
 	if code := r.admit(signal, headers, encoding); code != 0 {
-		return status.Error(codes.Code(uint32(code)), "rejected")
+		st := status.New(codes.Code(uint32(code)), "rejected "+secret)
+		r.mu.Lock()
+		withRetryInfo := r.retryInfo
+		r.mu.Unlock()
+		if withRetryInfo {
+			detailed, err := st.WithDetails(&errdetails.RetryInfo{RetryDelay: durationpb.New(time.Second)})
+			if err != nil {
+				return err
+			}
+			st = detailed
+		}
+		return st.Err()
 	}
 	return nil
 }
@@ -178,7 +207,7 @@ func (s logsService) Export(ctx context.Context, req *collogs.ExportLogsServiceR
 		return nil, err
 	}
 	s.r.store(func(got *received) { got.logs = append(got.logs, req) })
-	return &collogs.ExportLogsServiceResponse{}, nil
+	return s.r.logsResponse(), nil
 }
 
 type metricsService struct {
