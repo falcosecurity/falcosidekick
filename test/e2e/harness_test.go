@@ -80,11 +80,19 @@ func run(m *testing.M) (int, error) {
 
 // sidekick is one falcosidekick process; waitErr is valid once exited is closed.
 type sidekick struct {
-	waitErr error
-	cmd     *exec.Cmd
-	logs    *syncBuffer
-	exited  chan struct{}
-	url     string
+	waitErr     error
+	cmd         *exec.Cmd
+	logs        *syncBuffer
+	exited      chan struct{}
+	url         string
+	outputsPath string
+}
+
+// reloadOutputs rewrites the output file and sends SIGHUP.
+func (s *sidekick) reloadOutputs(t *testing.T, outputs string) {
+	t.Helper()
+	require.NoError(t, os.WriteFile(s.outputsPath, []byte("outputs:\n"+indent(outputs)), 0o600))
+	require.NoError(t, s.cmd.Process.Signal(syscall.SIGHUP))
 }
 
 type syncBuffer struct {
@@ -189,9 +197,10 @@ runtime_defaults:
 	require.NoError(t, os.WriteFile(outputsPath, []byte("outputs:\n"+indent(outputs)), 0o600))
 
 	s := &sidekick{
-		logs:   &syncBuffer{},
-		exited: make(chan struct{}),
-		url:    fmt.Sprintf("http://127.0.0.1:%d", port),
+		logs:        &syncBuffer{},
+		exited:      make(chan struct{}),
+		url:         fmt.Sprintf("http://127.0.0.1:%d", port),
+		outputsPath: outputsPath,
 	}
 	s.cmd = exec.CommandContext(context.Background(), binary, "-c", corePath, "-o", outputsPath)
 	s.cmd.Env = append(os.Environ(), opts.env...)
