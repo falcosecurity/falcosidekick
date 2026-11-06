@@ -213,7 +213,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 		return nil
 	}
 
-	return d.client.ProduceSync(ctx, record).FirstErr()
+	return d.produced(d.client.ProduceSync(ctx, record))
 }
 
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
@@ -237,7 +237,22 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		return nil
 	}
 
-	return d.client.ProduceSync(ctx, records...).FirstErr()
+	return d.produced(d.client.ProduceSync(ctx, records...))
+}
+
+func (d *driver) produced(results kgo.ProduceResults) error {
+	for _, result := range results {
+		d.forgetRecreatedTopic(result.Record, result.Err)
+	}
+	return results.FirstErr()
+}
+
+// forgetRecreatedTopic lets the next attempt reach a deleted and recreated topic:
+// franz-go otherwise keeps failing it with UNKNOWN_TOPIC_ID.
+func (d *driver) forgetRecreatedTopic(record *kgo.Record, err error) {
+	if record != nil && errors.Is(err, kerr.UnknownTopicID) {
+		d.client.PurgeTopicsFromProducing(record.Topic)
+	}
 }
 
 func (d *driver) HealthCheck(ctx context.Context) error {
@@ -302,11 +317,12 @@ func hasKey(raw map[string]any, section, key string) bool {
 }
 
 // asyncCallback counts a failure as late: the event was already counted as sent.
-func (d *driver) asyncCallback(_ *kgo.Record, err error) {
+func (d *driver) asyncCallback(record *kgo.Record, err error) {
 	defer d.inflight.Done()
 	if err == nil {
 		return
 	}
+	d.forgetRecreatedTopic(record, err)
 	d.logger.Error("async produce failed", "error", err)
 	if handler := d.lateFailure.Load(); handler != nil {
 		(*handler)(fmt.Errorf("kafka async produce: %w", err))
