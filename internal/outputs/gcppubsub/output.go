@@ -114,9 +114,10 @@ type config struct {
 
 // OutputType describes the Google Cloud Pub/Sub output for the catalog.
 var OutputType = output.Type{
-	New:      createOutput,
-	Name:     name,
-	Category: "queue",
+	New:           createOutput,
+	CheckAPIWrite: checkAPIWrite,
+	Name:          name,
+	Category:      "queue",
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
 			{Name: "project_id", Type: "string", Required: true, Label: "Project ID"},
@@ -227,6 +228,46 @@ func parseCredentials(value string) (data []byte, typ option.CredentialsType, er
 		return nil, "", errors.New("type must be service_account, authorized_user, impersonated_service_account or external_account")
 	}
 	return data, typ, nil
+}
+
+// checkAPIWrite refuses inline credentials with a credential_source: the Google library reads the
+// file, URL, metadata server or certificate it names and sends the result to the document's token_url,
+// so an API write could read local resources out. Output files and credentials_file inside
+// api.secret_dirs are written by the operator and keep them.
+func checkAPIWrite(patch map[string]any) error {
+	for key, value := range patch {
+		text, ok := value.(string)
+		if !strings.EqualFold(key, "credentials") || !ok || text == "" {
+			continue
+		}
+		data, _, err := parseCredentials(text)
+		if err != nil {
+			return nil // the decoder reports it
+		}
+		var document any
+		if json.Unmarshal(data, &document) == nil && hasCredentialSource(document) {
+			return errors.New("credentials: a credential_source is accepted only from output files or credentials_file")
+		}
+	}
+	return nil
+}
+
+func hasCredentialSource(value any) bool {
+	switch value := value.(type) {
+	case map[string]any:
+		for key, child := range value {
+			if strings.EqualFold(key, "credential_source") || hasCredentialSource(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range value {
+			if hasCredentialSource(child) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
