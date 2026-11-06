@@ -20,6 +20,8 @@ Core keys can be set as `FALCOSIDEKICK_<KEY>`, with dots turned into underscores
 
 Output files reload without a restart when they change: file events (including Kubernetes ConfigMap updates), `SIGHUP`, and a content poll every `reload.poll_interval` (default 30s, `0` disables). A reload that fails validation keeps the running outputs. The core file needs a restart.
 
+A reload builds every new or changed output first, then switches them all at once, so new events go to the new outputs. The replaced and removed outputs then deliver what they already queued, together, for at most `reload.retire_timeout` (default 10s); what they still hold after it is counted as dropped. Counters, `last_success` and `last_error` carry over to the replacement. Shutdown also waits for outputs still finishing after a reload.
+
 ## Output runtime
 
 `runtime_defaults` in the core file applies to every output. An output can override it under its own `runtime:` key: queue size, workers, retry with exponential backoff, circuit breaker, batching (Elasticsearch, Loki, Kafka) and `minimum_priority`.

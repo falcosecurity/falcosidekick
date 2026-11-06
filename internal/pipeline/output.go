@@ -88,6 +88,8 @@ type Output struct {
 	queue          chan *event.Event
 	cancel         context.CancelFunc
 	circuitBreaker *CircuitBreaker
+	// retired is closed once Retire's workers exited and the driver closed, even past Retire's deadline.
+	retired chan struct{}
 	// predecessor is the replaced output while it drains.
 	predecessor atomic.Pointer[Output]
 	config      output.RuntimeConfig
@@ -117,7 +119,14 @@ func (o *Output) totals() (sent, failed, dropped int64) {
 	return sent, failed, dropped
 }
 
-func (o *Output) inherit(prev *Output) { o.predecessor.Store(prev) }
+// inherit links prev so the counters stay continuous, and carries its last outcome until o has one.
+func (o *Output) inherit(prev *Output) {
+	prev.outcomeMu.RLock()
+	o.lastSuccess.Store(prev.lastSuccess.Load())
+	o.lastError.Store(prev.lastError.Load())
+	prev.outcomeMu.RUnlock()
+	o.predecessor.Store(prev)
+}
 
 func (o *Output) absorb() {
 	o.outcomeMu.Lock()
@@ -192,6 +201,7 @@ func NewOutput(driver output.Driver, cfg *output.RuntimeConfig, metrics core.Met
 		queue:          make(chan *event.Event, cfg.QueueSize),
 		circuitBreaker: NewCircuitBreaker(cfg.CircuitBreaker),
 		metrics:        metrics,
+		retired:        make(chan struct{}),
 	}
 	if bs, ok := driver.(output.BatchSender); ok && cfg.Batching != nil && cfg.Batching.Enabled {
 		o.batchSender = bs
@@ -226,7 +236,7 @@ func (o *Output) Driver() output.Driver {
 
 // Start launches the workers under a child context that Retire cancels.
 func (o *Output) Start(ctx context.Context) {
-	workerCtx, cancel := context.WithCancel(ctx) //nolint:gosec // cancel is stored in o.cancel and called by Retire
+	workerCtx, cancel := context.WithCancel(ctx)
 	o.cancel = cancel
 
 	worker := o.runWorker
@@ -266,32 +276,34 @@ func (o *Output) Close() error {
 	return o.driver.Close()
 }
 
-// Retire closes the queue, drains bounded by ctx, then closes the driver.
-// On deadline it cancels the workers and closes the driver only after they exit, never during Send.
+// Retire closes the queue, drains, then closes the driver, all bounded by ctx; call it once.
+// On deadline it cancels the workers; the driver is closed only after they exit, never during Send,
+// and Retired reports when that happened.
 func (o *Output) Retire(ctx context.Context) error {
-	if o.cancel != nil {
-		defer o.cancel()
-	}
 	close(o.queue)
-
-	done := make(chan struct{})
 	go func() {
 		o.waitDone()
-		close(done)
+		_ = o.driver.Close()
+		close(o.retired)
 	}()
 
 	select {
-	case <-done:
-		_ = o.driver.Close()
+	case <-o.retired:
+		o.stopWorkers()
 		return nil
 	case <-ctx.Done():
+		o.stopWorkers()
+		return fmt.Errorf("output %q: retire deadline exceeded, deferred close scheduled", o.driver.Name())
 	}
+}
 
-	go func() {
-		<-done
-		_ = o.driver.Close()
-	}()
-	return fmt.Errorf("output %q: retire deadline exceeded, deferred close scheduled", o.driver.Name())
+// Retired is closed once a Retire finished, including the deferred close after its deadline.
+func (o *Output) Retired() <-chan struct{} { return o.retired }
+
+func (o *Output) stopWorkers() {
+	if o.cancel != nil {
+		o.cancel()
+	}
 }
 
 func (o *Output) closeQueue() {

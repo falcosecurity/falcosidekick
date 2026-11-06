@@ -30,7 +30,9 @@ var ErrDispatcherStopped = errors.New("dispatcher: stopped")
 
 // Dispatcher routes events to outputs by priority; it is safe for concurrent dispatch and reload.
 type Dispatcher struct {
-	outputs  map[string]*Output
+	outputs map[string]*Output
+	// retiring holds the outputs replaced or removed whose retirement has not finished; Shutdown awaits them.
+	retiring map[*Output]struct{}
 	mu       sync.RWMutex
 	stopping bool
 }
@@ -41,7 +43,7 @@ func NewDispatcher(outputs []*Output) *Dispatcher {
 	for _, o := range outputs {
 		m[o.Name()] = o
 	}
-	return &Dispatcher{outputs: m}
+	return &Dispatcher{outputs: m, retiring: make(map[*Output]struct{})}
 }
 
 // Start launches all output worker pools with the given context.
@@ -68,6 +70,7 @@ func (d *Dispatcher) DispatchEvent(evt *event.Event) {
 }
 
 // Shutdown drains all outputs, then closes their drivers in parallel, both bounded by ctx.
+// It also awaits the outputs still retiring after a reload, which close their own drivers.
 // On deadline it calls stopWorkers and closes drivers in the background once workers exit.
 func (d *Dispatcher) Shutdown(ctx context.Context, stopWorkers context.CancelFunc) error {
 	d.mu.Lock()
@@ -81,12 +84,19 @@ func (d *Dispatcher) Shutdown(ctx context.Context, stopWorkers context.CancelFun
 		snapshot = append(snapshot, out)
 		out.closeQueue()
 	}
+	retiring := make([]*Output, 0, len(d.retiring))
+	for out := range d.retiring {
+		retiring = append(retiring, out)
+	}
 	d.mu.Unlock()
 
 	done := make(chan struct{})
 	go func() {
 		for _, out := range snapshot {
 			out.waitDone()
+		}
+		for _, out := range retiring {
+			<-out.Retired()
 		}
 		close(done)
 	}()
@@ -127,60 +137,69 @@ func closeAll(outputs []*Output) <-chan struct{} {
 	return closed
 }
 
-// AddOutput starts a new output and adds it; on error the caller still owns out and must close it.
-func (d *Dispatcher) AddOutput(runCtx context.Context, out *Output) error {
+// Apply starts the outputs in set on runCtx, replacing the running ones with the same name, and removes
+// the names in remove, in one step. Then it retires every predecessor concurrently, bounded by retireCtx,
+// and returns the retirements that missed it; each successor absorbs its predecessor's counters once
+// that predecessor finished, even late. On ErrDispatcherStopped the caller still owns set and must close it.
+func (d *Dispatcher) Apply(retireCtx, runCtx context.Context, set map[string]*Output, remove []string) error {
+	type retirement struct{ old, successor *Output }
 	d.mu.Lock()
-	defer d.mu.Unlock()
 	if d.stopping {
+		d.mu.Unlock()
 		return ErrDispatcherStopped
 	}
-	out.Start(runCtx)
-	d.outputs[out.Name()] = out
-	return nil
+	var retirements []retirement
+	for name, out := range set {
+		if old, exists := d.outputs[name]; exists {
+			out.inherit(old)
+			retirements = append(retirements, retirement{old: old, successor: out})
+		}
+		out.Start(runCtx)
+		d.outputs[name] = out
+	}
+	for _, name := range remove {
+		if old, exists := d.outputs[name]; exists {
+			delete(d.outputs, name)
+			retirements = append(retirements, retirement{old: old})
+		}
+	}
+	for _, r := range retirements {
+		d.retiring[r.old] = struct{}{}
+	}
+	d.mu.Unlock()
+
+	errs := make([]error, len(retirements))
+	var wg sync.WaitGroup
+	for i, r := range retirements {
+		wg.Go(func() { errs[i] = r.old.Retire(retireCtx) })
+		go func() {
+			<-r.old.Retired()
+			if r.successor != nil {
+				r.successor.absorb()
+			}
+			d.mu.Lock()
+			delete(d.retiring, r.old)
+			d.mu.Unlock()
+		}()
+	}
+	wg.Wait()
+	return errors.Join(errs...)
+}
+
+// AddOutput starts a new output and adds it; on error the caller still owns out and must close it.
+func (d *Dispatcher) AddOutput(runCtx context.Context, out *Output) error {
+	return d.Apply(runCtx, runCtx, map[string]*Output{out.Name(): out}, nil)
 }
 
 // RemoveOutput retires the named output bounded by retireCtx.
 func (d *Dispatcher) RemoveOutput(retireCtx context.Context, name string) error {
-	d.mu.Lock()
-	if d.stopping {
-		d.mu.Unlock()
-		return ErrDispatcherStopped
-	}
-	out, exists := d.outputs[name]
-	if !exists {
-		d.mu.Unlock()
-		return nil
-	}
-	delete(d.outputs, name)
-	d.mu.Unlock()
-
-	return out.Retire(retireCtx)
+	return d.Apply(retireCtx, retireCtx, nil, []string{name})
 }
 
-// ReplaceOutput atomically swaps in newOut on runCtx while the old output retires on retireCtx.
+// ReplaceOutput swaps in newOut on runCtx while the old output retires on retireCtx.
 // On ErrDispatcherStopped the caller still owns newOut and must close it.
 func (d *Dispatcher) ReplaceOutput(retireCtx, runCtx context.Context, name string, newOut *Output) error {
-	d.mu.Lock()
-	if d.stopping {
-		d.mu.Unlock()
-		return ErrDispatcherStopped
-	}
-	old, exists := d.outputs[name]
-	if exists {
-		newOut.inherit(old)
-	}
-	newOut.Start(runCtx)
-	d.outputs[name] = newOut
-	d.mu.Unlock()
-
-	if !exists {
-		return nil
-	}
-	if err := old.Retire(retireCtx); err != nil {
-		return err
-	}
-	newOut.absorb()
-	return nil
+	return d.Apply(retireCtx, runCtx, map[string]*Output{name: newOut}, nil)
 }
 
 // GetReadableStore returns the named output's ReadableStore, if it has one.

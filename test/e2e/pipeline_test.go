@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -39,6 +40,39 @@ func TestMinimumPriorityIgnoresCase(t *testing.T) {
 	sk.waitStatus(t, "webhook", func(st outputStatus) bool { return st.SentTotal == 1 })
 	st := sk.status(t, "talon")
 	assert.Zero(t, st.SentTotal+st.FailedTotal+st.DroppedTotal, "a Warning event stays below CRITICAL")
+}
+
+// A reload replaces the output: counters and the last outcome carry over, new events reach the new destination.
+func TestReloadCarriesStatusToTheReplacement(t *testing.T) {
+	var oldCalls, newCalls atomic.Int32
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		oldCalls.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(failing.Close)
+	healthy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		newCalls.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(healthy.Close)
+
+	webhook := func(url string) string { return outputYAML("webhook", "host: \""+url+"\"\nruntime:\n  health_check: false") }
+	sk := startSidekick(t, webhook(failing.URL))
+	sk.postEvent(t, newMarker(t))
+	before := sk.waitStatus(t, "webhook", func(st outputStatus) bool { return st.FailedTotal == 1 })
+	require.NotEmpty(t, before.LastError)
+
+	sk.reloadOutputs(t, webhook(healthy.URL))
+	eventuallyf(t, func() bool { return strings.Contains(sk.logs.String(), "reload complete") }, "reload logged")
+	st := sk.status(t, "webhook")
+	assert.Equal(t, 1, st.FailedTotal, "counters carry over")
+	assert.Equal(t, before.LastError, st.LastError, "the last outcome carries over until the replacement has one")
+
+	sk.postEvent(t, newMarker(t))
+	st = sk.waitStatus(t, "webhook", func(st outputStatus) bool { return st.SentTotal == 1 })
+	assert.Empty(t, st.LastError)
+	assert.Equal(t, int32(1), newCalls.Load())
+	assert.Equal(t, int32(1), oldCalls.Load(), "the old destination gets nothing after the reload")
 }
 
 // D8: rule values beyond metrics.max_label_values share the "other" series.

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 	"time"
 
@@ -141,32 +142,14 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, cfg map[string]
 	defer retireCancel()
 
 	_, fileOwned := r.fileState[name]
-	existed := fileOwned
-	if !existed {
-		for _, n := range r.dispatcher.OutputNames() {
-			if n == name {
-				existed = true
-				break
-			}
-		}
-	}
 	var retireWarning bool
-	if existed {
-		if err := r.dispatcher.ReplaceOutput(retireCtx, r.workerRunCtx, name, out); err != nil {
-			if errors.Is(err, pipeline.ErrDispatcherStopped) {
-				_ = out.Close()
-				return r.fail(start, SourceUI, "%w", err)
-			}
-			retireWarning = true
-			r.logger.Warn("apply: old output retire timeout, replacement active", "output", name, "error", err)
+	if err := r.dispatcher.ReplaceOutput(retireCtx, r.workerRunCtx, name, out); err != nil {
+		if errors.Is(err, pipeline.ErrDispatcherStopped) {
+			_ = out.Close()
+			return r.fail(start, SourceUI, "%w", err)
 		}
-	} else {
-		if err := r.dispatcher.AddOutput(r.workerRunCtx, out); err != nil {
-			if errors.Is(err, pipeline.ErrDispatcherStopped) {
-				_ = out.Close()
-				return r.fail(start, SourceUI, "%w", err)
-			}
-		}
+		retireWarning = true
+		r.logger.Warn("apply: old output retire timeout, replacement active", "output", name, "error", err)
 	}
 
 	var dbSyncFailed bool
@@ -270,7 +253,7 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 
 	diff := DiffOutputConfigs(r.fileState, outsCfg.Outputs)
 
-	// A live name goes through ReplaceOutput so AddOutput never leaks a running worker.
+	// A name added to the files but already running, from the API, is a change: Apply replaces it.
 	for _, name := range r.dispatcher.OutputNames() {
 		if cfg, added := diff.Added[name]; added {
 			diff.Changed[name] = cfg
@@ -284,61 +267,32 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 		return nil
 	}
 
-	addedOutputs, err := r.createOutputs(ctx, diff.Added)
+	// One concurrent build of every added and changed output; a failure leaves the running set untouched.
+	toBuild := make(map[string]map[string]any, len(diff.Added)+len(diff.Changed))
+	maps.Copy(toBuild, diff.Added)
+	maps.Copy(toBuild, diff.Changed)
+	built, err := r.createOutputs(ctx, toBuild)
 	if err != nil {
-		return r.fail(start, SourceFile, "reload create added: %w", err)
+		return r.fail(start, SourceFile, "reload create: %w", err)
 	}
 
-	changedOutputs, err := r.createOutputs(ctx, diff.Changed)
-	if err != nil {
-		closeOutputs(addedOutputs)
-		return r.fail(start, SourceFile, "reload create changed: %w", err)
+	var removed []string
+	if !r.provisioning.DisableDeletion {
+		removed = diff.Removed
 	}
 
 	retireCtx, retireCancel := context.WithTimeout(ctx, retireTimeout)
 	defer retireCancel()
 
 	// retireWarning means a drain timed out but the replacement is live.
-	var stopped bool
 	var retireWarning bool
-
-	for _, out := range addedOutputs {
-		if err := r.dispatcher.AddOutput(workerRunCtx, out); err != nil {
-			if errors.Is(err, pipeline.ErrDispatcherStopped) {
-				_ = out.Close()
-				stopped = true
-				r.logger.Warn("reload: add rejected, dispatcher stopped", "output", out.Name())
-			}
+	if err := r.dispatcher.Apply(retireCtx, workerRunCtx, built, removed); err != nil {
+		if errors.Is(err, pipeline.ErrDispatcherStopped) {
+			closeOutputs(built)
+			return r.fail(start, SourceFile, "reload abandoned: dispatcher stopped during apply")
 		}
-	}
-	for name, out := range changedOutputs {
-		if err := r.dispatcher.ReplaceOutput(retireCtx, workerRunCtx, name, out); err != nil {
-			if errors.Is(err, pipeline.ErrDispatcherStopped) {
-				_ = out.Close()
-				stopped = true
-				r.logger.Warn("reload: replace rejected, dispatcher stopped", "output", name)
-			} else {
-				retireWarning = true
-				r.logger.Warn("reload: old output retire timeout, replacement active", "output", name, "error", err)
-			}
-		}
-	}
-	if !r.provisioning.DisableDeletion {
-		for _, name := range diff.Removed {
-			if err := r.dispatcher.RemoveOutput(retireCtx, name); err != nil {
-				if errors.Is(err, pipeline.ErrDispatcherStopped) {
-					stopped = true
-					r.logger.Warn("reload: remove rejected, dispatcher stopped", "output", name)
-				} else {
-					retireWarning = true
-					r.logger.Warn("reload: removed output retire timeout", "output", name, "error", err)
-				}
-			}
-		}
-	}
-
-	if stopped {
-		return r.fail(start, SourceFile, "reload abandoned: dispatcher stopped during apply")
+		retireWarning = true
+		r.logger.Warn("reload: retire timeout, replacements active", "error", err)
 	}
 
 	var dbSyncFailed bool

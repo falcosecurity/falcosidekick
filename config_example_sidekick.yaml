@@ -94,7 +94,7 @@ database:
 
 # reload:
 #   poll_interval: 30s             # content hash poll for K8s ConfigMap symlink swaps (0 disables)
-#   retire_timeout: 10s            # max wait for old output workers to drain during reload replace/remove
+#   retire_timeout: 10s            # max wait for replaced and removed outputs to drain, all together
 
 # =============================================================================
 # Runtime Defaults
