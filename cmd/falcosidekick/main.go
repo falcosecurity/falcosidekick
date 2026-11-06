@@ -117,7 +117,7 @@ func run(parentCtx context.Context, configPath string, outputPaths []string) err
 		"go_version", v.GoVersion,
 	)
 
-	collector := metrics.NewCollector(cfg.Metrics.ExtraLabels...)
+	collector := metrics.NewCollector(cfg.Metrics)
 
 	cat, err := catalog.New(all.Types())
 	if err != nil {

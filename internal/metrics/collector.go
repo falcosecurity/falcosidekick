@@ -38,21 +38,34 @@ type Collector struct {
 	dropTotal     *prometheus.CounterVec
 	errorTotal    *prometheus.CounterVec
 	eventTotal    *prometheus.CounterVec
-	// extraFields label eventTotal, in order after rule, priority and source.
+	overflowTotal *prometheus.CounterVec
+	// labels bounds the values taken from events: rule, source and the extra labels.
+	labels *labelGuard
+	// eventLabels name eventTotal's labels: rule, priority, source, then one per extra field.
+	eventLabels []string
+	// extraFields are the output fields behind the extra labels, in order.
 	extraFields []string
 }
 
-// NewCollector creates a Collector with its own registry; extraFields must be validated by core.MetricsConfig.
-func NewCollector(extraFields ...string) *Collector {
+// NewCollector creates a Collector with its own registry; cfg must be validated.
+func NewCollector(cfg core.MetricsConfig) *Collector {
 	reg := prometheus.NewRegistry()
-	eventLabels := make([]string, 0, 3+len(extraFields))
+	eventLabels := make([]string, 0, 3+len(cfg.ExtraLabels))
 	eventLabels = append(eventLabels, "rule", "priority", "source")
-	for _, field := range extraFields {
+	for _, field := range cfg.ExtraLabels {
 		eventLabels = append(eventLabels, core.MetricLabelName(field))
 	}
+	overflowTotal := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: namespace,
+		Name:      "metric_label_overflow_total",
+		Help:      "Label values recorded as \"other\" because the label reached metrics.max_label_values.",
+	}, []string{"label"})
 	c := &Collector{
-		reg:         reg,
-		extraFields: extraFields,
+		reg:           reg,
+		extraFields:   cfg.ExtraLabels,
+		eventLabels:   eventLabels,
+		overflowTotal: overflowTotal,
+		labels:        newLabelGuard(cfg.MaxLabelValues, overflowTotal),
 		inputTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "input_total",
@@ -61,7 +74,7 @@ func NewCollector(extraFields ...string) *Collector {
 		outputTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: namespace,
 			Name:      "output_total",
-			Help:      "Total events sent per output and status.",
+			Help:      "Total events per output and delivery outcome; a batch counts each event.",
 		}, []string{"output", "status"}),
 		outputLatency: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: namespace,
@@ -93,6 +106,7 @@ func NewCollector(extraFields ...string) *Collector {
 		c.dropTotal,
 		c.errorTotal,
 		c.eventTotal,
+		c.overflowTotal,
 	)
 
 	return c
@@ -103,22 +117,22 @@ func (c *Collector) Registry() *prometheus.Registry {
 	return c.reg
 }
 
-// RecordInput increments the input counter.
+// RecordInput increments the input counter; source comes from the event and is bounded.
 func (c *Collector) RecordInput(_ context.Context, source, status string) {
-	c.inputTotal.WithLabelValues(source, status).Inc()
+	c.inputTotal.WithLabelValues(c.labels.value("source", source), status).Inc()
 }
 
-// RecordOutput increments the output counter and observes latency.
-func (c *Collector) RecordOutput(_ context.Context, output, status string, duration time.Duration) {
-	c.outputTotal.WithLabelValues(output, status).Inc()
+// RecordOutput adds events to the output counter and observes the latency of the request.
+func (c *Collector) RecordOutput(_ context.Context, output, status string, events int64, duration time.Duration) {
+	c.outputTotal.WithLabelValues(output, status).Add(float64(events))
 	if duration > 0 {
 		c.outputLatency.WithLabelValues(output).Observe(duration.Seconds())
 	}
 }
 
-// RecordDrop increments the drop counter for the given output.
-func (c *Collector) RecordDrop(_ context.Context, output string) {
-	c.dropTotal.WithLabelValues(output).Inc()
+// RecordDrop adds events to the drop counter for the given output.
+func (c *Collector) RecordDrop(_ context.Context, output string, events int64) {
+	c.dropTotal.WithLabelValues(output).Add(float64(events))
 }
 
 // RecordError increments the error counter for the given component.
@@ -126,16 +140,16 @@ func (c *Collector) RecordError(_ context.Context, component string, _ error) {
 	c.errorTotal.WithLabelValues(component).Inc()
 }
 
-// RecordEvent increments the event counter.
+// RecordEvent increments the event counter; every label but the validated priority is bounded.
 func (c *Collector) RecordEvent(_ context.Context, evt *event.Event) {
-	values := make([]string, 0, 3+len(c.extraFields))
-	values = append(values, evt.Rule, string(evt.Priority), evt.Source)
-	for _, field := range c.extraFields {
+	values := make([]string, 0, len(c.eventLabels))
+	values = append(values, c.labels.value("rule", evt.Rule), string(evt.Priority), c.labels.value("source", evt.Source))
+	for i, field := range c.extraFields {
 		value := ""
 		if v, ok := evt.OutputFields[field]; ok && v != nil {
 			value = fmt.Sprint(v)
 		}
-		values = append(values, value)
+		values = append(values, c.labels.value(c.eventLabels[3+i], value))
 	}
 	c.eventTotal.WithLabelValues(values...).Inc()
 }

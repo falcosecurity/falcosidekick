@@ -19,13 +19,36 @@
 package e2e
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// D8: rule values beyond metrics.max_label_values share the "other" series.
+func TestMetricLabelsAreBounded(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+	t.Cleanup(server.Close)
+	sk := startSidekickWith(t, withExtra("metrics:\n  max_label_values: 2\n"), outputYAML("webhook", "host: \""+server.URL+"\""))
+	for range 3 {
+		sk.postEvent(t, newMarker(t))
+	}
+	sk.waitStatus(t, "webhook", func(st outputStatus) bool { return st.SentTotal == 3 })
+
+	resp, err := httpDo(http.MethodGet, sk.url+"/metrics", nil)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	metrics := string(body)
+	assert.Contains(t, metrics, `rule="other"`)
+	assert.Contains(t, metrics, `falcosidekick_metric_label_overflow_total{label="rule"} 1`)
+	assert.Contains(t, metrics, `falcosidekick_output_total{output="webhook",status="ok"} 3`)
+}
 
 // An outage opens the circuit; the queue waits and is delivered once the destination recovers.
 func TestOpenCircuitKeepsTheQueue(t *testing.T) {

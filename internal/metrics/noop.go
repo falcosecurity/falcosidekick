@@ -30,10 +30,10 @@ type NoopCollector struct{}
 func (NoopCollector) RecordInput(_ context.Context, _, _ string) {}
 
 // RecordOutput is a no-op.
-func (NoopCollector) RecordOutput(_ context.Context, _, _ string, _ time.Duration) {}
+func (NoopCollector) RecordOutput(_ context.Context, _, _ string, _ int64, _ time.Duration) {}
 
 // RecordDrop is a no-op.
-func (NoopCollector) RecordDrop(_ context.Context, _ string) {}
+func (NoopCollector) RecordDrop(_ context.Context, _ string, _ int64) {}
 
 // RecordError is a no-op.
 func (NoopCollector) RecordError(_ context.Context, _ string, _ error) {}

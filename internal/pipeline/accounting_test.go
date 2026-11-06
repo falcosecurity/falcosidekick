@@ -48,16 +48,16 @@ func newRecordingMetrics() *recordingMetrics {
 	return &recordingMetrics{statuses: map[string]int{}}
 }
 
-func (m *recordingMetrics) RecordOutput(_ context.Context, _, status string, _ time.Duration) {
+func (m *recordingMetrics) RecordOutput(_ context.Context, _, status string, events int64, _ time.Duration) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.statuses[status]++
+	m.statuses[status] += int(events)
 }
 
-func (m *recordingMetrics) RecordDrop(_ context.Context, _ string) {
+func (m *recordingMetrics) RecordDrop(_ context.Context, _ string, events int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.drops++
+	m.drops += int(events)
 }
 
 func (m *recordingMetrics) RecordError(_ context.Context, _ string, err error) {
@@ -97,7 +97,7 @@ func cancelledBackoffCase(t *testing.T, enqueue int, newOutput func(*recordingMe
 		assert.Equal(t, enqueue, status.FailedTotal)
 		assert.Zero(t, status.DroppedTotal)
 		assert.Equal(t, errDelivery.Error(), status.LastError)
-		assert.Equal(t, 1, metrics.statuses["error"])
+		assert.Equal(t, enqueue, metrics.statuses["error"], "output_total counts events, a batch included")
 		assert.Equal(t, []error{errDelivery}, metrics.errs)
 		assert.Zero(t, metrics.drops)
 	})

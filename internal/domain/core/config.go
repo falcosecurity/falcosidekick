@@ -31,8 +31,8 @@ type Config struct {
 	LogLevel      LogLevel           `json:"log_level" mapstructure:"log_level"`
 	ListenAddress string             `json:"listen_address" mapstructure:"listen_address"`
 	Database      DatabaseConfig     `json:"database" mapstructure:"database"`
-	Metrics       MetricsConfig      `json:"metrics" mapstructure:"metrics"`
 	UI            UIConfig           `json:"ui" mapstructure:"ui"`
+	Metrics       MetricsConfig      `json:"metrics" mapstructure:"metrics"`
 	Reload        ReloadConfig       `json:"reload" mapstructure:"reload"`
 	Provisioning  ProvisioningConfig `json:"provisioning" mapstructure:"provisioning"`
 	API           APIConfig          `json:"api" mapstructure:"api"`
@@ -42,11 +42,16 @@ type Config struct {
 // MetricsConfig controls the Prometheus metrics on /metrics.
 type MetricsConfig struct {
 	ExtraLabels []string `json:"extra_labels" mapstructure:"extra_labels"`
+	// MaxLabelValues caps the distinct values of each label taken from events; later values become "other".
+	MaxLabelValues int `json:"max_label_values" mapstructure:"max_label_values"`
 }
 
 // Validate rejects extra labels that are invalid Prometheus label names or collide with another label.
 func (c MetricsConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
+	if c.MaxLabelValues < 1 {
+		errs.Add("max_label_values", "must be at least 1")
+	}
 	seen := map[string]string{"rule": "", "priority": "", "source": ""}
 	for _, field := range c.ExtraLabels {
 		label := MetricLabelName(field)

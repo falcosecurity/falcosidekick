@@ -56,7 +56,7 @@ Outputs are probed concurrently. `runtime.health_check: false` skips the probe f
 | --- | --- |
 | `POST /` | Falco events (JSON) |
 | `GET /healthz` | liveness and readiness |
-| `GET /metrics` | Prometheus metrics, prefix `falcosidekick_`; `metrics.extra_labels` adds output fields as labels of `falcosidekick_event_total` |
+| `GET /metrics` | Prometheus metrics, prefix `falcosidekick_`; `metrics.extra_labels` adds output fields as labels of `falcosidekick_event_total`. Labels taken from events (rule, source, extra labels) keep at most `metrics.max_label_values` distinct values each (default 1000); later values are recorded as `other` and counted in `falcosidekick_metric_label_overflow_total{label}`. `falcosidekick_output_total` and `falcosidekick_output_drop_total` count events, a batch included |
 | `GET /version`, `GET /api/v1/version` | build version |
 | `/api/v1/...` | events, pipeline status, output config and types, UI layout |
 

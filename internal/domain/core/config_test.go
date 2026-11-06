@@ -24,9 +24,10 @@ import (
 
 func TestMetricsConfigValidate(t *testing.T) {
 	tests := []struct {
-		name    string
-		wantErr string
-		labels  []string
+		name      string
+		wantErr   string
+		labels    []string
+		maxValues int
 	}{
 		{name: "none"},
 		{name: "field names", labels: []string{"k8s.ns.name", "proc.name", "container_id"}},
@@ -36,10 +37,15 @@ func TestMetricsConfigValidate(t *testing.T) {
 		{name: "empty", labels: []string{""}, wantErr: "not a valid label name"},
 		{name: "built-in label", labels: []string{"rule"}, wantErr: "collides with a built-in label"},
 		{name: "same label twice", labels: []string{"k8s.ns.name", "k8s_ns_name"}, wantErr: "map to the same label"},
+		{name: "no label values", maxValues: -1, wantErr: "max_label_values: must be at least 1"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			errs := MetricsConfig{ExtraLabels: tt.labels}.Validate()
+			maxValues := tt.maxValues
+			if maxValues == 0 {
+				maxValues = 1000
+			}
+			errs := MetricsConfig{ExtraLabels: tt.labels, MaxLabelValues: maxValues}.Validate()
 			if tt.wantErr == "" {
 				assert.Empty(t, errs)
 				return
@@ -127,6 +133,7 @@ func TestConfigValidateValid(t *testing.T) {
 		LogLevel:      LogLevelInfo,
 		LogFormat:     LogFormatText,
 		Database:      DatabaseConfig{Backend: DatabaseInMemory},
+		Metrics:       MetricsConfig{MaxLabelValues: 1000},
 	}
 	assert.Empty(t, cfg.Validate())
 }
