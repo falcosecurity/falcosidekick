@@ -253,7 +253,7 @@ func TestOutputDropsWhenQueueFull(t *testing.T) {
 		out.Enqueue(newTestEvent())
 	}
 
-	assert.Greater(t, out.droppedTotal.Load(), int64(0))
+	assert.Positive(t, out.GetStatus().DroppedTotal)
 
 	close(blocked)
 

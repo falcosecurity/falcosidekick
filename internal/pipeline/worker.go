@@ -45,6 +45,8 @@ func (o *Output) runWorker(ctx context.Context) {
 	}
 }
 
+// runBatchWorker collects up to batch_size events; while the circuit is open it holds that batch
+// in executeWithRetry and takes no other.
 func (o *Output) runBatchWorker(ctx context.Context) {
 	batchCfg := o.config.Batching
 	buffer := make([]*event.Event, 0, batchCfg.BatchSize)

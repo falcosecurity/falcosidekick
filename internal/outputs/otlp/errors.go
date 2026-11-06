@@ -79,6 +79,13 @@ func (r statusRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
+// CloseIdleConnections lets http.Client.CloseIdleConnections reach the wrapped transport.
+func (r statusRecorder) CloseIdleConnections() {
+	if c, ok := r.base.(interface{ CloseIdleConnections() }); ok {
+		c.CloseIdleConnections()
+	}
+}
+
 // recordPartialSuccess records a gRPC export response whose partial_success field is set,
 // which the specification defines as some data rejected for good.
 func recordPartialSuccess(

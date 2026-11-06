@@ -257,20 +257,7 @@ func (d *driver) produced(ctx context.Context, results kgo.ProduceResults) error
 			failures = append(failures, newDeliveryError(shared.OpSend, result.Err))
 		}
 	}
-	switch len(failures) {
-	case 0:
-		return nil
-	case 1:
-		return failures[0]
-	}
-	permanent := true
-	for _, failure := range failures {
-		permanent = permanent && output.IsPermanent(failure)
-	}
-	return &shared.DeliveryError{
-		Cause: ctx.Err(), Output: name, Operation: shared.OpSend, Permanent: permanent,
-		Code: fmt.Sprintf("%d of %d records failed, first: %s", len(failures), len(results), failures[0].Reason()),
-	}
+	return shared.JoinDeliveryErrors(ctx, name, shared.OpSend, failures, len(failures), len(results), "records")
 }
 
 // newDeliveryError names a protocol failure by its kerr code: franz-go appends broker text that can echo values.

@@ -81,17 +81,8 @@ func NewCircuitBreaker(cfg *output.CircuitBreakerConfig) *CircuitBreaker {
 func (cb *CircuitBreaker) Wait(ctx context.Context) error {
 	for {
 		cb.mu.Lock()
-		cb.advanceState()
-		var reopen time.Duration
-		ready := false
-		switch cb.state {
-		case CircuitClosed:
-			ready = true
-		case CircuitHalfOpen:
-			ready = !cb.probing
-		case CircuitOpen:
-			reopen = cb.cfg.ResetTimeout - time.Since(cb.lastFailure)
-		}
+		reopen := cb.advanceState()
+		ready := cb.state == CircuitClosed || (cb.state == CircuitHalfOpen && !cb.probing)
 		changed := cb.changed
 		cb.mu.Unlock()
 		if ready {
@@ -192,10 +183,18 @@ func (cb *CircuitBreaker) recordResult(generation uint64, success bool) {
 	}
 }
 
-func (cb *CircuitBreaker) advanceState() {
-	if cb.state == CircuitOpen && time.Since(cb.lastFailure) >= cb.cfg.ResetTimeout {
-		cb.transition(CircuitHalfOpen)
+// advanceState moves open to half-open once the reset timeout elapsed and returns the time left while still open.
+// One clock read decides both, so an open circuit always has a positive time left.
+func (cb *CircuitBreaker) advanceState() (untilHalfOpen time.Duration) {
+	if cb.state != CircuitOpen {
+		return 0
 	}
+	untilHalfOpen = cb.cfg.ResetTimeout - time.Since(cb.lastFailure)
+	if untilHalfOpen <= 0 {
+		cb.transition(CircuitHalfOpen)
+		return 0
+	}
+	return untilHalfOpen
 }
 
 func (cb *CircuitBreaker) transition(state CircuitState) {

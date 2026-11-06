@@ -706,7 +706,7 @@ func TestProducedBatchIsPermanentOnlyWhenEveryRecordIs(t *testing.T) {
 	}{
 		{name: "delivered", results: kgo.ProduceResults{delivered, delivered}},
 		{name: "one permanent", results: kgo.ProduceResults{tooLarge, delivered},
-			want: "kafka send: MESSAGE_TOO_LARGE", permanent: true},
+			want: "kafka send: 1 of 2 records failed, first: MESSAGE_TOO_LARGE", permanent: true},
 		{name: "permanent and transient", results: kgo.ProduceResults{tooLarge, notEnoughReplicas, delivered},
 			want: "kafka send: 2 of 3 records failed, first: MESSAGE_TOO_LARGE"},
 		{name: "transient and permanent", results: kgo.ProduceResults{notEnoughReplicas, tooLarge},

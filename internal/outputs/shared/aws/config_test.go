@@ -208,6 +208,30 @@ func TestLoadAssumeRoleIsNotRetriedByTheSDK(t *testing.T) {
 	assert.Equal(t, int32(1), calls.Load())
 }
 
+// IRSA builds its STS client inside the default chain: it must get the same transport and retry policy.
+func TestLoadWebIdentityIsNotRetriedByTheSDK(t *testing.T) {
+	awstest.Isolate(t)
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "text/xml")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`<ErrorResponse><Error><Type>Receiver</Type><Code>ServiceUnavailable</Code></Error></ErrorResponse>`))
+	}))
+	t.Cleanup(server.Close)
+	token := filepath.Join(t.TempDir(), "token")
+	require.NoError(t, os.WriteFile(token, []byte("web-identity-token"), 0o600))
+	t.Setenv("AWS_ENDPOINT_URL_STS", server.URL)
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", token)
+	t.Setenv("AWS_ROLE_ARN", "arn:aws:iam::123456789012:role/falco")
+
+	cfg, err := (&Config{Region: "eu-west-1"}).Load(context.Background(), "")
+	require.NoError(t, err)
+	_, err = cfg.Credentials.Retrieve(context.Background())
+	require.Error(t, err)
+	assert.Equal(t, int32(1), calls.Load())
+}
+
 func TestLoadRefusesCrossOriginRedirect(t *testing.T) {
 	awstest.Isolate(t)
 	var redirected atomic.Int32

@@ -620,3 +620,17 @@ func TestOutputsCoexist(t *testing.T) {
 	assert.Len(t, r2.snapshot().logs, 1)
 	assert.True(t, strings.HasPrefix(e2, "http://"))
 }
+
+type idleCounter struct {
+	http.RoundTripper
+	closed int
+}
+
+func (c *idleCounter) CloseIdleConnections() { c.closed++ }
+
+func TestStatusRecorderReleasesIdleConnections(t *testing.T) {
+	base := &idleCounter{RoundTripper: http.DefaultTransport}
+	client := &http.Client{Transport: statusRecorder{base: base}}
+	client.CloseIdleConnections()
+	assert.Equal(t, 1, base.closed, "Close reaches the transport the recorder wraps")
+}

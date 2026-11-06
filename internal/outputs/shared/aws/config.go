@@ -132,7 +132,17 @@ func endpointProblem(value string) string {
 
 // Load resolves the region and the credentials; SDK retries are off because the pipeline owns retries.
 func (c *Config) Load(ctx context.Context, fallbackRegion string) (sdkaws.Config, error) {
-	var opts []func(*awsconfig.LoadOptions) error
+	// The shared HTTP client applies the TLS settings, the proxy and the redirect policy of every HTTP output.
+	client, err := shared.BuildHTTPClient(&shared.HTTPConfig{TLS: c.TLS})
+	if err != nil {
+		return sdkaws.Config{}, err
+	}
+	client.Timeout = requestTimeout
+	// Passed as load options, so the STS clients the default chain builds (IRSA, profiles) use them too.
+	opts := []func(*awsconfig.LoadOptions) error{
+		awsconfig.WithHTTPClient(client),
+		awsconfig.WithRetryer(func() sdkaws.Retryer { return sdkaws.NopRetryer{} }),
+	}
 	if c.Region != "" {
 		opts = append(opts, awsconfig.WithRegion(c.Region))
 	}
@@ -151,15 +161,7 @@ func (c *Config) Load(ctx context.Context, fallbackRegion string) (sdkaws.Config
 		return sdkaws.Config{}, errors.New("region: is required (set region or AWS_REGION)")
 	}
 
-	// The shared HTTP client applies the TLS settings, the proxy and the redirect policy of every HTTP output.
-	client, err := shared.BuildHTTPClient(&shared.HTTPConfig{TLS: c.TLS})
-	if err != nil {
-		return sdkaws.Config{}, err
-	}
-	client.Timeout = requestTimeout
 	cfg := base.Copy()
-	cfg.HTTPClient = client
-	cfg.Retryer = func() sdkaws.Retryer { return sdkaws.NopRetryer{} }
 	if c.RoleARN != "" {
 		// STS shares the transport and the retry policy; endpoint names the destination service, not STS.
 		provider := stscreds.NewAssumeRoleProvider(sts.NewFromConfig(cfg.Copy()), c.RoleARN, func(o *stscreds.AssumeRoleOptions) {

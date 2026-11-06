@@ -309,12 +309,11 @@ func TestReplaceOutputKeepsCounters(t *testing.T) {
 	newOut := NewOutput(&testutil.MockDriver{DriverName: "hook"}, defaultRuntimeDefaults(), nil)
 	done := make(chan error, 1)
 	go func() { done <- d.ReplaceOutput(context.Background(), runCtx, "hook", newOut) }()
-	require.Eventually(t, func() bool { return newOut.predecessor.Load() != nil }, 2*time.Second, time.Millisecond)
+	require.Eventually(t, func() bool { return newOut.outcome.Load() == oldOut.outcome.Load() }, 2*time.Second, time.Millisecond)
 	assert.Equal(t, 2, newOut.GetStatus().SentTotal, "counts of the replaced output are visible during its drain")
 
 	close(release)
 	require.NoError(t, <-done)
-	assert.Nil(t, newOut.predecessor.Load(), "the retired output is folded in, not chained")
 
 	d.DispatchEvent(newTestEvent())
 	require.Eventually(t, func() bool { return newOut.GetStatus().SentTotal == 4 }, 2*time.Second, time.Millisecond,

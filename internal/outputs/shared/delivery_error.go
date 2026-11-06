@@ -169,6 +169,28 @@ func NewDeliveryError(outputName, operation string, cause error) *DeliveryError 
 	return &DeliveryError{Output: outputName, Operation: operation, Code: classifyDeliveryError(cause, operation), Cause: cause}
 }
 
+// JoinDeliveryErrors sums up the failed parts of a batch of total units, failed of which did not go through.
+// The result is permanent only when every failure is, and holds only ctx.Err() as Cause (see DeliveryError.Cause).
+// When one failure covers the whole batch, that failure is returned as is.
+func JoinDeliveryErrors(
+	ctx context.Context, outputName, operation string, failures []*DeliveryError, failed, total int, unit string,
+) error {
+	switch {
+	case len(failures) == 0:
+		return nil
+	case len(failures) == 1 && failed == total:
+		return failures[0]
+	}
+	permanent := true
+	for _, failure := range failures {
+		permanent = permanent && output.IsPermanent(failure)
+	}
+	return &DeliveryError{
+		Cause: ctx.Err(), Output: outputName, Operation: operation, Permanent: permanent,
+		Code: fmt.Sprintf("%d of %d %s failed, first: %s", failed, total, unit, failures[0].Reason()),
+	}
+}
+
 // IsTLSVerificationError reports whether err is a server certificate the client does not trust.
 func IsTLSVerificationError(err error) bool {
 	var (

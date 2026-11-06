@@ -119,9 +119,27 @@ func TestTimedOutRetirementIsAwaitedAndAbsorbed(t *testing.T) {
 		require.NoError(t, <-shutdown)
 		assert.True(t, closed.Load())
 		synctest.Wait()
-		assert.Nil(t, successor.predecessor.Load(), "the late predecessor is absorbed")
-		assert.Equal(t, 1, successor.GetStatus().FailedTotal, "its late outcome stays counted")
+		st := successor.GetStatus()
+		assert.Equal(t, 1, st.FailedTotal, "its late outcome stays counted")
+		assert.NotEmpty(t, st.LastError, "and is the successor's last outcome")
 	})
+}
+
+// A replaced by B, B by C, A still retiring after B finished: what A does last reaches C.
+func TestChainedReplacementsShareOneRecord(t *testing.T) {
+	a := NewOutput(&testutil.MockDriver{DriverName: "webhook"}, defaultRuntimeDefaults(), nil)
+	b := NewOutput(&testutil.MockDriver{DriverName: "webhook"}, defaultRuntimeDefaults(), nil)
+	c := NewOutput(&testutil.MockDriver{DriverName: "webhook"}, defaultRuntimeDefaults(), nil)
+	b.inherit(a)
+	c.inherit(b)
+
+	a.recordFailure(context.Background(), 2, errors.New("late failure"))
+	a.recordDrops(1)
+
+	st := c.GetStatus()
+	assert.Equal(t, 2, st.FailedTotal)
+	assert.Equal(t, 1, st.DroppedTotal)
+	assert.Equal(t, "late failure", st.LastError)
 }
 
 func TestRetireBoundsDriverClose(t *testing.T) {

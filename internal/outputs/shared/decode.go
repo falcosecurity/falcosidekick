@@ -17,28 +17,13 @@
 package shared
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
-	"regexp"
-	"slices"
-	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
+
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
-
-const safeInvalidValue = "invalid value"
-
-// mapstructure reports these two failures as untyped errors with fixed texts.
-var (
-	safeUnknownKeysText = regexp.MustCompile(`(?s)^has invalid keys: (.*)$`)
-	safeExpectedMapText = regexp.MustCompile(`^expected a map or struct, got `)
-)
-
-// safeDecodeFailure is a decode failure whose text never contains a submitted value.
-type safeDecodeFailure string
-
-func (f safeDecodeFailure) Error() string { return string(f) }
 
 // DecodeDriverConfig decodes a raw config map into a typed driver config struct.
 // The target struct should include a Runtime output.RuntimeConfig field to receive runtime override fields.
@@ -59,70 +44,7 @@ func DecodeDriverConfig(raw map[string]any, result any) error {
 		return fmt.Errorf("decoder init: %w", err)
 	}
 	if err := dec.Decode(raw); err != nil {
-		return safeDecodeError(err, reflect.TypeOf(result))
+		return utils.SafeDecodeError(err, reflect.TypeOf(result))
 	}
 	return nil
-}
-
-// safeDecodeError returns sorted "field: reason" messages without submitted values.
-func safeDecodeError(err error, target reflect.Type) error {
-	root := ""
-	if target != nil {
-		for target.Kind() == reflect.Pointer {
-			target = target.Elem()
-		}
-		root = target.String()
-	}
-	messages := safeDecodeMessages(err, root)
-	slices.Sort(messages)
-	return errors.New(strings.Join(messages, "; "))
-}
-
-func safeDecodeMessages(err error, root string) []string {
-	switch e := err.(type) {
-	case *mapstructure.DecodeError:
-		field := e.Name()
-		if field == root { // the root struct is named after its Go type
-			field = ""
-		}
-		return []string{safeWithField(field, safeDecodeReason(e.Unwrap()))}
-	case interface{ Unwrap() []error }:
-		var messages []string
-		for _, child := range e.Unwrap() {
-			messages = append(messages, safeDecodeMessages(child, root)...)
-		}
-		return messages
-	case interface{ Unwrap() error }:
-		if inner := e.Unwrap(); inner != nil {
-			return safeDecodeMessages(inner, root)
-		}
-	}
-	return []string{safeInvalidValue}
-}
-
-func safeDecodeReason(err error) string {
-	if err == nil {
-		return safeInvalidValue
-	}
-	if failure, ok := errors.AsType[safeDecodeFailure](err); ok {
-		return string(failure)
-	}
-	if unconvertible, ok := errors.AsType[*mapstructure.UnconvertibleTypeError](err); ok {
-		return "invalid type, expected " + unconvertible.Expected.Type().String()
-	}
-	text := err.Error()
-	if m := safeUnknownKeysText.FindStringSubmatch(text); m != nil {
-		return "unknown keys: " + m[1]
-	}
-	if safeExpectedMapText.MatchString(text) {
-		return "invalid type, expected map"
-	}
-	return safeInvalidValue
-}
-
-func safeWithField(field, reason string) string {
-	if field == "" {
-		return reason
-	}
-	return field + ": " + reason
 }

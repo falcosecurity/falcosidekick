@@ -127,7 +127,8 @@ func TestCancelledBackoffCountsWholeBatchAsFailed(t *testing.T) {
 	})
 }
 
-func TestBatchBufferedOnCancelCountsAsFailed(t *testing.T) {
+// A batch still buffered when the workers stop was never attempted: it is dropped, not sent with a dead context.
+func TestBatchBufferedOnCancelCountsAsDropped(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		cfg := retryingConfig()
 		cfg.Batching = &output.BatchingConfig{Enabled: true, BatchSize: 100, FlushInterval: time.Hour}
@@ -151,9 +152,10 @@ func TestBatchBufferedOnCancelCountsAsFailed(t *testing.T) {
 		out.waitDone()
 
 		status := out.GetStatus()
-		assert.Equal(t, int32(1), sends.Load())
-		assert.Equal(t, 4, status.FailedTotal)
-		assert.Equal(t, context.Canceled.Error(), status.LastError)
+		assert.Zero(t, sends.Load())
+		assert.Equal(t, 4, status.DroppedTotal)
+		assert.Zero(t, status.FailedTotal)
+		assert.Empty(t, status.LastError)
 	})
 }
 

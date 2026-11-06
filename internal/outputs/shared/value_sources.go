@@ -21,6 +21,8 @@ import (
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 // ValueSources holds the public, secret and file values of one headers or query_params entry.
@@ -40,7 +42,7 @@ func decodeValueSourcesHook(_, to reflect.Type, data any) (any, error) {
 	}
 	raw := reflect.ValueOf(data)
 	if raw.Kind() != reflect.Map {
-		return nil, safeDecodeFailure("entry must be a map")
+		return nil, utils.DecodeFailure("entry must be a map")
 	}
 	var h ValueSources
 	fields := []struct {
@@ -52,7 +54,7 @@ func decodeValueSourcesHook(_, to reflect.Type, data any) (any, error) {
 	for iter.Next() {
 		key, ok := iter.Key().Interface().(string)
 		if !ok {
-			return nil, safeDecodeFailure("property names must be strings")
+			return nil, utils.DecodeFailure("property names must be strings")
 		}
 		matched := false
 		for i := range fields {
@@ -61,11 +63,11 @@ func decodeValueSourcesHook(_, to reflect.Type, data any) (any, error) {
 				continue
 			}
 			if field.seen {
-				return nil, safeDecodeFailure("duplicate property " + field.name)
+				return nil, utils.DecodeFailure("duplicate property " + field.name)
 			}
 			values, err := decodeStringList(iter.Value().Interface())
 			if err != nil {
-				return nil, safeDecodeFailure(field.name + ": " + err.Error())
+				return nil, utils.DecodeFailure(field.name + ": " + err.Error())
 			}
 			*field.values = values
 			field.seen = true
@@ -73,7 +75,7 @@ func decodeValueSourcesHook(_, to reflect.Type, data any) (any, error) {
 			break
 		}
 		if !matched {
-			return nil, safeDecodeFailure("unknown property")
+			return nil, utils.DecodeFailure("unknown property")
 		}
 	}
 	return h, nil
@@ -90,13 +92,13 @@ func decodeStringList(data any) ([]string, error) {
 		for i, value := range values {
 			text, ok := value.(string)
 			if !ok {
-				return nil, safeDecodeFailure("must be a list of strings")
+				return nil, utils.DecodeFailure("must be a list of strings")
 			}
 			result[i] = text
 		}
 		return result, nil
 	default:
-		return nil, safeDecodeFailure("must be a list of strings")
+		return nil, utils.DecodeFailure("must be a list of strings")
 	}
 }
 

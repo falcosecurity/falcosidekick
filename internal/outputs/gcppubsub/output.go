@@ -305,20 +305,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 			failed += len(chunk)
 		}
 	}
-	switch {
-	case len(failures) == 0:
-		return nil
-	case len(chunks) == 1:
-		return failures[0]
-	}
-	permanent := true
-	for _, failure := range failures {
-		permanent = permanent && output.IsPermanent(failure)
-	}
-	return &shared.DeliveryError{
-		Cause: ctx.Err(), Output: name, Operation: opPublish, Permanent: permanent,
-		Code: fmt.Sprintf("%d of %d messages failed, first: %s", failed, len(messages), failures[0].Reason()),
-	}
+	return shared.JoinDeliveryErrors(ctx, name, opPublish, failures, failed, len(messages), "messages")
 }
 
 // splitRequests groups messages in order into requests of at most maxRequestMessages and maxRequestBytes,

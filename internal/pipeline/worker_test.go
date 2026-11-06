@@ -185,11 +185,10 @@ func TestBatchWorkerContextCancel(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	total := 0
-	for _, b := range batches {
-		total += b
-	}
-	assert.Equal(t, 3, total, "buffered events must be flushed on context cancel")
+	assert.Empty(t, batches, "a stopped worker attempts nothing; a drain closes the queue instead")
+	st := out.GetStatus()
+	assert.Equal(t, 3, st.DroppedTotal, "the buffered events were never attempted")
+	assert.Zero(t, st.FailedTotal)
 }
 
 func TestBatchWorkerDisabledFallsBackToSingle(t *testing.T) {
@@ -293,7 +292,7 @@ func TestBatchWorkerRetryOnFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(3), attempts.Load(), "batch must be retried")
-	assert.Equal(t, int64(5), out.sentTotal.Load(), "all events in batch counted on success")
+	assert.Equal(t, 5, out.GetStatus().SentTotal, "all events in batch counted on success")
 }
 
 func TestWorkerSendsEvent(t *testing.T) {
@@ -316,7 +315,7 @@ func TestWorkerSendsEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(1), received.Load())
-	assert.Equal(t, int64(1), out.sentTotal.Load())
+	assert.Equal(t, 1, out.GetStatus().SentTotal)
 }
 
 func TestWorkerRetriesOnFailure(t *testing.T) {
@@ -350,7 +349,7 @@ func TestWorkerRetriesOnFailure(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(3), attempts.Load())
-	assert.Equal(t, int64(1), out.sentTotal.Load())
+	assert.Equal(t, 1, out.GetStatus().SentTotal)
 }
 
 func TestWorkerFailsAfterMaxRetries(t *testing.T) {
@@ -378,9 +377,10 @@ func TestWorkerFailsAfterMaxRetries(t *testing.T) {
 	err := out.Retire(retireCtx)
 	require.NoError(t, err)
 
-	assert.Equal(t, int64(0), out.sentTotal.Load())
-	assert.Equal(t, int64(1), out.failedTotal.Load())
-	assert.Contains(t, out.lastError.Load().(string), "persistent error")
+	st := out.GetStatus()
+	assert.Zero(t, st.SentTotal)
+	assert.Equal(t, 1, st.FailedTotal)
+	assert.Contains(t, st.LastError, "persistent error")
 }
 
 func TestWorkerDoesNotRetryPermanentFailures(t *testing.T) {
@@ -406,8 +406,9 @@ func TestWorkerDoesNotRetryPermanentFailures(t *testing.T) {
 			require.NoError(t, out.Retire(retireCtx))
 
 			assert.Equal(t, int64(1), attempts.Load())
-			assert.Equal(t, int64(1), out.failedTotal.Load())
-			assert.Equal(t, permanent.Error(), out.lastError.Load())
+			st := out.GetStatus()
+			assert.Equal(t, 1, st.FailedTotal)
+			assert.Equal(t, permanent.Error(), st.LastError)
 		})
 	}
 }
