@@ -120,8 +120,7 @@ func TestAWSSQSMissingQueueFailsStartup(t *testing.T) {
 	target := localstack(t)
 	queueURL := fmt.Sprintf("%s/000000000000/fsk-e2e-absent-%s", target.endpoint, newMarker(t))
 	logs := startSidekickFails(t, target.output("awssqs", fmt.Sprintf("queue_url: %q\n", queueURL)))
-	assert.Contains(t, logs, "awssqs GetQueueAttributes: AWS.SimpleQueueService.NonExistentQueue")
-	assert.Contains(t, logs, "destination rejects the configuration")
+	assert.Contains(t, logs, "health check: awssqs GetQueueAttributes: HTTP 400 Bad Request: QueueDoesNotExist")
 	assert.NotContains(t, logs, target.secret)
 }
 

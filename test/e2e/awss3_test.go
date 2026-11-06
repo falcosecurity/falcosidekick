@@ -205,8 +205,7 @@ func TestAWSS3DeliversBatchAsNDJSON(t *testing.T) {
 func TestAWSS3MissingBucketFailsStartup(t *testing.T) {
 	target := localstack(t)
 	logs := startSidekickFails(t, target.output("awss3", "bucket: fsk-e2e-absent-"+newMarker(t)+"\nuse_path_style: true\n"))
-	assert.Contains(t, logs, "awss3 HeadBucket: NotFound (HTTP 404)")
-	assert.Contains(t, logs, "destination rejects the configuration")
+	assert.Contains(t, logs, "health check: awss3 HeadBucket: HTTP 404 Not Found: NotFound")
 	assert.NotContains(t, logs, target.secret)
 }
 
