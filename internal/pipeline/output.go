@@ -257,9 +257,7 @@ func (o *Output) recordDrop() { o.recordDrops(1) }
 func (o *Output) recordDrops(count int64) {
 	o.droppedTotal.Add(count)
 	if o.metrics != nil {
-		for range count {
-			o.metrics.RecordDrop(context.Background(), o.driver.Name())
-		}
+		o.metrics.RecordDrop(context.Background(), o.driver.Name(), count)
 	}
 }
 
@@ -398,7 +396,7 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 			o.healthWarning.Store("")
 			o.rateWindow.record(count, now.Unix())
 			if o.metrics != nil {
-				o.metrics.RecordOutput(ctx, o.driver.Name(), "ok", duration)
+				o.metrics.RecordOutput(ctx, o.driver.Name(), "ok", count, duration)
 			}
 			return
 		}
@@ -418,7 +416,7 @@ func (o *Output) recordFailure(ctx context.Context, count int64, err error) {
 	o.failedTotal.Add(count)
 	o.outcomeMu.Unlock()
 	if o.metrics != nil {
-		o.metrics.RecordOutput(ctx, o.driver.Name(), "error", 0)
+		o.metrics.RecordOutput(ctx, o.driver.Name(), "error", count, 0)
 		o.metrics.RecordError(ctx, o.driver.Name(), err)
 	}
 }

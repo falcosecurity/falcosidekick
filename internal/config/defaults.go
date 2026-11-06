@@ -57,4 +57,5 @@ func applyDefaults(v *viper.Viper) {
 	v.SetDefault("reload.retire_timeout", 10*time.Second)
 
 	v.SetDefault("metrics.extra_labels", []string{})
+	v.SetDefault("metrics.max_label_values", 1000)
 }

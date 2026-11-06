@@ -261,7 +261,7 @@ func TestStartAndShutdown(t *testing.T) {
 }
 
 func TestHandlePostEventWithMetrics(t *testing.T) {
-	collector := metrics.NewCollector()
+	collector := metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000})
 	enricher, _ := pipeline.NewEnricher(output.EnricherConfig{
 		TruncateEventThreshold: 4096,
 		TruncateFieldThreshold: 512,

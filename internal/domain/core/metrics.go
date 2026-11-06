@@ -24,10 +24,11 @@ import (
 )
 
 // MetricsCollector defines unified observability operations.
+// RecordOutput and RecordDrop count events, so a batch adds its size.
 type MetricsCollector interface {
 	RecordInput(ctx context.Context, source string, status string)
-	RecordOutput(ctx context.Context, output string, status string, duration time.Duration)
-	RecordDrop(ctx context.Context, output string)
+	RecordOutput(ctx context.Context, output string, status string, events int64, duration time.Duration)
+	RecordDrop(ctx context.Context, output string, events int64)
 	RecordError(ctx context.Context, component string, err error)
 	RecordEvent(ctx context.Context, evt *event.Event)
 }

@@ -331,7 +331,7 @@ func TestCreateOutputsCreateFailure(t *testing.T) {
 	_, err = createOutputs(context.Background(), cfg, map[string]map[string]any{
 		"good":   {},
 		"broken": {},
-	}, cat, metrics.NewCollector())
+	}, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `output "broken"`)
 }
@@ -367,7 +367,7 @@ func TestCreateOutputsInitFailure(t *testing.T) {
 	_, err = createOutputs(context.Background(), cfg, map[string]map[string]any{
 		"good":     {},
 		"initfail": {},
-	}, cat, metrics.NewCollector())
+	}, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `output "initfail": init:`)
 }
@@ -390,7 +390,7 @@ func TestRestoreFromDB_BuildsFromProvisionedFalseEntries(t *testing.T) {
 	require.NoError(t, db.SaveOutputConfig(ctx, "webhook", map[string]any{"address": "http://sink"}))
 
 	fileOutputs := map[string]map[string]any{}
-	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(), fileOutputs)
+	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
 	require.NoError(t, err)
 	require.Len(t, outs, 1, "UI-only entry must be rebuilt into a live Output on startup")
 	assert.Equal(t, "webhook", outs[0].Name())
@@ -419,7 +419,7 @@ func TestRestoreFromDB_SkipsProvisionedEntries(t *testing.T) {
 	}))
 	// The file already built webhook, so restore must skip it.
 	fileOutputs := map[string]map[string]any{"webhook": {"address": "http://from-file"}}
-	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(), fileOutputs)
+	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
 	require.NoError(t, err)
 	assert.Empty(t, outs, "provisioned entries must not be rebuilt by the UI-only restore path")
 }
@@ -457,7 +457,7 @@ func TestCreateOutputsRuntimeConfigFailure(t *testing.T) {
 	_, err = createOutputs(context.Background(), cfg, map[string]map[string]any{
 		"good":   {},
 		"badcfg": {},
-	}, cat, metrics.NewCollector())
+	}, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `output "badcfg": runtime merge:`)
 }

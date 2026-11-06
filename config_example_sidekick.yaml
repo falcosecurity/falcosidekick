@@ -53,6 +53,8 @@ database:
 #                                        # trusted network or with listen_address 127.0.0.1.
 
 # metrics:
+#   max_label_values: 1000               # distinct values kept per label taken from events;
+#                                        # later values are recorded as "other"
 #   extra_labels: []                     # output fields added as labels to
 #                                        # falcosidekick_event_total, e.g. [k8s.ns.name];
 #                                        # dots become underscores; each value is a new series
