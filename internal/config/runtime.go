@@ -21,11 +21,16 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 // MergeRuntimeConfig overlays the non-zero per-output runtime fields on the defaults.
+// Zero leaves the default; a negative value is rejected rather than replaced by the default.
 func MergeRuntimeConfig(defaults output.RuntimeConfig, name string, perOutput output.RuntimeConfig) (output.RuntimeConfig, error) {
 	resolved := defaults.DeepCopy()
+	if errs := negativeOverrides(perOutput); len(errs) > 0 {
+		return resolved, fmt.Errorf("output %q: %s", name, errs.Error())
+	}
 
 	if perOutput.QueueSize > 0 {
 		resolved.QueueSize = perOutput.QueueSize
@@ -34,10 +39,15 @@ func MergeRuntimeConfig(defaults output.RuntimeConfig, name string, perOutput ou
 		resolved.Workers = perOutput.Workers
 	}
 	if perOutput.MinPriority != "" {
-		if _, err := event.ParsePriority(string(perOutput.MinPriority)); err != nil {
+		resolved.MinPriority = perOutput.MinPriority
+	}
+	// The filter compares canonical priorities; the configuration accepts any case.
+	if resolved.MinPriority != "" {
+		priority, err := event.ParsePriority(string(resolved.MinPriority))
+		if err != nil {
 			return resolved, fmt.Errorf("output %q: minimum_priority: must be a Falco priority", name)
 		}
-		resolved.MinPriority = perOutput.MinPriority
+		resolved.MinPriority = priority
 	}
 	if perOutput.Retry != nil {
 		merged := *resolved.Retry
@@ -92,4 +102,32 @@ func MergeRuntimeConfig(defaults output.RuntimeConfig, name string, perOutput ou
 	}
 
 	return resolved, nil
+}
+
+// negativeOverrides reports the per-output fields set below zero.
+func negativeOverrides(c output.RuntimeConfig) utils.ValidationErrors {
+	var errs utils.ValidationErrors
+	check := func(field string, negative bool) {
+		if negative {
+			errs.Add("runtime."+field, "must not be negative")
+		}
+	}
+	check("queue_size", c.QueueSize < 0)
+	check("workers", c.Workers < 0)
+	if r := c.Retry; r != nil {
+		check("retry.max_attempts", r.MaxAttempts < 0)
+		check("retry.initial_interval", r.InitialInterval < 0)
+		check("retry.max_interval", r.MaxInterval < 0)
+		check("retry.multiplier", r.Multiplier < 0)
+	}
+	if cb := c.CircuitBreaker; cb != nil {
+		check("circuit_breaker.failure_threshold", cb.FailureThreshold < 0)
+		check("circuit_breaker.success_threshold", cb.SuccessThreshold < 0)
+		check("circuit_breaker.reset_timeout", cb.ResetTimeout < 0)
+	}
+	if b := c.Batching; b != nil {
+		check("batching.batch_size", b.BatchSize < 0)
+		check("batching.flush_interval", b.FlushInterval < 0)
+	}
+	return errs
 }

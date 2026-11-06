@@ -68,6 +68,8 @@ func TestInvalidConfigIsRejectedWithoutEchoingValues(t *testing.T) {
 		{name: "outputs yaml alias", outputs: "webhook: *" + echoed + "\n", want: "invalid anchor or alias"},
 		{name: "minimum_priority", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  minimum_priority: $V"),
 			want: "minimum_priority: must be a Falco priority"},
+		{name: "negative runtime override", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  queue_size: -1"),
+			want: "runtime.queue_size: must not be negative"},
 		{name: "webhook method", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nmethod: $V"),
 			want: "method: must be POST or PUT"},
 		{name: "tls ca_file", outputs: outputYAML("webhook", "host: https://127.0.0.1:1\ntls:\n  ca_file: /nonexistent-$V/ca.pem"),

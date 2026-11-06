@@ -29,6 +29,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// minimum_priority accepts any case; before, an unknown spelling ranked lowest and filtered nothing.
+func TestMinimumPriorityIgnoresCase(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
+	t.Cleanup(server.Close)
+	host := "host: \"" + server.URL + "\""
+	sk := startSidekick(t, outputYAML("webhook", host)+outputYAML("talon", host+"\nruntime:\n  minimum_priority: CRITICAL"))
+	sk.postEvent(t, newMarker(t))
+	sk.waitStatus(t, "webhook", func(st outputStatus) bool { return st.SentTotal == 1 })
+	st := sk.status(t, "talon")
+	assert.Zero(t, st.SentTotal+st.FailedTotal+st.DroppedTotal, "a Warning event stays below CRITICAL")
+}
+
 // D8: rule values beyond metrics.max_label_values share the "other" series.
 func TestMetricLabelsAreBounded(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
