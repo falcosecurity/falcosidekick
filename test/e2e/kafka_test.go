@@ -126,21 +126,71 @@ func createTopic(t *testing.T, target kafkaTarget, topic string) {
 	require.Len(t, resp.Topics, 1)
 	require.NoError(t, kerr.ErrorForCode(resp.Topics[0].ErrorCode), "create topic %s", topic)
 
-	t.Cleanup(func() {
-		admin, err := kgo.NewClient(target.opts...)
-		if err != nil {
+	t.Cleanup(func() { _ = deleteTopic(target, topic) })
+}
+
+func deleteTopic(target kafkaTarget, topic string) error {
+	admin, err := kgo.NewClient(target.opts...)
+	if err != nil {
+		return err
+	}
+	defer admin.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	del := kmsg.NewPtrDeleteTopicsRequest()
+	del.TopicNames = []string{topic}
+	dt := kmsg.NewDeleteTopicsRequestTopic()
+	dt.Topic = kmsg.StringPtr(topic)
+	del.Topics = append(del.Topics, dt)
+	resp, err := del.RequestWith(ctx, admin)
+	if err != nil {
+		return err
+	}
+	for _, result := range resp.Topics {
+		if err := kerr.ErrorForCode(result.ErrorCode); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// A topic deleted and recreated while the output runs gets a new topic ID.
+func TestKafkaRecoversRecreatedTopic(t *testing.T) {
+	target := plaintextKafka(t)
+	marker := newMarker(t)
+	topic := kafkaTopic(marker)
+	createTopic(t, target, topic)
+	sk := startSidekick(t, kafkaOutput(target, topic, ""))
+
+	postKafkaEvent(t, sk, marker+"-1", topic)
+	consumeMarker(t, target, topic, marker+"-1")
+
+	require.NoError(t, deleteTopic(target, topic))
+	require.Eventually(t, func() bool {
+		client := newKafkaClient(t, target)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		req := kmsg.NewPtrCreateTopicsRequest()
+		rt := kmsg.NewCreateTopicsRequestTopic()
+		rt.Topic, rt.NumPartitions, rt.ReplicationFactor = topic, 1, 1
+		req.Topics = append(req.Topics, rt)
+		resp, err := req.RequestWith(ctx, client)
+		return err == nil && len(resp.Topics) == 1 && resp.Topics[0].ErrorCode == 0
+	}, deliverTimeout, 500*time.Millisecond, "recreate topic %s", topic)
+
+	// Events sent while brokers still serve the old topic ID can fail; the output must then recover without a restart.
+	deadline := time.Now().Add(deliverTimeout)
+	for i := 2; ; i++ {
+		require.True(t, time.Now().Before(deadline), "no delivery to the recreated topic within %s", deliverTimeout)
+		eventMarker := fmt.Sprintf("%s-%d", marker, i)
+		postKafkaEvent(t, sk, eventMarker, topic)
+		st := sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.SentTotal+st.FailedTotal == i })
+		if st.LastError == "" {
+			consumeMarker(t, target, topic, eventMarker)
 			return
 		}
-		defer admin.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		del := kmsg.NewPtrDeleteTopicsRequest()
-		del.TopicNames = []string{topic}
-		dt := kmsg.NewDeleteTopicsRequestTopic()
-		dt.Topic = kmsg.StringPtr(topic)
-		del.Topics = append(del.Topics, dt)
-		_, _ = del.RequestWith(ctx, admin)
-	})
+		time.Sleep(time.Second)
+	}
 }
 
 func consumeMarker(t *testing.T, target kafkaTarget, topic, marker string) *kgo.Record {
