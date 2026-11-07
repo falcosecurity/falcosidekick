@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -872,6 +873,9 @@ func TestHandlePipelineOutputPut_ProvisionedSucceedsWhenUpdatesAllowed(t *testin
 	defer resp.Body.Close()
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var answer map[string]any
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&answer))
+	assert.Equal(t, true, answer["provisioned"], "the answer agrees with a later GET")
 
 	stored, err := db.GetOutputConfig(t.Context(), "slack")
 	require.NoError(t, err)
@@ -1341,4 +1345,58 @@ func TestHandlePipelineOutputPut_UnconfirmedWriteReturns503(t *testing.T) {
 	srv := buildMutationTestServer(t, db)
 	raw := requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/slack", `{"version":0,"config":{"secret_endpoint":"x"}}`, http.StatusServiceUnavailable)
 	assert.Equal(t, "database unavailable: the change may have been applied; read the output again", responseError(t, raw))
+}
+
+// blockingSaveDB waits in SaveOutputConfig until the request context ends, like a write stuck on a row lock.
+type blockingSaveDB struct {
+	databasetestutil.Mock
+	waiting chan struct{}
+}
+
+func (d *blockingSaveDB) SaveOutputConfig(ctx context.Context, _ string, _ int64, _ map[string]any) (int64, error) {
+	close(d.waiting)
+	<-ctx.Done()
+	return 0, ctx.Err()
+}
+
+// A write stuck in the database does not hold shutdown: the server cancels it when its deadline ends,
+// which frees the reloader for Close.
+func TestServerShutdownCancelsAStuckWrite(t *testing.T) {
+	db := &blockingSaveDB{waiting: make(chan struct{})}
+	rig := buildMutationRig(t, db, newMutationTestCatalog(t), true)
+
+	answered := make(chan int, 1)
+	go func() {
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/pipeline/outputs/slack",
+			bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"x"}}`)))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := rig.Server.app.Test(req, fiber.TestConfig{Timeout: 0})
+		if err != nil {
+			answered <- 0
+			return
+		}
+		_ = resp.Body.Close()
+		answered <- resp.StatusCode
+	}()
+	<-db.waiting
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_ = rig.Server.Shutdown(ctx)
+	select {
+	case status := <-answered:
+		assert.Equal(t, http.StatusServiceUnavailable, status)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the stuck write was not canceled")
+	}
+	closed := make(chan struct{})
+	go func() {
+		rig.Reloader.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the reloader stayed held")
+	}
 }
