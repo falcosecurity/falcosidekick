@@ -18,6 +18,7 @@ package awssns
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -27,6 +28,7 @@ import (
 	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 const (
@@ -43,23 +45,57 @@ var attributeName = regexp.MustCompile(`^[A-Za-z0-9_-]([A-Za-z0-9_.-]{0,254}[A-Z
 // fieldName maps proc.aname[2] to proc.aname.2, a valid attribute name.
 var fieldName = strings.NewReplacer("]", "", "[", ".")
 
-// messageAttributes lets an output field replace the fixed attribute of the same name.
-func messageAttributes(evt *event.Event) map[string]snstypes.MessageAttributeValue {
-	attrs := make(map[string]snstypes.MessageAttributeValue, len(evt.OutputFields)+5)
-	add := func(name, dataType, value string) {
-		if value == "" || !validAttributeName(name) {
-			return
-		}
-		attrs[name] = snstypes.MessageAttributeValue{DataType: sdkaws.String(dataType), StringValue: sdkaws.String(value)}
+// maxMessageAttributes is the SQS limit: raw delivery to SQS drops a message with more attributes.
+const maxMessageAttributes = 10
+
+// eventAttributes are the event fields message_attributes can name; any other name is an output field.
+var eventAttributes = map[string]func(*event.Event) string{
+	"priority": func(e *event.Event) string { return e.Priority.String() },
+	"rule":     func(e *event.Event) string { return e.Rule },
+	"source":   func(e *event.Event) string { return e.Source },
+	"tags":     func(e *event.Event) string { return strings.Join(e.Tags, ",") },
+	"hostname": func(e *event.Event) string { return e.Hostname },
+}
+
+var defaultMessageAttributes = []string{"priority", "rule", "source", "tags", "hostname"}
+
+// validateMessageAttributes refuses names SNS rejects and two names that become the same attribute.
+func validateMessageAttributes(names []string) utils.ValidationErrors {
+	var errs utils.ValidationErrors
+	if len(names) > maxMessageAttributes {
+		errs.Add("message_attributes", fmt.Sprintf("at most %d: raw delivery to SQS drops a message with more", maxMessageAttributes))
 	}
-	add("priority", dataTypeString, evt.Priority.String())
-	add("rule", dataTypeString, evt.Rule)
-	add("source", dataTypeString, evt.Source)
-	add("tags", dataTypeString, strings.Join(evt.Tags, ","))
-	add("hostname", dataTypeString, evt.Hostname)
-	for key, value := range evt.OutputFields {
+	seen := make(map[string]string, len(names))
+	for _, field := range names {
+		attribute := fieldName.Replace(field)
+		if !validAttributeName(attribute) {
+			errs.Add("message_attributes", fmt.Sprintf("%q is not a valid SNS attribute name", field))
+			continue
+		}
+		if previous, ok := seen[attribute]; ok {
+			errs.Add("message_attributes", fmt.Sprintf("%q and %q are the same attribute", previous, field))
+			continue
+		}
+		seen[attribute] = field
+	}
+	return errs
+}
+
+// messageAttributes sends the configured attributes the event has, leaving out empty values.
+func messageAttributes(evt *event.Event, names []string) map[string]snstypes.MessageAttributeValue {
+	attrs := make(map[string]snstypes.MessageAttributeValue, len(names))
+	add := func(name, dataType, value string) {
+		if value != "" {
+			attrs[name] = snstypes.MessageAttributeValue{DataType: sdkaws.String(dataType), StringValue: sdkaws.String(value)}
+		}
+	}
+	for _, key := range names {
+		if value, ok := eventAttributes[key]; ok {
+			add(key, dataTypeString, value(evt))
+			continue
+		}
 		name := fieldName.Replace(key)
-		switch v := value.(type) {
+		switch v := evt.OutputFields[key].(type) {
 		case string:
 			add(name, dataTypeString, v)
 		case json.Number:

@@ -73,7 +73,8 @@ func TestAWSSNSPublishesWithAttributes(t *testing.T) {
 	target := localstack(t)
 	marker := newMarker(t)
 	topicARN, queueURL := target.createTopic(t, marker)
-	sk := startSidekick(t, target.output("awssns", fmt.Sprintf("topic_arn: %q\n", topicARN)))
+	sk := startSidekick(t, target.output("awssns", fmt.Sprintf("topic_arn: %q\n", topicARN)+
+		"message_attributes: [priority, rule, source, tags, hostname, e2e.marker, proc.name]\n"))
 
 	sk.postEvent(t, marker)
 	env := target.receiveNotification(t, queueURL)

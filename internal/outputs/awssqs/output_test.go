@@ -147,6 +147,7 @@ func TestCreateValidation(t *testing.T) {
 		{name: "no region anywhere", cfg: map[string]any{"queue_url": "http://localhost:4566/000000000000/falco"}, wantErr: "region: is required"},
 		{name: "shared aws validation", cfg: map[string]any{"queue_url": queueURL, "role_arn": "x"}, wantErr: "role_arn: must be an IAM role ARN"},
 		{name: "unknown key", cfg: map[string]any{"queue_url": queueURL, "url": "x"}, wantErr: "unknown keys: url"},
+		{name: "fifo queue", cfg: map[string]any{"queue_url": queueURL + ".fifo"}, wantErr: "queue_url: FIFO queues are not supported"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -240,7 +241,7 @@ func TestSendBatchPartialFailure(t *testing.T) {
 	err := d.(output.BatchSender).SendBatch(context.Background(), events)
 	var diagnostic *shared.DeliveryError
 	require.ErrorAs(t, err, &diagnostic)
-	assert.Equal(t, name+" "+opSendMessageBatch+": 3/12 entries failed (InvalidMessageContents)", err.Error())
+	assert.Equal(t, name+" "+opSendMessageBatch+": 3 of 12 messages failed, first: InvalidMessageContents", err.Error())
 	assert.True(t, output.IsPermanent(err), "every failed entry is a sender fault")
 	assert.Len(t, fake.received(), 2, "every request is sent")
 }
@@ -252,7 +253,7 @@ func TestSendBatchServerFaultIsRetried(t *testing.T) {
 	events := []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent(), testutil.CreateValidEvent()}
 	err := d.(output.BatchSender).SendBatch(context.Background(), events)
 	require.Error(t, err)
-	assert.Equal(t, name+" "+opSendMessageBatch+": 2/3 entries failed (InvalidMessageContents, unrecognized error code)", err.Error())
+	assert.Equal(t, name+" "+opSendMessageBatch+": 2 of 3 messages failed, first: InvalidMessageContents", err.Error())
 	assert.False(t, output.IsPermanent(err), "a retry can deliver the entry the server failed")
 }
 
@@ -266,7 +267,7 @@ func TestSendBatchRejectedRequestKeepsSendingTheRest(t *testing.T) {
 	err := d.(output.BatchSender).SendBatch(context.Background(), events)
 	require.Error(t, err)
 	assert.Len(t, fake.received(), 3, "the requests after the rejected one are still sent")
-	assert.Equal(t, name+" "+opSendMessageBatch+": 1/3 entries failed (HTTP 400 Bad Request: BatchRequestTooLong)", err.Error())
+	assert.Equal(t, name+" "+opSendMessageBatch+": 1 of 3 messages failed, first: HTTP 400 Bad Request: BatchRequestTooLong", err.Error())
 	assert.True(t, output.IsPermanent(err), "only the rejected request failed, for good")
 }
 

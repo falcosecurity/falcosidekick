@@ -84,7 +84,8 @@ func (c *Config) wrap(outputName, operation string, err error, denialIsFatal boo
 		return nil
 	}
 	if strings.Contains(err.Error(), credentialFailure) {
-		operation = opCredentials
+		// A denial here comes from STS refusing the role, not from the destination read the probe lacks.
+		operation, denialIsFatal = opCredentials, true
 	}
 	var status int
 	if response, ok := errors.AsType[*awshttp.ResponseError](err); ok {

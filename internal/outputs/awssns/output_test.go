@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -117,6 +118,7 @@ func TestCreateValidation(t *testing.T) {
 		{name: "not an arn", cfg: map[string]any{"topic_arn": "falco"}, wantErr: "topic_arn: must be an SNS topic ARN"},
 		{name: "arn of another service", cfg: map[string]any{"topic_arn": "arn:aws:sqs:eu-west-1:123456789012:falco"}, wantErr: "topic_arn: must be an SNS topic ARN"},
 		{name: "unknown v2 key", cfg: map[string]any{"topic_arn": topicARN, "rawjson": true}, wantErr: "unknown keys: rawjson"},
+		{name: "fifo topic", cfg: map[string]any{"topic_arn": topicARN + ".fifo"}, wantErr: "topic_arn: FIFO topics are not supported"},
 		{name: "shared aws validation", cfg: map[string]any{"topic_arn": topicARN, "external_id": "x1"}, wantErr: "external_id: requires role_arn"},
 	}
 	for _, tt := range tests {
@@ -138,7 +140,11 @@ func TestCreateValidation(t *testing.T) {
 func TestPublishAttributes(t *testing.T) {
 	awstest.Isolate(t)
 	fake := &fakeSNS{}
-	d := newDriver(t, fake, map[string]any{"runtime": map[string]any{"minimum_priority": "error"}})
+	d := newDriver(t, fake, map[string]any{
+		"runtime": map[string]any{"minimum_priority": "error"},
+		"message_attributes": []any{"priority", "rule", "source", "tags", "hostname",
+			"proc.aname[2]", "evt.num", "fd.num", "proc.pid", "thread.tid"},
+	})
 	assert.Equal(t, event.PriorityError, d.RuntimeConfig().MinPriority)
 
 	evt := testutil.CreateValidEvent()
@@ -148,11 +154,9 @@ func TestPublishAttributes(t *testing.T) {
 		"fd.num":        float64(3),
 		"proc.pid":      int64(7),
 		"thread.tid":    8,
-		"aws.reserved":  "reserved prefix",
-		"empty":         "",
-		"list":          []any{"skipped"},
+		"proc.name":     "not listed",
+		"priority":      "an output field does not replace the event priority",
 	}
-	evt.OutputFields["container.label[app.kubernetes.io/x]"] = "invalid name"
 	require.NoError(t, d.Send(context.Background(), evt))
 	forms := fake.received()
 	require.Len(t, forms, 1)
@@ -172,6 +176,39 @@ func TestPublishAttributes(t *testing.T) {
 		"proc.pid":     {"Number", "7"},
 		"thread.tid":   {"Number", "8"},
 	}, attributes(form))
+}
+
+// D5: by default only the five event attributes; listed output fields are sent only when the event has them.
+func TestMessageAttributesDefaultAndValidation(t *testing.T) {
+	awstest.Isolate(t)
+	fake := &fakeSNS{}
+	d := newDriver(t, fake, nil)
+	evt := testutil.CreateValidEvent()
+	evt.OutputFields = map[string]any{"proc.name": "bash", "empty": "", "list": []any{"x"}}
+	require.NoError(t, d.Send(context.Background(), evt))
+	assert.Equal(t, []string{"hostname", "priority", "rule", "source", "tags"}, slices.Sorted(maps.Keys(attributes(fake.received()[0]))))
+
+	listed := &driver{cfg: config{TopicARN: topicARN, MessageAttributes: []string{"proc.name", "empty", "list", "missing"}}}
+	input, err := listed.publishInput(evt)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"proc.name"}, slices.Sorted(maps.Keys(input.MessageAttributes)))
+
+	for _, tc := range []struct {
+		want  string
+		names []any
+	}{
+		{names: []any{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"}, want: "message_attributes: at most 10"},
+		{names: []any{"proc.aname[2]", "proc.aname.2"}, want: `"proc.aname[2]" and "proc.aname.2" are the same attribute`},
+		{names: []any{"rule", "rule"}, want: `"rule" and "rule" are the same attribute`},
+		{names: []any{"aws.reserved"}, want: `"aws.reserved" is not a valid SNS attribute name`},
+		{names: []any{"container.label[app.kubernetes.io/x]"}, want: "is not a valid SNS attribute name"},
+	} {
+		_, err := OutputType.New(map[string]any{"topic_arn": topicARN, "message_attributes": tc.names}, output.Deps{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), tc.want)
+	}
+	_, err = OutputType.New(map[string]any{"topic_arn": topicARN, "message_attributes": []any{}}, output.Deps{})
+	assert.NoError(t, err, "an empty list sends no attributes")
 }
 
 func TestPublishWithoutOutputUsesRule(t *testing.T) {

@@ -119,6 +119,8 @@ func TestWrapErrorClassification(t *testing.T) {
 		{name: "connection refused", err: fmt.Errorf("send: %w", syscall.ECONNREFUSED), want: "test op: connection refused"},
 		{name: "deadline", err: fmt.Errorf("canceled: %w", context.DeadlineExceeded), want: "test op: timeout (deadline exceeded)"},
 		{name: "credentials", err: errors.New("get identity: failed to refresh cached credentials"), want: "test credentials: request failed"},
+		{name: "role refused by sts", err: fmt.Errorf("get identity: get credentials: %w", sdkError(403, "AccessDenied", "not authorized to perform sts:AssumeRole")),
+			misconfigure: true, want: "test credentials: HTTP 403 Forbidden: AccessDenied"},
 		{name: "untrusted certificate", err: fmt.Errorf("tls: %w", x509.UnknownAuthorityError{}), misconfigure: true},
 	}
 	c := &Config{}

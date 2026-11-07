@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	sdkaws "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -41,8 +42,10 @@ const (
 type config struct {
 	TopicARN         string `mapstructure:"topic_arn"`
 	sharedaws.Config `mapstructure:",squash"`
-	Runtime          output.RuntimeConfig `mapstructure:"runtime"`
-	RawJSON          bool                 `mapstructure:"raw_json"`
+	// MessageAttributes is nil when the key is absent, which means defaultMessageAttributes.
+	MessageAttributes []string             `mapstructure:"message_attributes"`
+	Runtime           output.RuntimeConfig `mapstructure:"runtime"`
+	RawJSON           bool                 `mapstructure:"raw_json"`
 }
 
 // OutputType describes the AWS SNS output for the catalog.
@@ -54,6 +57,7 @@ var OutputType = output.Type{
 		Fields: append(append([]output.SchemaField{
 			{Name: "topic_arn", Type: "string", Required: true, Label: "Topic ARN"},
 			{Name: "raw_json", Type: "bool", Default: false, Label: "Publish the event JSON instead of the output text and attributes"},
+			{Name: "message_attributes", Type: "string[]", Default: defaultMessageAttributes, Label: "Message attributes: priority, rule, source, tags, hostname or output field names (at most 10)"},
 		}, sharedaws.SchemaFields()...), shared.RuntimeConfigSchemaFields()...),
 	},
 }
@@ -72,7 +76,14 @@ func (c *config) validate() (topic arn.ARN, errs utils.ValidationErrors) {
 		errs.Add("topic_arn", "is required")
 	} else if topic, err = arn.Parse(c.TopicARN); err != nil || topic.Service != "sns" || topic.Resource == "" {
 		errs.Add("topic_arn", "must be an SNS topic ARN (arn:aws:sns:REGION:ACCOUNT:NAME)")
+	} else if strings.HasSuffix(topic.Resource, ".fifo") {
+		// A FIFO topic rejects every message without a MessageGroupId.
+		errs.Add("topic_arn", "FIFO topics are not supported")
 	}
+	if c.MessageAttributes == nil {
+		c.MessageAttributes = defaultMessageAttributes
+	}
+	errs.Merge("", validateMessageAttributes(c.MessageAttributes))
 	if len(errs) > 0 {
 		return topic, errs
 	}
@@ -123,7 +134,7 @@ func (d *driver) publishInput(evt *event.Event) (*sns.PublishInput, error) {
 		message = evt.Rule
 	}
 	input.Message = sdkaws.String(message)
-	input.MessageAttributes = messageAttributes(evt)
+	input.MessageAttributes = messageAttributes(evt, d.cfg.MessageAttributes)
 	return input, nil
 }
 
