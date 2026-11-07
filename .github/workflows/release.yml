@@ -75,6 +75,23 @@ jobs:
         with:
           registry-type: public
 
+      - name: Decide the image aliases
+        id: aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          stable="$(git tag --list 'v3.*' | grep -E '^v3\.[0-9]+\.[0-9]+$' || true)"
+          minor="${tag%.*}"
+          highest="$(sort -V <<<"$stable" | tail -n1)"
+          highest_minor="$(grep -E "^${minor//./\\.}\.[0-9]+$" <<<"$stable" | sort -V | tail -n1 || true)"
+          latest_major=false
+          latest_minor=false
+          [[ "$tag" != "$highest" ]] || latest_major=true
+          [[ "$tag" != "$highest_minor" ]] || latest_minor=true
+          echo "FSK_LATEST_MAJOR=$latest_major" >> "$GITHUB_ENV"
+          echo "FSK_LATEST_MINOR=$latest_minor" >> "$GITHUB_ENV"
+
       - uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         with:
           version: v2.18.2

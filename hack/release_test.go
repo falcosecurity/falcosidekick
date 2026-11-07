@@ -138,12 +138,13 @@ func TestReleaseArtifacts(t *testing.T) {
 					require.Equal(t, "slim", docker.BuildArgs["VARIANT"])
 					suffix = "-slim"
 				}
-				stable := "{{ if not (or .Prerelease .IsSnapshot) }}"
+				latestMinor := `{{ if eq (index .Env "FSK_LATEST_MINOR") "true" }}`
+				latestMajor := `{{ if eq (index .Env "FSK_LATEST_MAJOR") "true" }}`
 				require.Equal(t, []string{
 					"{{ .Version }}" + suffix,
-					stable + "{{ .Major }}.{{ .Minor }}" + suffix + "{{ end }}",
-					stable + "{{ .Major }}" + suffix + "{{ end }}",
-					stable + "v3-latest" + suffix + "{{ end }}",
+					latestMinor + "{{ .Major }}.{{ .Minor }}" + suffix + "{{ end }}",
+					latestMajor + "{{ .Major }}" + suffix + "{{ end }}",
+					latestMajor + "v3-latest" + suffix + "{{ end }}",
 				}, docker.Tags)
 			}
 			require.Equal(t, 1, matches)
@@ -197,6 +198,44 @@ func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// A patch on an older minor must not move the aliases a newer release holds.
+func TestReleaseAliasesFollowTheHighestStableTag(t *testing.T) {
+	step := releaseWorkflowStep(t, "release.yml", "release", "aliases")
+	repo := t.TempDir()
+	git := func(args ...string) {
+		cmd := exec.CommandContext(t.Context(), "git", append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+	}
+	git("init", "-q")
+	git("commit", "-q", "--allow-empty", "-m", "c")
+	for _, tag := range []string{"v3.0.0", "v3.0.9", "v3.1.2", "v3.2.0-beta.1", "v3.10.0", "v3.10.1-rc.1", "2.35.1"} {
+		git("tag", tag)
+	}
+	for _, tc := range []struct {
+		tag, major, minor string
+	}{
+		{tag: "v3.10.0", major: "true", minor: "true"},
+		{tag: "v3.1.2", major: "false", minor: "true"},
+		{tag: "v3.0.9", major: "false", minor: "true"},
+		{tag: "v3.0.0", major: "false", minor: "false"},
+		{tag: "v3.2.0-beta.1", major: "false", minor: "false"},
+		{tag: "v3.10.1-rc.1", major: "false", minor: "false"},
+	} {
+		t.Run(tc.tag, func(t *testing.T) {
+			env := filepath.Join(t.TempDir(), "env")
+			cmd := exec.CommandContext(t.Context(), "bash", "-c", step.Run)
+			cmd.Dir = repo
+			cmd.Env = append(os.Environ(), "GITHUB_REF_NAME="+tc.tag, "GITHUB_ENV="+env)
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, err, string(out))
+			written, err := os.ReadFile(env)
+			require.NoError(t, err)
+			require.Equal(t, "FSK_LATEST_MAJOR="+tc.major+"\nFSK_LATEST_MINOR="+tc.minor+"\n", string(written))
+		})
 	}
 }
 
