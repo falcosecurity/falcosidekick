@@ -11,10 +11,10 @@ Start from [`config_example_sidekick.yaml`](../config_example_sidekick.yaml) and
 
 | Image | Content |
 | --- | --- |
-| `falcosecurity/falcosidekick:v3-<version>` | binary with the built-in web UI |
-| `falcosecurity/falcosidekick:v3-<version>-slim` | binary without the UI |
-| `v3-latest`, `v3-latest-slim` | latest v3 release |
-| `v3-dev`, `v3-dev-slim` | latest `master` build, not a release |
+| `falcosecurity/falcosidekick:<version>` | binary with the built-in web UI, for example `3.1.2` |
+| `falcosecurity/falcosidekick:<version>-slim` | binary without the UI |
+| `3.1`, `3`, `v3-latest` (and `-slim`) | latest stable release of that minor, of v3, of v3; not moved by pre-releases |
+| `v3-main`, `v3-main-slim` | latest `master` build, not a release |
 
 The same tags are published to `public.ecr.aws/falcosecurity/falcosidekick`. `latest` is still v2.
 

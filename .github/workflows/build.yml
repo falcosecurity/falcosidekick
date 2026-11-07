@@ -86,30 +86,29 @@ jobs:
             suffix=""
             [[ "$variant" != slim ]] || suffix=-slim
             for arch in amd64 arm64; do
-              local_image="${image}:v3-dev${suffix}-${arch}"
+              local_image="${image}:v3-main${suffix}-${arch}"
               [[ "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$local_image")" == "$GITHUB_SHA" ]]
               [[ "$(docker image inspect --format '{{ index .Config.Labels "io.falcosecurity.falcosidekick.variant" }}' "$local_image")" == "$variant" ]]
               [[ "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$local_image")" == "linux/$arch" ]]
               version="$(docker run --rm --network=none --platform "linux/$arch" "$local_image" --version)"
-              [[ "$version" == "falcosidekick dev (commit: $GITHUB_SHA, built: "* ]]
+              [[ "$version" == "falcosidekick v3-main (commit: $GITHUB_SHA, built: "* ]]
               [[ "$version" != *"built: unknown"* ]]
             done
           done
           # Snapshot mode loads platform images locally; it does not publish them.
-          # master publishes only the dev channel: v3-dev and one tag per commit, never a release alias.
           for image in "${images[@]}"; do
             for suffix in "" -slim; do
               for arch in amd64 arm64; do
-                remote_image="${image}:v3-${GITHUB_SHA}${suffix}-${arch}"
-                docker tag "${image}:v3-dev${suffix}-${arch}" "$remote_image"
+                remote_image="${image}:v3-main-${GITHUB_SHA}${suffix}-${arch}"
+                docker tag "${image}:v3-main${suffix}-${arch}" "$remote_image"
                 docker push "$remote_image"
               done
             done
           done
           for image in "${images[@]}"; do
             for suffix in "" -slim; do
-              docker buildx imagetools create --tag "${image}:v3-dev${suffix}" \
-                "${image}:v3-${GITHUB_SHA}${suffix}-amd64" \
-                "${image}:v3-${GITHUB_SHA}${suffix}-arm64"
+              docker buildx imagetools create --tag "${image}:v3-main${suffix}" \
+                "${image}:v3-main-${GITHUB_SHA}${suffix}-amd64" \
+                "${image}:v3-main-${GITHUB_SHA}${suffix}-arm64"
             done
           done
