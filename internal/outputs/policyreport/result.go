@@ -118,11 +118,14 @@ func buildResult(evt *event.Event) (map[string]any, error) {
 		"priority": string(evt.Priority),
 		"hostname": evt.Hostname,
 		"tags":     shared.FormatTags(evt.Tags, ","),
-		"uuid":     evt.UUID,
 	} {
 		if _, taken := properties[k]; !taken && v != "" {
 			properties[k] = v
 		}
+	}
+	// addResult matches retries on it, so an output field of the same name never replaces it.
+	if evt.UUID != "" {
+		properties["uuid"] = evt.UUID
 	}
 	r := reportResult{
 		Source:     resultSource,

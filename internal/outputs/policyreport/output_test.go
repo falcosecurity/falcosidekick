@@ -150,6 +150,18 @@ func TestSendRetryAfterLostAnswerAddsOneResult(t *testing.T) {
 	assert.Equal(t, []string{"r1", "r2"}, rules(t, getReport(t, client, "prod")))
 }
 
+// A custom field named uuid used to replace the event UUID, so every later event looked like a retry.
+func TestOutputFieldNamedUUIDDoesNotMergeEvents(t *testing.T) {
+	d, client := newFakeDriver(t, nil)
+	ctx := context.Background()
+	for _, rule := range []string{"r1", "r2"} {
+		evt := eventIn("prod", rule, event.PriorityError)
+		evt.OutputFields["uuid"] = "cluster-a"
+		require.NoError(t, d.Send(ctx, evt))
+	}
+	assert.Equal(t, []string{"r1", "r2"}, rules(t, getReport(t, client, "prod")))
+}
+
 func TestSendRotatesAtMaxEvents(t *testing.T) {
 	for _, prune := range []bool{false, true} {
 		t.Run(fmt.Sprintf("prune_by_priority=%t", prune), func(t *testing.T) {
