@@ -33,6 +33,43 @@ jobs:
       - name: Run end-to-end tests without external services
         run: go test -count=1 -v -tags e2e ./test/e2e/
 
+  postgres:
+    name: e2e postgres ${{ matrix.postgres }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres: ['18.6', '17.11']
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}-alpine
+        env:
+          POSTGRES_USER: fsk
+          POSTGRES_PASSWORD: fsk
+          POSTGRES_DB: fsk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fsk -d fsk"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+      - name: Run database, replica and startup tests on postgres
+        env:
+          FALCOSIDEKICK_E2E_POSTGRES_DSN: postgres://fsk:fsk@127.0.0.1:5432/fsk?sslmode=disable
+          FALCOSIDEKICK_E2E_POSTGRES_REQUIRED: '1'
+        run: go test -count=1 -race -v ./internal/database/ ./internal/reload/ ./cmd/falcosidekick/
+
   loki:
     name: e2e loki ${{ matrix.loki }}
     runs-on: ubuntu-latest

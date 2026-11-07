@@ -996,10 +996,7 @@ func TestNewAppStartsWhenTheStoredEventSourceDoesNotBuild(t *testing.T) {
 
 // The postgres settings of the core file open the database; FALCOSIDEKICK_E2E_POSTGRES_DSN names the server.
 func TestCreateDatabasePostgresFromTheCoreFile(t *testing.T) {
-	dsn := os.Getenv("FALCOSIDEKICK_E2E_POSTGRES_DSN")
-	if dsn == "" {
-		t.Skip("FALCOSIDEKICK_E2E_POSTGRES_DSN is not set")
-	}
+	dsn := postgresDSN(t)
 	server, err := url.Parse(dsn)
 	require.NoError(t, err)
 	password, _ := server.User.Password()
@@ -1029,10 +1026,7 @@ database:
 // postgresTestDatabase creates an empty database on the test postgres and returns core settings for it.
 func postgresTestDatabase(t *testing.T) *config.Config {
 	t.Helper()
-	dsn := os.Getenv("FALCOSIDEKICK_E2E_POSTGRES_DSN")
-	if dsn == "" {
-		t.Skip("FALCOSIDEKICK_E2E_POSTGRES_DSN is not set")
-	}
+	dsn := postgresDSN(t)
 	server, err := url.Parse(dsn)
 	require.NoError(t, err)
 	name := fmt.Sprintf("fsk_%d", time.Now().UnixNano())
@@ -1112,4 +1106,18 @@ func TestReplicasConvergeThroughNotificationsAndPolling(t *testing.T) {
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return len(running(polled)) == 0 }, 5*time.Second, 50*time.Millisecond, "the poll sees it")
 	assert.Equal(t, []string{"webhook"}, running(reader), "an instance that polls hourly does not")
+}
+
+// postgresDSN returns the test postgres; without it the test is skipped, or fails when
+// FALCOSIDEKICK_E2E_POSTGRES_REQUIRED is set, as in CI.
+func postgresDSN(t *testing.T) string {
+	t.Helper()
+	dsn := os.Getenv("FALCOSIDEKICK_E2E_POSTGRES_DSN")
+	if dsn == "" {
+		if os.Getenv("FALCOSIDEKICK_E2E_POSTGRES_REQUIRED") != "" {
+			t.Fatal("FALCOSIDEKICK_E2E_POSTGRES_DSN is not set")
+		}
+		t.Skip("FALCOSIDEKICK_E2E_POSTGRES_DSN is not set")
+	}
+	return dsn
 }
