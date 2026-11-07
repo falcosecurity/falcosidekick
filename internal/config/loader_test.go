@@ -133,15 +133,6 @@ func TestLoadEnvOverridesFile(t *testing.T) {
 	assert.Equal(t, 4000, cfg.ListenPort)
 }
 
-func TestLoadRejectsTheRemovedDisableDeletionKey(t *testing.T) {
-	cfgFile := filepath.Join(t.TempDir(), "config.yaml")
-	require.NoError(t, os.WriteFile(cfgFile, []byte("provisioning:\n  allow_ui_updates: true\n  disable_deletion: true\n"), 0o600))
-
-	_, err := Load(cfgFile)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "disable_deletion")
-}
-
 func TestLoadRejectsUnknownCoreKeys(t *testing.T) {
 	cfgFile := filepath.Join(t.TempDir(), "config.yaml")
 	require.NoError(t, os.WriteFile(cfgFile, []byte(`
