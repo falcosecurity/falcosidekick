@@ -23,7 +23,7 @@ which expands to:
 1. `make image`: builds the UI image for the host arch into the local Docker daemon as `falcosidekick:local`.
 2. `./hack/live-test/run.sh`: orchestrates the rest.
 
-Override the image variant with `FSK_TAG=local-slim` (after `make image-slim`) to run against the slim binary. Override the local port with `FSK_LOCAL_PORT=<port>` and the cluster with `FSK_KIND_CLUSTER=<name>`.
+Override the image with `FSK_IMAGE` and `FSK_TAG`, for example `FSK_TAG=local-slim` (after `make image-slim`) for the slim binary; the `Component` is applied with that image. Override the local port with `FSK_LOCAL_PORT=<port>` and the cluster with `FSK_KIND_CLUSTER=<name>`.
 
 ## What the script does
 
@@ -36,7 +36,7 @@ Override the image variant with `FSK_TAG=local-slim` (after `make image-slim`) t
 7. Synthetic `POST /` event; verify webhook-receiver logs it.
 8. Trigger a real Falco rule via `kubectl run ... cat /etc/shadow`; verify falcosidekick logs a matching event.
 9. `/metrics` counter > 0; `GET /` returns the UI HTML shell.
-10. Teardown (`trap` always runs): delete Component CR + webhook-receiver.
+10. Teardown (`trap` always runs): delete Component CR, webhook-receiver and this run's trigger pod.
 
 ## Success criteria
 
@@ -47,10 +47,10 @@ Every criterion is a hard blocker: any failure exits the script non-zero.
 - **3** `/version` returns the build metadata JSON.
 - **4** `/api/v1/config` returns the provisioned config.
 - **5a** synthetic `POST /` returns 200.
-- **5b** webhook output's `sent_total` advances after the synthetic POST (observed via `/api/v1/pipeline/status`).
-- **6** real Falco rule trigger (`cat /etc/shadow` in an alpine pod) causes the webhook output's `sent_total` to advance again.
+- **5b** webhook output's `sent_total` advances and the receiver logs the synthetic event, matched by this run's id.
+- **6** real Falco rule trigger (`cat /etc/shadow` in an alpine pod) advances `sent_total` again and the receiver logs an event naming this run's trigger pod.
 - **7** `falcosidekick_input_total{source="syscall"}` metric advances beyond baseline.
-- **8** `GET /` with a browser-shape `Accept-Encoding: gzip` returns 200 and decoded HTML (UI-embedded variant only; skipped when `FSK_TAG=local-slim`).
+- **8** `GET /` with a browser-shape `Accept-Encoding: gzip` returns 200 and decoded HTML; with a `-slim` image it must answer 404.
 - **9a** `PUT /api/v1/pipeline/outputs/webhook`, with the version read by `GET`, returns 200.
 - **9b** after 9a, posting synthetic events shows the webhook output still delivering (the UI write applied, the output is live in the dispatcher).
 

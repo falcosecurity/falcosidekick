@@ -20,6 +20,21 @@ updates:
           - "minor"
           - "patch"
 
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "bun"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+    groups:
+      ui:
+        update-types:
+          - "minor"
+          - "patch"
+
   - package-ecosystem: gomod
     directory: "/"
     target-branch: "2.x"

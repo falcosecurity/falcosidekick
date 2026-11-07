@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BASE_IMAGE=alpine:3.22
+# Pinned by digest so a rebuild of the same commit uses the same base; Dependabot proposes updates.
+ARG BASE_IMAGE=alpine:3.22@sha256:bfe7ceb9f09ec0566c48fb93356e45a47a00be5a1dd14fa5b909e7709c66b034
 
 FROM ${BASE_IMAGE}
 

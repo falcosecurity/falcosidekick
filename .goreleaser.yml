@@ -11,8 +11,9 @@ env:
   - COSIGN_YES=true
 
 snapshot:
+  # master builds are the dev channel (v3-dev); the release aliases come only from v3.* tags.
   # Published image tags keep the v3- prefix: `latest` still points to v2.
-  version_template: "v3-latest"
+  version_template: "dev"
 
 checksum:
   name_template: "falcosidekick-checksums.txt"
@@ -29,6 +30,8 @@ builds:
   - id: falcosidekick
     main: ./cmd/falcosidekick
     binary: falcosidekick
+    # Dates come from the commit, so the same commit builds the same binary.
+    mod_timestamp: "{{ .CommitTimestamp }}"
     goos:
       - linux
     goarch:
@@ -44,11 +47,12 @@ builds:
       - -s -w
       - -X github.com/falcosecurity/falcosidekick/internal/version.Version={{ .Version }}
       - -X github.com/falcosecurity/falcosidekick/internal/version.Commit={{ .FullCommit }}
-      - -X github.com/falcosecurity/falcosidekick/internal/version.BuildDate={{ .Date }}
+      - -X github.com/falcosecurity/falcosidekick/internal/version.BuildDate={{ .CommitDate }}
 
   - id: falcosidekick-slim
     main: ./cmd/falcosidekick
     binary: falcosidekick-slim
+    mod_timestamp: "{{ .CommitTimestamp }}"
     goos:
       - linux
     goarch:
@@ -63,7 +67,7 @@ builds:
       - -s -w
       - -X github.com/falcosecurity/falcosidekick/internal/version.Version={{ .Version }}
       - -X github.com/falcosecurity/falcosidekick/internal/version.Commit={{ .FullCommit }}
-      - -X github.com/falcosecurity/falcosidekick/internal/version.BuildDate={{ .Date }}
+      - -X github.com/falcosecurity/falcosidekick/internal/version.BuildDate={{ .CommitDate }}
 
 archives:
   - id: falcosidekick
@@ -93,7 +97,7 @@ dockers_v2:
       BINARY: falcosidekick
       VARIANT: ui
     labels:
-      "org.opencontainers.image.created": "{{ .Date }}"
+      "org.opencontainers.image.created": "{{ .CommitDate }}"
       "org.opencontainers.image.name": "falcosidekick"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
       "org.opencontainers.image.version": "{{ .Version }}"
@@ -118,7 +122,7 @@ dockers_v2:
       BINARY: falcosidekick-slim
       VARIANT: slim
     labels:
-      "org.opencontainers.image.created": "{{ .Date }}"
+      "org.opencontainers.image.created": "{{ .CommitDate }}"
       "org.opencontainers.image.name": "falcosidekick"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
       "org.opencontainers.image.version": "{{ .Version }}"
@@ -139,10 +143,11 @@ signs:
     artifacts: checksum
 
 docker_signs:
+  # artifacts left at its default, which selects the images built by dockers_v2;
+  # `manifests` selects only docker_manifests entries, which this file has none of.
   - id: falcosidekick
     cmd: cosign
     args: ["sign", "--recursive", "${artifact}"]
-    artifacts: manifests
     output: true
 
 release:

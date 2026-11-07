@@ -75,14 +75,21 @@ func releaseWorkflowStep(t *testing.T, file, jobID, stepID string) releaseStep {
 
 func TestReleaseArtifacts(t *testing.T) {
 	var config struct {
+		Snapshot struct {
+			VersionTemplate string `yaml:"version_template"`
+		} `yaml:"snapshot"`
 		Dist   string `yaml:"dist"`
 		Builds []struct {
-			ID      string   `yaml:"id"`
-			Main    string   `yaml:"main"`
-			Binary  string   `yaml:"binary"`
-			Flags   []string `yaml:"flags"`
-			LDFlags []string `yaml:"ldflags"`
+			ID           string   `yaml:"id"`
+			Main         string   `yaml:"main"`
+			Binary       string   `yaml:"binary"`
+			ModTimestamp string   `yaml:"mod_timestamp"`
+			Flags        []string `yaml:"flags"`
+			LDFlags      []string `yaml:"ldflags"`
 		} `yaml:"builds"`
+		DockerSigns []struct {
+			Artifacts *string `yaml:"artifacts"`
+		} `yaml:"docker_signs"`
 		Dockers []struct {
 			IDs             []string          `yaml:"ids"`
 			Dockerfile      string            `yaml:"dockerfile"`
@@ -95,15 +102,21 @@ func TestReleaseArtifacts(t *testing.T) {
 	}
 	readReleaseYAML(t, ".goreleaser.yml", &config)
 	require.Equal(t, "dist/release", config.Dist)
+	// D6: master snapshots are the dev channel; v3-latest comes only from a release tag.
+	require.Equal(t, "dev", config.Snapshot.VersionTemplate)
+	// The default selects dockers_v2 images; `manifests` would sign nothing.
+	require.Len(t, config.DockerSigns, 1)
+	require.Nil(t, config.DockerSigns[0].Artifacts)
 	require.Len(t, config.Builds, 2)
 	require.Len(t, config.Dockers, 2)
 	for _, build := range config.Builds {
 		t.Run(build.ID, func(t *testing.T) {
 			require.Equal(t, "./cmd/falcosidekick", build.Main)
 			require.Contains(t, build.Flags, "-mod=readonly")
+			require.Equal(t, "{{ .CommitTimestamp }}", build.ModTimestamp, "reproducible from the commit")
 			flags := strings.Join(build.LDFlags, " ")
 			prefix := "github.com/falcosecurity/falcosidekick/internal/version."
-			for _, assignment := range []string{"Version={{ .Version }}", "Commit={{ .FullCommit }}", "BuildDate={{ .Date }}"} {
+			for _, assignment := range []string{"Version={{ .Version }}", "Commit={{ .FullCommit }}", "BuildDate={{ .CommitDate }}"} {
 				require.Contains(t, flags, "-X "+prefix+assignment)
 			}
 			require.NotContains(t, flags, ".Env.LDFLAGS")
@@ -141,15 +154,22 @@ func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
 			checks := workflow.Jobs["checks"]
 			require.Equal(t, "./.github/workflows/test.yml", checks.Uses)
 			require.Equal(t, "read", checks.Permissions["contents"])
+			snapshot := name == "build"
 			publishID := "release"
 			refGuard := "startsWith(github.ref, 'refs/tags/v3.')"
-			if name == "build" {
+			if snapshot {
 				publishID = "build-snapshot"
 				refGuard = "github.ref == 'refs/heads/master'"
 			}
 			publish, ok := workflow.Jobs[publishID]
 			require.True(t, ok, "missing job %s", publishID)
 			require.Contains(t, publish.Needs, "checks")
+			if !snapshot {
+				// D7: a release waits for the end-to-end suites of the same revision.
+				require.Contains(t, publish.Needs, "e2e")
+				require.Equal(t, "./.github/workflows/e2e.yml", workflow.Jobs["e2e"].Uses)
+				require.Equal(t, "read", workflow.Jobs["e2e"].Permissions["contents"])
+			}
 			require.Contains(t, publish.If, "github.repository == 'falcosecurity/falcosidekick' && ",
 				"forks must never publish")
 			require.Contains(t, publish.If, refGuard)
@@ -174,6 +194,29 @@ func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
 			}
 		}
 	}
+}
+
+// The base image is pinned by digest, and Dependabot proposes updates for it and for the UI.
+func TestReleaseInputsArePinnedAndUpdated(t *testing.T) {
+	dockerfile, err := os.ReadFile(filepath.Join("..", "Dockerfile"))
+	require.NoError(t, err)
+	require.Regexp(t, `(?m)^ARG BASE_IMAGE=alpine:[0-9.]+@sha256:[0-9a-f]{64}$`, string(dockerfile))
+
+	var dependabot struct {
+		Updates []struct {
+			Ecosystem    string `yaml:"package-ecosystem"`
+			Directory    string `yaml:"directory"`
+			TargetBranch string `yaml:"target-branch"`
+		} `yaml:"updates"`
+	}
+	readReleaseYAML(t, ".github/dependabot.yml", &dependabot)
+	var v3 []string
+	for _, update := range dependabot.Updates {
+		if update.TargetBranch == "" {
+			v3 = append(v3, update.Ecosystem+" "+update.Directory)
+		}
+	}
+	require.ElementsMatch(t, []string{"gomod /", "github-actions /", "docker /", "bun /ui"}, v3)
 }
 
 func TestReleaseChecksIncludeUITestsAndLint(t *testing.T) {
@@ -267,7 +310,7 @@ case "$1" in
     esac ;;
   run)
     [[ "$SCENARIO" != smoke-failure ]] || exit 7
-    printf 'falcosidekick v3-latest (commit: %s, built: 2026-10-05T00:00:00Z, go: go1.26.7)\n' "$GITHUB_SHA" ;;
+    printf 'falcosidekick dev (commit: %s, built: 2026-10-05T00:00:00Z, go: go1.26.7)\n' "$GITHUB_SHA" ;;
   push) [[ "$SCENARIO" != push-failure ]] || exit 8 ;;
   tag|buildx) ;;
   *) exit 2 ;;
@@ -291,12 +334,12 @@ esac
 			for _, image := range []string{"falcosecurity/falcosidekick", "public.ecr.aws/falcosecurity/falcosidekick"} {
 				for _, suffix := range []string{"", "-slim"} {
 					for _, arch := range []string{"amd64", "arm64"} {
-						local := image + ":v3-latest" + suffix + "-" + arch
+						local := image + ":v3-dev" + suffix + "-" + arch
 						remote := image + ":v3-" + sha + suffix + "-" + arch
 						require.Contains(t, log, "tag "+local+" "+remote+"\n")
 						require.Contains(t, log, "push "+remote+"\n")
 					}
-					manifest := "buildx imagetools create --tag " + image + ":v3-latest" + suffix
+					manifest := "buildx imagetools create --tag " + image + ":v3-dev" + suffix
 					for _, arch := range []string{"amd64", "arm64"} {
 						manifest += " " + image + ":v3-" + sha + suffix + "-" + arch
 					}
@@ -304,6 +347,7 @@ esac
 				}
 			}
 			require.NotRegexp(t, `:latest(\s|$)`, log)
+			require.NotContains(t, log, "v3-latest", "master never publishes a release alias")
 			require.Less(t, strings.LastIndex(log, "push "), strings.Index(log, "buildx imagetools create"))
 		})
 	}

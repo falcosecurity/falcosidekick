@@ -3,11 +3,10 @@ name: e2e
 on:
   workflow_call:
   workflow_dispatch:
+  # A v3.* tag runs this through the release workflow, which waits for it.
   push:
     branches:
       - master
-    tags:
-      - "v3.*"
   pull_request:
     branches:
       - master

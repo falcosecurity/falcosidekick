@@ -8,8 +8,14 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=hack/lib/cluster.sh
 source "$HERE/../lib/cluster.sh"
 NAMESPACE="$HELPER_NAMESPACE"
-MANIFESTS=("$HERE/webhook-receiver.yaml" "$HERE/component.yaml")
 IMAGE="${FSK_IMAGE:-falcosidekick}:${FSK_TAG:-local}"
+# RUN_ID marks this run's events, so checks match what this run sent, not any delivery.
+RUN_ID="live-test-$$-$(date +%s)"
+TRIGGER_POD="live-test-trigger-$$"
+# The Component is applied with the image under test, not the one written in the manifest.
+RENDER_DIR="$(mktemp -d)"
+sed "s|image: falcosidekick:local|image: $IMAGE|" "$HERE/component.yaml" > "$RENDER_DIR/component.yaml"
+MANIFESTS=("$HERE/webhook-receiver.yaml" "$RENDER_DIR/component.yaml")
 LOCAL_PORT="${FSK_LOCAL_PORT:-28010}"
 MGMT_LOCAL_PORT="${FSK_MGMT_LOCAL_PORT:-28020}"
 TIMEOUT_READY="${FSK_TIMEOUT_READY:-90s}"
@@ -32,8 +38,10 @@ cleanup() {
   done
   if [[ "$HELPER_APPLIED" -eq 1 ]]; then
     log "teardown: deleting resources owned by this helper"
+    kctl -n default delete pod "$TRIGGER_POD" --ignore-not-found >/dev/null 2>&1 || true
   fi
   teardown_owned
+  rm -rf "$RENDER_DIR"
 }
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -114,6 +122,11 @@ except Exception:
   print(0)'
 }
 
+# received reports whether the webhook receiver, which logs every request, got a body containing $1.
+received() {
+  kctl -n "$NAMESPACE" logs deployment/webhook-receiver --tail=1000 2>/dev/null | grep -qF "$1"
+}
+
 log "6/9 HTTP smoke checks"
 if body=$(curl_ok "http://127.0.0.1:$LOCAL_PORT/healthz") && [[ "$body" == *'"status":"ok"'* ]]; then
   log "  ok: /healthz [criterion 2]"
@@ -142,7 +155,8 @@ webhook_baseline=$(webhook_sent_total)
 log "  baseline webhook sent_total = $webhook_baseline"
 
 log "7/9 synthetic POST / event"
-payload='{"time":"2026-04-22T00:00:00Z","rule":"live-test synthetic","output":"live-test synthetic output","source":"syscall","priority":"Warning","hostname":"live-test","tags":["live-test"],"output_fields":{"proc.name":"synthetic"}}'
+payload=$(printf '{"time":"%s","rule":"live-test synthetic","output":"%s synthetic output","source":"syscall","priority":"Warning","hostname":"live-test","tags":["live-test"],"output_fields":{"proc.name":"synthetic"}}' \
+  "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" "$RUN_ID")
 status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
   -X POST -H "Content-Type: application/json" -d "$payload" \
   "http://127.0.0.1:$LOCAL_PORT/")
@@ -156,16 +170,16 @@ log "  polling webhook output for up to ${WEBHOOK_WAIT}s"
 synthetic_delivered=0
 for _ in $(seq 1 "$WEBHOOK_WAIT"); do
   wh_now=$(webhook_sent_total)
-  if [[ "$wh_now" -gt "$webhook_baseline" ]]; then
+  if [[ "$wh_now" -gt "$webhook_baseline" ]] && received "$RUN_ID"; then
     synthetic_delivered=1
     break
   fi
   sleep 1
 done
 if [[ "$synthetic_delivered" -eq 1 ]]; then
-  log "  ok: falcosidekick forwarded event to webhook output (sent_total ${webhook_baseline} -> $(webhook_sent_total)) [criterion 5b]"
+  log "  ok: the receiver got event $RUN_ID (sent_total ${webhook_baseline} -> $(webhook_sent_total)) [criterion 5b]"
 else
-  fail "webhook output sent_total did not advance within ${WEBHOOK_WAIT}s (baseline=$webhook_baseline)"
+  fail "the receiver did not get event $RUN_ID within ${WEBHOOK_WAIT}s (sent_total baseline=$webhook_baseline)"
   log "  diagnostic: pipeline status:"
   curl_ok "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/pipeline/status" 2>&1 | sed 's/^/    /' >&2 || true
 fi
@@ -177,7 +191,7 @@ log "8/9 real Falco rule trigger (read /etc/shadow in a pod)"
 # the run, we miss the very delivery we're trying to detect.
 post_trigger_webhook=$(webhook_sent_total)
 log "  webhook sent_total baseline before trigger = $post_trigger_webhook"
-kctl run -n default --rm -i --restart=Never --image=alpine:3.22 "live-test-trigger-$$" -- \
+kctl run -n default --rm -i --restart=Never --image=alpine:3.22 "$TRIGGER_POD" -- \
     sh -c 'cat /etc/shadow >/dev/null 2>&1 || true' >/dev/null 2>&1 \
   || { fail "kubectl run live-test-trigger failed"; }
 log "  triggered; polling for up to ${FALCO_PROPAGATION_WAIT}s"
@@ -191,7 +205,8 @@ for _ in $(seq 1 "$FALCO_PROPAGATION_WAIT"); do
     counter_advanced=1
   fi
   wh_now=$(webhook_sent_total)
-  if [[ "$wh_now" -gt "$post_trigger_webhook" ]]; then
+  # The Falco event names the trigger pod; any other delivery does not count.
+  if [[ "$wh_now" -gt "$post_trigger_webhook" ]] && received "$TRIGGER_POD"; then
     falco_forwarded=1
   fi
   if [[ "$counter_advanced" -eq 1 && "$falco_forwarded" -eq 1 ]]; then
@@ -208,18 +223,26 @@ else
 fi
 
 if [[ "$falco_forwarded" -eq 1 ]]; then
-  log "  ok: Falco event forwarded through falcosidekick's webhook output (sent_total ${post_trigger_webhook} -> $(webhook_sent_total)) [criterion 6]"
+  log "  ok: the receiver got the Falco event for $TRIGGER_POD (sent_total ${post_trigger_webhook} -> $(webhook_sent_total)) [criterion 6]"
 else
-  fail "webhook sent_total did not advance after Falco trigger within ${FALCO_PROPAGATION_WAIT}s (baseline=$post_trigger_webhook)"
+  fail "the receiver did not get the Falco event for $TRIGGER_POD within ${FALCO_PROPAGATION_WAIT}s (sent_total baseline=$post_trigger_webhook)"
   log "  diagnostic: pipeline status:"
   curl_ok "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/pipeline/status" 2>&1 | sed 's/^/    /' >&2 || true
 fi
 
 log "9/10 UI shell (browser-shape request)"
-if decoded=$(curl -sS --compressed -H "Accept-Encoding: gzip" "http://127.0.0.1:$MGMT_LOCAL_PORT/") && [[ "$decoded" == *'<html'* ]]; then
+if [[ "$IMAGE" == *-slim ]]; then
+  # The slim binary embeds no UI: GET / must answer 404, not a page from somewhere else.
+  ui_status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$MGMT_LOCAL_PORT/" || true)
+  if [[ "$ui_status" == "404" ]]; then
+    log "  ok: slim variant serves no UI (GET / -> 404) [criterion 8]"
+  else
+    fail "slim variant: GET / returned '$ui_status' (expected 404)"
+  fi
+elif decoded=$(curl -sS --compressed -H "Accept-Encoding: gzip" "http://127.0.0.1:$MGMT_LOCAL_PORT/") && [[ "$decoded" == *'<html'* ]]; then
   log "  ok: GET / with Accept-Encoding returned UI HTML shell [criterion 8]"
 else
-  fail "GET / with Accept-Encoding did not return decoded HTML (variant may be slim; set FSK_TAG=local-slim to skip this criterion)"
+  fail "GET / with Accept-Encoding did not return decoded HTML"
 fi
 
 log "10/10 UI-driven output PUT (updates provisioned webhook under allow_ui_updates=true; next file reload would restore the file version)"
