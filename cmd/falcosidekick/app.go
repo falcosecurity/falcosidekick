@@ -76,7 +76,7 @@ func NewApp(
 		return nil, fmt.Errorf("secret resolution: %w", err)
 	}
 
-	db, err := createDatabase(cfg.Database)
+	db, err := createDatabase(ctx, &cfg.Database)
 	if err != nil {
 		return nil, fmt.Errorf("database: %w", err)
 	}
@@ -125,7 +125,11 @@ func NewApp(
 
 	if cfg.UI.Enabled {
 		if _, ok := dispatcher.GetReadableStore(cfg.UI.EventSource); !ok {
-			return nil, errors.New("ui.event_source: output not found or does not implement ReadableStore")
+			// A stored output that did not build is reported failed; until it runs the events API answers 503.
+			if _, failed := restored.failures[cfg.UI.EventSource]; !failed {
+				return nil, errors.New("ui.event_source: output not found or does not implement ReadableStore")
+			}
+			logger.Warn("ui.event_source did not start; the events API answers 503 until it runs", "output", cfg.UI.EventSource)
 		}
 	}
 
@@ -267,12 +271,23 @@ func resolveUIAssets(enabled bool, dist fs.FS) fs.FS {
 	return dist
 }
 
-func createDatabase(cfg core.DatabaseConfig) (core.Database, error) {
+// createDatabase opens the configured backend; opening and migrating are bounded by connect_timeout.
+func createDatabase(ctx context.Context, cfg *core.DatabaseConfig) (core.Database, error) {
+	ctx, cancel := context.WithTimeout(ctx, cfg.ConnectTimeout)
+	defer cancel()
 	switch cfg.Backend {
 	case core.DatabaseInMemory:
 		return database.NewMemory(), nil
+	case core.DatabaseSQLite:
+		return database.OpenSQLite(ctx, cfg.SQLite.Path)
+	case core.DatabasePostgres:
+		settings, err := database.PostgresSettings(&cfg.Postgres)
+		if err != nil {
+			return nil, err
+		}
+		return database.OpenPostgres(ctx, settings, cfg.Postgres.MaxConnections)
 	default:
-		return nil, fmt.Errorf("database backend %q not implemented", cfg.Backend)
+		return nil, fmt.Errorf("database backend %q not supported", cfg.Backend)
 	}
 }
 

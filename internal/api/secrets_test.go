@@ -341,3 +341,12 @@ func TestConfigPointer(t *testing.T) {
 		})
 	}
 }
+
+func TestMaskCoreConfig_HidesThePostgresPassword(t *testing.T) {
+	cfg := &core.Config{Database: core.DatabaseConfig{Postgres: core.PostgresConfig{Password: "private-value", PasswordFile: "/run/secrets/pg"}}}
+	masked := maskCoreConfig(cfg)
+	assert.Equal(t, SecretMask, masked.Database.Postgres.Password)
+	assert.Equal(t, "/run/secrets/pg", masked.Database.Postgres.PasswordFile)
+	assert.Equal(t, "private-value", cfg.Database.Postgres.Password, "the running configuration is untouched")
+	assert.Empty(t, maskCoreConfig(&core.Config{}).Database.Postgres.Password, "no password, nothing to mask")
+}

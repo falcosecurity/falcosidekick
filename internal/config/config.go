@@ -38,6 +38,14 @@ func (cfg *Config) Validate() utils.ValidationErrors {
 	if cfg.TLS != nil {
 		errs.Merge("tls", validateTLS(cfg.TLS))
 	}
+	if cfg.Database.Backend == core.DatabasePostgres {
+		if cfg.Database.Postgres.PasswordFile != "" {
+			errs.CheckFile("database.postgres.password_file", cfg.Database.Postgres.PasswordFile)
+		}
+		if cfg.Database.Postgres.TLS.CAFile != "" {
+			errs.CheckFile("database.postgres.tls.ca_file", cfg.Database.Postgres.TLS.CAFile)
+		}
+	}
 
 	errs.Merge("enricher", cfg.Enricher.Validate())
 	errs.Merge("runtime_defaults", cfg.RuntimeDefaults.Validate())

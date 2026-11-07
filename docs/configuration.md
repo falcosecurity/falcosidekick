@@ -82,6 +82,20 @@ A file path sent through the API (a `_file` secret, header and query `files`, TL
 
 Both listeners close a connection that takes more than 30s to send a request or to read the answer, or stays idle for 2 minutes.
 
+## Database
+
+`database.backend` selects where outputs and the UI layout are stored:
+
+| Backend | Use |
+| --- | --- |
+| `inmemory` (default) | nothing survives a restart; outputs from the output files are loaded again at start |
+| `sqlite` | one instance; `database.sqlite.path` is a file on a local filesystem, created with mode 0600 (its `-wal` and `-shm` files take the same mode). Back it up with `sqlite3 <path> .backup <copy>`, or copy the file while Sidekick is stopped |
+| `postgres` | several instances can share one database |
+
+Postgres settings: `host`, `port` (5432), `database`, `user`, `password` or `password_file`, `sslmode` (`verify-full` by default; `disable`, `require`, `verify-ca`), `tls.ca_file` (system CAs when empty), `max_connections` (4), `poll_interval` (10s). Postgres 17 and 18 are tested. Sidekick creates and upgrades its tables (all named `falcosidekick_*`) at start; a database upgraded by a newer Sidekick is refused. `database.connect_timeout` (30s) bounds opening it; an unreachable database stops startup.
+
+Outputs from the output files are written to the database at each start and reload; instances sharing a database should run the same output files, otherwise each start or reload of one replaces the outputs of the others, as happens briefly during a rolling update.
+
 ## Server TLS
 
 `tls.enabled` serves HTTPS; `tls.mutual_tls` also requires a client certificate signed by `tls.ca_file`. Client TLS towards outputs is set per output under `tls:`.

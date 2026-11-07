@@ -20,10 +20,53 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+
+	"github.com/falcosecurity/falcosidekick/internal/domain/core"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
+
+// PostgresSettings builds the connection settings of cfg. The password, read from cfg.PasswordFile
+// when set, is added after parsing, so it never appears in a connection string or its errors.
+func PostgresSettings(cfg *core.PostgresConfig) (*pgx.ConnConfig, error) {
+	params := [][2]string{
+		{"host", cfg.Host},
+		{"port", strconv.Itoa(cfg.Port)},
+		{"dbname", cfg.Database},
+		{"user", cfg.User},
+		{"sslmode", string(cfg.SSLMode)},
+		{"application_name", "falcosidekick"},
+	}
+	if cfg.TLS.CAFile != "" {
+		params = append(params, [2]string{"sslrootcert", cfg.TLS.CAFile})
+	}
+	parts := make([]string, len(params))
+	for i, p := range params {
+		parts[i] = p[0] + "=" + quoteParam(p[1])
+	}
+	settings, err := pgx.ParseConfig(strings.Join(parts, " "))
+	if err != nil {
+		return nil, fmt.Errorf("database: postgres settings: %w", err)
+	}
+	settings.Password = cfg.Password
+	if cfg.PasswordFile != "" {
+		data, err := utils.ReadRegularFile(cfg.PasswordFile)
+		if err != nil {
+			return nil, fmt.Errorf("database: postgres password_file: %s", utils.FileProblem(err))
+		}
+		settings.Password = strings.TrimRight(string(data), "\r\n")
+	}
+	return settings, nil
+}
+
+// quoteParam quotes a value of a keyword/value connection string.
+func quoteParam(value string) string {
+	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(value) + "'"
+}
 
 // OpenPostgres connects to postgres, which several Sidekick instances can share, using at most
 // maxConns connections. The connection settings come built, never as a connection string, so no

@@ -27,6 +27,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -91,9 +92,9 @@ func waitForServer(t *testing.T, port int) {
 	t.Helper()
 	const timeout = 5 * time.Second
 	deadline := time.Now().Add(timeout)
-	url := fmt.Sprintf("http://127.0.0.1:%d/healthz", port)
+	healthURL := fmt.Sprintf("http://127.0.0.1:%d/healthz", port)
 	for time.Now().Before(deadline) {
-		resp, err := http.Get(url) //nolint:noctx // test helper, hardcoded localhost
+		resp, err := http.Get(healthURL) //nolint:noctx // test helper, hardcoded localhost
 		if err == nil {
 			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
@@ -296,16 +297,16 @@ func TestRunUnknownCoreConfigKey(t *testing.T) {
 }
 
 func TestCreateDatabaseInMemory(t *testing.T) {
-	db, err := createDatabase(core.DatabaseConfig{Backend: core.DatabaseInMemory})
+	db, err := createDatabase(t.Context(), &core.DatabaseConfig{Backend: core.DatabaseInMemory, ConnectTimeout: time.Second})
 	require.NoError(t, err)
 	require.NotNil(t, db)
 	assert.NoError(t, db.Close())
 }
 
 func TestCreateDatabaseUnknownBackend(t *testing.T) {
-	_, err := createDatabase(core.DatabaseConfig{Backend: "unknown"})
+	_, err := createDatabase(t.Context(), &core.DatabaseConfig{Backend: "unknown", ConnectTimeout: time.Second})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not implemented")
+	assert.Contains(t, err.Error(), "not supported")
 }
 
 func loadDefaultConfigForCmdTest(t *testing.T) *config.Config {
@@ -904,4 +905,120 @@ func TestNewAppRefusesInlineSecretsInOutputFilesForAPersistentDatabase(t *testin
 	_, err = NewApp(t.Context(), cfg, outs, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), cat, slog.Default())
 	require.ErrorContains(t, err, `output files: output "webhook": token: secrets cannot be stored; use token_file`)
 	assert.NotContains(t, err.Error(), "private-value")
+}
+
+// With sqlite, an output created through the API and the layout survive a restart, the files hold
+// no secret value, and the output files are provisioned again.
+func TestNewAppWithSQLiteKeepsAPIOutputsAcrossRestartsWithoutSecrets(t *testing.T) {
+	dir := t.TempDir()
+	secret := filepath.Join(dir, "token")
+	require.NoError(t, os.WriteFile(secret, []byte("private-token-value"), 0o600))
+	cfg := loadDefaultConfigForCmdTest(t)
+	cfg.Database.Backend = core.DatabaseSQLite
+	cfg.Database.SQLite.Path = filepath.Join(dir, "sidekick.db")
+	var built []string
+	cat, err := catalog.New([]output.Type{{
+		Name:   "webhook",
+		Schema: output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
+		New: func(raw map[string]any, _ output.Deps) (output.Driver, error) {
+			built = append(built, fmt.Sprint(raw["token"]))
+			return &testutil.MockDriver{DriverName: "webhook"}, nil
+		},
+	}})
+	require.NoError(t, err)
+	collector := func() *metrics.Collector { return metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}) }
+	files := &config.OutputsConfig{Outputs: map[string]map[string]any{}}
+
+	first, err := NewApp(t.Context(), cfg, files, collector(), cat, slog.Default())
+	require.NoError(t, err)
+	workers, stop := context.WithCancel(context.Background())
+	first.reloader.BindWorkerContext(workers, time.Second)
+	first.pipe.Start(workers, stop)
+	_, err = first.reloader.ApplyOutput(t.Context(), "webhook", 0, map[string]any{"token_file": secret})
+	require.NoError(t, err)
+	require.NoError(t, first.db.SavePipelineLayout(t.Context(), &core.PipelineLayout{Nodes: []core.LayoutNode{{ID: "webhook", X: 1}}}))
+	first.shutdown()
+
+	for _, name := range []string{cfg.Database.SQLite.Path, cfg.Database.SQLite.Path + "-wal"} {
+		data, err := os.ReadFile(name)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), "private-token-value", name)
+	}
+
+	second, err := NewApp(t.Context(), cfg, files, collector(), cat, slog.Default())
+	require.NoError(t, err)
+	t.Cleanup(second.shutdown)
+	assert.Equal(t, []string{"private-token-value", "private-token-value"}, built, "rebuilt from the secret file at restart")
+	stored, err := second.db.GetOutputConfig(t.Context(), "webhook")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"token_file": secret}, stored.Config)
+	layout, err := second.db.GetPipelineLayout(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, []core.LayoutNode{{ID: "webhook", X: 1}}, layout.Nodes)
+}
+
+// An event source stored through the API that does not build leaves the events API unavailable; startup goes on.
+func TestNewAppStartsWhenTheStoredEventSourceDoesNotBuild(t *testing.T) {
+	dir := t.TempDir()
+	cfg := loadDefaultConfigForCmdTest(t)
+	cfg.Database.Backend = core.DatabaseSQLite
+	cfg.Database.SQLite.Path = filepath.Join(dir, "sidekick.db")
+	cfg.UI.Enabled = true
+	cfg.UI.EventSource = "webhook"
+	db, err := database.OpenSQLite(t.Context(), cfg.Database.SQLite.Path)
+	require.NoError(t, err)
+	_, err = db.SaveOutputConfig(t.Context(), "webhook", 0, map[string]any{"token_file": filepath.Join(dir, "missing")})
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+	cat, err := catalog.New([]output.Type{{
+		Name:   "webhook",
+		Schema: output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
+		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+			return &testutil.MockDriver{DriverName: "webhook"}, nil
+		},
+	}})
+	require.NoError(t, err)
+
+	a, err := NewApp(t.Context(), cfg, &config.OutputsConfig{Outputs: map[string]map[string]any{}},
+		metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), cat, slog.Default())
+	require.NoError(t, err)
+	t.Cleanup(a.shutdown)
+	statuses := a.pipe.CollectOutputStatus()
+	require.Len(t, statuses, 1)
+	assert.Equal(t, pipeline.HealthFailed, statuses[0].Status)
+}
+
+// The postgres settings of the core file open the database; FALCOSIDEKICK_E2E_POSTGRES_DSN names the server.
+func TestCreateDatabasePostgresFromTheCoreFile(t *testing.T) {
+	dsn := os.Getenv("FALCOSIDEKICK_E2E_POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("FALCOSIDEKICK_E2E_POSTGRES_DSN is not set")
+	}
+	server, err := url.Parse(dsn)
+	require.NoError(t, err)
+	password, _ := server.User.Password()
+	passwordFile := filepath.Join(t.TempDir(), "pg")
+	require.NoError(t, os.WriteFile(passwordFile, []byte(password+"\n"), 0o600))
+	cfg, err := config.Load(writeTestConfig(t, fmt.Sprintf(`
+database:
+  backend: postgres
+  postgres:
+    host: %s
+    port: %s
+    database: %s
+    user: %s
+    password_file: %s
+    sslmode: disable
+`, server.Hostname(), server.Port(), strings.TrimPrefix(server.Path, "/"), server.User.Username(), passwordFile)))
+	require.NoError(t, err)
+	require.Empty(t, cfg.Validate())
+
+	db, err := createDatabase(t.Context(), &cfg.Database)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.GetOutputConfigs(t.Context())
+	require.NoError(t, err)
 }

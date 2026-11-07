@@ -40,11 +40,28 @@ log_format: text              # text (human-readable), json (structured)
 
 # =============================================================================
 # Database
-# Backend for config persistence. Re-provisioned from files on restart.
+# Stores the outputs, from the output files and created through the API, and
+# the UI layout. inmemory loses API outputs and the layout on restart. With
+# sqlite or postgres no secret value is stored: secrets are written as
+# <field>_file (headers and query parameters: files).
 # =============================================================================
 
 database:
   backend: inmemory           # inmemory (default), sqlite, postgres
+#   connect_timeout: 30s                 # bound for opening and migrating at startup
+#   sqlite:                              # one Sidekick instance, local filesystem
+#     path: /var/lib/falcosidekick/sidekick.db   # created with mode 0600
+#   postgres:                            # several instances can share it
+#     host: postgres
+#     port: 5432
+#     database: falcosidekick
+#     user: falcosidekick
+#     password_file: /run/secrets/postgres-password   # or password; masked by GET /api/v1/config
+#     sslmode: verify-full               # disable, require, verify-ca, verify-full
+#     tls:
+#       ca_file: /etc/falcosidekick/postgres-ca.pem   # system CAs when empty
+#     max_connections: 4
+#     poll_interval: 10s                 # how often to check for changes made by other instances
 
 # =============================================================================
 # UI
