@@ -229,6 +229,10 @@ func (a *app) shutdown() {
 		slog.Error("server shutdown", "error", err)
 	}
 
+	// A write still in flight past the server deadline finishes here; later ones are refused,
+	// so no stored change is left unapplied when the pipeline stops.
+	a.reloader.Close()
+
 	if err := a.pipe.Shutdown(shutdownCtx); err != nil {
 		slog.Warn("pipeline shutdown: deadline exceeded, deferred cleanup may continue asynchronously", "error", err)
 	}

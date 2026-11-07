@@ -332,3 +332,5 @@ func buildMutationTestServerNilReloader(t *testing.T, db core.Database) *Server 
 func writableConfig() *core.Config {
 	return &core.Config{API: core.APIConfig{AllowWrites: true}}
 }
+
+func applyErr(_ int64, err error) error { return err }

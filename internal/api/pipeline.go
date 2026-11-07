@@ -23,6 +23,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -67,7 +68,7 @@ func (s *Server) handlePipelineOutputByName(c fiber.Ctx) error {
 	name := c.Params("name")
 	entry, err := s.database.GetOutputConfig(c.Context(), name)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "read output: " + err.Error()})
+		return s.databaseUnavailable(c, name, err)
 	}
 	if entry == nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "output not found"})
@@ -96,7 +97,7 @@ func (s *Server) handlePipelineLayout(c fiber.Ctx) error {
 	}
 	layout, err := s.database.GetPipelineLayout(c.Context())
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return s.databaseUnavailable(c, "layout", err)
 	}
 	if layout == nil {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{})
@@ -117,7 +118,7 @@ func (s *Server) handlePipelineComposite(c fiber.Ctx) error {
 
 	layout, err := s.database.GetPipelineLayout(c.Context())
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "read layout: " + err.Error()})
+		return s.databaseUnavailable(c, "layout", err)
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -183,19 +184,13 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 		}
 	}
 
-	if err := s.reloader.ApplyOutput(c.Context(), name, existingVersion, merged); err != nil {
+	version, err := s.reloader.ApplyOutput(c.Context(), name, existingVersion, merged)
+	if err != nil {
 		return s.writeMutationError(c, name, "apply", err)
 	}
-
-	saved, err := s.database.GetOutputConfig(c.Context(), name)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "reread output: " + err.Error()})
-	}
-	if saved == nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "stored output missing after save"})
-	}
-	masked := maskOutputConfig(saved, t)
-	return c.Status(fiber.StatusOK).JSON(masked)
+	// Answered from what was stored, not read back: a later write may already have replaced it.
+	saved := &core.OutputConfigEntry{Name: name, Config: merged, Version: version, UpdatedAt: time.Now().UTC()}
+	return c.Status(fiber.StatusOK).JSON(maskOutputConfig(saved, t))
 }
 
 // outputPutRequest is the body of PUT /api/v1/pipeline/outputs/:name.
@@ -268,14 +263,10 @@ func (s *Server) handlePipelineLayoutPut(c fiber.Ctx) error {
 	}
 
 	if err := s.database.SavePipelineLayout(c.Context(), &layout); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "save layout: " + err.Error()})
+		return s.databaseUnavailable(c, "layout", err)
 	}
-
-	stored, err := s.database.GetPipelineLayout(c.Context())
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "reread layout: " + err.Error()})
-	}
-	return c.Status(fiber.StatusOK).JSON(stored)
+	layout.UpdatedAt = time.Now().UTC()
+	return c.Status(fiber.StatusOK).JSON(layout)
 }
 
 // loadMaskedOutputs writes 503 or 500 and returns false when the database is missing or fails.
@@ -286,7 +277,7 @@ func (s *Server) loadMaskedOutputs(c fiber.Ctx) (map[string]*outputConfigRespons
 	}
 	entries, err := s.database.GetOutputConfigs(c.Context())
 	if err != nil {
-		_ = c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "read outputs: " + err.Error()})
+		_ = s.databaseUnavailable(c, "outputs", err)
 		return nil, false
 	}
 	return maskOutputConfigs(entries, s.catalog), true
@@ -314,7 +305,7 @@ func (s *Server) checkMutationPrereqs(c fiber.Ctx) (name string, handled bool) {
 func (s *Server) loadOutputEntryForMutation(c fiber.Ctx, name string) (entry *core.OutputConfigEntry, handled bool) {
 	entry, err := s.database.GetOutputConfig(c.Context(), name)
 	if err != nil {
-		_ = c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "read output: " + err.Error()})
+		_ = s.databaseUnavailable(c, name, err)
 		return nil, true
 	}
 	if entry != nil && entry.Provisioned && !s.provisioning.AllowUIUpdates {
@@ -326,10 +317,19 @@ func (s *Server) loadOutputEntryForMutation(c fiber.Ctx, name string) (entry *co
 	return entry, false
 }
 
+// databaseUnavailable answers 503 for a database failure; the error, which can carry server text,
+// is logged and never sent.
+func (s *Server) databaseUnavailable(c fiber.Ctx, subject string, err error) error {
+	s.logger.Error("database request failed", "subject", subject, "error", err)
+	return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "database unavailable"})
+}
+
 func (s *Server) writeMutationError(c fiber.Ctx, name, verb string, err error) error {
 	switch {
 	case errors.Is(err, pipeline.ErrDispatcherStopped):
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "dispatcher stopped"})
+	case errors.Is(err, reload.ErrReloaderClosed):
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "shutting down: output '" + name + "' was not changed"})
 	case errors.Is(err, reload.ErrReloaderNotBound):
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "reloader not bound"})
 	case errors.Is(err, core.ErrVersionConflict):
@@ -337,10 +337,7 @@ func (s *Server) writeMutationError(c fiber.Ctx, name, verb string, err error) e
 	case errors.Is(err, pipeline.ErrInvalidOutputConfig):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": verb + " output: " + err.Error()})
 	case errors.Is(err, reload.ErrDatabaseUnavailable):
-		// The database error text can carry server text, so it stays out of the answer.
-		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error": "database unavailable: output '" + name + "' was not changed",
-		})
+		return s.databaseUnavailable(c, name, err)
 	default:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": verb + " output: " + err.Error()})
 	}

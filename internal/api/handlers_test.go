@@ -310,10 +310,10 @@ func TestHandleGetOutputsDBError(t *testing.T) {
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, 500, resp.StatusCode)
+	assert.Equal(t, 503, resp.StatusCode)
 
 	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "db failure")
+	assert.NotContains(t, string(body), "db failure", "database text stays out of the answer")
 }
 
 func TestGetReadableStoreReturnsNilWhenNoEventSource(t *testing.T) {
