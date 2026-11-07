@@ -59,6 +59,7 @@ v3 splits every address into public and secret parts, so tokens in a URL never a
 | `falcosecurity_falcosidekick_outputs_total{destination,status}` | `falcosidekick_output_total{output,status}` |
 | `falcosecurity_falcosidekick_falco_events_total{hostname,rule,priority,priority_raw,source,k8s_ns_name,k8s_pod_name,...}` | `falcosidekick_event_total{rule,priority,source,...}` |
 | `prometheus.extralabels: "k8s.ns.name,proc.name"` | `metrics.extra_labels: [k8s.ns.name, proc.name]` in the core file |
+| unbounded label values | `metrics.max_label_values` (default 1000) per label taken from events; later values become `other` |
 
 v2 also added hostname, Kubernetes namespace and pod, custom fields and templated fields as event labels by default. v3 adds only the output fields listed in `metrics.extra_labels`: list `k8s.ns.name` and `k8s.pod.name` there to keep those series. The hostname label and `priority_raw` are not available in v3. Dashboards built on v2 names need updating.
 
