@@ -1395,8 +1395,8 @@ func TestReloaderUIWriteRefusedByTheDatabaseLeavesTheRuntimeUntouched(t *testing
 
 			gathered, err := reg.Gather()
 			require.NoError(t, err)
-			assert.Equal(t, float64(1), getMetricValueByLabel(gathered, metricReloadFailures, "source", "ui"))
-			assert.Equal(t, float64(0), getMetricValueByLabel(gathered, metricReloadPartial, "source", "ui"))
+			assert.Equal(t, float64(1), getMetricValueBySource(gathered, metricReloadFailures, "ui"))
+			assert.Equal(t, float64(0), getMetricValueBySource(gathered, metricReloadPartial, "ui"))
 		})
 	}
 }
@@ -1449,14 +1449,14 @@ func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {
 	assert.True(t, entry.Provisioned, "restored entry must be marked Provisioned:true")
 }
 
-func getMetricValueByLabel(gathered []*dto.MetricFamily, name, labelKey, labelValue string) float64 {
+func getMetricValueBySource(gathered []*dto.MetricFamily, name, source string) float64 {
 	for _, mf := range gathered {
 		if mf.GetName() != name {
 			continue
 		}
 		for _, m := range mf.GetMetric() {
 			for _, l := range m.GetLabel() {
-				if l.GetName() == labelKey && l.GetValue() == labelValue {
+				if l.GetName() == "source" && l.GetValue() == source {
 					return m.GetCounter().GetValue()
 				}
 			}
@@ -1700,7 +1700,7 @@ func TestReloaderReconcileMetrics(t *testing.T) {
 
 	gathered, err := reg.Gather()
 	require.NoError(t, err)
-	assert.Equal(t, float64(3), getMetricValueByLabel(gathered, metricReloadTotal, "source", SourceReplica))
-	assert.Equal(t, float64(1), getMetricValueByLabel(gathered, metricReloadFailures, "source", SourceReplica))
-	assert.Equal(t, float64(0), getMetricValueByLabel(gathered, metricReloadPartial, "source", SourceReplica))
+	assert.Equal(t, float64(3), getMetricValueBySource(gathered, metricReloadTotal, SourceReplica))
+	assert.Equal(t, float64(1), getMetricValueBySource(gathered, metricReloadFailures, SourceReplica))
+	assert.Equal(t, float64(0), getMetricValueBySource(gathered, metricReloadPartial, SourceReplica))
 }
