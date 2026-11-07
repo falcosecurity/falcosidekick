@@ -132,15 +132,21 @@ func endpointProblem(value string) string {
 
 // Load resolves the region and the credentials; SDK retries are off because the pipeline owns retries.
 func (c *Config) Load(ctx context.Context, fallbackRegion string) (sdkaws.Config, error) {
-	// The shared HTTP client applies the TLS settings, the proxy and the redirect policy of every HTTP output.
-	client, err := shared.BuildHTTPClient(&shared.HTTPConfig{TLS: c.TLS})
+	// Both clients apply the proxy and the redirect policy of every HTTP output. The output's tls
+	// settings are for the destination service only: STS has a public certificate.
+	service, err := shared.BuildHTTPClient(&shared.HTTPConfig{TLS: c.TLS})
 	if err != nil {
 		return sdkaws.Config{}, err
 	}
-	client.Timeout = requestTimeout
+	service.Timeout = requestTimeout
+	credentialClient, err := shared.BuildHTTPClient(&shared.HTTPConfig{})
+	if err != nil {
+		return sdkaws.Config{}, err
+	}
+	credentialClient.Timeout = requestTimeout
 	// Passed as load options, so the STS clients the default chain builds (IRSA, profiles) use them too.
 	opts := []func(*awsconfig.LoadOptions) error{
-		awsconfig.WithHTTPClient(client),
+		awsconfig.WithHTTPClient(credentialClient),
 		awsconfig.WithRetryer(func() sdkaws.Retryer { return sdkaws.NopRetryer{} }),
 	}
 	if c.Region != "" {
@@ -175,7 +181,20 @@ func (c *Config) Load(ctx context.Context, fallbackRegion string) (sdkaws.Config
 	if c.Endpoint != "" {
 		cfg.BaseEndpoint = sdkaws.String(strings.TrimSuffix(c.Endpoint, "/"))
 	}
+	cfg.HTTPClient = serviceClient{Client: service, credentials: credentialClient}
 	return cfg, nil
+}
+
+// serviceClient sends the destination requests; closing its idle connections also closes those
+// of the credential client, which the service client's Options() does not expose.
+type serviceClient struct {
+	*http.Client
+	credentials *http.Client
+}
+
+func (c serviceClient) CloseIdleConnections() {
+	c.Client.CloseIdleConnections()
+	c.credentials.CloseIdleConnections()
 }
 
 // CloseIdleConnections releases the idle connections of the HTTP client Load configured,
