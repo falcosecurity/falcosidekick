@@ -52,3 +52,44 @@ func TestVisitSecrets(t *testing.T) {
 	assert.Equal(t, []string{"PASSWORD", "auth.Token", "headers.X-Key.secrets", "headers.X-Plain"}, visited,
 		"names match case-insensitively; a header that is not an object is treated as secret")
 }
+
+func TestInlineSecrets(t *testing.T) {
+	fields := []SchemaField{
+		{Name: "password", Type: "string", Secret: true},
+		{Name: "auth.token", Type: "string", Secret: true},
+		{Name: "headers", Type: "map", EntryFields: []SchemaField{
+			{Name: "values", Type: "string[]"},
+			{Name: "secrets", Type: "string[]", Secret: true},
+			{Name: "files", Type: "string[]"},
+		}},
+	}
+	tests := []struct {
+		cfg  map[string]any
+		name string
+		want []string
+	}{
+		{name: "references only", cfg: map[string]any{
+			"password_file": "/run/secrets/p",
+			"headers":       map[string]any{"X-Key": map[string]any{"files": []any{"/run/secrets/k"}}},
+		}},
+		{name: "empty values are not secrets", cfg: map[string]any{"password": "", "headers": map[string]any{"X": map[string]any{"secrets": []any{}}}}},
+		{name: "inline", cfg: map[string]any{
+			"Password": "p",
+			"auth":     map[string]any{"token": "t"},
+			"headers":  map[string]any{"X-Key": map[string]any{"secrets": []any{"s"}}},
+		}, want: []string{
+			"Password: secrets cannot be stored; use Password_file",
+			"auth.token: secrets cannot be stored; use token_file",
+			"headers.X-Key.secrets: secrets cannot be stored; use files",
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got []string
+			for _, s := range InlineSecrets(tt.cfg, fields) {
+				got = append(got, s.String())
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

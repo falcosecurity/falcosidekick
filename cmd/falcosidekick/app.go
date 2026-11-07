@@ -59,6 +59,17 @@ func NewApp(
 	cat *catalog.Catalog,
 	logger *slog.Logger,
 ) (_ *app, retErr error) {
+	persistent := cfg.Database.Backend.Persistent()
+	if persistent {
+		if err := config.CheckNoInlineSecrets(outsCfg.Outputs, cat); err != nil {
+			return nil, fmt.Errorf("output files: %w", err)
+		}
+		if cfg.API.AllowWrites && len(cfg.API.SecretDirs) == 0 {
+			logger.Warn("api.secret_dirs is empty: outputs with secrets cannot be created through the API",
+				"backend", cfg.Database.Backend)
+		}
+	}
+
 	// Outputs are built from resolved secret files; the database keeps the configs as written.
 	resolved, err := config.ResolvedOutputs(outsCfg.Outputs, cat)
 	if err != nil {
@@ -126,17 +137,18 @@ func NewApp(
 	uiAssets := resolveUIAssets(cfg.UI.Enabled, ui.Dist)
 
 	reloader := reload.NewReloader(&reload.ReloaderConfig{
-		OutputPaths:     outsCfg.Paths,
-		Catalog:         cat,
-		Dispatcher:      dispatcher,
-		Database:        db,
-		RuntimeDefaults: cfg.RuntimeDefaults,
-		Provisioning:    cfg.Provisioning,
-		Deps:            output.Deps{Logger: logger, Metrics: collector},
-		Registry:        collector.Registry(),
-		Logger:          logger,
-		InitialOutputs:  resolved,
-		FileOutputs:     outsCfg.Outputs,
+		OutputPaths:         outsCfg.Paths,
+		Catalog:             cat,
+		Dispatcher:          dispatcher,
+		Database:            db,
+		RuntimeDefaults:     cfg.RuntimeDefaults,
+		Provisioning:        cfg.Provisioning,
+		Deps:                output.Deps{Logger: logger, Metrics: collector},
+		Registry:            collector.Registry(),
+		Logger:              logger,
+		InitialOutputs:      resolved,
+		FileOutputs:         outsCfg.Outputs,
+		RejectInlineSecrets: persistent,
 	})
 
 	srv, err := api.NewServer(&api.ServerConfig{

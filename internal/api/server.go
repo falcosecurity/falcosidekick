@@ -77,6 +77,8 @@ type Server struct {
 	secretDirs        []string
 	provisioning      core.ProvisioningConfig
 	allowWrites       bool
+	// rejectInlineSecrets refuses API writes with an inline secret, for a persistent database.
+	rejectInlineSecrets bool
 }
 
 // NewServer creates the Fiber applications of both listeners.
@@ -97,21 +99,22 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 	}
 
 	s := &Server{
-		pipeline:          cfg.Pipeline,
-		database:          cfg.Database,
-		catalog:           cfg.Catalog,
-		metrics:           cfg.Metrics,
-		reloader:          cfg.Reloader,
-		uiAssets:          cfg.UIAssets,
-		logger:            logger,
-		address:           net.JoinHostPort(cfg.Config.ListenAddress, strconv.Itoa(cfg.Config.ListenPort)),
-		managementAddress: net.JoinHostPort(cfg.Config.Management.ListenAddress, strconv.Itoa(cfg.Config.Management.ListenPort)),
-		eventSource:       cfg.Config.UI.EventSource,
-		provisioning:      cfg.Config.Provisioning,
-		allowWrites:       cfg.Config.API.AllowWrites,
-		secretDirs:        slices.Clone(cfg.Config.API.SecretDirs),
-		tls:               cfg.Config.TLS,
-		coreConfig:        cfg.Config.DeepCopy(),
+		pipeline:            cfg.Pipeline,
+		database:            cfg.Database,
+		catalog:             cfg.Catalog,
+		metrics:             cfg.Metrics,
+		reloader:            cfg.Reloader,
+		uiAssets:            cfg.UIAssets,
+		logger:              logger,
+		address:             net.JoinHostPort(cfg.Config.ListenAddress, strconv.Itoa(cfg.Config.ListenPort)),
+		managementAddress:   net.JoinHostPort(cfg.Config.Management.ListenAddress, strconv.Itoa(cfg.Config.Management.ListenPort)),
+		eventSource:         cfg.Config.UI.EventSource,
+		provisioning:        cfg.Config.Provisioning,
+		allowWrites:         cfg.Config.API.AllowWrites,
+		secretDirs:          slices.Clone(cfg.Config.API.SecretDirs),
+		tls:                 cfg.Config.TLS,
+		coreConfig:          cfg.Config.DeepCopy(),
+		rejectInlineSecrets: cfg.Config.Database.Backend.Persistent(),
 	}
 
 	if s.allowWrites && !isLoopback(cfg.Config.Management.ListenAddress) {

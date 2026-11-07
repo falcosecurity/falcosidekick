@@ -1464,3 +1464,30 @@ func getMetricValueByLabel(gathered []*dto.MetricFamily, name, labelKey, labelVa
 }
 
 func applyErr(_ int64, err error) error { return err }
+
+// With a persistent database, a reload whose files write a secret inline is refused and changes nothing.
+func TestReloaderRejectsInlineSecretsForAPersistentDatabase(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "outputs.yaml")
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    token: private-value\n")
+	typ := stubOutputType("slack", nil)
+	typ.Schema.Fields = []output.SchemaField{{Name: "token", Type: "string", Secret: true}}
+	cat, err := catalog.New([]output.Type{typ})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		OutputPaths: []string{path}, Catalog: cat, Dispatcher: env.d, Database: db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+		RejectInlineSecrets: true,
+	})
+
+	err = r.Reload(t.Context(), env.workerRunCtx, time.Second)
+	require.ErrorContains(t, err, `output "slack": token: secrets cannot be stored; use token_file`)
+	assert.NotContains(t, err.Error(), "private-value")
+	assert.Empty(t, env.d.OutputNames())
+	stored, err := db.GetOutputConfigs(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, stored)
+}

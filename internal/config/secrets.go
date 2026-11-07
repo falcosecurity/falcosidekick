@@ -17,13 +17,32 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
+
+// CheckNoInlineSecrets refuses secrets written inline in outputs, for a database that keeps what it
+// stores: each one must be read from a file. Unknown output types are left to the build.
+func CheckNoInlineSecrets(outputs map[string]map[string]any, cat *catalog.Catalog) error {
+	var errs []error
+	for _, name := range slices.Sorted(maps.Keys(outputs)) {
+		outputType, ok := cat.Get(name)
+		if !ok {
+			continue
+		}
+		for _, secret := range output.InlineSecrets(outputs[name], outputType.Schema.Fields) {
+			errs = append(errs, fmt.Errorf("output %q: %s", name, secret))
+		}
+	}
+	return errors.Join(errs...)
+}
 
 // ResolvedOutputs returns copies of outputs with every <field>_file replaced by the file content,
 // to build the outputs from. The configs passed in keep the paths as written: that is what is stored.

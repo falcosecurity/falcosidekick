@@ -17,6 +17,7 @@
 package output
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 )
@@ -67,5 +68,51 @@ func visitSecretPath(cfg map[string]any, parts []string, field *SchemaField, pat
 				visit(child, entryKey, entryPath)
 			}
 		}
+	}
+}
+
+// InlineSecret is a secret value written in a config instead of read from a file.
+type InlineSecret struct {
+	// Path is the key path as written, dot separated.
+	Path string
+	// Use is the key that reads the value from a file instead.
+	Use string
+}
+
+// String reports the secret without its value.
+func (s InlineSecret) String() string {
+	return s.Path + ": secrets cannot be stored; use " + s.Use
+}
+
+// InlineSecrets returns the secrets cfg sets inline, sorted by path.
+func InlineSecrets(cfg map[string]any, fields []SchemaField) []InlineSecret {
+	var found []InlineSecret
+	VisitSecrets(cfg, fields, func(parent map[string]any, key string, path []string) {
+		if !hasValue(parent[key]) {
+			return
+		}
+		use := "files"
+		joined := strings.Join(path, ".")
+		for i := range fields {
+			if strings.EqualFold(fields[i].Name, joined) && fields[i].HasFileVariant() {
+				use = key + "_file"
+			}
+		}
+		found = append(found, InlineSecret{Path: joined, Use: use})
+	})
+	slices.SortFunc(found, func(a, b InlineSecret) int { return strings.Compare(a.Path, b.Path) })
+	return found
+}
+
+func hasValue(value any) bool {
+	if value == nil {
+		return false
+	}
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.String, reflect.Map, reflect.Slice, reflect.Array:
+		return v.Len() > 0
+	default:
+		return true
 	}
 }

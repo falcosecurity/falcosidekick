@@ -880,3 +880,22 @@ func TestCloseOutputsLogsOnCloseError(t *testing.T) {
 
 	closeOutputs([]*pipeline.Output{failing})
 }
+
+// With a persistent database, an output file that writes a secret inline stops startup before the database opens.
+func TestNewAppRefusesInlineSecretsInOutputFilesForAPersistentDatabase(t *testing.T) {
+	cfg := loadDefaultConfigForCmdTest(t)
+	cfg.Database.Backend = core.DatabaseSQLite
+	cat, err := catalog.New([]output.Type{{
+		Name:   "webhook",
+		Schema: output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
+		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+			return &testutil.MockDriver{DriverName: "webhook"}, nil
+		},
+	}})
+	require.NoError(t, err)
+	outs := &config.OutputsConfig{Outputs: map[string]map[string]any{"webhook": {"token": "private-value"}}}
+
+	_, err = NewApp(t.Context(), cfg, outs, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), cat, slog.Default())
+	require.ErrorContains(t, err, `output files: output "webhook": token: secrets cannot be stored; use token_file`)
+	assert.NotContains(t, err.Error(), "private-value")
+}

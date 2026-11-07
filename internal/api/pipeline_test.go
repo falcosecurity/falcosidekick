@@ -1288,3 +1288,48 @@ func TestHandlePipelineOutputPut_AfterShutdownReturns503WithoutStoring(t *testin
 	require.NoError(t, err)
 	assert.Nil(t, stored)
 }
+
+// With a persistent database the API stores secrets only as file references.
+func TestHandlePipelineOutputPut_PersistentDatabaseRefusesInlineSecrets(t *testing.T) {
+	cat, err := catalog.New([]output.Type{{
+		Name: "webhook",
+		Schema: output.Schema{Fields: []output.SchemaField{
+			{Name: "password", Type: "string", Secret: true},
+			{Name: "headers", Type: "map", EntryFields: []output.SchemaField{
+				{Name: "secrets", Type: "string[]", Secret: true},
+				{Name: "files", Type: "string[]", File: true},
+			}},
+		}},
+		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+			return &testutil.MockDriver{DriverName: "webhook"}, nil
+		},
+	}})
+	require.NoError(t, err)
+	tests := []struct {
+		name, body, want string
+		status           int
+	}{
+		{name: "inline password", body: `{"password":"private-1"}`, status: http.StatusBadRequest, want: "password: secrets cannot be stored; use password_file"},
+		{name: "inline header", body: `{"headers":{"X-Key":{"secrets":["private-2"]}}}`, status: http.StatusBadRequest, want: "headers.X-Key.secrets: secrets cannot be stored; use files"},
+		{name: "no secret", body: `{"headers":{}}`, status: http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db := database.NewMemory()
+			rig := buildMutationRig(t, db, cat, true)
+			cfg := writableConfig()
+			cfg.Database.Backend = core.DatabaseSQLite
+			srv, err := NewServer(&ServerConfig{Pipeline: rig.Server.pipeline, Database: db, Catalog: cat, Reloader: rig.Reloader, Config: cfg})
+			require.NoError(t, err)
+
+			raw := requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/webhook", `{"version":0,"config":`+tt.body+`}`, tt.status)
+			assert.NotContains(t, string(raw), "private")
+			if tt.want != "" {
+				assert.Equal(t, tt.want, responseError(t, raw))
+				stored, err := db.GetOutputConfig(t.Context(), "webhook")
+				require.NoError(t, err)
+				assert.Nil(t, stored)
+			}
+		})
+	}
+}
