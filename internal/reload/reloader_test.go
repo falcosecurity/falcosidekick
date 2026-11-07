@@ -813,7 +813,7 @@ func TestReloaderApplyOutput_RequiresBind(t *testing.T) {
 		InitialOutputs:  map[string]map[string]any{},
 	})
 
-	err = r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "x"})
+	_, err = r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "x"})
 	require.ErrorIs(t, err, ErrReloaderNotBound)
 
 	err = r.RemoveOutput(context.Background(), "slack", 0)
@@ -855,7 +855,7 @@ func TestReloaderApplyOutput_AddsNewOutput(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{})
 
-	require.NoError(t, r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "https://hooks.slack.com/ui"}))
+	require.NoError(t, applyErr(r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "https://hooks.slack.com/ui"})))
 
 	assert.Contains(t, env.d.OutputNames(), "slack", "ApplyOutput must add the output to the dispatcher")
 
@@ -878,7 +878,7 @@ func TestReloaderApplyOutput_ReplacesExistingOutput(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{"slack": {"secret_endpoint": "old"}})
 
-	require.NoError(t, r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "new"}))
+	require.NoError(t, applyErr(r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "new"})))
 
 	assert.Contains(t, env.d.OutputNames(), "slack")
 }
@@ -903,11 +903,11 @@ func TestReloaderApplyOutput_StaleVersionConflicts(t *testing.T) {
 	r.BindWorkerContext(env.workerRunCtx, time.Second)
 	ctx := context.Background()
 
-	require.NoError(t, r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "first"}))
-	require.ErrorIs(t, r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "create again"}), core.ErrVersionConflict)
+	require.NoError(t, applyErr(r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "first"})))
+	require.ErrorIs(t, applyErr(r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "create again"})), core.ErrVersionConflict)
 
-	require.NoError(t, r.ApplyOutput(ctx, "slack", 1, map[string]any{"secret_endpoint": "second"}))
-	require.ErrorIs(t, r.ApplyOutput(ctx, "slack", 1, map[string]any{"secret_endpoint": "lost update"}), core.ErrVersionConflict)
+	require.NoError(t, applyErr(r.ApplyOutput(ctx, "slack", 1, map[string]any{"secret_endpoint": "second"})))
+	require.ErrorIs(t, applyErr(r.ApplyOutput(ctx, "slack", 1, map[string]any{"secret_endpoint": "lost update"})), core.ErrVersionConflict)
 
 	stored, err := db.GetOutputConfig(ctx, "slack")
 	require.NoError(t, err)
@@ -965,7 +965,7 @@ func TestReloaderApplyOutput_UnknownTypeRejected(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{})
 
-	err = r.ApplyOutput(context.Background(), "not-a-real-output", 0, map[string]any{})
+	_, err = r.ApplyOutput(context.Background(), "not-a-real-output", 0, map[string]any{})
 	require.ErrorIs(t, err, ErrUnknownOutputType)
 	assert.Empty(t, env.d.OutputNames(), "dispatcher must not gain the unknown output")
 }
@@ -979,7 +979,7 @@ func TestReloaderApplyOutput_InitFailureLeavesStateUnchanged(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{})
 
-	err = r.ApplyOutput(context.Background(), "broken", 0, map[string]any{})
+	_, err = r.ApplyOutput(context.Background(), "broken", 0, map[string]any{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "apply init")
 	assert.Empty(t, env.d.OutputNames(), "dispatcher must be untouched on Init failure")
@@ -995,7 +995,7 @@ func TestReloaderApplyOutput_RejectedConfigNeverEchoesValues(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{})
 
-	err = r.ApplyOutput(context.Background(), "webhook", 0, map[string]any{"host": "https://u:" + sentinel + "@ho st/x"})
+	_, err = r.ApplyOutput(context.Background(), "webhook", 0, map[string]any{"host": "https://u:" + sentinel + "@ho st/x"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "host: invalid URL")
 	assert.NotContains(t, err.Error(), sentinel)
@@ -1124,7 +1124,7 @@ func TestReloaderApplyThenReload_FileWinsOverUIEdit(t *testing.T) {
 
 	applyCtx, applyCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer applyCancel()
-	require.NoError(t, r.ApplyOutput(applyCtx, "slack", 0, map[string]any{"secret_endpoint": "ui-value"}))
+	require.NoError(t, applyErr(r.ApplyOutput(applyCtx, "slack", 0, map[string]any{"secret_endpoint": "ui-value"})))
 	require.Contains(t, env.d.OutputNames(), "slack")
 	require.Equal(t, map[string]any{"secret_endpoint": "ui-value"}, r.fileState["slack"],
 		"r.fileState must track the UI edit so the next file reload sees a Changed diff")
@@ -1246,7 +1246,7 @@ func TestReloaderReload_ReAddsNameAlreadyLiveAsReplace(t *testing.T) {
 	})
 	r.BindWorkerContext(env.workerRunCtx, time.Second)
 
-	require.NoError(t, r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "ui-version"}))
+	require.NoError(t, applyErr(r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "ui-version"})))
 	require.Contains(t, env.d.OutputNames(), "slack")
 	require.NotContains(t, r.fileState, "slack",
 		"UI-only apply must not write to the file-view")
@@ -1262,6 +1262,66 @@ func TestReloaderReload_ReAddsNameAlreadyLiveAsReplace(t *testing.T) {
 	assert.Equal(t, 1, count, "dispatcher must have exactly one slack (Replace, not duplicate Add)")
 	assert.Equal(t, map[string]any{"secret_endpoint": "file-version"}, r.fileState["slack"],
 		"post-reload r.fileState reflects the file version")
+}
+
+// Shutdown during a write: Close waits for it, so the stored change is also running; later writes
+// are refused before the database.
+func TestReloaderCloseWaitsForTheWriteInProgressAndRefusesLaterOnes(t *testing.T) {
+	building := make(chan struct{})
+	release := make(chan struct{})
+	cat, err := catalog.New([]output.Type{{
+		Name: "slack",
+		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+			close(building)
+			<-release
+			return &testutil.MockDriver{DriverName: "slack"}, nil
+		},
+	}})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		Catalog:         cat,
+		Dispatcher:      env.d,
+		Database:        db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
+		Deps:            output.Deps{Logger: slog.Default()},
+		Logger:          slog.Default(),
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+
+	applied := make(chan error, 1)
+	go func() {
+		_, err := r.ApplyOutput(t.Context(), "slack", 0, map[string]any{"secret_endpoint": "x"})
+		applied <- err
+	}()
+	<-building
+	closed := make(chan struct{})
+	go func() {
+		r.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+		t.Fatal("Close returned while a write was in progress")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	require.NoError(t, <-applied)
+	<-closed
+
+	stored, err := db.GetOutputConfig(t.Context(), "slack")
+	require.NoError(t, err)
+	require.NotNil(t, stored)
+	assert.Equal(t, []string{"slack"}, env.d.OutputNames(), "what is stored is running")
+
+	_, err = r.ApplyOutput(t.Context(), "slack", stored.Version, map[string]any{"secret_endpoint": "y"})
+	require.ErrorIs(t, err, ErrReloaderClosed)
+	require.ErrorIs(t, r.RemoveOutput(t.Context(), "slack", stored.Version), ErrReloaderClosed)
+	after, err := db.GetOutputConfig(t.Context(), "slack")
+	require.NoError(t, err)
+	assert.Equal(t, stored, after, "refused writes never reach the database")
 }
 
 // The database decides before the dispatcher: a refused or failed write changes nothing at runtime.
@@ -1313,7 +1373,7 @@ func TestReloaderUIWriteRefusedByTheDatabaseLeavesTheRuntimeUntouched(t *testing
 			if tt.remove {
 				err = r.RemoveOutput(t.Context(), "slack", 0)
 			} else {
-				err = r.ApplyOutput(t.Context(), "slack", 0, map[string]any{"secret_endpoint": "x"})
+				_, err = r.ApplyOutput(t.Context(), "slack", 0, map[string]any{"secret_endpoint": "x"})
 			}
 			require.ErrorIs(t, err, tt.want)
 			if errors.Is(tt.want, ErrDatabaseUnavailable) {
@@ -1393,3 +1453,5 @@ func getMetricValueByLabel(gathered []*dto.MetricFamily, name, labelKey, labelVa
 	}
 	return 0
 }
+
+func applyErr(_ int64, err error) error { return err }

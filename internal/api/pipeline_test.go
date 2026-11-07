@@ -172,9 +172,9 @@ func TestHandlePipelineOutputs_DBError(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, 500, resp.StatusCode)
+	assert.Equal(t, 503, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "db failure")
+	assert.NotContains(t, string(body), "db failure", "database text stays out of the answer")
 }
 
 func TestHandlePipelineOutputByName_Hit(t *testing.T) {
@@ -235,7 +235,7 @@ func TestHandlePipelineOutputByName_NoDatabase(t *testing.T) {
 	assert.Equal(t, 503, resp.StatusCode)
 }
 
-func TestHandlePipelineOutputByName_BackendFailureReturns500(t *testing.T) {
+func TestHandlePipelineOutputByName_BackendFailureReturns503(t *testing.T) {
 	srv := buildTestServerWithDB(t, allReadsFailDB())
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/pipeline/outputs/foo", http.NoBody)
@@ -243,9 +243,9 @@ func TestHandlePipelineOutputByName_BackendFailureReturns500(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, 500, resp.StatusCode, "backend read failure must surface as 500, not 404")
+	assert.Equal(t, 503, resp.StatusCode, "backend read failure must surface as 503, not 404")
 	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "db failure")
+	assert.NotContains(t, string(body), "db failure", "database text stays out of the answer")
 }
 
 func TestHandlePipelineOutputTypes(t *testing.T) {
@@ -470,9 +470,9 @@ func TestHandlePipelineComposite_LayoutError(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
-	assert.Equal(t, 500, resp.StatusCode)
+	assert.Equal(t, 503, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "layout failed")
+	assert.NotContains(t, string(body), "layout failed", "database text stays out of the answer")
 }
 
 var _ = event.Event{}
@@ -997,7 +997,7 @@ func TestHandlePipelineOutputDelete_RequiresTheCurrentVersion(t *testing.T) {
 func TestReloaderRemoveOutputRefusesAVersionChangedByAReload(t *testing.T) {
 	db := database.NewMemory()
 	rig := buildMutationRig(t, db, newMutationTestCatalog(t), true)
-	require.NoError(t, rig.Reloader.ApplyOutput(t.Context(), "slack", 0, map[string]any{"secret_endpoint": "ui"}))
+	require.NoError(t, applyErr(rig.Reloader.ApplyOutput(t.Context(), "slack", 0, map[string]any{"secret_endpoint": "ui"})))
 	require.NoError(t, db.Provision(t.Context(), &core.ProvisionRequest{Outputs: map[string]map[string]any{"slack": {"secret_endpoint": "file"}}}))
 
 	require.ErrorIs(t, rig.Reloader.RemoveOutput(t.Context(), "slack", 1), core.ErrVersionConflict)
@@ -1026,7 +1026,7 @@ func TestHandlePipelineLayoutPut_NoDatabase(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 }
 
-func TestHandlePipelineOutputPut_DBReadErrorReturns500(t *testing.T) {
+func TestHandlePipelineOutputPut_DBReadErrorReturns503(t *testing.T) {
 	db := &databasetestutil.Mock{GetOutputConfigErr: errors.New("db read boom")}
 	srv := buildMutationTestServer(t, db)
 
@@ -1036,7 +1036,7 @@ func TestHandlePipelineOutputPut_DBReadErrorReturns500(t *testing.T) {
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 }
 
 func TestHandlePipelineOutputPut_DispatcherStoppedReturns503(t *testing.T) {
@@ -1082,7 +1082,7 @@ func TestHandlePipelineOutputPut_DBSaveErrorReturns503(t *testing.T) {
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	respBody, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(respBody), "output 'slack' was not changed")
+	assert.Equal(t, `{"error":"database unavailable"}`, string(respBody))
 	assert.NotContains(t, string(respBody), "boom", "the database error text stays out of the answer")
 }
 
@@ -1110,7 +1110,7 @@ func TestHandlePipelineOutputDelete_NoReloaderReturns503(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 }
 
-func TestHandlePipelineOutputDelete_DBReadErrorReturns500(t *testing.T) {
+func TestHandlePipelineOutputDelete_DBReadErrorReturns503(t *testing.T) {
 	db := &databasetestutil.Mock{GetOutputConfigErr: errors.New("db read boom")}
 	srv := buildMutationTestServer(t, db)
 
@@ -1118,7 +1118,7 @@ func TestHandlePipelineOutputDelete_DBReadErrorReturns500(t *testing.T) {
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 }
 
 func TestHandlePipelineOutputDelete_DispatcherStoppedReturns503(t *testing.T) {
@@ -1151,11 +1151,11 @@ func TestHandlePipelineOutputDelete_DBDeleteErrorReturns503(t *testing.T) {
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	respBody, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(respBody), "output 'slack' was not changed")
+	assert.Equal(t, `{"error":"database unavailable"}`, string(respBody))
 	assert.NotContains(t, string(respBody), "boom")
 }
 
-func TestHandlePipelineLayoutPut_SaveErrorReturns500(t *testing.T) {
+func TestHandlePipelineLayoutPut_SaveErrorReturns503(t *testing.T) {
 	db := &databasetestutil.Mock{SavePipelineLayoutErr: errors.New("db save layout boom")}
 	srv := buildMutationTestServer(t, db)
 
@@ -1165,10 +1165,10 @@ func TestHandlePipelineLayoutPut_SaveErrorReturns500(t *testing.T) {
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 }
 
-func TestHandlePipelineLayoutPut_RereadErrorReturns500(t *testing.T) {
+func TestHandlePipelineLayoutPut_AnswersWithoutReadingBack(t *testing.T) {
 	db := &databasetestutil.Mock{GetPipelineLayoutErr: errors.New("db reread layout boom")}
 	srv := buildMutationTestServer(t, db)
 
@@ -1178,7 +1178,7 @@ func TestHandlePipelineLayoutPut_RereadErrorReturns500(t *testing.T) {
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestContainsSecretPlaceholder_NoSchemaFallback(t *testing.T) {
@@ -1270,4 +1270,21 @@ func TestHandlePipelineOutputDelete_ReloaderNotBoundReturns503(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+}
+
+func TestHandlePipelineOutputPut_AfterShutdownReturns503WithoutStoring(t *testing.T) {
+	db := database.NewMemory()
+	rig := buildMutationRig(t, db, newMutationTestCatalog(t), true)
+	rig.Reloader.Close()
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack",
+		bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"x"}}`)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := rig.Server.app.Test(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	stored, err := db.GetOutputConfig(t.Context(), "slack")
+	require.NoError(t, err)
+	assert.Nil(t, stored)
 }

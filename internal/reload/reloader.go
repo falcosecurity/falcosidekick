@@ -52,6 +52,9 @@ type ReloaderConfig struct {
 // ErrReloaderNotBound is returned by UI writes before BindWorkerContext is called.
 var ErrReloaderNotBound = errors.New("reloader: worker context not bound")
 
+// ErrReloaderClosed is returned by every change after Close; nothing was applied or stored.
+var ErrReloaderClosed = errors.New("reloader: shutting down")
+
 // ErrUnknownOutputType is returned by ApplyOutput for a name not in the catalog.
 var ErrUnknownOutputType = errors.New("reloader: unknown output type")
 
@@ -75,6 +78,7 @@ type Reloader struct {
 	provisioning    core.ProvisioningConfig
 	mu              sync.Mutex
 	bound           bool
+	closed          bool
 }
 
 // NewReloader returns a Reloader with its own deep copy of InitialOutputs.
@@ -112,44 +116,56 @@ func (r *Reloader) BindWorkerContext(workerRunCtx context.Context, retireTimeout
 	r.bound = true
 }
 
-// ApplyOutput applies one UI-driven output config to the dispatcher and persists it.
-// version is the stored version cfg was built from, 0 for an output not stored yet;
-// with a database, any other stored version returns ErrVersionConflict.
-func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, cfg map[string]any) error {
+// Close waits for the change in progress and refuses every later one, so the pipeline can stop
+// without a stored change left unapplied.
+func (r *Reloader) Close() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closed = true
+}
+
+// ApplyOutput applies one UI-driven output config to the dispatcher and persists it, returning the
+// stored version. version is the stored version cfg was built from, 0 for an output not stored yet;
+// with a database, any other stored version returns core.ErrVersionConflict.
+func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, cfg map[string]any) (int64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if r.closed {
+		return 0, ErrReloaderClosed
+	}
 	if !r.bound {
-		return ErrReloaderNotBound
+		return 0, ErrReloaderNotBound
 	}
 
 	start := time.Now()
 
 	outputType, ok := r.catalog.Get(name)
 	if !ok {
-		return r.fail(start, SourceUI, "%w: %q", ErrUnknownOutputType, name)
+		return 0, r.fail(start, SourceUI, "%w: %q", ErrUnknownOutputType, name)
 	}
 
 	if err := r.checkVersion(ctx, name, version); err != nil {
-		return r.fail(start, SourceUI, "%w", err)
+		return 0, r.fail(start, SourceUI, "%w", err)
 	}
 
 	// The output is built from resolved secret files; the database keeps the config as written.
 	stored := utils.DeepCopyMap(cfg)
 	resolved := utils.DeepCopyMap(cfg)
 	if err := config.ResolveSecrets(name, resolved, outputType.Schema); err != nil {
-		return r.fail(start, SourceUI, "apply secrets: %w: %w", pipeline.ErrInvalidOutputConfig, err)
+		return 0, r.fail(start, SourceUI, "apply secrets: %w: %w", pipeline.ErrInvalidOutputConfig, err)
 	}
 
 	out, err := pipeline.BuildOutput(ctx, r.catalog, name, resolved, r.runtimeDefaults, r.deps)
 	if err != nil {
-		return r.fail(start, SourceUI, "apply %w", err)
+		return 0, r.fail(start, SourceUI, "apply %w", err)
 	}
 
 	// The database decides first: a refused write leaves the running output untouched.
-	if err := r.writeOutput(ctx, name, version, stored); err != nil {
+	newVersion, err := r.writeOutput(ctx, name, version, stored)
+	if err != nil {
 		_ = out.Close()
-		return r.fail(start, SourceUI, "%w", err)
+		return 0, r.fail(start, SourceUI, "%w", err)
 	}
 
 	retireCtx, retireCancel := context.WithTimeout(ctx, r.retireTimeout)
@@ -159,7 +175,7 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 	if err := r.dispatcher.ReplaceOutput(retireCtx, r.workerRunCtx, name, out); err != nil {
 		if errors.Is(err, pipeline.ErrDispatcherStopped) {
 			_ = out.Close()
-			return r.fail(start, SourceUI, "%w", err)
+			return 0, r.fail(start, SourceUI, "%w", err)
 		}
 		retireWarning = true
 		r.logger.Warn("apply: old output retire timeout, replacement active", "output", name, "error", err)
@@ -170,7 +186,7 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 	}
 
 	r.recordUI(start, retireWarning)
-	return nil
+	return newVersion, nil
 }
 
 // RemoveOutput retires an output and deletes it from the database, even if it is not running.
@@ -179,6 +195,9 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if r.closed {
+		return ErrReloaderClosed
+	}
 	if !r.bound {
 		return ErrReloaderNotBound
 	}
@@ -216,6 +235,10 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.Duration) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	if r.closed {
+		return ErrReloaderClosed
+	}
 
 	start := time.Now()
 
@@ -342,12 +365,12 @@ func (r *Reloader) checkVersion(ctx context.Context, name string, version int64)
 	return nil
 }
 
-func (r *Reloader) writeOutput(ctx context.Context, name string, version int64, cfg map[string]any) error {
+func (r *Reloader) writeOutput(ctx context.Context, name string, version int64, cfg map[string]any) (int64, error) {
 	if r.database == nil {
-		return nil
+		return 0, nil
 	}
-	_, err := r.database.SaveOutputConfig(ctx, name, version, cfg)
-	return databaseError(err)
+	newVersion, err := r.database.SaveOutputConfig(ctx, name, version, cfg)
+	return newVersion, databaseError(err)
 }
 
 // databaseError keeps a version conflict and turns any other database failure into ErrDatabaseUnavailable.
