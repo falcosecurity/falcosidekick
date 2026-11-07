@@ -104,6 +104,10 @@ type ManagementConfig struct {
 // Validate checks the management listener.
 func (c ManagementConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
+	// Empty would listen on every interface: the unauthenticated API must be opened with 0.0.0.0.
+	if c.ListenAddress == "" {
+		errs.Add("listen_address", "is required (0.0.0.0 for every interface)")
+	}
 	if c.ListenPort < 1 || c.ListenPort > 65535 {
 		errs.Add("listen_port", "must be 1-65535")
 	}

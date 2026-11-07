@@ -158,7 +158,7 @@ func TestConfigValidateManagementPort(t *testing.T) {
 				LogFormat:  LogFormatText,
 				Database:   DatabaseConfig{Backend: DatabaseInMemory},
 				Metrics:    MetricsConfig{MaxLabelValues: 1000},
-				Management: ManagementConfig{ListenPort: tc.port},
+				Management: ManagementConfig{ListenAddress: "127.0.0.1", ListenPort: tc.port},
 			}
 			errs := cfg.Validate()
 			if tc.want == "" {
@@ -169,6 +169,13 @@ func TestConfigValidateManagementPort(t *testing.T) {
 			assert.Contains(t, errs[0].Error(), tc.want)
 		})
 	}
+}
+
+func TestManagementConfigRefusesEmptyAddress(t *testing.T) {
+	errs := ManagementConfig{ListenPort: 2802}.Validate()
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Error(), "listen_address: is required (0.0.0.0 for every interface)")
+	assert.Empty(t, ManagementConfig{ListenAddress: "0.0.0.0", ListenPort: 2802}.Validate())
 }
 
 func TestAPIConfigValidateSecretDirs(t *testing.T) {

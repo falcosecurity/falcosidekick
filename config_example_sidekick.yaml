@@ -14,7 +14,7 @@ listen_port: 2801             # Falco events, /healthz, /version, /metrics
 
 # The API and the UI have their own listener; the API has no authentication.
 # management:
-#   listen_address: "127.0.0.1"
+#   listen_address: "127.0.0.1"         # "0.0.0.0" for every interface; empty is refused
 #   listen_port: 2802
 
 # =============================================================================

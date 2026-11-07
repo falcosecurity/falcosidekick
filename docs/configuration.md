@@ -59,7 +59,7 @@ Outputs are probed concurrently. `runtime.health_check: false` skips the probe f
 Two listeners keep event ingestion apart from the API, which has no authentication:
 
 - ingestion, `listen_address:listen_port` (default `0.0.0.0:2801`): `POST /`, `/healthz`, `/version`, `/metrics`;
-- management, `management.listen_address:management.listen_port` (default `127.0.0.1:2802`): `/api/v1/...`, the UI and `/healthz`.
+- management, `management.listen_address:management.listen_port` (default `127.0.0.1:2802`): `/api/v1/...`, the UI and `/healthz`. An empty address is refused; write `0.0.0.0` to listen on every interface.
 
 `tls` applies to both. Expose the management listener only to trusted clients.
 
