@@ -75,13 +75,6 @@ func NewApp(
 		}
 	}()
 
-	if err := db.Provision(ctx, &core.ProvisionRequest{
-		Outputs: outsCfg.Outputs,
-	}); err != nil {
-		return nil, fmt.Errorf("database provision: %w", err)
-	}
-	slog.Info("database provisioned", "backend", cfg.Database.Backend, "outputs", len(outsCfg.Outputs))
-
 	enricher, err := pipeline.NewEnricher(cfg.Enricher)
 	if err != nil {
 		return nil, fmt.Errorf("enricher: %w", err)
@@ -96,6 +89,12 @@ func NewApp(
 			closeOutputs(outputs)
 		}
 	}()
+
+	// File outputs are provisioned only once they built, so a broken file never reaches the store.
+	if err := db.Provision(ctx, &core.ProvisionRequest{Outputs: outsCfg.Outputs}); err != nil {
+		return nil, fmt.Errorf("database provision: %w", err)
+	}
+	slog.Info("database provisioned", "backend", cfg.Database.Backend, "outputs", len(outsCfg.Outputs))
 
 	restored, restoreFailures, err := restoreFromDB(ctx, cfg, db, cat, collector, outsCfg.Outputs)
 	if err != nil {
@@ -137,6 +136,7 @@ func NewApp(
 		Registry:        collector.Registry(),
 		Logger:          logger,
 		InitialOutputs:  resolved,
+		FileOutputs:     outsCfg.Outputs,
 	})
 
 	srv, err := api.NewServer(&api.ServerConfig{
