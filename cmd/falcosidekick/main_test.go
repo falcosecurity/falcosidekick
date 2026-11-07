@@ -1121,3 +1121,66 @@ func postgresDSN(t *testing.T) string {
 	}
 	return dsn
 }
+
+// An unreachable postgres stops startup once connect_timeout has passed.
+func TestCreateDatabaseGivesUpAfterTheConnectTimeout(t *testing.T) {
+	cfg := loadDefaultConfigForCmdTest(t)
+	cfg.Database = core.DatabaseConfig{Backend: core.DatabasePostgres, ConnectTimeout: 300 * time.Millisecond, Postgres: core.PostgresConfig{
+		Host: "10.255.255.1", Port: 5432, Database: "falcosidekick", User: "falcosidekick",
+		SSLMode: core.PostgresSSLDisable, MaxConnections: 1, PollInterval: time.Second,
+	}}
+	require.Empty(t, cfg.Validate())
+
+	start := time.Now()
+	_, err := createDatabase(t.Context(), &cfg.Database)
+	require.Error(t, err)
+	assert.Less(t, time.Since(start), 5*time.Second)
+}
+
+// With postgres, API outputs and the layout survive a restart and no table holds a secret value.
+func TestNewAppWithPostgresKeepsAPIOutputsAcrossRestartsWithoutSecrets(t *testing.T) {
+	cfg := postgresTestDatabase(t)
+	secret := filepath.Join(t.TempDir(), "token")
+	require.NoError(t, os.WriteFile(secret, []byte("private-token-value"), 0o600))
+	cat, err := catalog.New([]output.Type{{
+		Name:   "webhook",
+		Schema: output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
+		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+			return &testutil.MockDriver{DriverName: "webhook"}, nil
+		},
+	}})
+	require.NoError(t, err)
+	files := &config.OutputsConfig{Outputs: map[string]map[string]any{}}
+	open := func() *app {
+		a, err := NewApp(t.Context(), cfg, files, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), cat, slog.Default())
+		require.NoError(t, err)
+		return a
+	}
+
+	first := open()
+	workers, stop := context.WithCancel(context.Background())
+	first.pipe.Start(workers, stop)
+	first.reloader.BindWorkerContext(workers, time.Second)
+	_, err = first.reloader.ApplyOutput(t.Context(), "webhook", 0, map[string]any{"token_file": secret})
+	require.NoError(t, err)
+	require.NoError(t, first.db.SavePipelineLayout(t.Context(), &core.PipelineLayout{Nodes: []core.LayoutNode{{ID: "webhook"}}}))
+	first.shutdown()
+
+	settings, err := database.PostgresSettings(&cfg.Database.Postgres)
+	require.NoError(t, err)
+	admin := stdlib.OpenDB(*settings)
+	t.Cleanup(func() { _ = admin.Close() })
+	var dump string
+	require.NoError(t, admin.QueryRowContext(t.Context(),
+		"SELECT (SELECT string_agg(config::text, ' ') FROM falcosidekick_outputs) || "+
+			"(SELECT string_agg(data::text, ' ') FROM falcosidekick_layout)").Scan(&dump))
+	assert.Contains(t, dump, secret, "the reference is stored")
+	assert.NotContains(t, dump, "private-token-value")
+
+	second := open()
+	t.Cleanup(second.shutdown)
+	assert.Equal(t, []string{"webhook"}, second.pipe.Dispatcher().OutputNames())
+	layout, err := second.db.GetPipelineLayout(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, []core.LayoutNode{{ID: "webhook"}}, layout.Nodes)
+}

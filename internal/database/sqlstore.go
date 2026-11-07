@@ -213,7 +213,8 @@ func (s *SQL) Provision(ctx context.Context, req *core.ProvisionRequest) error {
 			if _, kept := req.Outputs[name]; kept || !entry.Provisioned {
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, s.dialect.q("DELETE FROM falcosidekick_outputs WHERE name = ?"), name); err != nil {
+			// An API output another instance stored under this name meanwhile is not a provisioned output to delete.
+			if _, err := tx.ExecContext(ctx, s.dialect.q("DELETE FROM falcosidekick_outputs WHERE name = ? AND provisioned = ?"), name, true); err != nil {
 				return fmt.Errorf("database: delete output: %w", err)
 			}
 		}

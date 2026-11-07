@@ -66,6 +66,9 @@ type Server struct {
 	catalog   *catalog.Catalog
 	metrics   core.MetricsCollector
 	tls       *core.TLSConfig
+	// operations is the parent of every API request context; Shutdown cancels it.
+	operations       context.Context
+	cancelOperations context.CancelFunc
 	// coreConfig is this replica's configuration, served masked by GET /api/v1/config.
 	coreConfig        *core.Config
 	reloader          *reload.Reloader
@@ -116,6 +119,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 		coreConfig:          cfg.Config.DeepCopy(),
 		rejectInlineSecrets: cfg.Config.Database.Backend.Persistent(),
 	}
+	s.operations, s.cancelOperations = context.WithCancel(context.Background())
 
 	if s.allowWrites && !isLoopback(cfg.Config.Management.ListenAddress) {
 		logger.Warn("API writes are enabled without authentication on a non-loopback management address",
@@ -168,7 +172,7 @@ func (s *Server) mountManagement() *fiber.App {
 	app := newApp()
 	app.Get("/healthz", s.handleGetHealthz)
 
-	v1 := app.Group("/api/v1")
+	v1 := app.Group("/api/v1", s.boundOperation)
 
 	events := v1.Group("/events")
 	events.Get("/search", s.handleEventsSearch)
@@ -229,8 +233,24 @@ func (s *Server) Start() error {
 }
 
 // Shutdown gracefully stops both listeners, bounded by the caller's context.
+// The management listener stops first, so no API change starts while ingestion drains. An API
+// request still running when ctx ends is canceled: a database call it waits on returns, and the
+// reloader it holds is released.
 func (s *Server) Shutdown(ctx context.Context) error {
-	return errors.Join(s.ingestion.ShutdownWithContext(ctx), s.app.ShutdownWithContext(ctx))
+	err := s.app.ShutdownWithContext(ctx)
+	s.cancelOperations()
+	return errors.Join(err, s.ingestion.ShutdownWithContext(ctx))
+}
+
+// apiOperationTimeout bounds an API request, building an output and its database calls included.
+const apiOperationTimeout = 30 * time.Second
+
+// boundOperation runs an API request with a deadline, on a context the shutdown cancels.
+func (s *Server) boundOperation(c fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(s.operations, apiOperationTimeout)
+	defer cancel()
+	c.SetContext(ctx)
+	return c.Next()
 }
 
 // isLoopback reports whether address only accepts local connections.

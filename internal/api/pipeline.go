@@ -195,7 +195,7 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 		return s.writeMutationError(c, name, "apply", err)
 	}
 	// Answered from what was stored, not read back: a later write may already have replaced it.
-	saved := &core.OutputConfigEntry{Name: name, Config: merged, Version: version, UpdatedAt: time.Now().UTC()}
+	saved := &core.OutputConfigEntry{Name: name, Config: merged, Version: version, UpdatedAt: time.Now().UTC(), Provisioned: existing != nil && existing.Provisioned}
 	return c.Status(fiber.StatusOK).JSON(maskOutputConfig(saved, t))
 }
 
