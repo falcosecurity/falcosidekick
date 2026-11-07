@@ -165,6 +165,9 @@ loki:
 nats:
   # hostport: "" # nats://{domain or ip}:{port}, if not empty, NATS output is enabled
   # subjecttemplate: "falco.<priority>.<rule>" # template for the subject, tokens <priority> and <rule> will be automatically replaced (default: falco.<priority>.<rule>)
+  # credsfile: "" # path to NATS .creds file, cannot be combined with jwtfile or nkeyseedfile
+  # nkeyseedfile: "" # path to NATS NKey seed file, used alone for NKey auth or with jwtfile for JWT auth
+  # jwtfile: "" # path to NATS JWT file, requires nkeyseedfile
   # minimumpriority: "" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
   # mutualtls: false # if true, checkcert flag will be ignored (server cert will always be checked)
   # checkcert: true # check if ssl certificate of the output is valid (default: true)
