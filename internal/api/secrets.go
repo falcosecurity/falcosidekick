@@ -18,6 +18,7 @@ package api
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
@@ -96,63 +97,22 @@ func containsSecretPlaceholder(cfg map[string]any, t output.Type) string {
 	return found
 }
 
-type secretVisitor func(map[string]any, string, []string)
-
-func visitProtectedValues(cfg map[string]any, t output.Type, visit secretVisitor) {
+// visitProtectedValues treats every leaf as secret when the output type is unknown.
+func visitProtectedValues(cfg map[string]any, t output.Type, visit output.SecretVisitor) {
 	if t.Name == "" {
 		visitAllLeaves(cfg, nil, visit)
 		return
 	}
-	visitSchemaSecrets(cfg, t.Schema.Fields, nil, visit)
+	output.VisitSecrets(cfg, t.Schema.Fields, visit)
 }
 
-func visitAllLeaves(cfg map[string]any, path []string, visit secretVisitor) {
+func visitAllLeaves(cfg map[string]any, path []string, visit output.SecretVisitor) {
 	for key, value := range cfg {
-		next := appendPath(path, key)
+		next := append(slices.Clone(path), key)
 		if child, ok := value.(map[string]any); ok {
 			visitAllLeaves(child, next, visit)
 		} else {
 			visit(cfg, key, next)
-		}
-	}
-}
-
-func visitSchemaSecrets(cfg map[string]any, fields []output.SchemaField, path []string, visit secretVisitor) {
-	for i := range fields {
-		field := &fields[i]
-		if field.Secret || len(field.EntryFields) > 0 {
-			visitSecretPath(cfg, strings.Split(field.Name, "."), field, path, visit)
-		}
-	}
-}
-
-func visitSecretPath(cfg map[string]any, parts []string, field *output.SchemaField, path []string, visit secretVisitor) {
-	for key, value := range cfg {
-		if !strings.EqualFold(key, parts[0]) {
-			continue
-		}
-		next := appendPath(path, key)
-		if len(parts) == 1 && field.Secret {
-			visit(cfg, key, next)
-			continue
-		}
-		child, ok := value.(map[string]any)
-		if !ok {
-			// Malformed secret-bearing containers must not become public leaves.
-			visit(cfg, key, next)
-			continue
-		}
-		if len(parts) > 1 {
-			visitSecretPath(child, parts[1:], field, next, visit)
-			continue
-		}
-		for entryKey, entryValue := range child {
-			entryPath := appendPath(next, entryKey)
-			if entry, ok := entryValue.(map[string]any); ok {
-				visitSchemaSecrets(entry, field.EntryFields, entryPath, visit)
-			} else {
-				visit(child, entryKey, entryPath)
-			}
 		}
 	}
 }
@@ -163,13 +123,6 @@ func configPointer(path []string) string {
 		segments[i+1] = strings.ReplaceAll(strings.ReplaceAll(part, "~", "~0"), "/", "~1")
 	}
 	return strings.Join(segments, "/")
-}
-
-func appendPath(path []string, key string) []string {
-	result := make([]string, len(path)+1)
-	copy(result, path)
-	result[len(path)] = key
-	return result
 }
 
 // Normalize map and slice types without JSON round-tripping numeric values.
