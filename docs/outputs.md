@@ -56,7 +56,8 @@ Pushes to `/loki/api/v1/push` under `base_path`; `tenant` sets `X-Scope-OrgID`. 
 
 - Sync (default) waits for the broker acknowledgement. `producer.delivery_timeout` (default 10s, minimum 1s) bounds each record and the flush on shutdown.
 - `producer.async: true` does not wait: an event counts as sent once buffered, and a later broker failure is counted as failed. Choose sync for exact counters.
-- Idempotent writes are on only with sync and `required_acks: all`.
+- Idempotent writes are on with `required_acks: all` (the default), sync or async. With them a record already sent stays with the client until the broker answers, so a delivery that runs out of time is not reported as failed after Kafka wrote it. With `one` or `none` it can be, and the retry writes it again.
+- Startup asks the brokers for the default `topic`: a missing topic, unless `producer.auto_create_topic` is set, or a topic the client may not access stops startup. Topics taken from `topic_field` are not checked.
 - A failed record is retried unless Kafka marks its error non-retriable; a batch fails for good only when every failed record does.
 - Within `delivery_timeout` the client retries a record itself, for example across a leader change; with idempotent writes the broker drops those duplicates, which a pipeline retry, as a new record, cannot get.
 - Client warnings and errors (connection, TLS, SASL) go to the Falcosidekick log with the broker, topic, partition and group only.
@@ -128,7 +129,7 @@ One output for traces, logs and metrics; each section present enables that signa
 
 - Traces: one span per event, kind `INTERNAL`, zero length unless `duration` is set.
 - Logs: one record per event, event name `falco.alert`, severity from the priority.
-- Metrics: the cumulative counter `falcosecurity.falco.rules.matches` by rule, priority, source and hostname, plus `extra_attributes`; a retried event is not counted twice.
+- Metrics: the cumulative counter `falcosecurity.falco.rules.matches` by rule, priority, source and hostname, plus `extra_attributes`; a retried event is not counted twice, also when the retry is for another signal. Beyond 2000 attribute combinations the SDK adds to one overflow series (`otel.metric.overflow`).
 - Resource `service.name` is `falcosidekick`. Attributes use the `falco.` prefix; output fields keep their names.
 - Not probed at startup: OTLP has no request that exports nothing.
 - `http/protobuf` uses the same HTTP client as the other HTTP outputs, so redirects to another origin are refused.
@@ -136,4 +137,4 @@ One output for traces, logs and metrics; each section present enables that signa
 
 ## PolicyReport
 
-Writes openreports.io `v1alpha1` reports, which Kyverno and Policy Reporter read. Events with a namespace (`k8s.ns.name`, else `ka.target.namespace`) go to the `Report` named `falcosidekick` in that namespace, others to the `ClusterReport` `falcosidekick`; an event whose namespace does not exist goes to `falco_namespace`. Each report keeps `max_events` results (default 1000) and drops the oldest, or with `prune_by_priority` the oldest with the lowest severity. Writes to one report are serialized and retried on conflict. The CRDs must be installed (`kubectl apply -f https://github.com/openreports/reports-api/releases/download/v0.2.1/install.yaml`); the service account needs `get`, `create` and `update` on `reports` and `clusterreports`. Startup checks the API serves both resources and the cluster report is readable. Each API request is bounded at 30s. When the API server asks to retry later (`Retry-After`), the Kubernetes client waits and retries within the same delivery attempt.
+Writes openreports.io `v1alpha1` reports, which Kyverno and Policy Reporter read. Events with a namespace (`k8s.ns.name`, else `ka.target.namespace`) go to the `Report` named `falcosidekick` in that namespace, others to the `ClusterReport` `falcosidekick`; an event whose namespace does not exist goes to `falco_namespace`. Each report keeps `max_events` results (default 1000) and drops the oldest, or with `prune_by_priority` the oldest with the lowest severity. Writes to one report are serialized and retried on conflict. A retried event is added once: a result with the same `uuid` property is kept as it is. The CRDs must be installed (`kubectl apply -f https://github.com/openreports/reports-api/releases/download/v0.2.1/install.yaml`); the service account needs `get`, `create` and `update` on `reports` and `clusterreports`. Startup checks the API serves both resources and the cluster report is readable. Each API request is bounded at 30s. When the API server asks to retry later (`Retry-After`), the Kubernetes client waits and retries within the same delivery attempt.

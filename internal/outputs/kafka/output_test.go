@@ -635,6 +635,8 @@ func TestHealthCheckClassification(t *testing.T) {
 		{name: "sasl authentication failed", err: fmt.Errorf("sasl: %w", kerr.SaslAuthenticationFailed), want: true},
 		{name: "unsupported sasl mechanism", err: kerr.UnsupportedSaslMechanism, want: true},
 		{name: "illegal sasl state", err: kerr.IllegalSaslState, want: true},
+		{name: "missing topic", err: kerr.UnknownTopicOrPartition, want: true},
+		{name: "topic not authorized", err: kerr.TopicAuthorizationFailed, want: true},
 		{name: "unknown authority", err: &tls.CertificateVerificationError{Err: x509.UnknownAuthorityError{}}, want: true},
 		{name: "connection refused", err: &net.OpError{Op: "dial", Err: errors.New("connection refused")}},
 		{name: "deadline", err: context.DeadlineExceeded},

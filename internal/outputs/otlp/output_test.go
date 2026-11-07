@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -290,6 +291,25 @@ func assertMetric(t *testing.T, got *received, want int64) {
 	assert.NotContains(t, attrs, "falco.uuid")
 }
 
+// The SDK reads these variables unless every limit is set explicitly; output fields must arrive whole.
+func TestOTELLimitVariablesHaveNoEffect(t *testing.T) {
+	for _, key := range []string{"OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT", "OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT",
+		"OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT", "OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT"} {
+		t.Setenv(key, "2")
+	}
+	r, endpoint := startHTTPReceiver(t)
+	d := newDriver(t, allSignals(endpoint, protocolHTTP, nil))
+	evt := testutil.CreateValidEvent()
+	require.NoError(t, d.Send(context.Background(), evt))
+	got := r.snapshot()
+	spanAttrs := attrMap(got.traces[0].ResourceSpans[0].ScopeSpans[0].Spans[0].Attributes)
+	logAttrs := attrMap(got.logs[0].ResourceLogs[0].ScopeLogs[0].LogRecords[0].Attributes)
+	for _, attrs := range []map[string]any{spanAttrs, logAttrs} {
+		assert.Equal(t, evt.Rule, attrs["falco.rule"])
+		assert.Equal(t, "/bin/hack", attrs["fd.name"])
+	}
+}
+
 func TestSendBatchExportsOneRequestPerSignal(t *testing.T) {
 	r, endpoint := startHTTPReceiver(t)
 	d := newDriver(t, allSignals(endpoint, protocolHTTP, nil))
@@ -317,6 +337,36 @@ func TestMetricRetryDoesNotCountTwice(t *testing.T) {
 	next.UUID = secondUUID
 	require.NoError(t, d.Send(context.Background(), next))
 	assertMetric(t, r.snapshot(), 2)
+}
+
+// The retry is for traces, which failed; metrics went through and must not count the event again.
+func TestMetricRetryForAnotherSignalDoesNotCountTwice(t *testing.T) {
+	r, endpoint := startHTTPReceiver(t)
+	d := newDriver(t, allSignals(endpoint, protocolHTTP, nil))
+	evt := testutil.CreateValidEvent()
+
+	r.fail(1, http.StatusServiceUnavailable)
+	require.Error(t, d.Send(context.Background(), evt))
+	assertMetric(t, r.snapshot(), 1)
+	require.NoError(t, d.Send(context.Background(), evt), "retry of the same event")
+	assertMetric(t, r.snapshot(), 1)
+}
+
+// Concurrent batches: each event counted once and the last export carries the total.
+func TestMetricConcurrentExportsCountEachEventOnce(t *testing.T) {
+	r, endpoint := startHTTPReceiver(t)
+	d := newDriver(t, map[string]any{"metrics": map[string]any{"endpoint": endpoint}})
+	var wg sync.WaitGroup
+	for i := range 8 {
+		wg.Go(func() {
+			evt := testutil.CreateValidEvent()
+			evt.UUID = fmt.Sprintf("00000000-0000-0000-0000-%012d", i)
+			assert.NoError(t, d.Send(context.Background(), evt))
+			assert.NoError(t, d.Send(context.Background(), evt), "a retry after success")
+		})
+	}
+	wg.Wait()
+	assertMetric(t, r.snapshot(), 8)
 }
 
 func TestMetricExtraAttributes(t *testing.T) {

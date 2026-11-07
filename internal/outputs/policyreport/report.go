@@ -17,6 +17,8 @@
 package policyreport
 
 import (
+	"slices"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -63,6 +65,10 @@ func newReport(t target) *unstructured.Unstructured {
 func addResult(obj *unstructured.Unstructured, result map[string]any, maxEvents int, pruneByPriority bool) {
 	_ = unstructured.SetNestedField(obj.Object, int64(maxEvents), "configuration", "limits", "maxResults")
 	results, _ := obj.Object["results"].([]any)
+	// A retry after a write whose answer was lost finds the result already there.
+	if id := property(result, "uuid"); id != "" && slices.ContainsFunc(results, func(r any) bool { return property(r, "uuid") == id }) {
+		return
+	}
 	results = append(results, result)
 	for len(results) > maxEvents {
 		i := 0
@@ -105,4 +111,17 @@ func field(result any, key string) string {
 	m, _ := result.(map[string]any)
 	s, _ := m[key].(string)
 	return s
+}
+
+// property reads a result property, typed as built or as decoded from the API server.
+func property(result any, key string) string {
+	m, _ := result.(map[string]any)
+	switch properties := m["properties"].(type) {
+	case map[string]string:
+		return properties[key]
+	case map[string]any:
+		s, _ := properties[key].(string)
+		return s
+	}
+	return ""
 }

@@ -277,7 +277,7 @@ func TestKafkaDeliversEvent(t *testing.T) {
 		},
 		{
 			name:  "sync topic_field and message_key_field override defaults",
-			topic: func(created string) string { return created + "-absent" },
+			topic: func(created string) string { return created + "-default" },
 			extra: "topic_field: " + kafkaTopicField + "\n" +
 				"message_key: " + staticKey + "\n" +
 				"message_key_field: e2e.marker\n",
@@ -300,6 +300,10 @@ func TestKafkaDeliversEvent(t *testing.T) {
 			marker := newMarker(t)
 			topic := kafkaTopic(marker)
 			createTopic(t, target, topic)
+			if defaultTopic := tc.topic(topic); defaultTopic != topic {
+				// The probe needs the default topic; the record must still go to the event's topic.
+				createTopic(t, target, defaultTopic)
+			}
 			sk := startSidekick(t, kafkaOutput(target, tc.topic(topic), tc.extra))
 
 			postKafkaEvent(t, sk, marker, topic)
@@ -366,9 +370,22 @@ func TestKafkaCompression(t *testing.T) {
 
 func TestKafkaReportsMissingTopic(t *testing.T) {
 	target := plaintextKafka(t)
+	t.Run("default topic stops startup", func(t *testing.T) {
+		logs := startSidekickFails(t, kafkaOutput(target, kafkaTopic(newMarker(t)), ""))
+		assert.Contains(t, logs, "UNKNOWN_TOPIC_OR_PARTITION")
+	})
+	t.Run("default topic with auto creation starts", func(t *testing.T) {
+		sk := startSidekick(t, kafkaOutput(target, kafkaTopic(newMarker(t)), "producer:\n  auto_create_topic: true\n"))
+		assert.NotEqual(t, "misconfigured", sk.status(t, "kafka").Status)
+	})
+	// A topic taken from the event is not probed: the record fails within delivery_timeout.
+	missingEventTopic := func(t *testing.T, marker, producer string) *sidekick {
+		createTopic(t, target, kafkaTopic(marker))
+		return startSidekick(t, kafkaOutput(target, kafkaTopic(marker), "topic_field: e2e.marker\nproducer:\n"+producer))
+	}
 	t.Run("sync", func(t *testing.T) {
 		marker := newMarker(t)
-		sk := startSidekick(t, kafkaOutput(target, kafkaTopic(marker), "producer:\n  delivery_timeout: 2s\n"))
+		sk := missingEventTopic(t, marker, "  delivery_timeout: 2s\n")
 
 		start := time.Now()
 		sk.postEvent(t, marker)
@@ -381,7 +398,7 @@ func TestKafkaReportsMissingTopic(t *testing.T) {
 	})
 	t.Run("async counts sent then failed", func(t *testing.T) {
 		marker := newMarker(t)
-		sk := startSidekick(t, kafkaOutput(target, kafkaTopic(marker), "producer:\n  async: true\n  delivery_timeout: 2s\n"))
+		sk := missingEventTopic(t, marker, "  async: true\n  delivery_timeout: 2s\n")
 
 		sk.postEvent(t, marker)
 		st := sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.FailedTotal == 1 })

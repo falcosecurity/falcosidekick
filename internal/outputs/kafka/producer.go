@@ -65,8 +65,9 @@ func buildClientOpts(cfg *config, logger *slog.Logger) ([]kgo.Opt, error) {
 		opts = append(opts, saslOpt)
 	}
 
-	// Idempotent writes require acks=all.
-	if cfg.Producer.Async || acks != kgo.AllISRAcks() {
+	// Idempotent writes require acks=all. With them the client keeps a record it already sent until
+	// the broker answers, so a canceled delivery cannot be reported as failed after it was written.
+	if acks != kgo.AllISRAcks() {
 		opts = append(opts, kgo.DisableIdempotentWrite())
 	}
 

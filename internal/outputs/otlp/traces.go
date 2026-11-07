@@ -40,9 +40,17 @@ type tracesSignal struct {
 }
 
 func newTracesSignal(exporter sdktrace.SpanExporter, res *sdkresource.Resource, cfg *tracesConfig) *tracesSignal {
-	// Every output field becomes an attribute; none is dropped.
-	limits := sdktrace.NewSpanLimits()
-	limits.AttributeCountLimit = -1
+	// Every output field becomes an attribute, none dropped or cut. The literal skips NewSpanLimits,
+	// which reads OTEL_* variables.
+	limits := sdktrace.SpanLimits{
+		AttributeValueLengthLimit:   -1,
+		AttributeValueDepthLimit:    sdktrace.DefaultAttributeValueDepthLimit,
+		AttributeCountLimit:         -1,
+		EventCountLimit:             sdktrace.DefaultEventCountLimit,
+		LinkCountLimit:              sdktrace.DefaultLinkCountLimit,
+		AttributePerEventCountLimit: sdktrace.DefaultAttributePerEventCountLimit,
+		AttributePerLinkCountLimit:  sdktrace.DefaultAttributePerLinkCountLimit,
+	}
 	provider := sdktrace.NewTracerProvider(
 		sdktrace.WithResource(res),
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),

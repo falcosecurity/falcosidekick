@@ -27,6 +27,7 @@ import (
 
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/kmsg"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -297,7 +298,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	if d.client == nil {
 		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
-	err := d.ping(ctx)
+	err := d.describeTopic(ctx)
 	if err == nil {
 		return nil
 	}
@@ -306,11 +307,27 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	return diagnostic
 }
 
-// ping returns when ctx ends: franz-go Ping ignores ctx while the connection opens.
-// The abandoned Ping ends on the client's own timeouts or on Close.
-func (d *driver) ping(ctx context.Context) error {
+// describeTopic asks the brokers for the default topic: a missing topic, or one the client may not
+// write, fails every delivery while the brokers answer. It returns when ctx ends: franz-go ignores ctx
+// while the connection opens, and the abandoned request ends on the client's own timeouts or on Close.
+func (d *driver) describeTopic(ctx context.Context) error {
 	done := make(chan error, 1)
-	go func() { done <- d.client.Ping(ctx) }()
+	go func() {
+		req := kmsg.NewPtrMetadataRequest()
+		topic := kmsg.NewMetadataRequestTopic()
+		topic.Topic = kmsg.StringPtr(d.cfg.Topic)
+		req.Topics = append(req.Topics, topic)
+		resp, err := req.RequestWith(ctx, d.client)
+		if err == nil {
+			for _, t := range resp.Topics {
+				err = errors.Join(err, kerr.ErrorForCode(t.ErrorCode))
+			}
+		}
+		if errors.Is(err, kerr.UnknownTopicOrPartition) && d.cfg.Producer.TopicCreation {
+			err = nil
+		}
+		done <- err
+	}()
 	select {
 	case err := <-done:
 		return err
@@ -324,6 +341,8 @@ func isMisconfiguration(err error) bool {
 	return errors.Is(err, kerr.SaslAuthenticationFailed) ||
 		errors.Is(err, kerr.UnsupportedSaslMechanism) ||
 		errors.Is(err, kerr.IllegalSaslState) ||
+		errors.Is(err, kerr.UnknownTopicOrPartition) ||
+		errors.Is(err, kerr.TopicAuthorizationFailed) ||
 		shared.IsTLSVerificationError(err)
 }
 
