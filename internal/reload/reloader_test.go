@@ -816,7 +816,7 @@ func TestReloaderApplyOutput_RequiresBind(t *testing.T) {
 	err = r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "x"})
 	require.ErrorIs(t, err, ErrReloaderNotBound)
 
-	err = r.RemoveOutput(context.Background(), "slack")
+	err = r.RemoveOutput(context.Background(), "slack", 0)
 	require.ErrorIs(t, err, ErrReloaderNotBound)
 }
 
@@ -1038,7 +1038,7 @@ func TestReloaderRemoveOutput_RemovesFromDispatcher(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{"slack": {"secret_endpoint": "x"}})
 
-	require.NoError(t, r.RemoveOutput(context.Background(), "slack"))
+	require.NoError(t, r.RemoveOutput(context.Background(), "slack", 0))
 	assert.NotContains(t, env.d.OutputNames(), "slack", "RemoveOutput must drop the output from the dispatcher")
 }
 
@@ -1051,7 +1051,7 @@ func TestReloaderRemoveOutput_MissIsNoop(t *testing.T) {
 
 	r := newApplyReloader(t, cat, env, map[string]map[string]any{})
 
-	require.NoError(t, r.RemoveOutput(context.Background(), "never-existed"), "RemoveOutput on a missing name must be a no-op")
+	require.NoError(t, r.RemoveOutput(context.Background(), "never-existed", 0), "RemoveOutput on a missing name must be a no-op")
 }
 
 func TestReloaderApplyThenReload_FileWinsOverUIEdit(t *testing.T) {
@@ -1341,7 +1341,7 @@ func TestReloaderRemoveOutput_DBDeleteFailureReturnsErrDBSyncFailed(t *testing.T
 	})
 	r.BindWorkerContext(env.workerRunCtx, time.Second)
 
-	err = r.RemoveOutput(context.Background(), "slack")
+	err = r.RemoveOutput(context.Background(), "slack", 0)
 	require.ErrorIs(t, err, ErrDBSyncFailed)
 
 	assert.NotContains(t, env.d.OutputNames(), "slack",
@@ -1384,7 +1384,7 @@ func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {
 	require.Contains(t, env.d.OutputNames(), "slack", "initial file reload must add slack")
 	require.Contains(t, r.fileState, "slack", "file state must track file-provisioned name")
 
-	require.NoError(t, r.RemoveOutput(ctx, "slack"))
+	require.NoError(t, r.RemoveOutput(ctx, "slack", 1))
 	assert.NotContains(t, env.d.OutputNames(), "slack", "UI DELETE must retire the runtime output")
 	assert.NotContains(t, r.fileState, "slack",
 		"UI DELETE must drop the name from fileState so the next file reload re-adds it")

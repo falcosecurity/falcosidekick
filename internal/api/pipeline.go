@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -233,6 +234,11 @@ func (s *Server) handlePipelineOutputDelete(c fiber.Ctx) error {
 		return nil
 	}
 
+	version, err := strconv.ParseInt(c.Query("version"), 10, 64)
+	if err != nil || version < 1 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "version is required: send ?version= with the version read with GET"})
+	}
+
 	entry, handled := s.loadOutputEntryForMutation(c, name)
 	if handled {
 		return nil
@@ -240,8 +246,11 @@ func (s *Server) handlePipelineOutputDelete(c fiber.Ctx) error {
 	if entry == nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "output '" + name + "' not found"})
 	}
+	if entry.Version != version {
+		return writeVersionConflict(c, name)
+	}
 
-	if err := s.reloader.RemoveOutput(c.Context(), name); err != nil {
+	if err := s.reloader.RemoveOutput(c.Context(), name, version); err != nil {
 		return s.writeMutationError(c, name, "remove", err)
 	}
 

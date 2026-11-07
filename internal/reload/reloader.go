@@ -133,18 +133,8 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 		return r.fail(start, SourceUI, "%w: %q", ErrUnknownOutputType, name)
 	}
 
-	if r.database != nil {
-		stored, err := r.database.GetOutputConfig(ctx, name)
-		if err != nil {
-			return r.fail(start, SourceUI, "apply read: %w", err)
-		}
-		var current int64
-		if stored != nil {
-			current = stored.Version
-		}
-		if current != version {
-			return r.fail(start, SourceUI, "%w", ErrVersionConflict)
-		}
+	if err := r.checkVersion(ctx, name, version); err != nil {
+		return r.fail(start, SourceUI, "%w", err)
 	}
 
 	cfgCopy := utils.DeepCopyMap(cfg)
@@ -198,7 +188,8 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 }
 
 // RemoveOutput retires an output and deletes it from the database, even if it is not running.
-func (r *Reloader) RemoveOutput(ctx context.Context, name string) error {
+// version is the stored version the caller read; with a database, any other returns ErrVersionConflict.
+func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -207,6 +198,10 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string) error {
 	}
 
 	start := time.Now()
+
+	if err := r.checkVersion(ctx, name, version); err != nil {
+		return r.fail(start, SourceUI, "%w", err)
+	}
 
 	retireCtx, retireCancel := context.WithTimeout(ctx, r.retireTimeout)
 	defer retireCancel()
@@ -360,6 +355,25 @@ func closeOutputs(outputs map[string]*pipeline.Output) {
 	for _, out := range outputs {
 		_ = out.Close()
 	}
+}
+
+// checkVersion runs under r.mu, so no file reload or other write lands between it and the change.
+func (r *Reloader) checkVersion(ctx context.Context, name string, version int64) error {
+	if r.database == nil {
+		return nil
+	}
+	stored, err := r.database.GetOutputConfig(ctx, name)
+	if err != nil {
+		return fmt.Errorf("read output: %w", err)
+	}
+	var current int64
+	if stored != nil {
+		current = stored.Version
+	}
+	if current != version {
+		return ErrVersionConflict
+	}
+	return nil
 }
 
 func (r *Reloader) fail(start time.Time, source, format string, args ...any) error {

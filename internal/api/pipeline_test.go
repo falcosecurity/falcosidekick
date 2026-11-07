@@ -39,6 +39,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 	"github.com/falcosecurity/falcosidekick/internal/pipeline"
+	"github.com/falcosecurity/falcosidekick/internal/reload"
 )
 
 func TestHandlePipelineStatus_NoOutputs(t *testing.T) {
@@ -828,7 +829,7 @@ func TestHandlePipelineOutputDelete_Success(t *testing.T) {
 	require.NoError(t, db.SaveOutputConfig(context.Background(), "slack", map[string]any{"secret_endpoint": "x"}))
 	srv := buildMutationTestServer(t, db)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -844,7 +845,7 @@ func TestHandlePipelineOutputDelete_NotFound(t *testing.T) {
 	db := database.NewMemory()
 	srv := buildMutationTestServer(t, db)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -907,7 +908,7 @@ func TestHandlePipelineOutputDelete_ProvisionedReturns409WhenUpdatesDisabled(t *
 	}))
 	srv := buildMutationTestServer(t, db)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -929,7 +930,7 @@ func TestHandlePipelineOutputDelete_ProvisionedSucceedsWhenUpdatesAllowed(t *tes
 	}))
 	rig := buildMutationRigWithProvisioning(t, db, newMutationTestCatalog(t), core.ProvisioningConfig{AllowUIUpdates: true})
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := rig.Server.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -992,6 +993,39 @@ func TestOutputNameOutlivesTheRequest(t *testing.T) {
 	require.Contains(t, entries, "slack")
 	assert.Equal(t, "slack", entries["slack"].Name)
 	assert.Equal(t, []string{"slack"}, srv.pipeline.Dispatcher().OutputNames())
+}
+
+func TestHandlePipelineOutputDelete_RequiresTheCurrentVersion(t *testing.T) {
+	db := database.NewMemory()
+	require.NoError(t, db.SaveOutputConfig(t.Context(), "slack", map[string]any{"secret_endpoint": "orig"}))
+	srv := buildMutationTestServer(t, db)
+
+	for _, query := range []string{"", "?version=", "?version=x", "?version=0"} {
+		raw := requestSecretContract(t, srv, http.MethodDelete, "/api/v1/pipeline/outputs/slack"+query, "", http.StatusBadRequest)
+		assert.Contains(t, responseError(t, raw), "version is required", query)
+	}
+	requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/slack", `{"version":1,"config":{"channel":"#new"}}`, http.StatusOK)
+	raw := requestSecretContract(t, srv, http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", "", http.StatusConflict)
+	assert.Contains(t, responseError(t, raw), "changed since the version sent")
+	requestSecretContract(t, srv, http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=2", "", http.StatusNoContent)
+
+	stored, err := db.GetOutputConfig(t.Context(), "slack")
+	require.NoError(t, err)
+	assert.Nil(t, stored)
+}
+
+// A file reload can provision the name between the handler's read and the removal; the reloader
+// checks the version under its lock, where reloads run.
+func TestReloaderRemoveOutputRefusesAVersionChangedByAReload(t *testing.T) {
+	db := database.NewMemory()
+	rig := buildMutationRig(t, db, newMutationTestCatalog(t), true)
+	require.NoError(t, rig.Reloader.ApplyOutput(t.Context(), "slack", 0, map[string]any{"secret_endpoint": "ui"}))
+	require.NoError(t, db.Provision(t.Context(), &core.ProvisionRequest{Outputs: map[string]map[string]any{"slack": {"secret_endpoint": "file"}}}))
+
+	require.ErrorIs(t, rig.Reloader.RemoveOutput(t.Context(), "slack", 1), reload.ErrVersionConflict)
+	stored, err := db.GetOutputConfig(t.Context(), "slack")
+	require.NoError(t, err)
+	assert.True(t, stored.Provisioned, "the provisioned output stays")
 }
 
 func TestHandlePipelineLayoutPut_RejectsUnknownFields(t *testing.T) {
@@ -1091,7 +1125,7 @@ func TestHandlePipelineOutputDelete_NoReloaderReturns503(t *testing.T) {
 	require.NoError(t, db.SaveOutputConfig(context.Background(), "slack", map[string]any{"secret_endpoint": "x"}))
 	srv := buildMutationTestServerNilReloader(t, db)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -1102,7 +1136,7 @@ func TestHandlePipelineOutputDelete_DBReadErrorReturns500(t *testing.T) {
 	db := &databasetestutil.Mock{GetOutputConfigErr: errors.New("db read boom")}
 	srv := buildMutationTestServer(t, db)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -1117,7 +1151,7 @@ func TestHandlePipelineOutputDelete_DispatcherStoppedReturns503(t *testing.T) {
 	defer cancel()
 	require.NoError(t, rig.Dispatcher.Shutdown(shutdownCtx, func() {}))
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := rig.Server.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -1127,13 +1161,13 @@ func TestHandlePipelineOutputDelete_DispatcherStoppedReturns503(t *testing.T) {
 func TestHandlePipelineOutputDelete_DBDeleteErrorReturns500(t *testing.T) {
 	db := &databasetestutil.Mock{
 		Outputs: map[string]*core.OutputConfigEntry{
-			"slack": {Name: "slack", Config: map[string]any{"secret_endpoint": "x"}},
+			"slack": {Name: "slack", Config: map[string]any{"secret_endpoint": "x"}, Version: 1},
 		},
 		DeleteOutputConfigErr: errors.New("db delete boom"),
 	}
 	srv := buildMutationTestServer(t, db)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -1210,7 +1244,7 @@ func TestHandlePipelineOutputPut_NoDatabaseReturns503(t *testing.T) {
 
 func TestHandlePipelineOutputDelete_NoDatabaseReturns503(t *testing.T) {
 	srv := buildMutationTestServer(t, nil)
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -1252,7 +1286,7 @@ func TestHandlePipelineOutputDelete_ReloaderNotBoundReturns503(t *testing.T) {
 	require.NoError(t, db.SaveOutputConfig(context.Background(), "slack", map[string]any{"secret_endpoint": "x"}))
 	rig := buildMutationRig(t, db, newMutationTestCatalog(t), false)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
 	resp, err := rig.Server.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
