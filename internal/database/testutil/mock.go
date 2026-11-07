@@ -24,13 +24,10 @@ import (
 
 // Mock is a core.Database whose writes are no-ops and whose *Err fields fail the matching method.
 type Mock struct {
-	Outputs    map[string]*core.OutputConfigEntry
-	CoreConfig *core.ConfigEntry
-	Layout     *core.PipelineLayout
+	Outputs map[string]*core.OutputConfigEntry
+	Layout  *core.PipelineLayout
 
 	ProvisionErr          error
-	GetConfigErr          error
-	SaveConfigErr         error
 	GetOutputConfigsErr   error
 	GetOutputConfigErr    error
 	SaveOutputConfigErr   error
@@ -43,16 +40,6 @@ type Mock struct {
 // Provision returns ProvisionErr.
 func (m *Mock) Provision(_ context.Context, _ *core.ProvisionRequest) error {
 	return m.ProvisionErr
-}
-
-// GetConfig returns CoreConfig and GetConfigErr.
-func (m *Mock) GetConfig(_ context.Context) (*core.ConfigEntry, error) {
-	return m.CoreConfig, m.GetConfigErr
-}
-
-// SaveConfig returns SaveConfigErr.
-func (m *Mock) SaveConfig(_ context.Context, _ *core.Config) error {
-	return m.SaveConfigErr
 }
 
 // GetOutputConfigs returns Outputs and GetOutputConfigsErr.

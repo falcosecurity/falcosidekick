@@ -41,15 +41,6 @@ func (e OutputConfigEntry) DeepCopy() *OutputConfigEntry {
 	return &cp
 }
 
-// DeepCopy returns a deep copy of e.
-func (e *ConfigEntry) DeepCopy() *ConfigEntry {
-	cp := *e
-	if e.Config != nil {
-		cp.Config = e.Config.DeepCopy()
-	}
-	return &cp
-}
-
 // DeepCopy returns a deep copy of l.
 func (l *PipelineLayout) DeepCopy() *PipelineLayout {
 	cp := *l

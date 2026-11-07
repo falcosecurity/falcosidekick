@@ -28,9 +28,8 @@ import (
 
 // Memory is an in-memory core.Database; UI-only entries do not survive a restart.
 type Memory struct {
-	outputs    map[string]*core.OutputConfigEntry
-	coreConfig *core.ConfigEntry
-	layout     *core.PipelineLayout
+	outputs map[string]*core.OutputConfigEntry
+	layout  *core.PipelineLayout
 	// lastOutputVersion numbers output writes store-wide, so an output deleted and created
 	// again never repeats a version a client still holds.
 	lastOutputVersion int64
@@ -54,14 +53,6 @@ func (s *Memory) Provision(_ context.Context, req *core.ProvisionRequest) error 
 	defer s.mu.Unlock()
 
 	now := time.Now()
-
-	if req.Config != nil {
-		s.coreConfig = &core.ConfigEntry{
-			Config:    req.Config.DeepCopy(),
-			Version:   nextVersion(s.coreConfig),
-			UpdatedAt: now,
-		}
-	}
 
 	if !req.DisableDeletion {
 		for name, entry := range s.outputs {
@@ -88,30 +79,6 @@ func (s *Memory) Provision(_ context.Context, req *core.ProvisionRequest) error 
 		}
 	}
 
-	return nil
-}
-
-// GetConfig returns the stored core configuration.
-func (s *Memory) GetConfig(_ context.Context) (*core.ConfigEntry, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if s.coreConfig == nil {
-		return nil, nil
-	}
-	return s.coreConfig.DeepCopy(), nil
-}
-
-// SaveConfig persists the core configuration.
-func (s *Memory) SaveConfig(_ context.Context, cfg *core.Config) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.coreConfig = &core.ConfigEntry{
-		Config:    cfg.DeepCopy(),
-		Version:   nextVersion(s.coreConfig),
-		UpdatedAt: time.Now(),
-	}
 	return nil
 }
 

@@ -32,7 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/falcosecurity/falcosidekick/internal/database"
 	databasetestutil "github.com/falcosecurity/falcosidekick/internal/database/testutil"
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -182,44 +181,34 @@ func TestNewServerRejectsNilCatalog(t *testing.T) {
 	assert.Contains(t, err.Error(), "catalog is required")
 }
 
-func TestHandleGetConfigProvisioned(t *testing.T) {
-	db := database.NewMemory()
-	require.NoError(t, db.Provision(t.Context(), &core.ProvisionRequest{
-		Config:  &core.Config{ListenPort: 2801, LogLevel: core.LogLevelInfo},
-		Outputs: map[string]map[string]any{},
-	}))
+// The configuration comes from this replica's files, never from the database.
+func TestHandleGetConfigServesThisReplicaConfiguration(t *testing.T) {
+	cfg := testConfig(t)
+	cfg.ListenPort = 2999
+	for name, db := range map[string]core.Database{"no database": nil, "failing database": allReadsFailDB()} {
+		t.Run(name, func(t *testing.T) {
+			enricher, err := pipeline.NewEnricher(output.EnricherConfig{TruncateEventThreshold: 4096, TruncateFieldThreshold: 512})
+			require.NoError(t, err)
+			p, err := pipeline.NewPipeline(enricher, pipeline.NewDispatcher(nil), nil)
+			require.NoError(t, err)
+			srv, err := NewServer(&ServerConfig{Pipeline: p, Database: db, Catalog: newTestCatalog(t), Config: cfg})
+			require.NoError(t, err)
+			cfg.ListenPort = 1 // the server keeps its own copy
 
-	srv := buildTestServerWithDB(t, db)
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/config", http.NoBody)
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, 200, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "listen_port")
-}
-
-func TestHandleGetConfigEmpty(t *testing.T) {
-	db := database.NewMemory()
-	srv := buildTestServerWithDB(t, db)
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/config", http.NoBody)
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, 200, resp.StatusCode)
-}
-
-func TestHandleGetConfigNoDatabase(t *testing.T) {
-	srv := buildTestServerWithDB(t, nil)
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/config", http.NoBody)
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, 503, resp.StatusCode)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/config", http.NoBody)
+			resp, err := srv.app.Test(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			var got struct {
+				Config core.Config `json:"config"`
+			}
+			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+			assert.Equal(t, 2999, got.Config.ListenPort)
+			assert.Equal(t, "inmemory", string(got.Config.Database.Backend))
+			cfg.ListenPort = 2999
+		})
+	}
 }
 
 func TestLegacyOutputsPathIsRemoved(t *testing.T) {
@@ -309,23 +298,9 @@ func TestNewServerWithMetricsRegistry(t *testing.T) {
 func allReadsFailDB() *databasetestutil.Mock {
 	err := errors.New("db failure")
 	return &databasetestutil.Mock{
-		GetConfigErr:        err,
 		GetOutputConfigsErr: err,
 		GetOutputConfigErr:  err,
 	}
-}
-
-func TestHandleGetConfigDBError(t *testing.T) {
-	srv := buildTestServerWithDB(t, allReadsFailDB())
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/config", http.NoBody)
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, 500, resp.StatusCode)
-
-	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "db failure")
 }
 
 func TestHandleGetOutputsDBError(t *testing.T) {

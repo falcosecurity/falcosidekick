@@ -280,7 +280,7 @@ describe("api-client state helpers", () => {
     await api.getOutput("slack/main")
     expect(calls.at(-1)?.url).toBe("/pipeline/outputs/slack%2Fmain")
 
-    useJsonAdapter({ config: {}, version: 1, updated_at: "now" }, calls)
+    useJsonAdapter({ config: {} }, calls)
     await api.getConfig()
     expect(calls.at(-1)?.url).toBe("/config")
 

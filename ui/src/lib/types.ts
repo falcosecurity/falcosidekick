@@ -206,8 +206,6 @@ export interface VersionInfo {
 
 export interface MaskedConfig {
   config: Record<string, unknown>
-  version: number
-  updated_at: string
 }
 
 export interface AuthLoginResponse {

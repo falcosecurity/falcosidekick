@@ -57,23 +57,7 @@ func (s *Server) handleGetVersion(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(version.GetInfo())
 }
 
+// handleGetConfig serves the configuration this replica runs with, read from its files.
 func (s *Server) handleGetConfig(c fiber.Ctx) error {
-	if s.database == nil {
-		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error": "database not configured",
-		})
-	}
-
-	entry, err := s.database.GetConfig(c.Context())
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "read config: " + err.Error(),
-		})
-	}
-	if entry == nil {
-		return c.Status(fiber.StatusOK).JSON(fiber.Map{})
-	}
-
-	entry.Config = maskCoreConfig(entry.Config)
-	return c.Status(fiber.StatusOK).JSON(entry)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"config": maskCoreConfig(s.coreConfig)})
 }

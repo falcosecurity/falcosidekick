@@ -27,12 +27,6 @@ type Database interface {
 	// entries unless req.DisableDeletion; unprovisioned entries are kept.
 	Provision(ctx context.Context, req *ProvisionRequest) error
 
-	// GetConfig returns the stored core configuration.
-	GetConfig(ctx context.Context) (*ConfigEntry, error)
-
-	// SaveConfig persists the core configuration.
-	SaveConfig(ctx context.Context, cfg *Config) error
-
 	// GetOutputConfigs returns all output configurations.
 	GetOutputConfigs(ctx context.Context) (map[string]*OutputConfigEntry, error)
 
@@ -59,7 +53,6 @@ type Database interface {
 
 // ProvisionRequest holds the file-based config passed to Provision.
 type ProvisionRequest struct {
-	Config          *Config
 	Outputs         map[string]map[string]any
 	DisableDeletion bool
 }
@@ -72,19 +65,6 @@ type OutputConfigEntry struct {
 	Version     int64          `json:"version"`
 	Provisioned bool           `json:"provisioned"`
 }
-
-// GetVersion returns the monotonic version of the entry.
-func (e OutputConfigEntry) GetVersion() int64 { return e.Version }
-
-// ConfigEntry wraps the core config with metadata.
-type ConfigEntry struct {
-	UpdatedAt time.Time `json:"updated_at"`
-	Config    *Config   `json:"config"`
-	Version   int64     `json:"version"`
-}
-
-// GetVersion returns the monotonic version of the entry.
-func (e ConfigEntry) GetVersion() int64 { return e.Version }
 
 // PipelineLayout holds React Flow node positions for the UI.
 type PipelineLayout struct {
