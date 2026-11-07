@@ -20,8 +20,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
+
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 // ErrInvalidEvent indicates a malformed event.
@@ -101,6 +104,14 @@ type Event struct {
 	Hostname     string                 `json:"hostname,omitempty"`
 	Priority     Priority               `json:"priority"`
 	Tags         []string               `json:"tags,omitempty"`
+}
+
+// Clone returns a copy of e that shares no map or slice with it.
+func (e *Event) Clone() *Event {
+	cp := *e
+	cp.OutputFields = utils.DeepCopyMap(e.OutputFields)
+	cp.Tags = slices.Clone(e.Tags)
+	return &cp
 }
 
 // Validate checks required fields and applies defaults.

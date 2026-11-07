@@ -43,8 +43,10 @@ type fakeServer struct {
 	mechanisms string
 	tlsConfig  *tls.Config
 	ln         net.Listener
-	sessions   []*session
-	mu         sync.Mutex
+	// listen is the listen address, 127.0.0.1:0 when empty.
+	listen   string
+	sessions []*session
+	mu       sync.Mutex
 	// implicitTLS wraps every accepted connection in TLS.
 	implicitTLS bool
 	noStartTLS  bool
@@ -72,7 +74,14 @@ func newFakeServer(t *testing.T, configure func(*fakeServer)) *fakeServer {
 	if configure != nil {
 		configure(s)
 	}
-	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
+	address := s.listen
+	if address == "" {
+		address = "127.0.0.1:0"
+	}
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", address)
+	if err != nil && s.listen != "" {
+		t.Skipf("cannot listen on %s: %v", s.listen, err)
+	}
 	require.NoError(t, err)
 	s.ln = ln
 	t.Cleanup(func() { _ = ln.Close() })

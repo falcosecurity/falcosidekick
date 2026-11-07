@@ -157,6 +157,9 @@ func (p *kafkaProducer) validate() utils.ValidationErrors {
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	errs.Merge("tls", c.TLS.Validate())
+	if !c.TLSEnabled && c.TLS != (shared.TLSClientConfig{}) {
+		errs.Add("tls", "is set but tls_enabled is false")
+	}
 	errs.Merge("brokers", shared.ValidateBrokers(c.Brokers))
 	if c.Topic == "" {
 		errs.Add("topic", "is required")

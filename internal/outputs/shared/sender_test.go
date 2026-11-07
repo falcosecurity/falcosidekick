@@ -28,6 +28,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -121,6 +122,30 @@ func TestSenderSendRaw(t *testing.T) {
 
 	assert.Equal(t, "application/x-ndjson", captured.contentType)
 	assert.Equal(t, raw, captured.body)
+}
+
+// A request prepared with a long-lived context still stops when the delivery's ctx ends.
+func TestSenderDoFollowsTheCallerContext(t *testing.T) {
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		<-release
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	defer close(release)
+
+	s, err := NewSender("test", &HTTPConfig{})
+	require.NoError(t, err)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL, http.NoBody)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	err = s.Do(ctx, req)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Less(t, time.Since(start), 5*time.Second)
 }
 
 func TestSenderDoAppliesHeaders(t *testing.T) {

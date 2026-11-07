@@ -45,7 +45,7 @@ type HTTPConfig struct {
 // Validate checks HTTP config for inconsistencies.
 func (c *HTTPConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
-	if c.BearerToken != "" && c.Password != "" {
+	if c.BearerToken != "" && (c.Username != "" || c.Password != "") {
 		errs.Add("bearer_token", "cannot use both bearer_token and basic auth (username/password)")
 	}
 	if !httpguts.ValidHeaderFieldValue(c.BearerToken) {

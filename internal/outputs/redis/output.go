@@ -112,6 +112,9 @@ func (c *config) validate() utils.ValidationErrors {
 		errs.Add("password", "is required when username is set")
 	}
 	errs.Merge("tls", c.TLS.Validate())
+	if !c.TLSEnabled && c.TLS != (shared.TLSClientConfig{}) {
+		errs.Add("tls", "is set but tls_enabled is false")
+	}
 	if len(errs) > 0 {
 		return errs
 	}

@@ -301,6 +301,17 @@ func TestCreateOutputRejectsUnknownKeys(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown_key")
 }
 
+// TLS settings without tls_enabled used to be ignored, so the client connected in clear text.
+func TestCreateOutputRejectsTLSWithoutTLSEnabled(t *testing.T) {
+	_, err := createOutput(map[string]any{
+		"brokers": []string{"localhost:9092"},
+		"topic":   "events",
+		"tls":     map[string]any{"server_name": "kafka.internal"},
+	}, output.Deps{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tls: is set but tls_enabled is false")
+}
+
 func TestCreateOutputSASLInvalid(t *testing.T) {
 	_, err := createOutput(map[string]any{
 		"brokers": []string{"localhost:9092"},

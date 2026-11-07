@@ -56,6 +56,21 @@ func TestBuildHTTPClientTLSVersion(t *testing.T) {
 	assert.Equal(t, uint16(tls.VersionTLS12), transport.TLSClientConfig.MinVersion)
 }
 
+// A username alone still turns on basic auth, which would replace the bearer token.
+func TestHTTPConfigRefusesBearerWithBasicAuth(t *testing.T) {
+	for _, cfg := range []HTTPConfig{
+		{BearerToken: "t", Username: "u"},
+		{BearerToken: "t", Password: "p"},
+		{BearerToken: "t", Username: "u", Password: "p"},
+	} {
+		errs := cfg.Validate()
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "cannot use both bearer_token and basic auth")
+	}
+	assert.Empty(t, (&HTTPConfig{BearerToken: "t"}).Validate())
+	assert.Empty(t, (&HTTPConfig{Username: "u", Password: "p"}).Validate())
+}
+
 func TestApplyHeaders(t *testing.T) {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com", http.NoBody)
 	require.NoError(t, err)
