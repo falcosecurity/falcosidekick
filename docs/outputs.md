@@ -98,11 +98,11 @@ CloudEvents 1.0 over HTTP in binary mode: `ce-specversion`, `ce-id` (event UUID)
 
 - Credentials: static keys when set, otherwise the AWS SDK default chain (environment, shared files, EKS IRSA and Pod Identity, ECS and EC2 roles); `role_arn` is then assumed through STS. Instance metadata is not used to find the region.
 - `endpoint` replaces the service endpoint (LocalStack, S3-compatible stores, VPC endpoints). Each call is attempted once and bounded to 30s; the pipeline retries.
-- Startup stops when AWS rejects the credentials or the bucket, queue or topic does not exist. The probe reads the resource (`s3:ListBucket`, `sqs:GetQueueAttributes`, `sns:GetTopicAttributes`); without that permission the output starts degraded.
+- Startup stops when AWS rejects the credentials or the bucket, queue or topic does not exist. The probe reads the resource (`s3:ListBucket`, `sqs:GetQueueAttributes`, `sns:GetTopicAttributes`); without that permission the output starts degraded. STS refusing `role_arn` stops startup. S3 answers a bucket check with a bare 403 both for a missing permission and for a bucket of another account, so both start degraded.
 - S3 writes one object per event, `<prefix>/<YYYY-MM-DD>/<event time>_<uuid>.json`, or one NDJSON object per batch. A retry overwrites the same key.
-- SQS sends batches with `SendMessageBatch`, 10 messages and 1 MiB per request; every request is sent and the batch fails when any message fails. It fails for good only when every failed entry is a sender fault. FIFO queues are not supported.
+- SQS sends batches with `SendMessageBatch`, 10 messages and 1 MiB per request; every request is sent and the batch fails when any message fails. It fails for good only when every failed entry is a sender fault. FIFO queues and topics are refused at startup: they need a message group the output does not set.
 - AWS errors follow the SDK's retry rules, not the HTTP status: throttling answered with HTTP 400 is retried.
-- SNS sends the output text with the event as message attributes, or the event JSON with `raw_json: true`. Attribute names SNS rejects are left out.
+- SNS sends the output text with message attributes, or the event JSON with `raw_json: true`. `message_attributes` lists them, at most 10 since raw delivery to SQS drops a message with more: `priority`, `rule`, `source`, `tags`, `hostname` (the default) and output field names, sent when the event has a string or number value (`proc.aname[2]` becomes `proc.aname.2`). Names SNS rejects and two names that become the same attribute are refused at startup.
 
 ## Google Cloud Pub/Sub
 

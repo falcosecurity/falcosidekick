@@ -74,7 +74,7 @@ v2 also added hostname, Kubernetes namespace and pod, custom fields and template
 - Datadog: the API key travels in the `DD-API-KEY` header instead of the URL.
 - Discord: the embed color is an integer and payloads are trimmed to Discord limits.
 - CloudEvents: any non-2xx answer counts as failed.
-- AWS: `accesskeyid`, `rolearn` and `externalid` now take effect, and `session_token` is new. S3 keys use the event time in UTC plus the UUID (v2 used the local receive time). SNS leaves out attribute names AWS rejects instead of failing the publish. `checkidentity` is replaced by the startup probe.
+- AWS: `accesskeyid`, `rolearn` and `externalid` now take effect, and `session_token` is new. S3 keys use the event time in UTC plus the UUID (v2 used the local receive time). SNS sends the attributes in `message_attributes`, by default priority, rule, source, tags and hostname; v2 also sent every output field, so list the ones subscriptions filter on (at most 10 in all). FIFO queues and topics are refused at startup. `checkidentity` is replaced by the startup probe.
 - Pub/Sub: a missing topic stops startup; `workloadidentity` is gone, Application Default Credentials cover it.
 - Syslog: messages follow RFC 5424 with octet counting on TCP (v2 sent RFC 3164 lines). v2 sent facility 0 (`kern`), reserved for the kernel; v3 defaults to `local0`. Set `facility` when receivers filter on the old value.
 - SMTP: STARTTLS is required by default; credentials are never sent in clear text to a remote server. `auth_mechanism` accepts `plain`, `xoauth2` and `none`; `oauthbearer`, `external` and `anonymous` are not available (use `xoauth2` for OAuth 2.0 tokens, `none` instead of `anonymous`).

@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -76,10 +75,14 @@ func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	errs.Merge("", c.Config.Validate())
-	if c.QueueURL == "" {
+	switch {
+	case c.QueueURL == "":
 		errs.Add("queue_url", "is required")
-	} else if !shared.IsAbsoluteHTTPURL(c.QueueURL) {
+	case !shared.IsAbsoluteHTTPURL(c.QueueURL):
 		errs.Add("queue_url", "must be an http or https URL")
+	case strings.HasSuffix(c.QueueURL, ".fifo"):
+		// A FIFO queue rejects every message without a MessageGroupId.
+		errs.Add("queue_url", "FIFO queues are not supported")
 	}
 	if len(errs) > 0 {
 		return errs
@@ -144,18 +147,11 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		}
 		bodies[i] = string(body)
 	}
-	chunks := splitBatch(bodies)
 	var (
-		failed    int
-		codes     []string
-		permanent = true
+		failures []*shared.DeliveryError
+		failed   int
 	)
-	addCode := func(code string) {
-		if !slices.Contains(codes, code) {
-			codes = append(codes, code)
-		}
-	}
-	for _, chunk := range chunks {
+	for _, chunk := range splitBatch(bodies) {
 		entries := make([]sqstypes.SendMessageBatchRequestEntry, len(chunk))
 		for i, body := range chunk {
 			entries[i] = sqstypes.SendMessageBatchRequestEntry{
@@ -168,34 +164,23 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 			Entries:  entries,
 		})
 		if err != nil {
-			wrapped := d.cfg.WrapError(name, opSendMessageBatch, err)
-			if len(chunks) == 1 {
-				return wrapped
+			if diagnostic, ok := errors.AsType[*shared.DeliveryError](d.cfg.WrapError(name, opSendMessageBatch, err)); ok {
+				failures = append(failures, diagnostic)
 			}
 			failed += len(chunk)
-			permanent = permanent && output.IsPermanent(wrapped)
-			if diagnostic, ok := errors.AsType[*shared.DeliveryError](wrapped); ok {
-				addCode(diagnostic.Reason())
-			}
 			continue
 		}
 		failed += len(out.Failed)
 		for _, f := range out.Failed {
-			// SenderFault: the entry itself is wrong, so sending it again cannot succeed.
-			permanent = permanent && f.SenderFault
-			addCode(sharedaws.EntryCode(sqs.TypeRegistry, sdkaws.ToString(f.Code)))
+			failures = append(failures, &shared.DeliveryError{
+				Output: name, Operation: opSendMessageBatch,
+				Code: sharedaws.EntryCode(sqs.TypeRegistry, sdkaws.ToString(f.Code)),
+				// SenderFault: the entry itself is wrong, so sending it again cannot succeed.
+				Permanent: f.SenderFault,
+			})
 		}
 	}
-	if failed == 0 {
-		return nil
-	}
-	return &shared.DeliveryError{
-		Cause:     ctx.Err(),
-		Output:    name,
-		Operation: opSendMessageBatch,
-		Code:      fmt.Sprintf("%d/%d entries failed (%s)", failed, len(events), strings.Join(codes, ", ")),
-		Permanent: permanent,
-	}
+	return shared.JoinDeliveryErrors(ctx, name, opSendMessageBatch, failures, failed, len(events), "messages")
 }
 
 // splitBatch sends a body larger than maxBatchBytes alone and lets SQS decide whether to accept it.

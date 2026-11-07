@@ -341,13 +341,13 @@ outputs:
   # awssns:
   #   topic_arn: "arn:aws:sns:eu-west-1:123456789012:falco"
   #   raw_json: false                    # true: the message is the event JSON, no attributes
+  #   message_attributes: [priority, rule, source, tags, hostname]
   #   # With raw_json false the message is the event output text, with the
-  #   # attributes priority, rule, source, tags, hostname and every output field
-  #   # with a string or number value (proc.aname[2] becomes proc.aname.2).
-  #   # Names SNS rejects and empty values are left out; numbers beyond +-10^9
-  #   # are sent as strings. Raw delivery to SQS drops messages with more than
-  #   # 10 attributes. The health check (GetTopicAttributes) needs
-  #   # sns:GetTopicAttributes.
+  #   # listed attributes: the five above or output field names with a string or
+  #   # number value (proc.aname[2] becomes proc.aname.2). At most 10, since raw
+  #   # delivery to SQS drops messages with more. Empty values are left out;
+  #   # numbers beyond +-10^9 are sent as strings. FIFO topics are not supported.
+  #   # The health check (GetTopicAttributes) needs sns:GetTopicAttributes.
 
   # ===========================================================================
   # Syslog (RFC 5424 over UDP, TCP or TLS)
