@@ -70,7 +70,7 @@ Two listeners keep event ingestion apart from the API, which has no authenticati
 | `GET /healthz` | liveness and readiness, on both listeners |
 | `GET /metrics` | Prometheus metrics, prefix `falcosidekick_`; `metrics.extra_labels` adds output fields as labels of `falcosidekick_event_total`. Labels taken from events (rule, source, extra labels) keep at most `metrics.max_label_values` distinct values each (default 1000); later values are recorded as `other` and counted in `falcosidekick_metric_label_overflow_total{label}`. `falcosidekick_output_total` and `falcosidekick_output_drop_total` count events, a batch included |
 | `GET /version` | build version, ingestion listener |
-| `/api/v1/...` | management listener: events, pipeline status, output config and types, UI layout, `/api/v1/version` |
+| `/api/v1/...` | management listener: events, pipeline status, output config and types, UI layout, `/api/v1/version`, `/api/v1/config` (the core configuration this instance runs with, read from its files; the database never stores it) |
 
 Routes that change outputs or the layout answer 403 unless `api.allow_writes: true`. With writes on, keep `management.listen_address` on `127.0.0.1` or a trusted network.
 

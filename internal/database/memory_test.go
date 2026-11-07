@@ -324,78 +324,6 @@ func TestCloseIsIdempotent(t *testing.T) {
 	assert.NoError(t, s.Close())
 }
 
-func TestCoreConfigRoundTrip(t *testing.T) {
-	ctx := context.Background()
-	s := NewMemory()
-
-	require.NoError(t, s.SaveConfig(ctx, &core.Config{
-		ListenPort: 2801,
-		LogLevel:   core.LogLevelInfo,
-	}))
-
-	entry, err := s.GetConfig(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, entry)
-	assert.Equal(t, 2801, entry.Config.ListenPort)
-	assert.Equal(t, core.LogLevelInfo, entry.Config.LogLevel)
-	assert.Equal(t, int64(1), entry.Version)
-	assert.False(t, entry.UpdatedAt.IsZero())
-}
-
-func TestCoreConfigDefaultNil(t *testing.T) {
-	s := NewMemory()
-	entry, err := s.GetConfig(context.Background())
-	require.NoError(t, err)
-	assert.Nil(t, entry)
-}
-
-func TestCoreConfigVersionIncrement(t *testing.T) {
-	ctx := context.Background()
-	s := NewMemory()
-
-	require.NoError(t, s.SaveConfig(ctx, &core.Config{ListenPort: 2801}))
-	require.NoError(t, s.SaveConfig(ctx, &core.Config{ListenPort: 8080}))
-
-	entry, err := s.GetConfig(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), entry.Version)
-	assert.Equal(t, 8080, entry.Config.ListenPort)
-}
-
-func TestProvisionCoreConfig(t *testing.T) {
-	ctx := context.Background()
-	s := NewMemory()
-
-	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
-		Config:  &core.Config{ListenPort: 2801, LogLevel: core.LogLevelInfo},
-		Outputs: map[string]map[string]any{"slack": {"host": "test"}},
-	}))
-
-	entry, err := s.GetConfig(ctx)
-	require.NoError(t, err)
-	require.NotNil(t, entry)
-	assert.Equal(t, core.LogLevelInfo, entry.Config.LogLevel)
-	assert.Equal(t, int64(1), entry.Version)
-}
-
-func TestProvisionCoreConfigVersionIncrement(t *testing.T) {
-	ctx := context.Background()
-	s := NewMemory()
-
-	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
-		Config:  &core.Config{ListenPort: 2801},
-		Outputs: map[string]map[string]any{},
-	}))
-	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
-		Config:  &core.Config{ListenPort: 8080},
-		Outputs: map[string]map[string]any{},
-	}))
-
-	entry, err := s.GetConfig(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), entry.Version)
-}
-
 func TestOutputConfigVersionIncrement(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
@@ -497,40 +425,4 @@ func TestOutputConfigDeepCopyOnGet(t *testing.T) {
 
 	entry2, _ := s.GetOutputConfig(ctx, "test")
 	assert.Equal(t, "original", entry2.Config["nested"].(map[string]any)["key"], "get must return deep copy")
-}
-
-func TestCoreConfigDeepCopyTLS(t *testing.T) {
-	ctx := context.Background()
-	s := NewMemory()
-
-	cfg := &core.Config{
-		ListenPort: 2801,
-		TLS: &core.TLSConfig{
-			CertFile: "/original/cert.pem",
-			Enabled:  true,
-		},
-	}
-	require.NoError(t, s.SaveConfig(ctx, cfg))
-
-	cfg.TLS.CertFile = "/mutated/cert.pem"
-
-	entry, err := s.GetConfig(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, "/original/cert.pem", entry.Config.TLS.CertFile, "save must deep-copy TLS pointer")
-}
-
-func TestCoreConfigDeepCopyOnGet(t *testing.T) {
-	ctx := context.Background()
-	s := NewMemory()
-
-	require.NoError(t, s.SaveConfig(ctx, &core.Config{
-		ListenPort: 2801,
-		TLS:        &core.TLSConfig{CertFile: "/original/cert.pem"},
-	}))
-
-	entry, _ := s.GetConfig(ctx)
-	entry.Config.TLS.CertFile = "/mutated"
-
-	entry2, _ := s.GetConfig(ctx)
-	assert.Equal(t, "/original/cert.pem", entry2.Config.TLS.CertFile, "get must return deep copy")
 }

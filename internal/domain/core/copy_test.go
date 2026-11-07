@@ -96,30 +96,6 @@ func TestOutputConfigEntryDeepCopyWithNilConfig(t *testing.T) {
 	assert.Equal(t, "slack", cp.Name)
 }
 
-func TestConfigEntryDeepCopyIsolatesConfig(t *testing.T) {
-	original := &ConfigEntry{
-		Version:   2,
-		UpdatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		Config:    &Config{ListenPort: 2801, TLS: &TLSConfig{Enabled: true, CertFile: "/orig"}},
-	}
-
-	cp := original.DeepCopy()
-	require.NotSame(t, original, cp)
-	require.NotSame(t, original.Config, cp.Config)
-
-	cp.Config.TLS.CertFile = mutatedValue
-	assert.Equal(t, "/orig", original.Config.TLS.CertFile, "nested TLS pointer must not alias")
-	assert.Equal(t, int64(2), cp.Version)
-}
-
-func TestConfigEntryDeepCopyWithNilInnerConfig(t *testing.T) {
-	original := &ConfigEntry{Version: 1}
-	cp := original.DeepCopy()
-	require.NotNil(t, cp)
-	assert.Nil(t, cp.Config)
-	assert.Equal(t, int64(1), cp.Version)
-}
-
 func TestPipelineLayoutDeepCopyIsolatesNodes(t *testing.T) {
 	original := &PipelineLayout{
 		UpdatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -139,14 +115,4 @@ func TestPipelineLayoutDeepCopyWithNilNodes(t *testing.T) {
 	cp := original.DeepCopy()
 	require.NotNil(t, cp)
 	assert.Nil(t, cp.Nodes)
-}
-
-func TestOutputConfigEntryGetVersion(t *testing.T) {
-	e := OutputConfigEntry{Version: 42}
-	assert.Equal(t, int64(42), e.GetVersion())
-}
-
-func TestConfigEntryGetVersion(t *testing.T) {
-	e := ConfigEntry{Version: 42}
-	assert.Equal(t, int64(42), e.GetVersion())
 }

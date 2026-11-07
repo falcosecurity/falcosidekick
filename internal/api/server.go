@@ -60,12 +60,14 @@ type Server struct {
 	// app serves the management listener.
 	app *fiber.App
 	// ingestion serves the event listener.
-	ingestion         *fiber.App
-	pipeline          *pipeline.Pipeline
-	database          core.Database
-	catalog           *catalog.Catalog
-	metrics           core.MetricsCollector
-	tls               *core.TLSConfig
+	ingestion *fiber.App
+	pipeline  *pipeline.Pipeline
+	database  core.Database
+	catalog   *catalog.Catalog
+	metrics   core.MetricsCollector
+	tls       *core.TLSConfig
+	// coreConfig is this replica's configuration, served masked by GET /api/v1/config.
+	coreConfig        *core.Config
 	reloader          *reload.Reloader
 	logger            *slog.Logger
 	uiAssets          fs.FS
@@ -109,6 +111,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 		allowWrites:       cfg.Config.API.AllowWrites,
 		secretDirs:        slices.Clone(cfg.Config.API.SecretDirs),
 		tls:               cfg.Config.TLS,
+		coreConfig:        cfg.Config.DeepCopy(),
 	}
 
 	if s.allowWrites && !isLoopback(cfg.Config.Management.ListenAddress) {

@@ -475,27 +475,6 @@ func TestHandlePipelineComposite_LayoutError(t *testing.T) {
 	assert.Contains(t, string(body), "layout failed")
 }
 
-func TestHandleGetConfig_MaskingHelperWired(t *testing.T) {
-	db := database.NewMemory()
-	require.NoError(t, db.Provision(t.Context(), &core.ProvisionRequest{
-		Config: &core.Config{ListenAddress: "0.0.0.0", ListenPort: 2801, LogLevel: core.LogLevelInfo, LogFormat: core.LogFormatText},
-	}))
-	srv := buildTestServerWithDB(t, db)
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/config", http.NoBody)
-	resp, err := srv.app.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	require.Equal(t, 200, resp.StatusCode)
-
-	var got core.ConfigEntry
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
-	require.NotNil(t, got.Config)
-	assert.Equal(t, "0.0.0.0", got.Config.ListenAddress)
-	assert.Equal(t, 2801, got.Config.ListenPort)
-}
-
 var _ = event.Event{}
 
 func TestHandlePipelineOutputPut_CreatesNewUIOwned(t *testing.T) {

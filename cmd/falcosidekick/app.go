@@ -76,7 +76,6 @@ func NewApp(
 	}()
 
 	if err := db.Provision(ctx, &core.ProvisionRequest{
-		Config:          &cfg.Config,
 		Outputs:         outsCfg.Outputs,
 		DisableDeletion: cfg.Provisioning.DisableDeletion,
 	}); err != nil {

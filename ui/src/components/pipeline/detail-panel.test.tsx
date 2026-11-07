@@ -27,7 +27,6 @@ function mockCoreQueries() {
   const version = spyOn(api, "getVersion").mockResolvedValue({ version: "3.0.0-beta.1", commit: "abc123" })
   const config = spyOn(api, "getConfig").mockResolvedValue({
     config: { listen_address: "127.0.0.1", listen_port: 3801, log_level: "debug", database: { backend: "inmemory" } },
-    version: 1, updated_at: "",
   })
   const outputs = spyOn(api, "getOutputs").mockResolvedValue([entry])
   spies.push(version, config, outputs)
