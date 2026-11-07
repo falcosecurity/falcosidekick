@@ -30,6 +30,7 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/database"
+	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/gcppubsub"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
@@ -59,7 +60,7 @@ func TestPUTFilePathsMustResolveInsideSecretDirs(t *testing.T) {
 
 	cat, err := catalog.New([]output.Type{webhook.OutputType})
 	require.NoError(t, err)
-	host := `"host":"https://example.invalid","endpoint":"/events"`
+	host := webhookTarget
 	for _, tc := range []struct {
 		name       string
 		config     string
@@ -239,4 +240,60 @@ func mustGetwd(t *testing.T) string {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	return wd
+}
+
+// webhookTarget is the destination of the webhook outputs these tests store.
+const webhookTarget = `"host":"https://example.invalid","endpoint":"/events"`
+
+// On a real sqlite store the API refuses every inline secret of the webhook output (password,
+// header and query secrets) and stores file references as written.
+func TestPUTOnSQLiteStoresOnlySecretReferences(t *testing.T) {
+	secrets := t.TempDir()
+	secretFile := filepath.Join(secrets, "token")
+	require.NoError(t, os.WriteFile(secretFile, []byte("file-value"), 0o600))
+	cat, err := catalog.New([]output.Type{webhook.OutputType})
+	require.NoError(t, err)
+	host := webhookTarget
+	for _, tc := range []struct {
+		name, config, want string
+		status             int
+	}{
+		{name: "inline password", config: `"password":"private-1"`, status: http.StatusBadRequest, want: "password: secrets cannot be stored; use password_file"},
+		{name: "inline header", config: `"headers":{"X-Key":{"secrets":["private-2"]}}`, status: http.StatusBadRequest,
+			want: "headers.X-Key.secrets: secrets cannot be stored; use files"},
+		{name: "inline query", config: `"query_params":{"token":{"secrets":["private-3"]}}`, status: http.StatusBadRequest,
+			want: "query_params.token.secrets: secrets cannot be stored; use files"},
+		{name: "password file", config: `"password_file":"` + secretFile + `"`, status: http.StatusOK},
+		{name: "header and query files", config: `"headers":{"X-Key":{"files":["` + secretFile + `"]}},"query_params":{"token":{"files":["` + secretFile + `"]}}`,
+			status: http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := database.OpenSQLite(t.Context(), filepath.Join(t.TempDir(), "sidekick.db"))
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = db.Close() })
+			rig := buildMutationRig(t, db, cat, true)
+			cfg := writableConfig()
+			cfg.Database.Backend = core.DatabaseSQLite
+			srv, err := NewServer(&ServerConfig{Pipeline: rig.Server.pipeline, Database: db, Catalog: cat, Reloader: rig.Reloader, Config: cfg})
+			require.NoError(t, err)
+			srv.secretDirs = []string{secrets}
+
+			raw := requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/webhook",
+				`{"version":0,"config":{`+host+`,`+tc.config+`}}`, tc.status)
+			assert.NotContains(t, string(raw), "private")
+			assert.NotContains(t, string(raw), "file-value")
+			stored, err := db.GetOutputConfig(t.Context(), "webhook")
+			require.NoError(t, err)
+			if tc.want != "" {
+				assert.Equal(t, tc.want, responseError(t, raw))
+				assert.Nil(t, stored)
+				return
+			}
+			require.NotNil(t, stored)
+			data, err := json.Marshal(stored.Config)
+			require.NoError(t, err)
+			assert.Contains(t, string(data), secretFile, "the reference is stored as written")
+			assert.NotContains(t, string(data), "file-value")
+		})
+	}
 }
