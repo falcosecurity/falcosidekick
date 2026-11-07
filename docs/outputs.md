@@ -129,7 +129,7 @@ One output for traces, logs and metrics; each section present enables that signa
 
 - Traces: one span per event, kind `INTERNAL`, zero length unless `duration` is set.
 - Logs: one record per event, event name `falco.alert`, severity from the priority.
-- Metrics: the cumulative counter `falcosecurity.falco.rules.matches` by rule, priority, source and hostname, plus `extra_attributes`; a retried event is not counted twice, also when the retry is for another signal. Beyond 2000 attribute combinations the SDK adds to one overflow series (`otel.metric.overflow`).
+- Metrics: the cumulative counter `falcosecurity.falco.rules.matches` by rule, priority, source and hostname, plus `extra_attributes`; a retried event is not counted twice, also when the retry is for another signal. The output remembers the last 100,000 counted events: a retry that comes after more new events than that counts its events again. Beyond 2000 attribute combinations the SDK adds to one overflow series (`otel.metric.overflow`).
 - Resource `service.name` is `falcosidekick`. Attributes use the `falco.` prefix; output fields keep their names.
 - Not probed at startup: OTLP has no request that exports nothing.
 - `http/protobuf` uses the same HTTP client as the other HTTP outputs, so redirects to another origin are refused.
