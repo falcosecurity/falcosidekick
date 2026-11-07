@@ -393,6 +393,27 @@ func TestOutputConfigVersionIsNeverReused(t *testing.T) {
 	assert.Equal(t, int64(3), webhook.Version)
 }
 
+func TestProvisionKeepsTheVersionOfUnchangedOutputs(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemory()
+	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{Outputs: map[string]map[string]any{
+		"a": {"host": "https://a"}, "b": {"host": "https://b"},
+	}}))
+	before, err := s.GetOutputConfig(ctx, "b")
+	require.NoError(t, err)
+
+	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{Outputs: map[string]map[string]any{
+		"a": {"host": "https://a2"}, "b": {"host": "https://b"},
+	}}))
+	after, err := s.GetOutputConfig(ctx, "b")
+	require.NoError(t, err)
+	assert.Equal(t, before.Version, after.Version)
+	assert.Equal(t, before.UpdatedAt, after.UpdatedAt)
+	a, err := s.GetOutputConfig(ctx, "a")
+	require.NoError(t, err)
+	assert.Greater(t, a.Version, after.Version, "the changed output gets a new version")
+}
+
 func TestConcurrentAccess(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
