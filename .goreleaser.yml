@@ -11,9 +11,7 @@ env:
   - COSIGN_YES=true
 
 snapshot:
-  # master builds are the dev channel (v3-dev); the release aliases come only from v3.* tags.
-  # Published image tags keep the v3- prefix: `latest` still points to v2.
-  version_template: "dev"
+  version_template: "v3-main"
 
 checksum:
   name_template: "falcosidekick-checksums.txt"
@@ -30,7 +28,6 @@ builds:
   - id: falcosidekick
     main: ./cmd/falcosidekick
     binary: falcosidekick
-    # Dates come from the commit, so the same commit builds the same binary.
     mod_timestamp: "{{ .CommitTimestamp }}"
     goos:
       - linux
@@ -91,8 +88,10 @@ dockers_v2:
       - "falcosecurity/falcosidekick"
       - "public.ecr.aws/falcosecurity/falcosidekick"
     tags:
-      - "v3-{{ .Version }}"
-      - "v3-latest"
+      - "{{ .Version }}"
+      - "{{ if not (or .Prerelease .IsSnapshot) }}{{ .Major }}.{{ .Minor }}{{ end }}"
+      - "{{ if not (or .Prerelease .IsSnapshot) }}{{ .Major }}{{ end }}"
+      - "{{ if not (or .Prerelease .IsSnapshot) }}v3-latest{{ end }}"
     build_args:
       BINARY: falcosidekick
       VARIANT: ui
@@ -116,8 +115,10 @@ dockers_v2:
       - "falcosecurity/falcosidekick"
       - "public.ecr.aws/falcosecurity/falcosidekick"
     tags:
-      - "v3-{{ .Version }}-slim"
-      - "v3-latest-slim"
+      - "{{ .Version }}-slim"
+      - "{{ if not (or .Prerelease .IsSnapshot) }}{{ .Major }}.{{ .Minor }}-slim{{ end }}"
+      - "{{ if not (or .Prerelease .IsSnapshot) }}{{ .Major }}-slim{{ end }}"
+      - "{{ if not (or .Prerelease .IsSnapshot) }}v3-latest-slim{{ end }}"
     build_args:
       BINARY: falcosidekick-slim
       VARIANT: slim
@@ -143,8 +144,6 @@ signs:
     artifacts: checksum
 
 docker_signs:
-  # artifacts left at its default, which selects the images built by dockers_v2;
-  # `manifests` selects only docker_manifests entries, which this file has none of.
   - id: falcosidekick
     cmd: cosign
     args: ["sign", "--recursive", "${artifact}"]

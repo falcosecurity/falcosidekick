@@ -13,7 +13,7 @@ v2 configuration does not load in v3: unknown keys are rejected. Rewrite it with
 | Outputs | many, see the `2.x` README | see [outputs](outputs.md) |
 | Reload | restart | output files reload on change, `SIGHUP` or poll |
 | Delivery | - | per-output queue, retry, circuit breaker, optional batching |
-| Image tags | `latest`, `2.*` | `v3-*`, `v3-latest`, `-slim` variants |
+| Image tags | `2.*`, `stable` (latest release), `latest` (master build) | `3.*`, `3`, `v3-latest` (latest release), `v3-main` (master build), `-slim` variants |
 | Port | 2801 | 2801 for events, health, version and metrics; 2802 on `127.0.0.1` for the API and the UI |
 
 Falco needs no change: it posts to `/` as before.
