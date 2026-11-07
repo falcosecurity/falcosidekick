@@ -55,11 +55,8 @@ var ErrReloaderNotBound = errors.New("reloader: worker context not bound")
 // ErrUnknownOutputType is returned by ApplyOutput for a name not in the catalog.
 var ErrUnknownOutputType = errors.New("reloader: unknown output type")
 
-// ErrDBSyncFailed means the runtime change is live but was not persisted to the database.
-var ErrDBSyncFailed = errors.New("reloader: database sync failed after runtime apply")
-
-// ErrVersionConflict is returned by ApplyOutput when the stored output changed after the caller read it.
-var ErrVersionConflict = errors.New("reloader: output changed since the version read")
+// ErrDatabaseUnavailable means a write did not reach the database; nothing was applied.
+var ErrDatabaseUnavailable = errors.New("reloader: database write failed, nothing was applied")
 
 // Reloader applies output config changes from file reloads and UI writes, serialized by one mutex.
 type Reloader struct {
@@ -149,10 +146,15 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 		return r.fail(start, SourceUI, "apply %w", err)
 	}
 
+	// The database decides first: a refused write leaves the running output untouched.
+	if err := r.writeOutput(ctx, name, version, stored); err != nil {
+		_ = out.Close()
+		return r.fail(start, SourceUI, "%w", err)
+	}
+
 	retireCtx, retireCancel := context.WithTimeout(ctx, r.retireTimeout)
 	defer retireCancel()
 
-	_, fileOwned := r.fileState[name]
 	var retireWarning bool
 	if err := r.dispatcher.ReplaceOutput(retireCtx, r.workerRunCtx, name, out); err != nil {
 		if errors.Is(err, pipeline.ErrDispatcherStopped) {
@@ -163,29 +165,11 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 		r.logger.Warn("apply: old output retire timeout, replacement active", "output", name, "error", err)
 	}
 
-	var dbSyncFailed bool
-	if r.database != nil {
-		if err := r.database.SaveOutputConfig(ctx, name, stored); err != nil {
-			dbSyncFailed = true
-			r.logger.Error("apply: database save failed", "output", name, "error", err)
-		}
-	}
-
-	// Updated even if the DB save failed, so the next file reload restores the file version.
-	if fileOwned {
+	if _, fileOwned := r.fileState[name]; fileOwned {
 		r.fileState[name] = resolved
 	}
 
-	duration := time.Since(start)
-	if retireWarning || dbSyncFailed {
-		r.metrics.recordPartialSuccess(duration, SourceUI)
-	} else {
-		r.metrics.recordSuccess(duration, SourceUI)
-	}
-
-	if dbSyncFailed {
-		return ErrDBSyncFailed
-	}
+	r.recordUI(start, retireWarning)
 	return nil
 }
 
@@ -201,8 +185,11 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 
 	start := time.Now()
 
-	if err := r.checkVersion(ctx, name, version); err != nil {
-		return r.fail(start, SourceUI, "%w", err)
+	// The database decides first: a refused delete leaves the running output untouched.
+	if r.database != nil {
+		if err := r.database.DeleteOutputConfig(ctx, name, version); err != nil {
+			return r.fail(start, SourceUI, "%w", databaseError(err))
+		}
 	}
 
 	retireCtx, retireCancel := context.WithTimeout(ctx, r.retireTimeout)
@@ -217,27 +204,10 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 		r.logger.Warn("remove: output retire timeout", "output", name, "error", err)
 	}
 
-	var dbSyncFailed bool
-	if r.database != nil {
-		if err := r.database.DeleteOutputConfig(ctx, name); err != nil {
-			dbSyncFailed = true
-			r.logger.Error("remove: database delete failed", "output", name, "error", err)
-		}
-	}
-
 	// The next file reload then sees the name as added and restores a file-provisioned output.
 	delete(r.fileState, name)
 
-	duration := time.Since(start)
-	if retireWarning || dbSyncFailed {
-		r.metrics.recordPartialSuccess(duration, SourceUI)
-	} else {
-		r.metrics.recordSuccess(duration, SourceUI)
-	}
-
-	if dbSyncFailed {
-		return ErrDBSyncFailed
-	}
+	r.recordUI(start, retireWarning)
 	return nil
 }
 
@@ -353,23 +323,49 @@ func closeOutputs(outputs map[string]*pipeline.Output) {
 	}
 }
 
-// checkVersion runs under r.mu, so no file reload or other write lands between it and the change.
+// checkVersion refuses a stale write before an output is built for it; the write itself is conditional too.
 func (r *Reloader) checkVersion(ctx context.Context, name string, version int64) error {
 	if r.database == nil {
 		return nil
 	}
 	stored, err := r.database.GetOutputConfig(ctx, name)
 	if err != nil {
-		return fmt.Errorf("read output: %w", err)
+		return databaseError(err)
 	}
 	var current int64
 	if stored != nil {
 		current = stored.Version
 	}
 	if current != version {
-		return ErrVersionConflict
+		return core.ErrVersionConflict
 	}
 	return nil
+}
+
+func (r *Reloader) writeOutput(ctx context.Context, name string, version int64, cfg map[string]any) error {
+	if r.database == nil {
+		return nil
+	}
+	_, err := r.database.SaveOutputConfig(ctx, name, version, cfg)
+	return databaseError(err)
+}
+
+// databaseError keeps a version conflict and turns any other database failure into ErrDatabaseUnavailable.
+func databaseError(err error) error {
+	switch {
+	case err == nil, errors.Is(err, core.ErrVersionConflict):
+		return err
+	default:
+		return fmt.Errorf("%w: %w", ErrDatabaseUnavailable, err)
+	}
+}
+
+func (r *Reloader) recordUI(start time.Time, retireWarning bool) {
+	if retireWarning {
+		r.metrics.recordPartialSuccess(time.Since(start), SourceUI)
+		return
+	}
+	r.metrics.recordSuccess(time.Since(start), SourceUI)
 }
 
 func (r *Reloader) fail(start time.Time, source, format string, args ...any) error {

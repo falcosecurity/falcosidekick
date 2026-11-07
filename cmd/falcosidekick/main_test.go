@@ -396,7 +396,8 @@ func TestRestoreFromDB_BuildsFromProvisionedFalseEntries(t *testing.T) {
 
 	db := database.NewMemory()
 	// UI-only output left by a previous run.
-	require.NoError(t, db.SaveOutputConfig(ctx, "webhook", map[string]any{"address": "http://sink"}))
+	_, err = db.SaveOutputConfig(ctx, "webhook", 0, map[string]any{"address": "http://sink"})
+	require.NoError(t, err)
 
 	fileOutputs := map[string]map[string]any{}
 	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
@@ -427,7 +428,8 @@ func TestRestoreFromDB_ReadsStoredSecretFiles(t *testing.T) {
 	}})
 	require.NoError(t, err)
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(ctx, "webhook", map[string]any{"token_file": secret}))
+	_, err = db.SaveOutputConfig(ctx, "webhook", 0, map[string]any{"token_file": secret})
+	require.NoError(t, err)
 
 	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), nil)
 	require.NoError(t, err)

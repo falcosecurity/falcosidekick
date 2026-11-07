@@ -156,7 +156,7 @@ func TestSecretContractTypedMaps(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			db := database.NewMemory()
-			require.NoError(t, db.SaveOutputConfig(t.Context(), tt.name, tt.config))
+			seedOutput(t, db, tt.name, tt.config)
 			rig := buildMutationRig(t, db, cat, true)
 			assertSecretContractReads(t, rig.Server, db, tt.name, tt.public, tt.fields, tt.hidden)
 			stored, err := db.GetOutputConfig(t.Context(), tt.name)
@@ -198,7 +198,7 @@ func TestSecretContractPUT(t *testing.T) {
 				cfg["headers"].(map[string]any)["X-Key"].(map[string]any)["secrets"] = []any{"****"}
 			}
 			db := database.NewMemory()
-			require.NoError(t, db.SaveOutputConfig(t.Context(), "webhook", cfg))
+			seedOutput(t, db, "webhook", cfg)
 			rig := buildMutationRig(t, db, cat, true)
 			body := `{"version":1,"config":` + tt.patch + `}`
 			raw := requestSecretContract(t, rig.Server, http.MethodPut, "/api/v1/pipeline/outputs/webhook", body, http.StatusOK)
@@ -257,7 +257,7 @@ func TestSecretContractPUTRejectsAmbiguousOrPlaceholderSecrets(t *testing.T) {
 				cfg["PASSWORD"] = "stored-alias-private"
 			}
 			db := database.NewMemory()
-			require.NoError(t, db.SaveOutputConfig(t.Context(), "webhook", cfg))
+			seedOutput(t, db, "webhook", cfg)
 			before, err := db.GetOutputConfig(t.Context(), "webhook")
 			require.NoError(t, err)
 			rig := buildMutationRig(t, db, cat, true)
@@ -290,9 +290,9 @@ func TestSecretContractNestedScalarAliases(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			db := database.NewMemory()
-			require.NoError(t, db.SaveOutputConfig(t.Context(), "kafka", map[string]any{
+			seedOutput(t, db, "kafka", map[string]any{
 				"topic": "events", "AUTH": map[string]string{"SASL": "plain", "Username": "alice", "Password": "nested-private"},
-			}))
+			})
 			rig := buildMutationRig(t, db, nestedMutationCatalog(t), true)
 			assertSecretContractReads(t, rig.Server, db, "kafka", `{"topic":"events","AUTH":{"SASL":"plain","Username":"alice"}}`,
 				map[string]bool{"/AUTH/Password": true}, []string{"nested-private"})

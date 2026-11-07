@@ -40,11 +40,13 @@ type Database interface {
 	// an error always means a backend failure.
 	GetOutputConfig(ctx context.Context, name string) (*OutputConfigEntry, error)
 
-	// SaveOutputConfig persists one output configuration.
-	SaveOutputConfig(ctx context.Context, name string, cfg map[string]any) error
+	// SaveOutputConfig stores cfg if the stored version is expected (0: no entry yet) and returns
+	// the new version; another stored version returns ErrVersionConflict and stores nothing.
+	SaveOutputConfig(ctx context.Context, name string, expected int64, cfg map[string]any) (int64, error)
 
-	// DeleteOutputConfig removes one output configuration; a miss returns nil.
-	DeleteOutputConfig(ctx context.Context, name string) error
+	// DeleteOutputConfig removes the entry if its version is expected; with expected 0 a missing
+	// entry is a no-op, any other mismatch returns ErrVersionConflict.
+	DeleteOutputConfig(ctx context.Context, name string, expected int64) error
 
 	// GetPipelineLayout returns the UI pipeline layout.
 	GetPipelineLayout(ctx context.Context) (*PipelineLayout, error)
