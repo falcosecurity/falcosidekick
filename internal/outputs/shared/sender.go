@@ -142,7 +142,7 @@ func (s *Sender) SendJSONCheckBody(ctx context.Context, method, url string, payl
 	if err != nil {
 		return err
 	}
-	_, err = s.readBody(req, check)
+	_, err = s.readBody(ctx, req, check)
 	return err
 }
 
@@ -185,9 +185,9 @@ func isMisconfiguration(err error, transient []int) bool {
 	return IsTLSVerificationError(err)
 }
 
-// Do executes a prepared request. Only 2xx is success.
+// Do executes a prepared request bound to ctx, whatever context it was built with. Only 2xx is success.
 func (s *Sender) Do(ctx context.Context, req *http.Request) error {
-	resp, err := s.execute(req)
+	resp, err := s.execute(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -201,11 +201,11 @@ func (s *Sender) Do(ctx context.Context, req *http.Request) error {
 
 // DoReadBody executes a request and returns the full response body on 2xx.
 func (s *Sender) DoReadBody(ctx context.Context, req *http.Request) ([]byte, error) {
-	return s.readBody(req, nil)
+	return s.readBody(ctx, req, nil)
 }
 
-func (s *Sender) readBody(req *http.Request, check func([]byte) error) ([]byte, error) {
-	resp, err := s.execute(req)
+func (s *Sender) readBody(ctx context.Context, req *http.Request, check func([]byte) error) ([]byte, error) {
+	resp, err := s.execute(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -252,8 +252,8 @@ func (s *Sender) responseError(resp *http.Response, check func([]byte) error) er
 	return diagnostic
 }
 
-func (s *Sender) execute(req *http.Request) (*http.Response, error) {
-	req = req.Clone(req.Context())
+func (s *Sender) execute(ctx context.Context, req *http.Request) (*http.Response, error) {
+	req = req.Clone(ctx)
 	if req.Header == nil {
 		req.Header = make(http.Header)
 	}

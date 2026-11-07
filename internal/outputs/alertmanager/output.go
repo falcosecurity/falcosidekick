@@ -61,7 +61,7 @@ var OutputType = output.Type{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{Name: "hosts", Type: "string[]", Required: true, Label: "Hosts (scheme, host and port)"},
 			{Name: "generator_url", Type: "string", Label: "Generator URL (link back to source in AM UI)"},
-			{Name: "expires_after", Type: "int", Default: 0, Label: "Alert Expires After (seconds, 0=never)"},
+			{Name: "expires_after", Type: "int", Default: 0, Label: "Alert Expires After (seconds; 0 leaves it to Alertmanager's resolve_timeout, 5m by default)"},
 			{Name: "extra_labels", Type: "map", Label: "Extra Labels"},
 			{Name: "extra_annotations", Type: "map", Label: "Extra Annotations"},
 			{Name: "custom_severity_map", Type: "map", Label: "Custom Severity Map"},

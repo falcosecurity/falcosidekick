@@ -18,6 +18,7 @@ package loki
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -60,7 +61,7 @@ func serializeLabels(labels map[string]string) string {
 	keys := shared.SortMapKeys(labels)
 	pairs := make([]string, len(keys))
 	for i, k := range keys {
-		pairs[i] = k + `="` + labels[k] + `"`
+		pairs[i] = k + "=" + strconv.Quote(labels[k])
 	}
 	return "{" + strings.Join(pairs, ",") + "}"
 }

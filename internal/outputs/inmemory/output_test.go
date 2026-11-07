@@ -114,6 +114,28 @@ func TestSendAndSearch(t *testing.T) {
 	assert.Equal(t, "rule-a", result.Events[1].Rule)
 }
 
+// The stored event shares nothing with the caller's event or with what a read returns.
+func TestStoreKeepsItsOwnCopy(t *testing.T) {
+	ctx := context.Background()
+	o := createTestOutput(10)
+	evt := testEvent("rule-a", event.PriorityWarning, "syscall", time.Now())
+	require.NoError(t, o.Send(ctx, evt))
+	evt.OutputFields["key"] = "changed by another output"
+	evt.Tags[0] = "changed"
+
+	got, err := o.GetEvent(ctx, evt.UUID)
+	require.NoError(t, err)
+	got.OutputFields["key"] = "changed by GetEvent's caller"
+	result, err := o.Search(ctx, &output.SearchQuery{})
+	require.NoError(t, err)
+	result.Events[0].Tags[1] = "changed by Search's caller"
+
+	stored, err := o.GetEvent(ctx, evt.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, "value", stored.OutputFields["key"])
+	assert.Equal(t, []string{"tag1", "tag2"}, stored.Tags)
+}
+
 func TestSearchByPriority(t *testing.T) {
 	ctx := context.Background()
 	o := createTestOutput(100)

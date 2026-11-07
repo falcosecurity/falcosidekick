@@ -24,6 +24,7 @@ import (
 	"net"
 	netmail "net/mail"
 	"net/textproto"
+	"strconv"
 	"strings"
 	"time"
 
@@ -114,9 +115,13 @@ type driver struct {
 
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
+	if literal := strings.TrimSuffix(strings.TrimPrefix(c.Host, "["), "]"); net.ParseIP(literal) != nil {
+		c.Host = literal
+	}
 	switch {
 	case c.Host == "":
 		errs.Add("host", "is required")
+	case net.ParseIP(c.Host) != nil:
 	case strings.ContainsAny(c.Host, "/?#@:[] \t\r\n"):
 		errs.Add("host", "must be a host name or IP address without scheme, port or path")
 	}
@@ -328,7 +333,9 @@ func (d *driver) session(ctx context.Context) (client *mail.Client, conn *gosmtp
 		raw  net.Conn
 		stop = func() bool { return false }
 	)
-	dial := func(dialCtx context.Context, network, address string) (net.Conn, error) {
+	// go-mail joins host and port with a colon, which breaks an IPv6 literal; the driver joins them itself.
+	address := net.JoinHostPort(d.cfg.Host, strconv.Itoa(d.cfg.Port))
+	dial := func(dialCtx context.Context, network, _ string) (net.Conn, error) {
 		dialer := &net.Dialer{}
 		var err error
 		if d.cfg.TLSMode == tlsModeImplicit {

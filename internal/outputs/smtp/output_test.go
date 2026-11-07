@@ -98,6 +98,9 @@ func TestValidation(t *testing.T) {
 		{name: "missing host", config: with(base, "host", nil), want: "host: is required"},
 		{name: "host with port", config: with(base, "host", "mail:587"), want: "host: must be a host name"},
 		{name: "host with scheme", config: with(base, "host", "smtp://mail"), want: "host: must be a host name"},
+		{name: "ipv6 literal", config: with(base, "host", "2001:db8::25")},
+		{name: "bracketed ipv6 literal", config: with(base, "host", "[2001:db8::25]")},
+		{name: "bracketed ipv6 with port", config: with(base, "host", "[2001:db8::25]:587"), want: "host: must be a host name"},
 		{name: "bad port", config: with(base, "port", 0x10000), want: "port: must be between 1 and 65535"},
 		{name: "bad tls_mode", config: with(base, "tls_mode", "ssl"), want: `tls_mode: must be starttls/implicit/opportunistic/none`},
 		{name: "missing from", config: with(base, "from", nil), want: "from: is required"},
@@ -329,6 +332,15 @@ func TestSendDelivers(t *testing.T) {
 	_, parts := parse(t, []byte(s.data))
 	assert.Contains(t, parts["text/plain"], "Write below binary dir")
 	assert.True(t, strings.HasPrefix(s.commands[0], "EHLO "))
+}
+
+// go-mail writes host:port, which an IPv6 literal breaks; the driver dials the joined address itself.
+func TestSendDeliversToIPv6Literal(t *testing.T) {
+	srv := newFakeServer(t, func(s *fakeServer) { s.listen = "[::1]:0" })
+	d := newTestDriver(t, serverConfig(t, srv, "host", "::1"))
+	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
+	require.Len(t, srv.recorded(), 1)
+	assert.True(t, srv.recorded()[0].tls, "the certificate is valid for ::1")
 }
 
 func TestHealthCheckSendsNoMail(t *testing.T) {

@@ -62,6 +62,8 @@ func TestConfigValidation(t *testing.T) {
 		{name: "unknown storage", raw: map[string]any{"address": "r:6379", "storage_type": "set"}, want: "storage_type"},
 		{name: "empty key", raw: map[string]any{"address": "r:6379", "key": ""}, want: "key: is required"},
 		{name: "username without password", raw: map[string]any{"address": "r:6379", "username": "u"}, want: "password: is required"},
+		{name: "tls settings without tls_enabled", raw: map[string]any{"address": "r:6379", "tls": map[string]any{"insecure_skip_verify": true}},
+			want: "tls: is set but tls_enabled is false"},
 		{name: "cert without key", raw: map[string]any{"address": "r:6379", "tls": map[string]any{"cert_file": "/x"}}, want: "tls"},
 		{name: "unknown key", raw: map[string]any{"address": "r:6379", "storagetype": "list"}, want: "unknown keys"},
 		{name: "database type", raw: map[string]any{"address": "r:6379", "database": "zero"}, want: "database"},

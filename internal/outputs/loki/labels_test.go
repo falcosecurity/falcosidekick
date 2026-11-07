@@ -39,11 +39,18 @@ func TestSerializeLabelsFormat(t *testing.T) {
 		{name: "empty", labels: map[string]string{}, want: `{}`},
 		{name: "single", labels: map[string]string{"rule": "r"}, want: `{rule="r"}`},
 		{name: "empty value", labels: map[string]string{"rule": ""}, want: `{rule=""}`},
-		{name: "value kept verbatim", labels: map[string]string{"rule": `a"b,c`}, want: `{rule="a"b,c"}`},
+		{name: "value quoted", labels: map[string]string{"rule": `a"b,c`}, want: `{rule="a\"b,c"}`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.want, serializeLabels(tc.labels))
 		})
 	}
+}
+
+// The key groups events into streams: two label sets must never share it.
+func TestSerializeLabelsNeverCollides(t *testing.T) {
+	one := map[string]string{"a": `x",b="y`}
+	two := map[string]string{"a": "x", "b": "y"}
+	assert.NotEqual(t, serializeLabels(one), serializeLabels(two))
 }

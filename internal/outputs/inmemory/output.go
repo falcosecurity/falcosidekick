@@ -140,7 +140,9 @@ func (d *driver) Init(_ context.Context) error {
 }
 
 // Send overwrites the oldest event when the buffer is full.
+// Send stores a copy: the dispatcher hands the same event to every output.
 func (d *driver) Send(_ context.Context, evt *event.Event) error {
+	evt = evt.Clone()
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -196,7 +198,7 @@ func (d *driver) Search(_ context.Context, query *output.SearchQuery) (*output.S
 
 	page := make([]event.Event, 0, end-offset)
 	for _, e := range candidates[offset:end] {
-		page = append(page, *e)
+		page = append(page, *e.Clone())
 	}
 
 	return &output.SearchResult{
@@ -223,8 +225,7 @@ func (d *driver) GetEvent(_ context.Context, uuid string) (*event.Event, error) 
 		pos := (d.tail + i) % d.capacity
 		e := d.events[pos]
 		if e != nil && e.UUID == uuid {
-			cp := *e
-			return &cp, nil
+			return e.Clone(), nil
 		}
 	}
 	return nil, nil

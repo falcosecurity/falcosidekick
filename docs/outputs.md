@@ -50,6 +50,7 @@ Pushes to `/loki/api/v1/push` under `base_path`; `tenant` sets `X-Scope-OrgID`. 
 - Posts to every host in `hosts`. The event counts as sent when at least one host accepts it; a failing host sets the output `degraded` with `last_warning` until a delivery reaches every host.
 - Label values (`alertname`, `rule`, `extra_labels`) are sent as they are; label names are sanitized.
 - The health probe is `GET /-/healthy` on each host.
+- `expires_after` sets `endsAt` that many seconds after the event. With 0 (default) the alert has no `endsAt`, and Alertmanager resolves it after its `resolve_timeout` (5m by default) unless it is sent again.
 
 ## Kafka
 
@@ -59,6 +60,7 @@ Pushes to `/loki/api/v1/push` under `base_path`; `tenant` sets `X-Scope-OrgID`. 
 - A failed record is retried unless Kafka marks its error non-retriable; a batch fails for good only when every failed record does.
 - Within `delivery_timeout` the client retries a record itself, for example across a leader change; with idempotent writes the broker drops those duplicates, which a pipeline retry, as a new record, cannot get.
 - Client warnings and errors (connection, TLS, SASL) go to the Falcosidekick log with the broker, topic, partition and group only.
+- `tls` settings need `tls_enabled: true`; without it they are refused at startup instead of being ignored.
 
 ## Microsoft Teams
 
@@ -118,7 +120,7 @@ One email per event, HTML or text. `tls_mode` is `starttls` (default, required),
 
 ## Redis
 
-Stores the event JSON with `storage_type` `list` (`RPUSH`, default), `hashmap` (`HSET`, field = event UUID) or `stream` (`XADD`, optional `max_len`). A batch goes out in one pipeline. Startup sends `PING`: rejected credentials, a missing ACL permission or an unknown database stop startup. A `WRONGTYPE`, `WRONGPASS`, `NOAUTH` or `NOPERM` reply fails the event for good; every other reply, such as `BUSY`, `LOADING` or `OOM`, is retried.
+Stores the event JSON with `storage_type` `list` (`RPUSH`, default), `hashmap` (`HSET`, field = event UUID) or `stream` (`XADD`, optional `max_len`). A batch goes out in one pipeline. Startup sends `PING`: rejected credentials, a missing ACL permission or an unknown database stop startup. A `WRONGTYPE`, `WRONGPASS`, `NOAUTH` or `NOPERM` reply fails the event for good; every other reply, such as `BUSY`, `LOADING` or `OOM`, is retried. A retry sends the whole batch again, so with `list` and `stream` an event whose command went through is written twice; `hashmap` overwrites the same field. `tls` settings need `tls_enabled: true`.
 
 ## OTLP
 
