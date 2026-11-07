@@ -137,12 +137,14 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 		return r.fail(start, SourceUI, "%w", err)
 	}
 
-	cfgCopy := utils.DeepCopyMap(cfg)
-	if err := config.ResolveSecrets(name, cfgCopy, outputType.Schema); err != nil {
+	// The output is built from resolved secret files; the database keeps the config as written.
+	stored := utils.DeepCopyMap(cfg)
+	resolved := utils.DeepCopyMap(cfg)
+	if err := config.ResolveSecrets(name, resolved, outputType.Schema); err != nil {
 		return r.fail(start, SourceUI, "apply secrets: %w: %w", pipeline.ErrInvalidOutputConfig, err)
 	}
 
-	out, err := pipeline.BuildOutput(ctx, r.catalog, name, cfgCopy, r.runtimeDefaults, r.deps)
+	out, err := pipeline.BuildOutput(ctx, r.catalog, name, resolved, r.runtimeDefaults, r.deps)
 	if err != nil {
 		return r.fail(start, SourceUI, "apply %w", err)
 	}
@@ -163,7 +165,7 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 
 	var dbSyncFailed bool
 	if r.database != nil {
-		if err := r.database.SaveOutputConfig(ctx, name, cfgCopy); err != nil {
+		if err := r.database.SaveOutputConfig(ctx, name, stored); err != nil {
 			dbSyncFailed = true
 			r.logger.Error("apply: database save failed", "output", name, "error", err)
 		}
@@ -171,7 +173,7 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 
 	// Updated even if the DB save failed, so the next file reload restores the file version.
 	if fileOwned {
-		r.fileState[name] = cfgCopy
+		r.fileState[name] = resolved
 	}
 
 	duration := time.Since(start)
@@ -252,20 +254,14 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 		return r.fail(start, SourceFile, "reload parse: %w", err)
 	}
 
-	for name := range outsCfg.Outputs {
-		if _, ok := r.catalog.Get(name); !ok {
-			return r.fail(start, SourceFile, "reload validate: unknown output type %q", name)
-		}
+	// fileState and the builds use resolved copies, so a rotated secret file is a change;
+	// the database gets the configs as written.
+	resolved, err := config.ResolvedOutputs(outsCfg.Outputs, r.catalog)
+	if err != nil {
+		return r.fail(start, SourceFile, "reload secrets: %w", err)
 	}
 
-	for name, outputCfg := range outsCfg.Outputs {
-		outputType, _ := r.catalog.Get(name) // validated above
-		if err := config.ResolveSecrets(name, outputCfg, outputType.Schema); err != nil {
-			return r.fail(start, SourceFile, "reload secrets: %w", err)
-		}
-	}
-
-	diff := DiffOutputConfigs(r.fileState, outsCfg.Outputs)
+	diff := DiffOutputConfigs(r.fileState, resolved)
 
 	// A name added to the files but already running, from the API, is a change: Apply replaces it.
 	for _, name := range r.dispatcher.OutputNames() {
@@ -322,7 +318,7 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 
 	// The runtime is applied, so fileState advances even on DB or retire failure;
 	// orphans kept by DisableDeletion leave it so later reloads do not retire them.
-	r.fileState = outsCfg.Outputs
+	r.fileState = resolved
 	duration := time.Since(start)
 
 	if retireWarning || dbSyncFailed {

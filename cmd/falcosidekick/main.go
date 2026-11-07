@@ -124,16 +124,6 @@ func run(parentCtx context.Context, configPath string, outputPaths []string) err
 		return fmt.Errorf("catalog: %w", err)
 	}
 
-	for name, outputCfg := range outsCfg.Outputs {
-		outputType, ok := cat.Get(name)
-		if !ok {
-			return fmt.Errorf("unknown output type %q", name)
-		}
-		if err := config.ResolveSecrets(name, outputCfg, outputType.Schema); err != nil {
-			return fmt.Errorf("secret resolution: %w", err)
-		}
-	}
-
 	app, err := NewApp(appCtx, cfg, outsCfg, collector, cat, logger)
 	if err != nil {
 		return err
