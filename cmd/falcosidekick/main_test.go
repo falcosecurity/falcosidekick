@@ -36,6 +36,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"testing/fstest"
@@ -940,16 +941,20 @@ func TestNewAppWithSQLiteKeepsAPIOutputsAcrossRestartsWithoutSecrets(t *testing.
 	_, err = first.reloader.ApplyOutput(t.Context(), "webhook", 0, map[string]any{"token_file": secret})
 	require.NoError(t, err)
 	require.NoError(t, first.db.SavePipelineLayout(t.Context(), &core.PipelineLayout{Nodes: []core.LayoutNode{{ID: "webhook", X: 1}}}))
-	first.shutdown()
-
-	for _, name := range []string{cfg.Database.SQLite.Path, cfg.Database.SQLite.Path + "-wal"} {
-		data, err := os.ReadFile(name)
-		if errors.Is(err, os.ErrNotExist) {
-			continue
+	scan := func(when string, requireWAL bool) {
+		t.Helper()
+		for _, name := range []string{cfg.Database.SQLite.Path, cfg.Database.SQLite.Path + "-wal"} {
+			data, err := os.ReadFile(name)
+			if errors.Is(err, os.ErrNotExist) && !requireWAL {
+				continue
+			}
+			require.NoError(t, err, "%s %s", when, name)
+			assert.NotContains(t, string(data), "private-token-value", "%s %s", when, name)
 		}
-		require.NoError(t, err)
-		assert.NotContains(t, string(data), "private-token-value", name)
 	}
+	scan("while open", true)
+	first.shutdown()
+	scan("after close", false)
 
 	second, err := NewApp(t.Context(), cfg, files, collector(), cat, slog.Default())
 	require.NoError(t, err)
@@ -971,6 +976,8 @@ func TestNewAppStartsWhenTheStoredEventSourceDoesNotBuild(t *testing.T) {
 	cfg.Database.SQLite.Path = filepath.Join(dir, "sidekick.db")
 	cfg.UI.Enabled = true
 	cfg.UI.EventSource = "webhook"
+	cfg.ListenPort = findFreePort(t)
+	cfg.Management.ListenPort = findFreePort(t)
 	db, err := database.OpenSQLite(t.Context(), cfg.Database.SQLite.Path)
 	require.NoError(t, err)
 	_, err = db.SaveOutputConfig(t.Context(), "webhook", 0, map[string]any{"token_file": filepath.Join(dir, "missing")})
@@ -992,6 +999,17 @@ func TestNewAppStartsWhenTheStoredEventSourceDoesNotBuild(t *testing.T) {
 	statuses := a.pipe.CollectOutputStatus()
 	require.Len(t, statuses, 1)
 	assert.Equal(t, pipeline.HealthFailed, statuses[0].Status)
+
+	serveErr := make(chan error, 1)
+	a.serve(serveErr)
+	waitForServer(t, cfg.Management.ListenPort)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet,
+		fmt.Sprintf("http://127.0.0.1:%d/api/v1/events/search", cfg.Management.ListenPort), http.NoBody)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode, "the events API waits for its source")
 }
 
 // The postgres settings of the core file open the database; FALCOSIDEKICK_E2E_POSTGRES_DSN names the server.
@@ -1183,4 +1201,176 @@ func TestNewAppWithPostgresKeepsAPIOutputsAcrossRestartsWithoutSecrets(t *testin
 	layout, err := second.db.GetPipelineLayout(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []core.LayoutNode{{ID: "webhook"}}, layout.Nodes)
+}
+
+// replicaInstance is one Sidekick on the shared test postgres, recording the configs it builds.
+type replicaInstance struct {
+	*app
+	builds []string
+	mu     sync.Mutex
+}
+
+func (r *replicaInstance) built() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.builds)
+}
+
+func (r *replicaInstance) status(name string) pipeline.OutputStatus {
+	statuses := r.pipe.CollectOutputStatus()
+	for i := range statuses {
+		if statuses[i].Name == name {
+			return statuses[i]
+		}
+	}
+	return pipeline.OutputStatus{}
+}
+
+// startReplica starts an instance that polls every poll; refuse makes its webhook builds of that address fail.
+func startReplica(t *testing.T, cfg *config.Config, poll time.Duration, refuse string) *replicaInstance {
+	t.Helper()
+	r := &replicaInstance{}
+	cat, err := catalog.New([]output.Type{{
+		Name:   "webhook",
+		Schema: output.Schema{Fields: []output.SchemaField{{Name: "address", Type: "string"}}},
+		New: func(raw map[string]any, _ output.Deps) (output.Driver, error) {
+			address := fmt.Sprint(raw["address"])
+			if address == refuse {
+				return nil, errors.New("refused here")
+			}
+			r.mu.Lock()
+			r.builds = append(r.builds, address)
+			r.mu.Unlock()
+			return &testutil.MockDriver{DriverName: "webhook"}, nil
+		},
+	}})
+	require.NoError(t, err)
+	c := *cfg
+	c.Database.Postgres.PollInterval = poll
+	a, err := NewApp(t.Context(), &c, &config.OutputsConfig{Outputs: map[string]map[string]any{}},
+		metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), cat, slog.Default())
+	require.NoError(t, err)
+	r.app = a
+	appCtx, cancel := context.WithCancel(context.Background())
+	workers, stopWorkers := context.WithCancel(context.Background())
+	a.pipe.Start(workers, stopWorkers)
+	a.reloader.BindWorkerContext(workers, time.Second)
+	require.NoError(t, a.startReplicaSync(appCtx, &c.Database))
+	t.Cleanup(func() {
+		cancel()
+		a.shutdown()
+	})
+	return r
+}
+
+// Writes on one instance reach the others, by notification or, when none is sent, by the poll; a
+// stale write is refused; a change one instance cannot build keeps its previous output until it can.
+func TestReplicasApplyEveryKindOfChange(t *testing.T) {
+	cfg := postgresTestDatabase(t)
+	settings, err := database.PostgresSettings(&cfg.Database.Postgres)
+	require.NoError(t, err)
+	admin := stdlib.OpenDB(*settings)
+	t.Cleanup(func() { _ = admin.Close() })
+
+	writer := startReplica(t, cfg, time.Hour, "")
+	notified := startReplica(t, cfg, time.Hour, "http://bad")
+	polled := startReplica(t, cfg, 300*time.Millisecond, "")
+	require.Eventually(t, func() bool {
+		var listeners int
+		err := admin.QueryRowContext(t.Context(),
+			"SELECT count(*) FROM pg_stat_activity WHERE query LIKE 'LISTEN %' AND datname = current_database()").Scan(&listeners)
+		return err == nil && listeners == 3
+	}, 5*time.Second, 20*time.Millisecond)
+	last := func(r *replicaInstance) string {
+		b := r.built()
+		if len(b) == 0 {
+			return ""
+		}
+		return b[len(b)-1]
+	}
+	waitFor := func(r *replicaInstance, address, why string) {
+		t.Helper()
+		require.Eventually(t, func() bool { return last(r) == address }, 5*time.Second, 20*time.Millisecond, why)
+	}
+
+	v1, err := writer.reloader.ApplyOutput(t.Context(), "webhook", 0, map[string]any{"address": "http://one"})
+	require.NoError(t, err)
+	waitFor(notified, "http://one", "create by notification")
+	v2, err := writer.reloader.ApplyOutput(t.Context(), "webhook", v1, map[string]any{"address": "http://two"})
+	require.NoError(t, err)
+	waitFor(notified, "http://two", "update by notification")
+	waitFor(polled, "http://two", "update reaches the polling instance too")
+
+	_, err = notified.reloader.ApplyOutput(t.Context(), "webhook", v1, map[string]any{"address": "http://stale"})
+	require.ErrorIs(t, err, core.ErrVersionConflict, "a write based on a version another instance replaced")
+
+	_, err = writer.reloader.ApplyOutput(t.Context(), "webhook", v2, map[string]any{"address": "http://bad"})
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return notified.status("webhook").Status == pipeline.HealthDegraded }, 5*time.Second, 20*time.Millisecond,
+		"a change this instance cannot build keeps the previous output")
+	assert.Equal(t, "http://two", last(notified))
+	entry, err := writer.db.GetOutputConfig(t.Context(), "webhook")
+	require.NoError(t, err)
+	_, err = writer.reloader.ApplyOutput(t.Context(), "webhook", entry.Version, map[string]any{"address": "http://three"})
+	require.NoError(t, err)
+	waitFor(notified, "http://three", "the next change applies")
+	assert.Empty(t, notified.status("webhook").LastWarning)
+
+	// Changes that send no notification: only the poll sees them.
+	_, err = admin.ExecContext(t.Context(),
+		"UPDATE falcosidekick_outputs SET config = '{\"address\":\"http://silent\"}', version = nextval('falcosidekick_version') WHERE name = 'webhook'")
+	require.NoError(t, err)
+	_, err = admin.ExecContext(t.Context(),
+		"INSERT INTO falcosidekick_outputs (name, config, version, provisioned, updated_at) "+
+			"VALUES ('webhook2', '{}', nextval('falcosidekick_version'), false, 0)")
+	require.NoError(t, err)
+	waitFor(polled, "http://silent", "a silent update is polled")
+	// webhook2 is no output type, so the instance that sees it reports it failed.
+	require.Eventually(t, func() bool { return polled.status("webhook2").Status == pipeline.HealthFailed }, 5*time.Second, 20*time.Millisecond,
+		"a silent create is polled")
+	assert.Equal(t, "http://three", last(notified), "an instance polling hourly misses them")
+	assert.Empty(t, notified.status("webhook2").Status)
+}
+
+// Without output files, SIGHUP still rereads the secret files of API outputs and rebuilds those that changed.
+func TestSIGHUPRotatesTheSecretOfAnAPIOutputWithoutOutputFiles(t *testing.T) {
+	secret := filepath.Join(t.TempDir(), "token")
+	require.NoError(t, os.WriteFile(secret, []byte("first"), 0o600))
+	var (
+		mu    sync.Mutex
+		built []string
+	)
+	cat, err := catalog.New([]output.Type{{
+		Name:   "webhook",
+		Schema: output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
+		New: func(raw map[string]any, _ output.Deps) (output.Driver, error) {
+			mu.Lock()
+			built = append(built, fmt.Sprint(raw["token"]))
+			mu.Unlock()
+			return &testutil.MockDriver{DriverName: "webhook"}, nil
+		},
+	}})
+	require.NoError(t, err)
+	cfg := loadDefaultConfigForCmdTest(t)
+	a, err := NewApp(t.Context(), cfg, &config.OutputsConfig{Outputs: map[string]map[string]any{}},
+		metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), cat, slog.Default())
+	require.NoError(t, err)
+	appCtx, cancel := context.WithCancel(context.Background())
+	workers, stopWorkers := context.WithCancel(context.Background())
+	a.pipe.Start(workers, stopWorkers)
+	a.startReloadWatchers(appCtx, workers, nil, cfg.Reload)
+	t.Cleanup(func() {
+		cancel()
+		a.shutdown()
+	})
+	_, err = a.reloader.ApplyOutput(t.Context(), "webhook", 0, map[string]any{"token_file": secret})
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(secret, []byte("rotated"), 0o600))
+	require.NoError(t, syscall.Kill(os.Getpid(), syscall.SIGHUP))
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Equal(built, []string{"first", "rotated"})
+	}, 5*time.Second, 20*time.Millisecond)
 }
