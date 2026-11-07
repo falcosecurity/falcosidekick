@@ -18,6 +18,7 @@ package api
 
 import (
 	"errors"
+	"maps"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -66,7 +67,7 @@ func normalizeSchemaKeys(cfg map[string]any, fields []output.SchemaField) error 
 	for i := range fields {
 		field := &fields[i]
 		parts := strings.Split(field.Name, ".")
-		if err := normalizeSchemaPath(cfg, parts, field.EntryFields); err != nil {
+		if err := normalizeSchemaPath(cfg, parts, field); err != nil {
 			return err
 		}
 		if field.HasFileVariant() {
@@ -79,7 +80,9 @@ func normalizeSchemaKeys(cfg map[string]any, fields []output.SchemaField) error 
 	return nil
 }
 
-func normalizeSchemaPath(cfg map[string]any, parts []string, entryFields []output.SchemaField) error {
+// normalizeSchemaPath gives the field at parts the schema key spelling and turns a map field
+// written as a list into the object the output decoder makes of it.
+func normalizeSchemaPath(cfg map[string]any, parts []string, field *output.SchemaField) error {
 	var matched string
 	var found bool
 	for key := range cfg {
@@ -95,22 +98,50 @@ func normalizeSchemaPath(cfg map[string]any, parts []string, entryFields []outpu
 	}
 	value := cfg[matched]
 	delete(cfg, matched)
+	if list, isList := value.([]any); isList && len(parts) == 1 && field.IsMap() {
+		if object, ok := mapFromList(list); ok {
+			value = object
+		}
+	}
 	cfg[parts[0]] = value
 	child, ok := value.(map[string]any)
 	if !ok {
 		return nil
 	}
 	if len(parts) > 1 {
-		return normalizeSchemaPath(child, parts[1:], entryFields)
+		return normalizeSchemaPath(child, parts[1:], field)
 	}
-	if len(entryFields) > 0 {
+	if field != nil && len(field.EntryFields) > 0 {
 		for _, entry := range child {
 			if object, ok := entry.(map[string]any); ok {
-				if err := normalizeSchemaKeys(object, entryFields); err != nil {
+				if err := normalizeSchemaKeys(object, field.EntryFields); err != nil {
 					return err
 				}
 			}
 		}
 	}
 	return nil
+}
+
+// mapFromList merges a list into one object as the output decoder does with a list given for a
+// map: elements in order, later keys win, nested lists flattened, nil elements skipped. ok is false
+// for any other element, which the decoder rejects.
+func mapFromList(list []any) (object map[string]any, ok bool) {
+	object = make(map[string]any)
+	for _, item := range list {
+		switch item := item.(type) {
+		case nil:
+		case map[string]any:
+			maps.Copy(object, item)
+		case []any:
+			nested, ok := mapFromList(item)
+			if !ok {
+				return nil, false
+			}
+			maps.Copy(object, nested)
+		default:
+			return nil, false
+		}
+	}
+	return object, true
 }
