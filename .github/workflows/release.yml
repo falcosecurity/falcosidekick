@@ -14,9 +14,14 @@ jobs:
     permissions:
       contents: read
 
+  e2e:
+    uses: ./.github/workflows/e2e.yml
+    permissions:
+      contents: read
+
   release:
     name: goreleaser release
-    needs: [checks]
+    needs: [checks, e2e]
     if: github.repository == 'falcosecurity/falcosidekick' && startsWith(github.ref, 'refs/tags/v3.')
     concurrency: publish
     runs-on: ubuntu-latest
