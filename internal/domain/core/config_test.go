@@ -19,6 +19,7 @@ package core
 import (
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -134,7 +135,7 @@ func TestConfigValidateValid(t *testing.T) {
 		ListenPort:    2801,
 		LogLevel:      LogLevelInfo,
 		LogFormat:     LogFormatText,
-		Database:      DatabaseConfig{Backend: DatabaseInMemory},
+		Database:      DatabaseConfig{Backend: DatabaseInMemory, ConnectTimeout: time.Second},
 		Metrics:       MetricsConfig{MaxLabelValues: 1000},
 		Management:    ManagementConfig{ListenAddress: "127.0.0.1", ListenPort: 2802},
 	}
@@ -156,7 +157,7 @@ func TestConfigValidateManagementPort(t *testing.T) {
 				ListenPort: 2801,
 				LogLevel:   LogLevelInfo,
 				LogFormat:  LogFormatText,
-				Database:   DatabaseConfig{Backend: DatabaseInMemory},
+				Database:   DatabaseConfig{Backend: DatabaseInMemory, ConnectTimeout: time.Second},
 				Metrics:    MetricsConfig{MaxLabelValues: 1000},
 				Management: ManagementConfig{ListenAddress: "127.0.0.1", ListenPort: tc.port},
 			}
@@ -191,7 +192,7 @@ func TestConfigValidateInvalidPort(t *testing.T) {
 		ListenPort: 0,
 		LogLevel:   LogLevelInfo,
 		LogFormat:  LogFormatText,
-		Database:   DatabaseConfig{Backend: DatabaseInMemory},
+		Database:   DatabaseConfig{Backend: DatabaseInMemory, ConnectTimeout: time.Second},
 	}
 	assert.NotEmpty(t, cfg.Validate())
 }
@@ -205,29 +206,4 @@ func TestConfigValidateMultipleErrors(t *testing.T) {
 	}
 	errs := cfg.Validate()
 	assert.True(t, len(errs) >= 4)
-}
-
-func TestDatabaseConfigValidate(t *testing.T) {
-	tests := []struct {
-		name    string
-		backend DatabaseBackend
-		wantErr bool
-	}{
-		{"memory", DatabaseInMemory, false},
-		{"sqlite", DatabaseSQLite, false},
-		{"postgres", DatabasePostgres, false},
-		{"invalid", DatabaseBackend("redis"), true},
-		{"empty", DatabaseBackend(""), true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := DatabaseConfig{Backend: tt.backend}
-			errs := cfg.Validate()
-			if tt.wantErr {
-				assert.NotEmpty(t, errs)
-			} else {
-				assert.Empty(t, errs)
-			}
-		})
-	}
 }

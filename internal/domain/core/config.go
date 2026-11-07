@@ -32,13 +32,13 @@ type Config struct {
 	LogLevel      LogLevel           `json:"log_level" mapstructure:"log_level"`
 	ListenAddress string             `json:"listen_address" mapstructure:"listen_address"`
 	Management    ManagementConfig   `json:"management" mapstructure:"management"`
-	Database      DatabaseConfig     `json:"database" mapstructure:"database"`
 	UI            UIConfig           `json:"ui" mapstructure:"ui"`
 	API           APIConfig          `json:"api" mapstructure:"api"`
 	Metrics       MetricsConfig      `json:"metrics" mapstructure:"metrics"`
+	Database      DatabaseConfig     `json:"database" mapstructure:"database"`
 	Reload        ReloadConfig       `json:"reload" mapstructure:"reload"`
-	Provisioning  ProvisioningConfig `json:"provisioning" mapstructure:"provisioning"`
 	ListenPort    int                `json:"listen_port" mapstructure:"listen_port"`
+	Provisioning  ProvisioningConfig `json:"provisioning" mapstructure:"provisioning"`
 }
 
 // MetricsConfig controls the Prometheus metrics on /metrics.
@@ -262,16 +262,106 @@ var ValidDatabaseBackends = map[DatabaseBackend]bool{
 // Persistent reports whether the backend keeps what it stores across restarts.
 func (b DatabaseBackend) Persistent() bool { return b == DatabaseSQLite || b == DatabasePostgres }
 
-// DatabaseConfig holds database backend selection.
+// DatabaseConfig selects where outputs and the UI layout are stored.
 type DatabaseConfig struct {
-	Backend DatabaseBackend `json:"backend" mapstructure:"backend"`
+	Backend  DatabaseBackend `json:"backend" mapstructure:"backend"`
+	SQLite   SQLiteConfig    `json:"sqlite" mapstructure:"sqlite"`
+	Postgres PostgresConfig  `json:"postgres" mapstructure:"postgres"`
+	// ConnectTimeout bounds opening the database and applying its migrations at startup.
+	ConnectTimeout time.Duration `json:"connect_timeout" mapstructure:"connect_timeout"`
 }
 
-// Validate checks the database settings for correctness.
+// SQLiteConfig holds the sqlite database file, for one Sidekick instance.
+type SQLiteConfig struct {
+	Path string `json:"path" mapstructure:"path"`
+}
+
+// PostgresSSLMode is the libpq sslmode of the postgres connection.
+type PostgresSSLMode string
+
+// Supported postgres sslmodes.
+const (
+	PostgresSSLDisable    PostgresSSLMode = "disable"
+	PostgresSSLRequire    PostgresSSLMode = "require"
+	PostgresSSLVerifyCA   PostgresSSLMode = "verify-ca"
+	PostgresSSLVerifyFull PostgresSSLMode = "verify-full"
+)
+
+// PostgresConfig holds the postgres connection that several Sidekick instances can share.
+type PostgresConfig struct {
+	Host     string `json:"host" mapstructure:"host"`
+	Database string `json:"database" mapstructure:"database"`
+	User     string `json:"user" mapstructure:"user"`
+	// Password is masked by GET /api/v1/config; PasswordFile reads it from a file instead.
+	Password     string          `json:"password,omitempty" mapstructure:"password"`
+	PasswordFile string          `json:"password_file,omitempty" mapstructure:"password_file"`
+	SSLMode      PostgresSSLMode `json:"sslmode" mapstructure:"sslmode"`
+	TLS          PostgresTLS     `json:"tls" mapstructure:"tls"`
+	Port         int             `json:"port" mapstructure:"port"`
+	// MaxConnections caps the connections this instance opens.
+	MaxConnections int `json:"max_connections" mapstructure:"max_connections"`
+	// PollInterval is how often an instance checks the stored outputs for changes it was not notified of.
+	PollInterval time.Duration `json:"poll_interval" mapstructure:"poll_interval"`
+}
+
+// PostgresTLS holds the CA that verifies the postgres server with sslmode verify-ca or verify-full.
+type PostgresTLS struct {
+	CAFile string `json:"ca_file,omitempty" mapstructure:"ca_file"`
+}
+
+// Validate checks the settings of the selected backend; the others are ignored.
 func (c *DatabaseConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if !ValidDatabaseBackends[c.Backend] {
 		errs.Add("backend", "must be inmemory/sqlite/postgres")
+	}
+	if c.ConnectTimeout <= 0 {
+		errs.Add("connect_timeout", "must be > 0")
+	}
+	switch c.Backend {
+	case DatabaseInMemory:
+	case DatabaseSQLite:
+		if c.SQLite.Path == "" {
+			errs.Add("sqlite.path", "must be specified")
+		}
+	case DatabasePostgres:
+		errs.Merge("postgres", c.Postgres.Validate())
+	}
+	return errs
+}
+
+// Validate checks the postgres settings.
+func (c *PostgresConfig) Validate() utils.ValidationErrors {
+	var errs utils.ValidationErrors
+	if c.Host == "" {
+		errs.Add("host", "must be specified")
+	}
+	if c.Database == "" {
+		errs.Add("database", "must be specified")
+	}
+	if c.User == "" {
+		errs.Add("user", "must be specified")
+	}
+	if c.Port < 1 || c.Port > 65535 {
+		errs.Add("port", "must be 1-65535")
+	}
+	if c.Password != "" && c.PasswordFile != "" {
+		errs.Add("password", "set password or password_file, not both")
+	}
+	switch c.SSLMode {
+	case PostgresSSLVerifyCA, PostgresSSLVerifyFull:
+	case PostgresSSLDisable, PostgresSSLRequire:
+		if c.TLS.CAFile != "" {
+			errs.Add("tls.ca_file", "is used only with sslmode verify-ca or verify-full")
+		}
+	default:
+		errs.Add("sslmode", "must be disable/require/verify-ca/verify-full")
+	}
+	if c.MaxConnections < 1 {
+		errs.Add("max_connections", "must be >= 1")
+	}
+	if c.PollInterval <= 0 {
+		errs.Add("poll_interval", "must be > 0")
 	}
 	return errs
 }

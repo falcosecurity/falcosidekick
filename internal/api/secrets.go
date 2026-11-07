@@ -80,7 +80,11 @@ func maskCoreConfig(cfg *core.Config) *core.Config {
 	if cfg == nil {
 		return nil
 	}
-	return cfg.DeepCopy()
+	masked := cfg.DeepCopy()
+	if masked.Database.Postgres.Password != "" {
+		masked.Database.Postgres.Password = SecretMask
+	}
+	return masked
 }
 
 func containsSecretPlaceholder(cfg map[string]any, t output.Type) string {

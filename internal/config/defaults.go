@@ -36,6 +36,11 @@ func applyDefaults(v *viper.Viper) {
 	v.SetDefault("ui.event_source", "inmemory")
 
 	v.SetDefault("database.backend", "inmemory")
+	v.SetDefault("database.connect_timeout", 30*time.Second)
+	v.SetDefault("database.postgres.port", 5432)
+	v.SetDefault("database.postgres.sslmode", "verify-full")
+	v.SetDefault("database.postgres.max_connections", 4)
+	v.SetDefault("database.postgres.poll_interval", 10*time.Second)
 
 	v.SetDefault("runtime_defaults.queue_size", 1000)
 	v.SetDefault("runtime_defaults.workers", 2)
