@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -278,4 +279,11 @@ func TestOpenSQLiteTreatsSpecialNamesAsFiles(t *testing.T) {
 	}
 	_, err := os.Stat(filepath.Join(dir, "sidekick.db"))
 	assert.True(t, os.IsNotExist(err), "no database is opened under another name")
+}
+
+// A commit the server refused is a definite failure; a commit lost on the way may have been applied.
+func TestPostgresCommitOutcome(t *testing.T) {
+	assert.False(t, postgresDialect.commitUnknown(&pgconn.PgError{Code: "40001"}))
+	assert.True(t, postgresDialect.commitUnknown(errors.New("unexpected EOF")))
+	assert.Nil(t, sqliteDialect.commitUnknown, "a local file commit is never uncertain")
 }

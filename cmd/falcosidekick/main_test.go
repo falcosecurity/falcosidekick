@@ -19,6 +19,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"flag"
 	"fmt"
@@ -33,12 +34,14 @@ import (
 	"os/signal"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 	"testing/fstest"
 	"time"
 
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1021,4 +1024,92 @@ database:
 	t.Cleanup(func() { _ = db.Close() })
 	_, err = db.GetOutputConfigs(t.Context())
 	require.NoError(t, err)
+}
+
+// postgresTestDatabase creates an empty database on the test postgres and returns core settings for it.
+func postgresTestDatabase(t *testing.T) *config.Config {
+	t.Helper()
+	dsn := os.Getenv("FALCOSIDEKICK_E2E_POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("FALCOSIDEKICK_E2E_POSTGRES_DSN is not set")
+	}
+	server, err := url.Parse(dsn)
+	require.NoError(t, err)
+	name := fmt.Sprintf("fsk_%d", time.Now().UnixNano())
+	admin, err := sql.Open("pgx", dsn)
+	require.NoError(t, err)
+	_, err = admin.ExecContext(t.Context(), "CREATE DATABASE "+name)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = admin.ExecContext(context.Background(), "DROP DATABASE "+name+" WITH (FORCE)")
+		_ = admin.Close()
+	})
+	password, _ := server.User.Password()
+	port, err := strconv.Atoi(server.Port())
+	require.NoError(t, err)
+	cfg := loadDefaultConfigForCmdTest(t)
+	cfg.Database.Backend = core.DatabasePostgres
+	cfg.Database.Postgres = core.PostgresConfig{
+		Host: server.Hostname(), Port: port, Database: name, User: server.User.Username(), Password: password,
+		SSLMode: core.PostgresSSLDisable, MaxConnections: 4, PollInterval: 200 * time.Millisecond,
+	}
+	require.Empty(t, cfg.Validate())
+	return cfg
+}
+
+// Two instances on one postgres: a write on one reaches the other through the notification, and
+// through the poll when the notification is lost.
+func TestReplicasConvergeThroughNotificationsAndPolling(t *testing.T) {
+	cfg := postgresTestDatabase(t)
+	cat, err := catalog.New([]output.Type{{
+		Name:   "webhook",
+		Schema: output.Schema{Fields: []output.SchemaField{{Name: "address", Type: "string"}}},
+		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+			return &testutil.MockDriver{DriverName: "webhook"}, nil
+		},
+	}})
+	require.NoError(t, err)
+	start := func(poll time.Duration) *app {
+		c := *cfg
+		c.Database.Postgres.PollInterval = poll
+		a, err := NewApp(t.Context(), &c, &config.OutputsConfig{Outputs: map[string]map[string]any{}},
+			metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), cat, slog.Default())
+		require.NoError(t, err)
+		appCtx, cancel := context.WithCancel(context.Background())
+		workers, stopWorkers := context.WithCancel(context.Background())
+		a.pipe.Start(workers, stopWorkers)
+		a.reloader.BindWorkerContext(workers, time.Second)
+		require.NoError(t, a.startReplicaSync(appCtx, &c.Database))
+		t.Cleanup(func() {
+			cancel()
+			a.shutdown()
+		})
+		return a
+	}
+	running := func(a *app) []string { return a.pipe.Dispatcher().OutputNames() }
+	settings, err := database.PostgresSettings(&cfg.Database.Postgres)
+	require.NoError(t, err)
+	admin := stdlib.OpenDB(*settings)
+	t.Cleanup(func() { _ = admin.Close() })
+
+	writer := start(time.Hour)
+	reader := start(time.Hour)
+	polled := start(300 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		var listeners int
+		err := admin.QueryRowContext(t.Context(),
+			"SELECT count(*) FROM pg_stat_activity WHERE query LIKE 'LISTEN %' AND datname = current_database()").Scan(&listeners)
+		return err == nil && listeners == 3
+	}, 5*time.Second, 20*time.Millisecond, "every instance listens")
+
+	_, err = writer.reloader.ApplyOutput(t.Context(), "webhook", 0, map[string]any{"address": "http://a"})
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return slices.Equal(running(reader), []string{"webhook"}) }, 5*time.Second, 20*time.Millisecond,
+		"the notification reaches an instance that polls only hourly")
+
+	// A change that sends no notification: only the poll can see it.
+	_, err = admin.ExecContext(t.Context(), "DELETE FROM falcosidekick_outputs WHERE name = 'webhook'")
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return len(running(polled)) == 0 }, 5*time.Second, 50*time.Millisecond, "the poll sees it")
+	assert.Equal(t, []string{"webhook"}, running(reader), "an instance that polls hourly does not")
 }

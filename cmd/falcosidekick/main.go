@@ -131,6 +131,11 @@ func run(parentCtx context.Context, configPath string, outputPaths []string) err
 
 	app.pipe.Start(workerRunCtx, stopWorkers)
 	app.startReloadWatchers(appCtx, workerRunCtx, outsCfg.Paths, cfg.Reload)
+	if err := app.startReplicaSync(appCtx, &cfg.Database); err != nil {
+		stop()
+		app.shutdown()
+		return fmt.Errorf("replica sync: %w", err)
+	}
 
 	serverErr := make(chan error, 1)
 	app.serve(serverErr)

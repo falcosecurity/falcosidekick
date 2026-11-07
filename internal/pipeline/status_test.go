@@ -355,3 +355,28 @@ func TestDispatcherReportsOutputsThatFailedToBuildUntilTheyAreAppliedOrRemoved(t
 	assert.Empty(t, failed())
 	assert.Len(t, d.CollectStatus(), 2)
 }
+
+func TestDispatcherReportsUpdateFailuresOnRunningAndStoppedOutputs(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	d := NewDispatcher([]*Output{NewOutput(&testutil.MockDriver{DriverName: "slack"}, defaultRuntimeDefaults(), nil)})
+	d.Start(ctx)
+	t.Cleanup(func() { _ = d.Shutdown(context.Background(), cancel) })
+
+	d.ReportUpdateFailure("slack", "version 7 not applied: invalid host")
+	d.ReportUpdateFailure("loki", "version 3 not applied: invalid host")
+	byName := map[string]OutputStatus{}
+	for _, s := range d.CollectStatus() {
+		byName[s.Name] = s
+	}
+	assert.Equal(t, HealthDegraded, byName["slack"].Status, "the previous output keeps running")
+	assert.Equal(t, "version 7 not applied: invalid host", byName["slack"].LastWarning)
+	assert.Equal(t, HealthFailed, byName["loki"].Status)
+
+	require.NoError(t, d.ReplaceOutput(ctx, ctx, "slack", NewOutput(&testutil.MockDriver{DriverName: "slack"}, defaultRuntimeDefaults(), nil)))
+	for _, s := range d.CollectStatus() {
+		if s.Name == "slack" {
+			assert.Empty(t, s.LastWarning, "the replacement clears it")
+		}
+	}
+}
