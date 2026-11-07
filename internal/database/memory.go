@@ -19,6 +19,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -74,6 +75,10 @@ func (s *Memory) Provision(_ context.Context, req *core.ProvisionRequest) error 
 	}
 
 	for name, cfg := range req.Outputs {
+		// An unchanged output keeps its version, so a client editing it is not refused for nothing.
+		if existing := s.outputs[name]; existing != nil && existing.Provisioned && reflect.DeepEqual(existing.Config, cfg) {
+			continue
+		}
 		s.lastOutputVersion++
 		s.outputs[name] = &core.OutputConfigEntry{
 			Name:        name,
