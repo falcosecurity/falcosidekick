@@ -23,6 +23,7 @@ import (
 	"log/slog"
 	"maps"
 	"reflect"
+	"slices"
 	"sync"
 	"time"
 
@@ -49,10 +50,13 @@ type ReloaderConfig struct {
 	// FileOutputs are the same outputs as written in the files, as they were provisioned.
 	FileOutputs map[string]map[string]any
 	// APIOutputs are the stored API outputs running at startup, built from resolved secret files.
-	APIOutputs      map[string]map[string]any
-	OutputPaths     []string
-	RuntimeDefaults output.RuntimeConfig
-	Provisioning    core.ProvisioningConfig
+	APIOutputs map[string]map[string]any
+	// APIVersions are the stored versions of APIOutputs; FailedAPIVersions those that did not build at startup.
+	APIVersions       map[string]int64
+	FailedAPIVersions map[string]int64
+	OutputPaths       []string
+	RuntimeDefaults   output.RuntimeConfig
+	Provisioning      core.ProvisioningConfig
 	// RejectInlineSecrets fails a reload whose files write a secret inline, for a persistent database.
 	RejectInlineSecrets bool
 }
@@ -81,7 +85,11 @@ type Reloader struct {
 	fileState map[string]map[string]any
 	fileRaw   map[string]map[string]any
 	// apiState holds the running API outputs with resolved secrets, to see a rotated secret file.
-	apiState        map[string]map[string]any
+	apiState map[string]map[string]any
+	// apiVersions holds the stored version each running API output was built from, apiFailed the
+	// version of each API output change that did not build here.
+	apiVersions     map[string]int64
+	apiFailed       map[string]int64
 	logger          *slog.Logger
 	workerRunCtx    context.Context
 	outputPaths     []string
@@ -108,9 +116,17 @@ func NewReloader(cfg *ReloaderConfig) *Reloader {
 		fileState:       copyConfigs(cfg.InitialOutputs),
 		fileRaw:         copyConfigs(cfg.FileOutputs),
 		apiState:        copyConfigs(cfg.APIOutputs),
+		apiVersions:     copyVersions(cfg.APIVersions),
+		apiFailed:       copyVersions(cfg.FailedAPIVersions),
 		rejectInline:    cfg.RejectInlineSecrets,
 		logger:          cfg.Logger,
 	}
+}
+
+func copyVersions(versions map[string]int64) map[string]int64 {
+	result := make(map[string]int64, len(versions))
+	maps.Copy(result, versions)
+	return result
 }
 
 func copyConfigs(configs map[string]map[string]any) map[string]map[string]any {
@@ -204,6 +220,8 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 
 	if _, fromFile := r.fileState[name]; !fromFile {
 		r.apiState[name] = resolved
+		r.apiVersions[name] = newVersion
+		delete(r.apiFailed, name)
 	}
 	r.recordUI(start, retireWarning)
 	return newVersion, nil
@@ -245,7 +263,7 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 
 	// The next file reload then sees the name as added and restores a file-provisioned output.
 	delete(r.fileState, name)
-	delete(r.apiState, name)
+	r.forgetAPIOutput(name)
 
 	r.recordUI(start, retireWarning)
 	return nil
@@ -348,7 +366,7 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 		r.apiState[name] = rotated[name]
 	}
 	for name := range resolved {
-		delete(r.apiState, name)
+		r.forgetAPIOutput(name)
 	}
 	duration := time.Since(start)
 
@@ -375,6 +393,101 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	return nil
 }
 
+func (r *Reloader) forgetAPIOutput(name string) {
+	delete(r.apiState, name)
+	delete(r.apiVersions, name)
+	delete(r.apiFailed, name)
+}
+
+// Reconcile applies the API outputs other instances changed in the database: it starts, replaces or
+// stops them without writing back. A change that does not build here leaves the previous output
+// running, reported with the version it could not apply, and is tried again at the next reconcile.
+// Outputs from files, and names the files define, are left to file reloads.
+func (r *Reloader) Reconcile(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.closed {
+		return ErrReloaderClosed
+	}
+	if !r.bound {
+		return ErrReloaderNotBound
+	}
+	if r.database == nil {
+		return nil
+	}
+	entries, err := r.database.GetOutputConfigs(ctx)
+	if err != nil {
+		return databaseError(err)
+	}
+
+	resolved := make(map[string]map[string]any)
+	versions := make(map[string]int64)
+	failures := make(map[string]error)
+	for name, entry := range entries {
+		if _, fromFile := r.fileState[name]; fromFile || entry.Provisioned || r.apiVersions[name] == entry.Version {
+			continue
+		}
+		versions[name] = entry.Version
+		outputType, ok := r.catalog.Get(name)
+		if !ok {
+			failures[name] = fmt.Errorf("%w: %q", ErrUnknownOutputType, name)
+			continue
+		}
+		cfg := utils.DeepCopyMap(entry.Config)
+		if err := config.ResolveSecrets(name, cfg, outputType.Schema); err != nil {
+			failures[name] = err
+			continue
+		}
+		resolved[name] = cfg
+	}
+	var removed []string
+	for _, known := range []map[string]int64{r.apiVersions, r.apiFailed} {
+		for name := range known {
+			// A row the files of another instance took over keeps running here until this instance's own files say so.
+			if _, stored := entries[name]; !stored && !slices.Contains(removed, name) {
+				removed = append(removed, name)
+			}
+		}
+	}
+	if len(resolved) == 0 && len(failures) == 0 && len(removed) == 0 {
+		return nil
+	}
+
+	built, buildFailures := pipeline.BuildEach(ctx, r.catalog, resolved, r.runtimeDefaults, r.deps)
+	maps.Copy(failures, buildFailures)
+	if len(built) > 0 || len(removed) > 0 {
+		retireCtx, cancel := context.WithTimeout(ctx, r.retireTimeout)
+		defer cancel()
+		if err := r.dispatcher.Apply(retireCtx, r.workerRunCtx, built, removed); err != nil {
+			if errors.Is(err, pipeline.ErrDispatcherStopped) {
+				closeOutputs(built)
+				return err
+			}
+			r.logger.Warn("reconcile: retire timeout, replacements active", "error", err)
+		}
+	}
+	for name := range built {
+		r.apiState[name] = resolved[name]
+		r.apiVersions[name] = versions[name]
+		delete(r.apiFailed, name)
+	}
+	for _, name := range removed {
+		r.forgetAPIOutput(name)
+	}
+	for name, failure := range failures {
+		r.dispatcher.ReportUpdateFailure(name, fmt.Sprintf("version %d not applied: %v", versions[name], failure))
+		if r.apiFailed[name] != versions[name] {
+			r.logger.Warn("reconcile: stored output change not applied here", "output", name, "version", versions[name], "error", failure)
+		}
+		r.apiFailed[name] = versions[name]
+	}
+	if len(built) > 0 || len(removed) > 0 {
+		r.logger.Info("reconcile: applied changes from the database", "applied", len(built), "removed", len(removed))
+	}
+	return nil
+}
+
 // rotatedAPIOutputs returns the running API outputs, not shadowed by a file output, whose secret files
 // now read differently, resolved again from their stored config.
 func (r *Reloader) rotatedAPIOutputs(ctx context.Context, fileOutputs map[string]map[string]any) (map[string]map[string]any, error) {
@@ -388,7 +501,8 @@ func (r *Reloader) rotatedAPIOutputs(ctx context.Context, fileOutputs map[string
 	rotated := make(map[string]map[string]any)
 	for name, running := range r.apiState {
 		entry, stored := entries[name]
-		if _, fromFile := fileOutputs[name]; fromFile || !stored {
+		// A new version is applied by Reconcile, which records it; here only the secret files changed.
+		if _, fromFile := fileOutputs[name]; fromFile || !stored || entry.Version != r.apiVersions[name] {
 			continue
 		}
 		outputType, ok := r.catalog.Get(name)

@@ -22,8 +22,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -1536,4 +1538,139 @@ func TestReloaderRebuildsAPIOutputsWhoseSecretFileChanged(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, version, stored.Version)
 	assert.Equal(t, map[string]any{"token_file": secret}, stored.Config)
+}
+
+// Another instance writes the shared database; Reconcile starts, replaces and stops the API outputs
+// here without writing back, keeps a running output when a change does not build, and recovers.
+func TestReloaderReconcileAppliesChangesFromOtherInstances(t *testing.T) {
+	dir := t.TempDir()
+	secret := filepath.Join(dir, "token")
+	var builds []string
+	typ := stubOutputType("slack", nil)
+	typ.Schema.Fields = []output.SchemaField{{Name: "token", Type: "string", Secret: true}}
+	typ.New = func(cfg map[string]any, _ output.Deps) (output.Driver, error) {
+		builds = append(builds, fmt.Sprint(cfg["token"]))
+		return &testutil.MockDriver{DriverName: "slack"}, nil
+	}
+	cat, err := catalog.New([]output.Type{typ, stubOutputType("loki", nil)})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		Catalog: cat, Dispatcher: env.d, Database: db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+		InitialOutputs: map[string]map[string]any{"loki": {}}, FileOutputs: map[string]map[string]any{"loki": {}},
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+	ctx := t.Context()
+	status := func(name string) pipeline.OutputStatus {
+		for _, s := range env.d.CollectStatus() {
+			if s.Name == name {
+				return s
+			}
+		}
+		return pipeline.OutputStatus{}
+	}
+
+	other, err := db.SaveOutputConfig(ctx, "slack", 0, map[string]any{"token": "one"})
+	require.NoError(t, err)
+	_, err = db.SaveOutputConfig(ctx, "loki", 0, map[string]any{"from": "another instance"})
+	require.NoError(t, err)
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Equal(t, []string{"slack"}, env.d.OutputNames(), "loki is defined by the files here")
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Equal(t, []string{"one"}, builds, "an applied version is not built again")
+
+	other, err = db.SaveOutputConfig(ctx, "slack", other, map[string]any{"token_file": secret})
+	require.NoError(t, err)
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Equal(t, []string{"one"}, builds, "the secret file is missing here")
+	assert.Equal(t, pipeline.HealthDegraded, status("slack").Status, "the previous output keeps running")
+	assert.Contains(t, status("slack").LastWarning, fmt.Sprintf("version %d not applied", other))
+	assert.NotContains(t, status("slack").LastWarning, secret)
+
+	require.NoError(t, os.WriteFile(secret, []byte("two"), 0o600))
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Equal(t, []string{"one", "two"}, builds, "tried again and applied")
+	assert.Empty(t, status("slack").LastWarning)
+
+	mine, err := r.ApplyOutput(ctx, "slack", other, map[string]any{"token": "three"})
+	require.NoError(t, err)
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Equal(t, []string{"one", "two", "three"}, builds, "a local write is not applied twice")
+
+	require.NoError(t, db.DeleteOutputConfig(ctx, "slack", mine))
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Empty(t, env.d.OutputNames(), "deleted by another instance")
+	stored, err := db.GetOutputConfigs(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"loki"}, slices.Collect(maps.Keys(stored)), "reconcile never writes")
+
+	_, err = db.SaveOutputConfig(ctx, "unknown", 0, map[string]any{})
+	require.NoError(t, err)
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Equal(t, pipeline.HealthFailed, status("unknown").Status)
+	entry, err := db.GetOutputConfig(ctx, "unknown")
+	require.NoError(t, err)
+	require.NoError(t, db.DeleteOutputConfig(ctx, "unknown", entry.Version))
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Empty(t, env.d.CollectStatus(), "a failed output deleted meanwhile is no longer reported")
+
+	r.Close()
+	require.ErrorIs(t, r.Reconcile(ctx), ErrReloaderClosed)
+}
+
+// Another instance's files take over a name: this instance keeps running its output until its own
+// files say so, instead of dropping the events meanwhile.
+func TestReloaderReconcileKeepsAnOutputAnotherInstanceProvisioned(t *testing.T) {
+	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		Catalog: cat, Dispatcher: env.d, Database: db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+	ctx := t.Context()
+	_, err = db.SaveOutputConfig(ctx, "slack", 0, map[string]any{"secret_endpoint": "api"})
+	require.NoError(t, err)
+	require.NoError(t, r.Reconcile(ctx))
+
+	require.NoError(t, db.Provision(ctx, &core.ProvisionRequest{Outputs: map[string]map[string]any{"slack": {"secret_endpoint": "file"}}}))
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Equal(t, []string{"slack"}, env.d.OutputNames())
+}
+
+// A file reload that runs before the reconcile of a remote change does not apply that change: the
+// reconcile applies it once and records its version.
+func TestReloaderReloadLeavesRemoteVersionsToReconcile(t *testing.T) {
+	var builds []string
+	typ := stubOutputType("slack", nil)
+	typ.New = func(cfg map[string]any, _ output.Deps) (output.Driver, error) {
+		builds = append(builds, fmt.Sprint(cfg["secret_endpoint"]))
+		return &testutil.MockDriver{DriverName: "slack"}, nil
+	}
+	cat, err := catalog.New([]output.Type{typ})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		Catalog: cat, Dispatcher: env.d, Database: db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+	ctx := t.Context()
+	version, err := r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "one"})
+	require.NoError(t, err)
+	_, err = db.SaveOutputConfig(ctx, "slack", version, map[string]any{"secret_endpoint": "two"})
+	require.NoError(t, err)
+
+	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, r.Reconcile(ctx))
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Equal(t, []string{"one", "two"}, builds)
 }

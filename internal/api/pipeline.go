@@ -342,6 +342,11 @@ func (s *Server) writeMutationError(c fiber.Ctx, name, verb string, err error) e
 		return writeVersionConflict(c, name)
 	case errors.Is(err, pipeline.ErrInvalidOutputConfig):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": verb + " output: " + err.Error()})
+	case errors.Is(err, core.ErrOutcomeUnknown):
+		s.logger.Error("database write unconfirmed", "subject", name, "error", err)
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "database unavailable: the change may have been applied; read the output again",
+		})
 	case errors.Is(err, reload.ErrDatabaseUnavailable):
 		return s.databaseUnavailable(c, name, err)
 	default:

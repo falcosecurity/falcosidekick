@@ -80,6 +80,8 @@ func deriveStatusToken(circuit, lastError, lastWarning string, sentTotal int) He
 
 // Output is the runtime delivery unit for one output destination.
 type Output struct {
+	// updateWarning names a stored change this output could not be replaced with; a replacement clears it.
+	updateWarning  atomic.Value
 	driverWarning  atomic.Value
 	healthWarning  atomic.Value
 	batchSender    output.BatchSender
@@ -209,6 +211,7 @@ func NewOutput(driver output.Driver, cfg *output.RuntimeConfig, metrics core.Met
 		o.batchSender = bs
 	}
 	o.outcome.Store(&outcome{})
+	o.updateWarning.Store("")
 	o.driverWarning.Store("")
 	o.healthWarning.Store("")
 	if reporter, ok := driver.(output.WarningReporter); ok {
@@ -355,6 +358,9 @@ func (o *Output) SetHealthWarning(warning string) {
 }
 
 func (o *Output) lastWarning() string {
+	if warning := o.updateWarning.Load().(string); warning != "" {
+		return warning
+	}
 	if warning := o.driverWarning.Load().(string); warning != "" {
 		return warning
 	}

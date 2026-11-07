@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -1332,4 +1333,12 @@ func TestHandlePipelineOutputPut_PersistentDatabaseRefusesInlineSecrets(t *testi
 			}
 		})
 	}
+}
+
+// A write the database did not confirm is reported as possibly applied, never as not changed.
+func TestHandlePipelineOutputPut_UnconfirmedWriteReturns503(t *testing.T) {
+	db := &databasetestutil.Mock{SaveOutputConfigErr: fmt.Errorf("commit: %w: connection reset", core.ErrOutcomeUnknown)}
+	srv := buildMutationTestServer(t, db)
+	raw := requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/slack", `{"version":0,"config":{"secret_endpoint":"x"}}`, http.StatusServiceUnavailable)
+	assert.Equal(t, "database unavailable: the change may have been applied; read the output again", responseError(t, raw))
 }

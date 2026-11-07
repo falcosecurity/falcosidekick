@@ -26,4 +26,6 @@ var (
 	ErrShuttingDown = errors.New("service is shutting down")
 	// ErrVersionConflict is returned by a conditional write when the stored version is not the expected one.
 	ErrVersionConflict = errors.New("stored version differs from the expected one")
+	// ErrOutcomeUnknown is returned by a write whose commit was sent but not answered: it may have been applied.
+	ErrOutcomeUnknown = errors.New("the database did not confirm the write, which may have been applied")
 )

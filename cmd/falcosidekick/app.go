@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/signal"
 	"slices"
+	"sync"
 	"syscall"
 	"time"
 
@@ -48,6 +49,8 @@ type app struct {
 	pipe     *pipeline.Pipeline
 	srv      *api.Server
 	reloader *reload.Reloader
+	// background holds the replica sync goroutines, which stop with the app context.
+	background sync.WaitGroup
 }
 
 // NewApp builds all application resources and closes them on failure.
@@ -153,6 +156,8 @@ func NewApp(
 		InitialOutputs:      resolved,
 		FileOutputs:         outsCfg.Outputs,
 		APIOutputs:          restored.resolved,
+		APIVersions:         restored.builtVersions(),
+		FailedAPIVersions:   restored.failedVersions(),
 		RejectInlineSecrets: persistent,
 	})
 
@@ -236,6 +241,56 @@ func (a *app) serve(errCh chan<- error) {
 	}()
 }
 
+// startReplicaSync keeps the API outputs of this instance in step with the shared postgres database:
+// a reconcile runs on each change notification, after each (re)connection of the listener, and every
+// poll_interval, since notifications can be lost. Other backends have a single instance.
+func (a *app) startReplicaSync(appCtx context.Context, cfg *core.DatabaseConfig) error {
+	if cfg.Backend != core.DatabasePostgres {
+		return nil
+	}
+	settings, err := database.PostgresSettings(&cfg.Postgres)
+	if err != nil {
+		return err
+	}
+	settings.ConnectTimeout = cfg.ConnectTimeout
+	pending := make(chan struct{}, 1)
+	request := func() {
+		select {
+		case pending <- struct{}{}:
+		default:
+		}
+	}
+	a.background.Go(func() { database.ListenOutputChanges(appCtx, settings, request, slog.Default()) })
+	a.background.Go(func() {
+		ticker := time.NewTicker(cfg.Postgres.PollInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-appCtx.Done():
+				return
+			case <-ticker.C:
+				request()
+			}
+		}
+	})
+	a.background.Go(func() {
+		for {
+			select {
+			case <-appCtx.Done():
+				return
+			case <-pending:
+				if appCtx.Err() != nil {
+					return
+				}
+				if err := a.reloader.Reconcile(appCtx); err != nil && !errors.Is(err, reload.ErrReloaderClosed) {
+					slog.Warn("reconcile with the database failed; retrying at the next change or poll", "error", err)
+				}
+			}
+		}
+	})
+	return nil
+}
+
 func (a *app) shutdown() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -252,6 +307,7 @@ func (a *app) shutdown() {
 		slog.Warn("pipeline shutdown: deadline exceeded, deferred cleanup may continue asynchronously", "error", err)
 	}
 
+	a.background.Wait()
 	if err := a.db.Close(); err != nil {
 		slog.Error("database close", "error", err)
 	}
@@ -316,7 +372,25 @@ type restoredOutputs struct {
 	// resolved holds the configs of the outputs that built, with secret files read.
 	resolved map[string]map[string]any
 	failures map[string]error
+	// versions holds the stored version of every restored output, built or failed.
+	versions map[string]int64
 	outputs  []*pipeline.Output
+}
+
+func (r *restoredOutputs) builtVersions() map[string]int64 {
+	result := make(map[string]int64, len(r.resolved))
+	for name := range r.resolved {
+		result[name] = r.versions[name]
+	}
+	return result
+}
+
+func (r *restoredOutputs) failedVersions() map[string]int64 {
+	result := make(map[string]int64, len(r.failures))
+	for name := range r.failures {
+		result[name] = r.versions[name]
+	}
+	return result
 }
 
 // restoreFromDB rebuilds outputs stored in the database but absent from the output files.
@@ -335,10 +409,12 @@ func restoreFromDB(
 	}
 	resolved := make(map[string]map[string]any)
 	failures := make(map[string]error)
+	versions := make(map[string]int64)
 	for name, entry := range entries {
 		if _, inFiles := fileOutputs[name]; inFiles {
 			continue
 		}
+		versions[name] = entry.Version
 		outputType, ok := cat.Get(name)
 		if !ok {
 			failures[name] = fmt.Errorf("unknown output type %q", name)
@@ -354,7 +430,7 @@ func restoreFromDB(
 
 	built, buildFailures := pipeline.BuildEach(ctx, cat, resolved, cfg.RuntimeDefaults, output.Deps{Logger: slog.Default(), Metrics: mc})
 	maps.Copy(failures, buildFailures)
-	restored := &restoredOutputs{resolved: make(map[string]map[string]any, len(built)), failures: failures}
+	restored := &restoredOutputs{resolved: make(map[string]map[string]any, len(built)), failures: failures, versions: versions}
 	for _, name := range slices.Sorted(maps.Keys(built)) {
 		restored.outputs = append(restored.outputs, built[name])
 		restored.resolved[name] = resolved[name]

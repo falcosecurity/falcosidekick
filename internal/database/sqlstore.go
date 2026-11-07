@@ -31,8 +31,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 )
+
+// OutputsChannel is the postgres notification channel of output changes.
+const OutputsChannel = "falcosidekick_outputs"
 
 //go:embed migrations
 var migrations embed.FS
@@ -41,8 +46,10 @@ var migrations embed.FS
 type dialect struct {
 	// tx pins the isolation the writes rely on, whatever the server default is; nil for sqlite,
 	// where one connection serializes every transaction.
-	tx   *sql.TxOptions
-	name string
+	tx *sql.TxOptions
+	// commitUnknown reports a commit error after which the transaction may have been applied.
+	commitUnknown func(error) bool
+	name          string
 	// nextVersion returns the next store-wide version inside a write transaction.
 	nextVersion string
 	// lock serializes provisioning and migrations across instances inside a transaction; empty when
@@ -50,6 +57,8 @@ type dialect struct {
 	lock string
 	// jsonValue is the placeholder of a JSON column value.
 	jsonValue string
+	// notify is run inside each output write with the output name, so other instances learn about it.
+	notify string
 	// numbered rewrites ? placeholders as $1, $2, ...
 	numbered bool
 }
@@ -66,7 +75,12 @@ var (
 		lock:        "SELECT pg_advisory_xact_lock(4615402773652741201)",
 		jsonValue:   "CAST(? AS JSONB)",
 		tx:          &sql.TxOptions{Isolation: sql.LevelReadCommitted},
-		numbered:    true,
+		notify:      "SELECT pg_notify('" + OutputsChannel + "', ?)",
+		commitUnknown: func(err error) bool {
+			var pgErr *pgconn.PgError
+			return !errors.As(err, &pgErr)
+		},
+		numbered: true,
 	}
 )
 
@@ -150,7 +164,21 @@ func (s *SQL) inTx(ctx context.Context, fn func(*sql.Tx) error) error {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
+		if s.dialect.commitUnknown != nil && s.dialect.commitUnknown(err) {
+			return fmt.Errorf("database: commit: %w: %w", core.ErrOutcomeUnknown, err)
+		}
 		return fmt.Errorf("database: commit: %w", err)
+	}
+	return nil
+}
+
+// notifyChange tells the other instances, at commit, that the named output changed.
+func (s *SQL) notifyChange(ctx context.Context, tx *sql.Tx, name string) error {
+	if s.dialect.notify == "" {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, s.dialect.q(s.dialect.notify), name); err != nil {
+		return fmt.Errorf("database: notify: %w", err)
 	}
 	return nil
 }
@@ -317,7 +345,10 @@ func (s *SQL) SaveOutputConfig(ctx context.Context, name string, expected int64,
 				"ON CONFLICT (name) DO NOTHING"
 			args = []any{string(data), version, now, name, false}
 		}
-		return execOne(ctx, tx, s.dialect.q(query), args...)
+		if err := execOne(ctx, tx, s.dialect.q(query), args...); err != nil {
+			return err
+		}
+		return s.notifyChange(ctx, tx, name)
 	})
 	if err != nil {
 		return 0, err
@@ -338,7 +369,10 @@ func (s *SQL) DeleteOutputConfig(ctx context.Context, name string, expected int6
 		return nil
 	}
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		return execOne(ctx, tx, s.dialect.q("DELETE FROM falcosidekick_outputs WHERE name = ? AND version = ?"), name, expected)
+		if err := execOne(ctx, tx, s.dialect.q("DELETE FROM falcosidekick_outputs WHERE name = ? AND version = ?"), name, expected); err != nil {
+			return err
+		}
+		return s.notifyChange(ctx, tx, name)
 	})
 }
 
