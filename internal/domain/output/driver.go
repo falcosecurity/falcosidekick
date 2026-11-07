@@ -180,6 +180,9 @@ type SchemaField struct {
 // HasFileVariant reports whether the field also accepts <name>_file, the path of a file holding the value.
 func (f *SchemaField) HasFileVariant() bool { return f.Secret && f.Type == "string" }
 
+// IsMap reports whether the field holds an object keyed by names, such as headers.
+func (f *SchemaField) IsMap() bool { return f != nil && (f.Type == "map" || len(f.EntryFields) > 0) }
+
 // SearchQuery holds parameters for querying stored events.
 type SearchQuery struct {
 	SortBy   string  `json:"sort_by"`
