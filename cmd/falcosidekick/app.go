@@ -58,6 +58,12 @@ func NewApp(
 	cat *catalog.Catalog,
 	logger *slog.Logger,
 ) (_ *app, retErr error) {
+	// Outputs are built from resolved secret files; the database keeps the configs as written.
+	resolved, err := config.ResolvedOutputs(outsCfg.Outputs, cat)
+	if err != nil {
+		return nil, fmt.Errorf("secret resolution: %w", err)
+	}
+
 	db, err := createDatabase(cfg.Database)
 	if err != nil {
 		return nil, fmt.Errorf("database: %w", err)
@@ -82,7 +88,7 @@ func NewApp(
 		return nil, fmt.Errorf("enricher: %w", err)
 	}
 
-	outputs, err := createOutputs(ctx, cfg, outsCfg.Outputs, cat, collector)
+	outputs, err := createOutputs(ctx, cfg, resolved, cat, collector)
 	if err != nil {
 		return nil, fmt.Errorf("outputs: %w", err)
 	}
@@ -128,7 +134,7 @@ func NewApp(
 		Deps:            output.Deps{Logger: logger, Metrics: collector},
 		Registry:        collector.Registry(),
 		Logger:          logger,
-		InitialOutputs:  outsCfg.Outputs,
+		InitialOutputs:  resolved,
 	})
 
 	srv, err := api.NewServer(&api.ServerConfig{
@@ -295,7 +301,11 @@ func restoreFromDB(
 	if len(raw) == 0 {
 		return nil, nil
 	}
-	return createOutputs(ctx, cfg, raw, cat, mc)
+	resolved, err := config.ResolvedOutputs(raw, cat)
+	if err != nil {
+		return nil, fmt.Errorf("secret resolution: %w", err)
+	}
+	return createOutputs(ctx, cfg, resolved, cat, mc)
 }
 
 func closeOutputs(outputs []*pipeline.Output) {

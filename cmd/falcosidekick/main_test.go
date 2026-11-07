@@ -409,6 +409,36 @@ func TestRestoreFromDB_BuildsFromProvisionedFalseEntries(t *testing.T) {
 	}
 }
 
+// The store keeps secret file references; a restart reads the files again to build the outputs.
+func TestRestoreFromDB_ReadsStoredSecretFiles(t *testing.T) {
+	ctx := context.Background()
+	cfg := loadDefaultConfigForCmdTest(t)
+	secret := filepath.Join(t.TempDir(), "token")
+	require.NoError(t, os.WriteFile(secret, []byte("from-file\n"), 0o600))
+
+	var built map[string]any
+	cat, err := catalog.New([]output.Type{{
+		Name:   "webhook",
+		Schema: output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
+		New: func(raw map[string]any, _ output.Deps) (output.Driver, error) {
+			built = raw
+			return &testutil.MockDriver{DriverName: "webhook"}, nil
+		},
+	}})
+	require.NoError(t, err)
+	db := database.NewMemory()
+	require.NoError(t, db.SaveOutputConfig(ctx, "webhook", map[string]any{"token_file": secret}))
+
+	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), nil)
+	require.NoError(t, err)
+	require.Len(t, outs, 1)
+	t.Cleanup(func() { _ = outs[0].Close() })
+	assert.Equal(t, map[string]any{"token": "from-file"}, built)
+	stored, err := db.GetOutputConfig(ctx, "webhook")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"token_file": secret}, stored.Config, "restore never writes the secret back")
+}
+
 func TestRestoreFromDB_SkipsProvisionedEntries(t *testing.T) {
 	ctx := context.Background()
 	cfg := loadDefaultConfigForCmdTest(t)

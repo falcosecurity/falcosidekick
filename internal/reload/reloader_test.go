@@ -915,6 +915,47 @@ func TestReloaderApplyOutput_StaleVersionConflicts(t *testing.T) {
 	assert.Equal(t, "second", stored.Config["secret_endpoint"])
 }
 
+// The database keeps the secret file reference; the output is built from the file content, and a
+// rotated secret file is a change at the next reload.
+func TestReloaderStoresSecretReferencesAndBuildsFromTheirContent(t *testing.T) {
+	dir := t.TempDir()
+	secret := filepath.Join(dir, "token")
+	require.NoError(t, os.WriteFile(secret, []byte("first"), 0o600))
+	path := filepath.Join(dir, "outputs.yaml")
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    token_file: "+secret+"\n")
+
+	var seen []string
+	typ := stubOutputType("slack", nil)
+	typ.Schema.Fields = []output.SchemaField{{Name: "token", Type: "string", Secret: true}}
+	typ.New = func(cfg map[string]any, _ output.Deps) (output.Driver, error) {
+		seen = append(seen, fmt.Sprint(cfg["token"]))
+		return &testutil.MockDriver{DriverName: "slack"}, nil
+	}
+	cat, err := catalog.New([]output.Type{typ})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		OutputPaths: []string{path}, Catalog: cat, Dispatcher: env.d, Database: db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+	ctx := context.Background()
+
+	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	stored, err := db.GetOutputConfig(ctx, "slack")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"token_file": secret}, stored.Config)
+
+	require.NoError(t, os.WriteFile(secret, []byte("rotated"), 0o600))
+	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	assert.Equal(t, []string{"first", "rotated"}, seen)
+	after, err := db.GetOutputConfig(ctx, "slack")
+	require.NoError(t, err)
+	assert.Equal(t, stored.Version, after.Version, "the stored reference did not change")
+}
+
 func TestReloaderApplyOutput_UnknownTypeRejected(t *testing.T) {
 	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
 	require.NoError(t, err)

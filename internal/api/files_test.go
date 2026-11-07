@@ -99,7 +99,11 @@ func TestPUTFilePathsMustResolveInsideSecretDirs(t *testing.T) {
 				return
 			}
 			require.NotNil(t, stored)
-			assert.Equal(t, "file-password", stored.Config["password"])
+			assert.Equal(t, inside, stored.Config["password_file"], "the store keeps the reference")
+			assert.NotContains(t, stored.Config, "password", "the secret read from the file is never stored")
+			var masked outputConfigResponse
+			require.NoError(t, json.Unmarshal(raw, &masked))
+			assert.True(t, masked.SecretFields["/password"], "a secret set through its file counts as configured")
 		})
 	}
 }
@@ -197,7 +201,8 @@ func TestPUTSecretFileReplacesStoredValue(t *testing.T) {
 		`{"version":1,"config":{"password_file":"`+file+`"}}`, http.StatusOK)
 	stored, err := db.GetOutputConfig(t.Context(), "webhook")
 	require.NoError(t, err)
-	assert.Equal(t, "from-file", stored.Config["password"])
+	assert.Equal(t, file, stored.Config["password_file"])
+	assert.NotContains(t, stored.Config, "password", "the stored value gave way to the file")
 
 	assert.Equal(t, map[string]any{"password": "new-value"}, mustMerge(t, map[string]any{"password_file": file}, `{"password":"new-value"}`))
 	assert.Equal(t, map[string]any{"password_file": file}, mustMerge(t, map[string]any{"password": "old"}, `{"password_file":"`+file+`"}`))

@@ -20,9 +20,28 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
+
+// ResolvedOutputs returns copies of outputs with every <field>_file replaced by the file content,
+// to build the outputs from. The configs passed in keep the paths as written: that is what is stored.
+func ResolvedOutputs(outputs map[string]map[string]any, cat *catalog.Catalog) (map[string]map[string]any, error) {
+	resolved := make(map[string]map[string]any, len(outputs))
+	for name, cfg := range outputs {
+		outputType, ok := cat.Get(name)
+		if !ok {
+			return nil, fmt.Errorf("unknown output type %q", name)
+		}
+		resolvedCfg := utils.DeepCopyMap(cfg)
+		if err := ResolveSecrets(name, resolvedCfg, outputType.Schema); err != nil {
+			return nil, err
+		}
+		resolved[name] = resolvedCfg
+	}
+	return resolved, nil
+}
 
 // ResolveSecrets fills empty Secret fields from their <field>_file counterparts.
 func ResolveSecrets(outputName string, cfg map[string]any, schema output.Schema) error {

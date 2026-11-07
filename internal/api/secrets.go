@@ -23,6 +23,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 // SecretMask is the redaction sentinel rejected in explicit secret updates.
@@ -44,7 +45,22 @@ func maskOutputConfig(entry *core.OutputConfigEntry, t output.Type) *outputConfi
 		masked.SecretFields[configPointer(path)] = hasConfiguredValue(parent[key])
 		delete(parent, key)
 	})
+	markFileSecrets(masked.Config, t.Schema.Fields, masked.SecretFields)
 	return masked
+}
+
+// markFileSecrets marks a secret set through <field>_file as configured; the path itself stays visible.
+func markFileSecrets(cfg map[string]any, fields []output.SchemaField, marks map[string]bool) {
+	for i := range fields {
+		field := &fields[i]
+		if !field.HasFileVariant() {
+			continue
+		}
+		parent, leaf := utils.NavigateMap(cfg, field.Name)
+		if path, ok := parent[leaf+"_file"].(string); ok && path != "" {
+			marks[configPointer(strings.Split(field.Name, "."))] = true
+		}
+	}
 }
 
 func maskOutputConfigs(entries map[string]*core.OutputConfigEntry, cat *catalog.Catalog) map[string]*outputConfigResponse {
