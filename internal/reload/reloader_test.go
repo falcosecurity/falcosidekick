@@ -1674,3 +1674,33 @@ func TestReloaderReloadLeavesRemoteVersionsToReconcile(t *testing.T) {
 	require.NoError(t, r.Reconcile(ctx))
 	assert.Equal(t, []string{"one", "two"}, builds)
 }
+
+// Reconcile counts under source replica: no-op, applied change, change not applied here.
+func TestReloaderReconcileMetrics(t *testing.T) {
+	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	reg := prometheus.NewRegistry()
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		Catalog: cat, Dispatcher: env.d, Database: db, Registry: reg,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+	ctx := t.Context()
+
+	require.NoError(t, r.Reconcile(ctx))
+	_, err = db.SaveOutputConfig(ctx, "slack", 0, map[string]any{})
+	require.NoError(t, err)
+	require.NoError(t, r.Reconcile(ctx))
+	_, err = db.SaveOutputConfig(ctx, "unknown", 0, map[string]any{})
+	require.NoError(t, err)
+	require.NoError(t, r.Reconcile(ctx))
+
+	gathered, err := reg.Gather()
+	require.NoError(t, err)
+	assert.Equal(t, float64(3), getMetricValueByLabel(gathered, metricReloadTotal, "source", SourceReplica))
+	assert.Equal(t, float64(1), getMetricValueByLabel(gathered, metricReloadFailures, "source", SourceReplica))
+	assert.Equal(t, float64(0), getMetricValueByLabel(gathered, metricReloadPartial, "source", SourceReplica))
+}

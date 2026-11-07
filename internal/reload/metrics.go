@@ -28,6 +28,8 @@ const metricsNamespace = "falcosidekick"
 const (
 	SourceFile = "file"
 	SourceUI   = "ui"
+	// SourceReplica counts the reconciles that apply changes other instances stored in a shared database.
+	SourceReplica = "replica"
 )
 
 type reloadMetrics struct {
@@ -44,12 +46,12 @@ func newReloadMetrics(reg prometheus.Registerer) *reloadMetrics {
 		total: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Name:      "reload_total",
-			Help:      "Total reload attempts including no-op. Label source is file (file-driven) or ui (UI-driven apply).",
+			Help:      "Total reload attempts including no-op. Label source is file (file-driven), ui (UI-driven apply) or replica (changes from another instance).",
 		}, []string{"source"}),
 		failures: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: metricsNamespace,
 			Name:      "reload_failures_total",
-			Help:      "Failed reload attempts by source (file or ui).",
+			Help:      "Failed reload attempts by source (file, ui or replica).",
 		}, []string{"source"}),
 		partial: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: metricsNamespace,

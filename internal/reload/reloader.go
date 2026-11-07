@@ -416,9 +416,10 @@ func (r *Reloader) Reconcile(ctx context.Context) error {
 	if r.database == nil {
 		return nil
 	}
+	start := time.Now()
 	entries, err := r.database.GetOutputConfigs(ctx)
 	if err != nil {
-		return databaseError(err)
+		return r.fail(start, SourceReplica, "%w", databaseError(err))
 	}
 
 	resolved := make(map[string]map[string]any)
@@ -451,9 +452,11 @@ func (r *Reloader) Reconcile(ctx context.Context) error {
 		}
 	}
 	if len(resolved) == 0 && len(failures) == 0 && len(removed) == 0 {
+		r.metrics.recordNoop(SourceReplica)
 		return nil
 	}
 
+	var retireWarning bool
 	built, buildFailures := pipeline.BuildEach(ctx, r.catalog, resolved, r.runtimeDefaults, r.deps)
 	maps.Copy(failures, buildFailures)
 	if len(built) > 0 || len(removed) > 0 {
@@ -462,8 +465,9 @@ func (r *Reloader) Reconcile(ctx context.Context) error {
 		if err := r.dispatcher.Apply(retireCtx, r.workerRunCtx, built, removed); err != nil {
 			if errors.Is(err, pipeline.ErrDispatcherStopped) {
 				closeOutputs(built)
-				return err
+				return r.fail(start, SourceReplica, "%w", err)
 			}
+			retireWarning = true
 			r.logger.Warn("reconcile: retire timeout, replacements active", "error", err)
 		}
 	}
@@ -484,6 +488,14 @@ func (r *Reloader) Reconcile(ctx context.Context) error {
 	}
 	if len(built) > 0 || len(removed) > 0 {
 		r.logger.Info("reconcile: applied changes from the database", "applied", len(built), "removed", len(removed))
+	}
+	switch {
+	case len(failures) > 0:
+		r.metrics.recordFailure(time.Since(start), SourceReplica)
+	case retireWarning:
+		r.metrics.recordPartialSuccess(time.Since(start), SourceReplica)
+	default:
+		r.metrics.recordSuccess(time.Since(start), SourceReplica)
 	}
 	return nil
 }
