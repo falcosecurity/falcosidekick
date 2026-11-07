@@ -89,9 +89,9 @@ dockers_v2:
       - "public.ecr.aws/falcosecurity/falcosidekick"
     tags:
       - "{{ .Version }}"
-      - "{{ if not (or .Prerelease .IsSnapshot) }}{{ .Major }}.{{ .Minor }}{{ end }}"
-      - "{{ if not (or .Prerelease .IsSnapshot) }}{{ .Major }}{{ end }}"
-      - "{{ if not (or .Prerelease .IsSnapshot) }}v3-latest{{ end }}"
+      - '{{ if eq (index .Env "FSK_LATEST_MINOR") "true" }}{{ .Major }}.{{ .Minor }}{{ end }}'
+      - '{{ if eq (index .Env "FSK_LATEST_MAJOR") "true" }}{{ .Major }}{{ end }}'
+      - '{{ if eq (index .Env "FSK_LATEST_MAJOR") "true" }}v3-latest{{ end }}'
     build_args:
       BINARY: falcosidekick
       VARIANT: ui
@@ -116,9 +116,9 @@ dockers_v2:
       - "public.ecr.aws/falcosecurity/falcosidekick"
     tags:
       - "{{ .Version }}-slim"
-      - "{{ if not (or .Prerelease .IsSnapshot) }}{{ .Major }}.{{ .Minor }}-slim{{ end }}"
-      - "{{ if not (or .Prerelease .IsSnapshot) }}{{ .Major }}-slim{{ end }}"
-      - "{{ if not (or .Prerelease .IsSnapshot) }}v3-latest-slim{{ end }}"
+      - '{{ if eq (index .Env "FSK_LATEST_MINOR") "true" }}{{ .Major }}.{{ .Minor }}-slim{{ end }}'
+      - '{{ if eq (index .Env "FSK_LATEST_MAJOR") "true" }}{{ .Major }}-slim{{ end }}'
+      - '{{ if eq (index .Env "FSK_LATEST_MAJOR") "true" }}v3-latest-slim{{ end }}'
     build_args:
       BINARY: falcosidekick-slim
       VARIANT: slim
