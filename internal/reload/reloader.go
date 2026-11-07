@@ -279,17 +279,12 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 		return r.fail(start, SourceFile, "reload create: %w", err)
 	}
 
-	var removed []string
-	if !r.provisioning.DisableDeletion {
-		removed = diff.Removed
-	}
-
 	retireCtx, retireCancel := context.WithTimeout(ctx, retireTimeout)
 	defer retireCancel()
 
 	// retireWarning means a drain timed out but the replacement is live.
 	var retireWarning bool
-	if err := r.dispatcher.Apply(retireCtx, workerRunCtx, built, removed); err != nil {
+	if err := r.dispatcher.Apply(retireCtx, workerRunCtx, built, diff.Removed); err != nil {
 		if errors.Is(err, pipeline.ErrDispatcherStopped) {
 			closeOutputs(built)
 			return r.fail(start, SourceFile, "reload abandoned: dispatcher stopped during apply")
@@ -301,16 +296,14 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	var dbSyncFailed bool
 	if r.database != nil {
 		if err := r.database.Provision(ctx, &core.ProvisionRequest{
-			Outputs:         outsCfg.Outputs,
-			DisableDeletion: r.provisioning.DisableDeletion,
+			Outputs: outsCfg.Outputs,
 		}); err != nil {
 			dbSyncFailed = true
 			r.logger.Error("reload: database re-provision failed", "error", err)
 		}
 	}
 
-	// The runtime is applied, so fileState advances even on DB or retire failure;
-	// orphans kept by DisableDeletion leave it so later reloads do not retire them.
+	// The runtime is applied, so fileState advances even on DB or retire failure.
 	r.fileState = resolved
 	duration := time.Since(start)
 

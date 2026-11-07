@@ -76,8 +76,7 @@ func NewApp(
 	}()
 
 	if err := db.Provision(ctx, &core.ProvisionRequest{
-		Outputs:         outsCfg.Outputs,
-		DisableDeletion: cfg.Provisioning.DisableDeletion,
+		Outputs: outsCfg.Outputs,
 	}); err != nil {
 		return nil, fmt.Errorf("database provision: %w", err)
 	}

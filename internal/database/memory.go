@@ -54,12 +54,10 @@ func (s *Memory) Provision(_ context.Context, req *core.ProvisionRequest) error 
 
 	now := time.Now()
 
-	if !req.DisableDeletion {
-		for name, entry := range s.outputs {
-			if entry.Provisioned {
-				if _, exists := req.Outputs[name]; !exists {
-					delete(s.outputs, name)
-				}
+	for name, entry := range s.outputs {
+		if entry.Provisioned {
+			if _, exists := req.Outputs[name]; !exists {
+				delete(s.outputs, name)
 			}
 		}
 	}

@@ -141,8 +141,7 @@ func (c APIConfig) Validate() utils.ValidationErrors {
 
 // ProvisioningConfig controls how file provisioning and UI writes interact.
 type ProvisioningConfig struct {
-	AllowUIUpdates  bool `json:"allow_ui_updates" mapstructure:"allow_ui_updates"`
-	DisableDeletion bool `json:"disable_deletion" mapstructure:"disable_deletion"`
+	AllowUIUpdates bool `json:"allow_ui_updates" mapstructure:"allow_ui_updates"`
 }
 
 // Validate checks core configuration; TLS files are checked by the config loader.

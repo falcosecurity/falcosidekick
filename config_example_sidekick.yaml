@@ -71,8 +71,6 @@ database:
 # provisioning:
 #   allow_ui_updates: false              # allow API/UI changes to outputs defined in files;
 #                                        # the next file reload restores the file version
-#   disable_deletion: false              # keep file-defined outputs that disappear from the
-#                                        # files instead of removing them on reload
 
 # ui:
 #   enabled: false                       # enable the web UI

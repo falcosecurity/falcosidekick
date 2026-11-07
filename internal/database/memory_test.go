@@ -218,29 +218,7 @@ func TestProvisionOverwritesUIEditedProvisionedEntry(t *testing.T) {
 		"file reload must overwrite the UI edit with the file version")
 }
 
-func TestProvisionDisableDeletionKeepsOrphanProvisioned(t *testing.T) {
-	ctx := context.Background()
-	s := NewMemory()
-
-	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
-		Outputs: map[string]map[string]any{
-			"slack":   {"host": "slack-file"},
-			"webhook": {"host": "webhook-file"},
-		},
-	}))
-
-	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
-		Outputs:         map[string]map[string]any{"slack": {"host": "slack-file"}},
-		DisableDeletion: true,
-	}))
-
-	orphan, err := s.GetOutputConfig(ctx, "webhook")
-	require.NoError(t, err)
-	require.NotNil(t, orphan, "DisableDeletion=true must preserve the orphaned Provisioned:true entry")
-	assert.True(t, orphan.Provisioned)
-}
-
-func TestProvisionDisableDeletionFalseDeletesOrphanProvisioned(t *testing.T) {
+func TestProvisionDeletesProvisionedEntriesMissingFromTheFiles(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
@@ -251,13 +229,12 @@ func TestProvisionDisableDeletionFalseDeletesOrphanProvisioned(t *testing.T) {
 		},
 	}))
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
-		Outputs:         map[string]map[string]any{"slack": {"host": "slack-file"}},
-		DisableDeletion: false,
+		Outputs: map[string]map[string]any{"slack": {"host": "slack-file"}},
 	}))
 
 	orphan, err := s.GetOutputConfig(ctx, "webhook")
 	require.NoError(t, err)
-	assert.Nil(t, orphan, "DisableDeletion=false must delete the orphaned Provisioned:true entry")
+	assert.Nil(t, orphan, "a provisioned entry missing from the files is deleted")
 }
 
 func TestSaveOutputConfigPreservesProvisionedFlag(t *testing.T) {
