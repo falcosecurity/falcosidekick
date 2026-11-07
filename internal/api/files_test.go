@@ -159,10 +159,10 @@ func TestPUTKeepsStoredFilePathsOnlyInPlace(t *testing.T) {
 	cat, err := catalog.New([]output.Type{webhook.OutputType})
 	require.NoError(t, err)
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(t.Context(), "webhook", map[string]any{
+	seedOutput(t, db, "webhook", map[string]any{
 		"host": "https://example.invalid", "endpoint": "/events",
 		"headers": map[string]any{"X-Key": map[string]any{"files": []any{headerFile}}},
-	}))
+	})
 	rig := buildMutationRig(t, db, cat, true)
 	rig.Server.secretDirs = []string{t.TempDir()}
 
@@ -191,9 +191,9 @@ func TestPUTSecretFileReplacesStoredValue(t *testing.T) {
 	cat, err := catalog.New([]output.Type{webhook.OutputType})
 	require.NoError(t, err)
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(t.Context(), "webhook", map[string]any{
+	seedOutput(t, db, "webhook", map[string]any{
 		"host": "https://example.invalid", "endpoint": "/events", "password": "stored-value",
-	}))
+	})
 	rig := buildMutationRig(t, db, cat, true)
 	rig.Server.secretDirs = []string{secrets}
 

@@ -72,13 +72,13 @@ func (m *Mock) GetOutputConfig(_ context.Context, name string) (*core.OutputConf
 	return entry, nil
 }
 
-// SaveOutputConfig returns SaveOutputConfigErr.
-func (m *Mock) SaveOutputConfig(_ context.Context, _ string, _ map[string]any) error {
-	return m.SaveOutputConfigErr
+// SaveOutputConfig returns version expected+1 and SaveOutputConfigErr.
+func (m *Mock) SaveOutputConfig(_ context.Context, _ string, expected int64, _ map[string]any) (int64, error) {
+	return expected + 1, m.SaveOutputConfigErr
 }
 
 // DeleteOutputConfig returns DeleteOutputConfigErr.
-func (m *Mock) DeleteOutputConfig(_ context.Context, _ string) error {
+func (m *Mock) DeleteOutputConfig(_ context.Context, _ string, _ int64) error {
 	return m.DeleteOutputConfigErr
 }
 

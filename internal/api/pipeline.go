@@ -332,21 +332,15 @@ func (s *Server) writeMutationError(c fiber.Ctx, name, verb string, err error) e
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "dispatcher stopped"})
 	case errors.Is(err, reload.ErrReloaderNotBound):
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "reloader not bound"})
-	case errors.Is(err, reload.ErrVersionConflict):
+	case errors.Is(err, core.ErrVersionConflict):
 		return writeVersionConflict(c, name)
 	case errors.Is(err, pipeline.ErrInvalidOutputConfig):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": verb + " output: " + err.Error()})
-	case errors.Is(err, reload.ErrDBSyncFailed):
-		var body string
-		switch verb {
-		case "apply":
-			body = "output '" + name + "' applied to runtime but database save failed; the change will not survive restart"
-		case "remove":
-			body = "output '" + name + "' removed from runtime but database delete failed"
-		default:
-			body = "output '" + name + "' " + verb + " succeeded at runtime but database sync failed"
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": body})
+	case errors.Is(err, reload.ErrDatabaseUnavailable):
+		// The database error text can carry server text, so it stays out of the answer.
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "database unavailable: output '" + name + "' was not changed",
+		})
 	default:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": verb + " output: " + err.Error()})
 	}

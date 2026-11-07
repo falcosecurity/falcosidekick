@@ -39,7 +39,6 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 	"github.com/falcosecurity/falcosidekick/internal/pipeline"
-	"github.com/falcosecurity/falcosidekick/internal/reload"
 )
 
 func TestHandlePipelineStatus_NoOutputs(t *testing.T) {
@@ -521,10 +520,10 @@ func TestHandlePipelineOutputPut_CreatesNewUIOwned(t *testing.T) {
 
 func TestHandlePipelineOutputPut_MergesAbsentKeys(t *testing.T) {
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(context.Background(), "slack", map[string]any{
+	seedOutput(t, db, "slack", map[string]any{
 		"secret_endpoint": "https://hooks.slack.com/orig",
 		"channel":         "#alerts",
-	}))
+	})
 	srv := buildMutationTestServer(t, db)
 
 	body := bytes.NewReader([]byte(`{"version":1,"config":{"channel":"#new"}}`))
@@ -567,14 +566,14 @@ func nestedMutationCatalog(t *testing.T) *catalog.Catalog {
 
 func TestHandlePipelineOutputPut_NestedPartialUpdatePreservesSiblings(t *testing.T) {
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(context.Background(), "kafka", map[string]any{
+	seedOutput(t, db, "kafka", map[string]any{
 		"topic": "falco-events",
 		"auth": map[string]any{
 			"sasl":     "plain",
 			"username": "alice",
 			"password": "hunter2",
 		},
-	}))
+	})
 	rig := buildMutationRig(t, db, nestedMutationCatalog(t), true)
 
 	body := bytes.NewReader([]byte(`{"version":1,"config":{"auth":{"username":"bob"}}}`))
@@ -598,13 +597,13 @@ func TestHandlePipelineOutputPut_NestedPartialUpdatePreservesSiblings(t *testing
 
 func TestHandlePipelineOutputPut_NestedSecretPlaceholderRejected(t *testing.T) {
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(context.Background(), "kafka", map[string]any{
+	seedOutput(t, db, "kafka", map[string]any{
 		"topic": "falco-events",
 		"auth": map[string]any{
 			"username": "alice",
 			"password": "hunter2",
 		},
-	}))
+	})
 	rig := buildMutationRig(t, db, nestedMutationCatalog(t), true)
 
 	body := bytes.NewReader([]byte(`{"version":1,"config":{"auth":{"password":"****"}}}`))
@@ -781,7 +780,7 @@ func TestHandlePipelineOutputPut_StrictEnvelope(t *testing.T) {
 // Two clients read version 1; the second write must not silently drop the first one's change.
 func TestHandlePipelineOutputPut_StaleVersionReturns409(t *testing.T) {
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(t.Context(), "slack", map[string]any{"secret_endpoint": "orig", "channel": "#a"}))
+	seedOutput(t, db, "slack", map[string]any{"secret_endpoint": "orig", "channel": "#a"})
 	srv := buildMutationTestServer(t, db)
 
 	requestSecretContract(t, srv, http.MethodPut, "/api/v1/pipeline/outputs/slack", `{"version":1,"config":{"channel":"#first"}}`, http.StatusOK)
@@ -826,7 +825,7 @@ func TestHandlePipelineOutputPut_NoReloaderReturns503(t *testing.T) {
 
 func TestHandlePipelineOutputDelete_Success(t *testing.T) {
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(context.Background(), "slack", map[string]any{"secret_endpoint": "x"}))
+	seedOutput(t, db, "slack", map[string]any{"secret_endpoint": "x"})
 	srv := buildMutationTestServer(t, db)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
@@ -997,7 +996,7 @@ func TestOutputNameOutlivesTheRequest(t *testing.T) {
 
 func TestHandlePipelineOutputDelete_RequiresTheCurrentVersion(t *testing.T) {
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(t.Context(), "slack", map[string]any{"secret_endpoint": "orig"}))
+	seedOutput(t, db, "slack", map[string]any{"secret_endpoint": "orig"})
 	srv := buildMutationTestServer(t, db)
 
 	for _, query := range []string{"", "?version=", "?version=x", "?version=0"} {
@@ -1022,7 +1021,7 @@ func TestReloaderRemoveOutputRefusesAVersionChangedByAReload(t *testing.T) {
 	require.NoError(t, rig.Reloader.ApplyOutput(t.Context(), "slack", 0, map[string]any{"secret_endpoint": "ui"}))
 	require.NoError(t, db.Provision(t.Context(), &core.ProvisionRequest{Outputs: map[string]map[string]any{"slack": {"secret_endpoint": "file"}}}))
 
-	require.ErrorIs(t, rig.Reloader.RemoveOutput(t.Context(), "slack", 1), reload.ErrVersionConflict)
+	require.ErrorIs(t, rig.Reloader.RemoveOutput(t.Context(), "slack", 1), core.ErrVersionConflict)
 	stored, err := db.GetOutputConfig(t.Context(), "slack")
 	require.NoError(t, err)
 	assert.True(t, stored.Provisioned, "the provisioned output stays")
@@ -1092,7 +1091,7 @@ func TestHandlePipelineOutputPut_ReloaderNotBoundReturns503(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 }
 
-func TestHandlePipelineOutputPut_DBSaveErrorReturns500(t *testing.T) {
+func TestHandlePipelineOutputPut_DBSaveErrorReturns503(t *testing.T) {
 	db := &databasetestutil.Mock{SaveOutputConfigErr: errors.New("db save boom")}
 	srv := buildMutationTestServer(t, db)
 
@@ -1102,10 +1101,10 @@ func TestHandlePipelineOutputPut_DBSaveErrorReturns500(t *testing.T) {
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	respBody, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(respBody), "database save failed",
-		"error body must surface the ErrDBSyncFailed partial-state warning")
+	assert.Contains(t, string(respBody), "output 'slack' was not changed")
+	assert.NotContains(t, string(respBody), "boom", "the database error text stays out of the answer")
 }
 
 func TestHandlePipelineOutputPut_EmptyName(t *testing.T) {
@@ -1122,7 +1121,7 @@ func TestHandlePipelineOutputPut_EmptyName(t *testing.T) {
 
 func TestHandlePipelineOutputDelete_NoReloaderReturns503(t *testing.T) {
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(context.Background(), "slack", map[string]any{"secret_endpoint": "x"}))
+	seedOutput(t, db, "slack", map[string]any{"secret_endpoint": "x"})
 	srv := buildMutationTestServerNilReloader(t, db)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)
@@ -1145,7 +1144,7 @@ func TestHandlePipelineOutputDelete_DBReadErrorReturns500(t *testing.T) {
 
 func TestHandlePipelineOutputDelete_DispatcherStoppedReturns503(t *testing.T) {
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(context.Background(), "slack", map[string]any{"secret_endpoint": "x"}))
+	seedOutput(t, db, "slack", map[string]any{"secret_endpoint": "x"})
 	rig := buildMutationRig(t, db, newMutationTestCatalog(t), true)
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -1158,7 +1157,7 @@ func TestHandlePipelineOutputDelete_DispatcherStoppedReturns503(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 }
 
-func TestHandlePipelineOutputDelete_DBDeleteErrorReturns500(t *testing.T) {
+func TestHandlePipelineOutputDelete_DBDeleteErrorReturns503(t *testing.T) {
 	db := &databasetestutil.Mock{
 		Outputs: map[string]*core.OutputConfigEntry{
 			"slack": {Name: "slack", Config: map[string]any{"secret_endpoint": "x"}, Version: 1},
@@ -1171,9 +1170,10 @@ func TestHandlePipelineOutputDelete_DBDeleteErrorReturns500(t *testing.T) {
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	respBody, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(respBody), "database delete failed")
+	assert.Contains(t, string(respBody), "output 'slack' was not changed")
+	assert.NotContains(t, string(respBody), "boom")
 }
 
 func TestHandlePipelineLayoutPut_SaveErrorReturns500(t *testing.T) {
@@ -1283,7 +1283,7 @@ func TestHandlePipelineOutputPut_ApplyInitFailureReturns500(t *testing.T) {
 
 func TestHandlePipelineOutputDelete_ReloaderNotBoundReturns503(t *testing.T) {
 	db := database.NewMemory()
-	require.NoError(t, db.SaveOutputConfig(context.Background(), "slack", map[string]any{"secret_endpoint": "x"}))
+	seedOutput(t, db, "slack", map[string]any{"secret_endpoint": "x"})
 	rig := buildMutationRig(t, db, newMutationTestCatalog(t), false)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/pipeline/outputs/slack?version=1", http.NoBody)

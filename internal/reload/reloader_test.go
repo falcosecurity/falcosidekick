@@ -904,10 +904,10 @@ func TestReloaderApplyOutput_StaleVersionConflicts(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "first"}))
-	require.ErrorIs(t, r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "create again"}), ErrVersionConflict)
+	require.ErrorIs(t, r.ApplyOutput(ctx, "slack", 0, map[string]any{"secret_endpoint": "create again"}), core.ErrVersionConflict)
 
 	require.NoError(t, r.ApplyOutput(ctx, "slack", 1, map[string]any{"secret_endpoint": "second"}))
-	require.ErrorIs(t, r.ApplyOutput(ctx, "slack", 1, map[string]any{"secret_endpoint": "lost update"}), ErrVersionConflict)
+	require.ErrorIs(t, r.ApplyOutput(ctx, "slack", 1, map[string]any{"secret_endpoint": "lost update"}), core.ErrVersionConflict)
 
 	stored, err := db.GetOutputConfig(ctx, "slack")
 	require.NoError(t, err)
@@ -1221,61 +1221,6 @@ func TestReloaderReload_DisableDeletionFalseRetiresOrphan(t *testing.T) {
 	assert.Nil(t, stored, "DB entry must be deleted when DisableDeletion=false")
 }
 
-// Two builds (UI apply + file restore) prove the reload rebuilt the output instead of a no-op.
-func TestReloaderApplyThenReload_PartialFailureNextReloadRestoresFile(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "outputs.yaml")
-	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: file-value\n")
-
-	var builds atomic.Int32
-	cat, err := catalog.New([]output.Type{{
-		Name:   "slack",
-		Schema: output.Schema{Fields: []output.SchemaField{}},
-		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
-			builds.Add(1)
-			return &testutil.MockDriver{DriverName: "slack"}, nil
-		},
-	}})
-	require.NoError(t, err)
-
-	env := newReloaderTestEnv(t, nil)
-	defer env.shutdown(t)
-
-	db := &databasetestutil.Mock{
-		Outputs: map[string]*core.OutputConfigEntry{
-			"slack": {Name: "slack", Config: map[string]any{"secret_endpoint": "file-value"}, Provisioned: true},
-		},
-	}
-
-	r := NewReloader(&ReloaderConfig{
-		OutputPaths:     []string{path},
-		Catalog:         cat,
-		Dispatcher:      env.d,
-		Database:        db,
-		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
-		Deps:            output.Deps{Logger: slog.Default()},
-		Logger:          slog.Default(),
-		InitialOutputs:  map[string]map[string]any{"slack": {"secret_endpoint": "file-value"}},
-	})
-	r.BindWorkerContext(env.workerRunCtx, time.Second)
-
-	db.SaveOutputConfigErr = errors.New("db save boom")
-	err = r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "ui-value"})
-	require.ErrorIs(t, err, ErrDBSyncFailed,
-		"runtime apply succeeded but DB save failed; ApplyOutput must report ErrDBSyncFailed")
-	require.Contains(t, env.d.OutputNames(), "slack")
-	require.Equal(t, int32(1), builds.Load(), "UI apply must build the slack driver once")
-
-	db.SaveOutputConfigErr = nil
-
-	require.NoError(t, r.Reload(context.Background(), env.workerRunCtx, time.Second))
-
-	assert.Equal(t, int32(2), builds.Load(),
-		"the reload must detect dispatcher/file divergence and rebuild slack from the file version")
-	assert.Equal(t, map[string]any{"secret_endpoint": "file-value"}, r.fileState["slack"],
-		"post-reload r.fileState must reflect the file version")
-}
-
 func TestReloaderReload_ReAddsNameAlreadyLiveAsReplace(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
@@ -1319,78 +1264,70 @@ func TestReloaderReload_ReAddsNameAlreadyLiveAsReplace(t *testing.T) {
 		"post-reload r.fileState reflects the file version")
 }
 
-func TestReloaderApplyOutput_DBSaveFailureReturnsErrDBSyncFailed(t *testing.T) {
-	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
-	require.NoError(t, err)
+// The database decides before the dispatcher: a refused or failed write changes nothing at runtime.
+func TestReloaderUIWriteRefusedByTheDatabaseLeavesTheRuntimeUntouched(t *testing.T) {
+	tests := []struct {
+		db      databasetestutil.Mock
+		want    error
+		name    string
+		remove  bool
+		failure float64
+	}{
+		{name: "apply conflict", db: databasetestutil.Mock{SaveOutputConfigErr: core.ErrVersionConflict}, want: core.ErrVersionConflict},
+		{name: "apply outage", db: databasetestutil.Mock{SaveOutputConfigErr: errors.New("db down")}, want: ErrDatabaseUnavailable},
+		{name: "remove conflict", db: databasetestutil.Mock{DeleteOutputConfigErr: core.ErrVersionConflict}, want: core.ErrVersionConflict, remove: true},
+		{name: "remove outage", db: databasetestutil.Mock{DeleteOutputConfigErr: errors.New("db down")}, want: ErrDatabaseUnavailable, remove: true},
+		{name: "version read outage", db: databasetestutil.Mock{GetOutputConfigErr: errors.New("db down")}, want: ErrDatabaseUnavailable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var built, closed atomic.Int32
+			cat, err := catalog.New([]output.Type{{
+				Name: "slack",
+				New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+					built.Add(1)
+					return &testutil.MockDriver{DriverName: "slack", CloseFunc: func() error { closed.Add(1); return nil }}, nil
+				},
+			}})
+			require.NoError(t, err)
+			running := &testutil.MockDriver{DriverName: "slack"}
+			env := newReloaderTestEnv(t, []*pipeline.Output{pipeline.NewOutput(running, &output.RuntimeConfig{
+				QueueSize: 100, Workers: 1,
+				Retry:          &output.RetryConfig{MaxAttempts: 1, InitialInterval: time.Millisecond, MaxInterval: time.Millisecond, Multiplier: 1},
+				CircuitBreaker: &output.CircuitBreakerConfig{FailureThreshold: 5, SuccessThreshold: 2, ResetTimeout: time.Second},
+			}, nil)})
+			defer env.shutdown(t)
+			reg := prometheus.NewRegistry()
+			db := tt.db
+			r := NewReloader(&ReloaderConfig{
+				Catalog:         cat,
+				Dispatcher:      env.d,
+				Database:        &db,
+				RuntimeDefaults: testutil.DefaultRuntimeConfig(),
+				Deps:            output.Deps{Logger: slog.Default()},
+				Registry:        reg,
+				Logger:          slog.Default(),
+			})
+			r.BindWorkerContext(env.workerRunCtx, time.Second)
 
-	env := newReloaderTestEnv(t, nil)
-	defer env.shutdown(t)
+			if tt.remove {
+				err = r.RemoveOutput(t.Context(), "slack", 0)
+			} else {
+				err = r.ApplyOutput(t.Context(), "slack", 0, map[string]any{"secret_endpoint": "x"})
+			}
+			require.ErrorIs(t, err, tt.want)
+			if errors.Is(tt.want, ErrDatabaseUnavailable) {
+				assert.NotErrorIs(t, err, core.ErrVersionConflict)
+			}
+			assert.Equal(t, []string{"slack"}, env.d.OutputNames(), "the running output stays")
+			assert.Equal(t, built.Load(), closed.Load(), "a built replacement is closed, never swapped in")
 
-	reg := prometheus.NewRegistry()
-	db := &databasetestutil.Mock{Outputs: map[string]*core.OutputConfigEntry{}, SaveOutputConfigErr: errors.New("db save boom")}
-
-	r := NewReloader(&ReloaderConfig{
-		Catalog:         cat,
-		Dispatcher:      env.d,
-		Database:        db,
-		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
-		Deps:            output.Deps{Logger: slog.Default()},
-		Registry:        reg,
-		Logger:          slog.Default(),
-		InitialOutputs:  map[string]map[string]any{},
-	})
-	r.BindWorkerContext(env.workerRunCtx, time.Second)
-
-	err = r.ApplyOutput(context.Background(), "slack", 0, map[string]any{"secret_endpoint": "x"})
-	require.ErrorIs(t, err, ErrDBSyncFailed)
-
-	assert.Contains(t, env.d.OutputNames(), "slack",
-		"runtime apply must have landed even though DB save failed")
-
-	gathered, gatherErr := reg.Gather()
-	require.NoError(t, gatherErr)
-	assert.Equal(t, float64(1), getMetricValueByLabel(gathered, metricReloadPartial, "source", "ui"),
-		"partial_total{source=ui} must increment when DB save fails after runtime apply")
-	assert.Equal(t, float64(0), getMetricValueByLabel(gathered, metricReloadFailures, "source", "ui"),
-		"failures_total{source=ui} must not increment when runtime apply succeeded")
-}
-
-func TestReloaderRemoveOutput_DBDeleteFailureReturnsErrDBSyncFailed(t *testing.T) {
-	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
-	require.NoError(t, err)
-
-	initialOut := pipeline.NewOutput(&testutil.MockDriver{DriverName: "slack"}, &output.RuntimeConfig{
-		QueueSize: 100, Workers: 1,
-		Retry:          &output.RetryConfig{MaxAttempts: 1, InitialInterval: time.Millisecond, MaxInterval: time.Millisecond, Multiplier: 1},
-		CircuitBreaker: &output.CircuitBreakerConfig{FailureThreshold: 5, SuccessThreshold: 2, ResetTimeout: time.Second},
-	}, nil)
-	env := newReloaderTestEnv(t, []*pipeline.Output{initialOut})
-	defer env.shutdown(t)
-
-	reg := prometheus.NewRegistry()
-	db := &databasetestutil.Mock{Outputs: map[string]*core.OutputConfigEntry{}, DeleteOutputConfigErr: errors.New("db delete boom")}
-
-	r := NewReloader(&ReloaderConfig{
-		Catalog:         cat,
-		Dispatcher:      env.d,
-		Database:        db,
-		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
-		Deps:            output.Deps{Logger: slog.Default()},
-		Registry:        reg,
-		Logger:          slog.Default(),
-		InitialOutputs:  map[string]map[string]any{},
-	})
-	r.BindWorkerContext(env.workerRunCtx, time.Second)
-
-	err = r.RemoveOutput(context.Background(), "slack", 0)
-	require.ErrorIs(t, err, ErrDBSyncFailed)
-
-	assert.NotContains(t, env.d.OutputNames(), "slack",
-		"runtime retire must have landed even though DB delete failed")
-
-	gathered, gatherErr := reg.Gather()
-	require.NoError(t, gatherErr)
-	assert.Equal(t, float64(1), getMetricValueByLabel(gathered, metricReloadPartial, "source", "ui"))
+			gathered, err := reg.Gather()
+			require.NoError(t, err)
+			assert.Equal(t, float64(1), getMetricValueByLabel(gathered, metricReloadFailures, "source", "ui"))
+			assert.Equal(t, float64(0), getMetricValueByLabel(gathered, metricReloadPartial, "source", "ui"))
+		})
+	}
 }
 
 func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {

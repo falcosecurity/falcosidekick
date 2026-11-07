@@ -19,7 +19,6 @@ package database
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"sync"
 	"time"
 
@@ -76,7 +75,7 @@ func (s *Memory) Provision(_ context.Context, req *core.ProvisionRequest) error 
 
 	for name, cfg := range req.Outputs {
 		// An unchanged output keeps its version, so a client editing it is not refused for nothing.
-		if existing := s.outputs[name]; existing != nil && existing.Provisioned && reflect.DeepEqual(existing.Config, cfg) {
+		if existing := s.outputs[name]; existing != nil && existing.Provisioned && sameConfig(existing.Config, cfg) {
 			continue
 		}
 		s.lastOutputVersion++
@@ -140,12 +139,15 @@ func (s *Memory) GetOutputConfig(_ context.Context, name string) (*core.OutputCo
 	return entry.DeepCopy(), nil
 }
 
-// SaveOutputConfig stores the config, keeping the Provisioned flag of an existing entry.
-func (s *Memory) SaveOutputConfig(_ context.Context, name string, cfg map[string]any) error {
+// SaveOutputConfig stores the config if the stored version is expected, keeping the Provisioned flag.
+func (s *Memory) SaveOutputConfig(_ context.Context, name string, expected int64, cfg map[string]any) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	existing := s.outputs[name]
+	if storedVersion(existing) != expected {
+		return 0, core.ErrVersionConflict
+	}
 	var provisioned bool
 	if existing != nil {
 		provisioned = existing.Provisioned
@@ -158,16 +160,26 @@ func (s *Memory) SaveOutputConfig(_ context.Context, name string, cfg map[string
 		Provisioned: provisioned,
 		UpdatedAt:   time.Now(),
 	}
-	return nil
+	return s.lastOutputVersion, nil
 }
 
-// DeleteOutputConfig removes one output entry; a missing name is not an error.
-func (s *Memory) DeleteOutputConfig(_ context.Context, name string) error {
+// DeleteOutputConfig removes the entry if its version is expected.
+func (s *Memory) DeleteOutputConfig(_ context.Context, name string, expected int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if storedVersion(s.outputs[name]) != expected {
+		return core.ErrVersionConflict
+	}
 	delete(s.outputs, name)
 	return nil
+}
+
+func storedVersion(entry *core.OutputConfigEntry) int64 {
+	if entry == nil {
+		return 0
+	}
+	return entry.Version
 }
 
 // GetPipelineLayout returns the stored pipeline layout or nil.

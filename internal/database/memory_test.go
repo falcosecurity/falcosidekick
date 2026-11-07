@@ -30,6 +30,41 @@ func TestImplementsDatabase(t *testing.T) {
 	var _ core.Database = NewMemory()
 }
 
+// saveOutput writes cfg over whatever version is stored.
+func saveOutput(t *testing.T, s *Memory, name string, cfg map[string]any) int64 {
+	t.Helper()
+	entry, err := s.GetOutputConfig(context.Background(), name)
+	require.NoError(t, err)
+	version, err := s.SaveOutputConfig(context.Background(), name, storedVersion(entry), cfg)
+	require.NoError(t, err)
+	return version
+}
+
+func TestOutputWritesAreConditional(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemory()
+
+	_, err := s.SaveOutputConfig(ctx, "slack", 3, map[string]any{"v": 0})
+	require.ErrorIs(t, err, core.ErrVersionConflict, "a create expects version 0")
+	first, err := s.SaveOutputConfig(ctx, "slack", 0, map[string]any{"v": 1})
+	require.NoError(t, err)
+	_, err = s.SaveOutputConfig(ctx, "slack", 0, map[string]any{"v": "again"})
+	require.ErrorIs(t, err, core.ErrVersionConflict, "a second create is refused")
+	second, err := s.SaveOutputConfig(ctx, "slack", first, map[string]any{"v": 2})
+	require.NoError(t, err)
+	assert.Greater(t, second, first)
+	_, err = s.SaveOutputConfig(ctx, "slack", first, map[string]any{"v": "stale"})
+	require.ErrorIs(t, err, core.ErrVersionConflict)
+
+	require.ErrorIs(t, s.DeleteOutputConfig(ctx, "slack", first), core.ErrVersionConflict)
+	require.NoError(t, s.DeleteOutputConfig(ctx, "slack", second))
+	require.ErrorIs(t, s.DeleteOutputConfig(ctx, "slack", second), core.ErrVersionConflict, "already deleted")
+
+	entry, err := s.GetOutputConfig(ctx, "slack")
+	require.NoError(t, err)
+	assert.Nil(t, entry)
+}
+
 func TestProvisionCreatesEntries(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
@@ -98,7 +133,7 @@ func TestProvisionPreservesUICreatedEntries(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
-	require.NoError(t, s.SaveOutputConfig(ctx, "custom", map[string]any{"host": "http://custom"}))
+	saveOutput(t, s, "custom", map[string]any{"host": "http://custom"})
 
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
 		Outputs: map[string]map[string]any{
@@ -130,7 +165,7 @@ func TestSaveOutputConfigNotProvisioned(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
-	require.NoError(t, s.SaveOutputConfig(ctx, "custom", map[string]any{"host": "http://example.com"}))
+	saveOutput(t, s, "custom", map[string]any{"host": "http://example.com"})
 
 	entry, err := s.GetOutputConfig(ctx, "custom")
 	require.NoError(t, err)
@@ -143,8 +178,8 @@ func TestDeleteOutputConfig(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
-	require.NoError(t, s.SaveOutputConfig(ctx, "temp", map[string]any{"x": 1}))
-	require.NoError(t, s.DeleteOutputConfig(ctx, "temp"))
+	version := saveOutput(t, s, "temp", map[string]any{"x": 1})
+	require.NoError(t, s.DeleteOutputConfig(ctx, "temp", version))
 
 	entry, err := s.GetOutputConfig(ctx, "temp")
 	require.NoError(t, err, "after delete, lookup miss must not be an error")
@@ -153,9 +188,8 @@ func TestDeleteOutputConfig(t *testing.T) {
 
 func TestDeleteOutputConfigMissReturnsNil(t *testing.T) {
 	s := NewMemory()
-	err := s.DeleteOutputConfig(context.Background(), "nonexistent")
-	require.NoError(t, err,
-		"miss must return nil; any error indicates a real backend failure (contract aligned with GetOutputConfig)")
+	err := s.DeleteOutputConfig(context.Background(), "nonexistent", 0)
+	require.NoError(t, err, "deleting a missing entry at version 0 is a no-op")
 }
 
 func TestProvisionOverwritesUIEditedProvisionedEntry(t *testing.T) {
@@ -165,7 +199,7 @@ func TestProvisionOverwritesUIEditedProvisionedEntry(t *testing.T) {
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
 		Outputs: map[string]map[string]any{"slack": {"secret_endpoint": "file-v1"}},
 	}))
-	require.NoError(t, s.SaveOutputConfig(ctx, "slack", map[string]any{"secret_endpoint": "ui-edit"}))
+	saveOutput(t, s, "slack", map[string]any{"secret_endpoint": "ui-edit"})
 	after, err := s.GetOutputConfig(ctx, "slack")
 	require.NoError(t, err)
 	require.NotNil(t, after)
@@ -233,12 +267,12 @@ func TestSaveOutputConfigPreservesProvisionedFlag(t *testing.T) {
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{
 		Outputs: map[string]map[string]any{"slack": {"host": "file"}},
 	}))
-	require.NoError(t, s.SaveOutputConfig(ctx, "slack", map[string]any{"host": "edited"}))
+	saveOutput(t, s, "slack", map[string]any{"host": "edited"})
 	got, err := s.GetOutputConfig(ctx, "slack")
 	require.NoError(t, err)
 	require.True(t, got.Provisioned, "UI edit of file-provisioned entry keeps Provisioned:true")
 
-	require.NoError(t, s.SaveOutputConfig(ctx, "ui-only-webhook", map[string]any{"address": "http://x"}))
+	saveOutput(t, s, "ui-only-webhook", map[string]any{"address": "http://x"})
 	fresh, err := s.GetOutputConfig(ctx, "ui-only-webhook")
 	require.NoError(t, err)
 	assert.False(t, fresh.Provisioned, "new UI-only entry starts as Provisioned:false")
@@ -275,7 +309,7 @@ func TestGetOutputConfigsReturnsDefensiveCopy(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
-	require.NoError(t, s.SaveOutputConfig(ctx, "test", map[string]any{"key": "val"}))
+	saveOutput(t, s, "test", map[string]any{"key": "val"})
 
 	entries1, _ := s.GetOutputConfigs(ctx)
 	entries1["injected"] = &core.OutputConfigEntry{Name: "injected"}
@@ -366,8 +400,8 @@ func TestOutputConfigVersionIncrement(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
-	require.NoError(t, s.SaveOutputConfig(ctx, "slack", map[string]any{"v": 1}))
-	require.NoError(t, s.SaveOutputConfig(ctx, "slack", map[string]any{"v": 2}))
+	saveOutput(t, s, "slack", map[string]any{"v": 1})
+	saveOutput(t, s, "slack", map[string]any{"v": 2})
 
 	entry, err := s.GetOutputConfig(ctx, "slack")
 	require.NoError(t, err)
@@ -380,9 +414,9 @@ func TestOutputConfigVersionIsNeverReused(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
-	require.NoError(t, s.SaveOutputConfig(ctx, "slack", map[string]any{"v": 1}))
-	require.NoError(t, s.DeleteOutputConfig(ctx, "slack"))
-	require.NoError(t, s.SaveOutputConfig(ctx, "slack", map[string]any{"v": 2}))
+	first := saveOutput(t, s, "slack", map[string]any{"v": 1})
+	require.NoError(t, s.DeleteOutputConfig(ctx, "slack", first))
+	saveOutput(t, s, "slack", map[string]any{"v": 2})
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{Outputs: map[string]map[string]any{"webhook": {}}}))
 
 	slack, err := s.GetOutputConfig(ctx, "slack")
@@ -397,13 +431,13 @@ func TestProvisionKeepsTheVersionOfUnchangedOutputs(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{Outputs: map[string]map[string]any{
-		"a": {"host": "https://a"}, "b": {"host": "https://b"},
+		"a": {"host": "https://a"}, "b": {"host": "https://b", "port": 5},
 	}}))
 	before, err := s.GetOutputConfig(ctx, "b")
 	require.NoError(t, err)
 
 	require.NoError(t, s.Provision(ctx, &core.ProvisionRequest{Outputs: map[string]map[string]any{
-		"a": {"host": "https://a2"}, "b": {"host": "https://b"},
+		"a": {"host": "https://a2"}, "b": {"host": "https://b", "port": 5.0},
 	}}))
 	after, err := s.GetOutputConfig(ctx, "b")
 	require.NoError(t, err)
@@ -421,7 +455,7 @@ func TestConcurrentAccess(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		for i := 0; i < 200; i++ {
-			_ = s.SaveOutputConfig(ctx, "out", map[string]any{"i": i})
+			_, _ = s.SaveOutputConfig(ctx, "out", int64(i), map[string]any{"i": i})
 		}
 		close(done)
 	}()
@@ -456,7 +490,7 @@ func TestOutputConfigDeepCopyOnGet(t *testing.T) {
 	ctx := context.Background()
 	s := NewMemory()
 
-	require.NoError(t, s.SaveOutputConfig(ctx, "test", map[string]any{"nested": map[string]any{"key": "original"}}))
+	saveOutput(t, s, "test", map[string]any{"nested": map[string]any{"key": "original"}})
 
 	entry, _ := s.GetOutputConfig(ctx, "test")
 	entry.Config["nested"].(map[string]any)["key"] = "changed-after-get"

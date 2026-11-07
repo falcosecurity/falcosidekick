@@ -296,6 +296,13 @@ func buildMutationRigWithProvisioning(t *testing.T, db core.Database, cat *catal
 	return rig
 }
 
+// seedOutput stores a new output entry, as a previous run would have left it.
+func seedOutput(t *testing.T, db core.Database, name string, cfg map[string]any) {
+	t.Helper()
+	_, err := db.SaveOutputConfig(t.Context(), name, 0, cfg)
+	require.NoError(t, err)
+}
+
 func buildMutationTestServer(t *testing.T, db core.Database) *Server {
 	t.Helper()
 	return buildMutationRig(t, db, newMutationTestCatalog(t), true).Server

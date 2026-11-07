@@ -24,4 +24,6 @@ var (
 	ErrQueueFull    = errors.New("output queue is full")
 	ErrNotReady     = errors.New("service not ready")
 	ErrShuttingDown = errors.New("service is shutting down")
+	// ErrVersionConflict is returned by a conditional write when the stored version is not the expected one.
+	ErrVersionConflict = errors.New("stored version differs from the expected one")
 )
