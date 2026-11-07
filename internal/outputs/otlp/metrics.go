@@ -25,6 +25,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/exemplar"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
@@ -39,19 +40,29 @@ const (
 	counterUnit = "{match}"
 	counterDesc = "Number of Falco rule matches."
 
-	maxPendingCounted = 100_000
+	// maxCounted bounds the UUIDs remembered as counted; a retry comes long before this many newer events.
+	maxCounted = 100_000
+	// seriesLimit is the SDK default, set so OTEL_GO_X_CARDINALITY_LIMIT has no effect; beyond it the
+	// SDK adds to one overflow series.
+	seriesLimit = 2000
 )
 
-// metricsSignal exports a cumulative counter, so the next export repairs a failed one.
-// Events counted but not yet exported are kept by UUID so a retry does not count them twice.
+// metricsSignal exports a cumulative counter, so the next export repairs a failed one. An event is
+// counted once by UUID, however often its batch is retried, also when the retry is for another signal.
 type metricsSignal struct {
 	exporter sdkmetric.Exporter
 	provider *sdkmetric.MeterProvider
 	reader   *sdkmetric.ManualReader
 	counter  metric.Int64Counter
-	pending  map[string]struct{}
-	extra    []string
-	mu       sync.Mutex
+	counted  map[string]struct{}
+	// order holds the counted UUIDs as a ring; next is the oldest once the ring is full.
+	order   []string
+	extra   []string
+	next    int
+	countMu sync.Mutex
+	// exportMu keeps collections in order: a cumulative point that reaches the collector after a newer
+	// one reads as a counter reset.
+	exportMu sync.Mutex
 }
 
 func newMetricsSignal(exporter sdkmetric.Exporter, res *sdkresource.Resource, cfg *metricsConfig) (*metricsSignal, error) {
@@ -59,7 +70,13 @@ func newMetricsSignal(exporter sdkmetric.Exporter, res *sdkresource.Resource, cf
 		sdkmetric.WithTemporalitySelector(exporter.Temporality),
 		sdkmetric.WithAggregationSelector(exporter.Aggregation),
 	)
-	provider := sdkmetric.NewMeterProvider(sdkmetric.WithResource(res), sdkmetric.WithReader(reader))
+	provider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(reader),
+		// Explicit, so OTEL_METRICS_EXEMPLAR_FILTER and OTEL_GO_X_CARDINALITY_LIMIT have no effect.
+		sdkmetric.WithExemplarFilter(exemplar.AlwaysOffFilter),
+		sdkmetric.WithCardinalityLimit(seriesLimit),
+	)
 	meter := provider.Meter(scopeName,
 		metric.WithInstrumentationVersion(version.Version),
 		metric.WithSchemaURL(semconv.SchemaURL),
@@ -73,46 +90,47 @@ func newMetricsSignal(exporter sdkmetric.Exporter, res *sdkresource.Resource, cf
 		provider: provider,
 		reader:   reader,
 		counter:  counter,
-		pending:  make(map[string]struct{}),
+		counted:  make(map[string]struct{}),
 		extra:    cfg.ExtraAttributes,
 	}, nil
 }
 
 func (s *metricsSignal) export(ctx context.Context, events []*event.Event) error {
-	included := s.count(events)
+	s.count(events)
+	s.exportMu.Lock()
+	defer s.exportMu.Unlock()
 	var rm metricdata.ResourceMetrics
 	if err := s.reader.Collect(ctx, &rm); err != nil {
 		return err
 	}
-	if err := s.exporter.Export(ctx, &rm); err != nil {
-		return err
-	}
-	s.mu.Lock()
-	for _, uuid := range included {
-		delete(s.pending, uuid)
-	}
-	s.mu.Unlock()
-	return nil
+	return s.exporter.Export(ctx, &rm)
 }
 
-// count adds uncounted events and returns the UUIDs the next collection includes.
-func (s *metricsSignal) count(events []*event.Event) []string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// count adds the events not counted yet; an event without a UUID is counted every time.
+func (s *metricsSignal) count(events []*event.Event) {
+	s.countMu.Lock()
+	defer s.countMu.Unlock()
 	for _, evt := range events {
-		if _, counted := s.pending[evt.UUID]; counted {
-			continue
-		}
-		if evt.UUID != "" && len(s.pending) < maxPendingCounted {
-			s.pending[evt.UUID] = struct{}{}
+		if evt.UUID != "" {
+			if _, done := s.counted[evt.UUID]; done {
+				continue
+			}
+			s.remember(evt.UUID)
 		}
 		s.counter.Add(context.Background(), 1, metric.WithAttributes(s.attributes(evt)...))
 	}
-	uuids := make([]string, 0, len(s.pending))
-	for uuid := range s.pending {
-		uuids = append(uuids, uuid)
+}
+
+// remember records uuid as counted, forgetting the oldest once maxCounted are kept.
+func (s *metricsSignal) remember(uuid string) {
+	if len(s.order) < maxCounted {
+		s.order = append(s.order, uuid)
+	} else {
+		delete(s.counted, s.order[s.next])
+		s.order[s.next] = uuid
+		s.next = (s.next + 1) % maxCounted
 	}
-	return uuids
+	s.counted[uuid] = struct{}{}
 }
 
 func (s *metricsSignal) attributes(evt *event.Event) []attribute.KeyValue {

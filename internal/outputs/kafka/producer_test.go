@@ -67,7 +67,7 @@ func TestInitAcceptsEveryAcksMode(t *testing.T) {
 				require.NoError(t, d.Init(context.Background()))
 				drv := d.(*driver)
 				assert.Equal(t, resolveACKs(acks), drv.client.OptValue(kgo.RequiredAcks))
-				wantIdempotent := !async && (acks == "" || acks == "all")
+				wantIdempotent := acks == "" || acks == "all"
 				assert.Equal(t, !wantIdempotent, drv.client.OptValue(kgo.DisableIdempotentWrite))
 				drv.client.Close()
 			})

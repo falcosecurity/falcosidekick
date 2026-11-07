@@ -74,7 +74,9 @@ func newLogsSignal(exporter sdklog.Exporter, res *sdkresource.Resource) *logsSig
 	provider := sdklog.NewLoggerProvider(
 		sdklog.WithResource(res),
 		sdklog.WithProcessor(captureProcessor{}),
+		// Explicit, so the OTEL_LOGRECORD_* variables have no effect.
 		sdklog.WithAttributeCountLimit(-1),
+		sdklog.WithAttributeValueLengthLimit(-1),
 	)
 	logger := provider.Logger(scopeName,
 		otellog.WithInstrumentationVersion(version.Version),

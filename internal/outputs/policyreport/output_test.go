@@ -63,8 +63,12 @@ func newFakeDriver(t *testing.T, mutate func(*config)) (*driver, *fake.FakeDynam
 	return newDriver(&cfg, client, nil, nil), client
 }
 
+var eventSeq atomic.Int64
+
+// eventIn returns a distinct event: results are deduplicated by event UUID.
 func eventIn(namespace, rule string, priority event.Priority) *event.Event {
 	evt := testutil.CreateValidEvent()
+	evt.UUID = fmt.Sprintf("00000000-0000-4000-8000-%012d", eventSeq.Add(1))
 	evt.Rule = rule
 	evt.Priority = priority
 	if namespace != "" {
@@ -117,6 +121,33 @@ func TestSendRoutesByNamespace(t *testing.T) {
 	cluster := getReport(t, client, "")
 	assert.Equal(t, "ClusterReport", cluster.GetKind())
 	assert.Equal(t, []string{"r3", "r4"}, rules(t, cluster))
+}
+
+// The API server can apply an update whose answer is lost; the retry must not add the result twice.
+func TestSendRetryAfterLostAnswerAddsOneResult(t *testing.T) {
+	d, client := newFakeDriver(t, nil)
+	ctx := context.Background()
+	evt := eventIn("prod", "r1", event.PriorityError)
+	require.NoError(t, d.Send(ctx, evt))
+
+	lost := true
+	client.PrependReactor("update", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if !lost {
+			return false, nil, nil
+		}
+		lost = false
+		obj := action.(k8stesting.UpdateAction).GetObject()
+		if err := client.Tracker().Update(action.GetResource(), obj, action.GetNamespace()); err != nil {
+			return true, nil, err
+		}
+		return true, nil, errors.New("connection reset after the write")
+	})
+	second := eventIn("prod", "r2", event.PriorityError)
+	require.Error(t, d.Send(ctx, second))
+	require.NoError(t, d.Send(ctx, second), "pipeline retry")
+	require.NoError(t, d.Send(ctx, evt), "an older event retried")
+
+	assert.Equal(t, []string{"r1", "r2"}, rules(t, getReport(t, client, "prod")))
 }
 
 func TestSendRotatesAtMaxEvents(t *testing.T) {
