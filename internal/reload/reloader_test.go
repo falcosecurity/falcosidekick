@@ -1138,7 +1138,7 @@ func TestReloaderApplyThenReload_FileWinsOverUIEdit(t *testing.T) {
 		"file reload must overwrite the UI edit with the file version")
 }
 
-func TestReloaderReload_DisableDeletionKeepsOrphanedOutputRunning(t *testing.T) {
+func TestReloaderReload_RetiresOutputsDroppedFromTheFiles(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
 	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: slack-cfg\n  webhook:\n    host: webhook-cfg\n")
@@ -1160,49 +1160,6 @@ func TestReloaderReload_DisableDeletionKeepsOrphanedOutputRunning(t *testing.T) 
 		Dispatcher:      env.d,
 		Database:        db,
 		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
-		Provisioning:    core.ProvisioningConfig{DisableDeletion: true},
-		Deps:            output.Deps{Logger: slog.Default()},
-		Logger:          slog.Default(),
-		InitialOutputs:  map[string]map[string]any{},
-	})
-
-	require.NoError(t, r.Reload(context.Background(), env.workerRunCtx, time.Second))
-	require.ElementsMatch(t, []string{"slack", "webhook"}, env.d.OutputNames())
-
-	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: slack-cfg\n")
-	require.NoError(t, r.Reload(context.Background(), env.workerRunCtx, time.Second))
-
-	assert.ElementsMatch(t, []string{"slack", "webhook"}, env.d.OutputNames(),
-		"orphaned webhook must stay running when DisableDeletion=true")
-	stored, err := db.GetOutputConfig(context.Background(), "webhook")
-	require.NoError(t, err)
-	require.NotNil(t, stored, "DB entry must be preserved when DisableDeletion=true")
-	assert.True(t, stored.Provisioned)
-}
-
-func TestReloaderReload_DisableDeletionFalseRetiresOrphan(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "outputs.yaml")
-	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: slack-cfg\n  webhook:\n    host: webhook-cfg\n")
-
-	cat, err := catalog.New([]output.Type{
-		stubOutputType("slack", nil),
-		stubOutputType("webhook", nil),
-	})
-	require.NoError(t, err)
-
-	env := newReloaderTestEnv(t, nil)
-	defer env.shutdown(t)
-
-	db := database.NewMemory()
-
-	r := NewReloader(&ReloaderConfig{
-		OutputPaths:     []string{path},
-		Catalog:         cat,
-		Dispatcher:      env.d,
-		Database:        db,
-		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
-		Provisioning:    core.ProvisioningConfig{DisableDeletion: false},
 		Deps:            output.Deps{Logger: slog.Default()},
 		Logger:          slog.Default(),
 		InitialOutputs:  map[string]map[string]any{},
@@ -1215,10 +1172,10 @@ func TestReloaderReload_DisableDeletionFalseRetiresOrphan(t *testing.T) {
 	require.NoError(t, r.Reload(context.Background(), env.workerRunCtx, time.Second))
 
 	assert.ElementsMatch(t, []string{"slack"}, env.d.OutputNames(),
-		"orphaned webhook must be retired when DisableDeletion=false")
+		"orphaned webhook must be retired")
 	stored, err := db.GetOutputConfig(context.Background(), "webhook")
 	require.NoError(t, err)
-	assert.Nil(t, stored, "DB entry must be deleted when DisableDeletion=false")
+	assert.Nil(t, stored, "DB entry must be deleted")
 }
 
 func TestReloaderReload_ReAddsNameAlreadyLiveAsReplace(t *testing.T) {

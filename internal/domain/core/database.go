@@ -23,8 +23,8 @@ import (
 
 // Database persists all configuration synchronously, outside the event pipeline.
 type Database interface {
-	// Provision upserts req.Outputs as provisioned and deletes stale provisioned
-	// entries unless req.DisableDeletion; unprovisioned entries are kept.
+	// Provision upserts req.Outputs as provisioned and deletes the provisioned entries
+	// missing from them; unprovisioned entries are kept.
 	Provision(ctx context.Context, req *ProvisionRequest) error
 
 	// GetOutputConfigs returns all output configurations.
@@ -53,8 +53,7 @@ type Database interface {
 
 // ProvisionRequest holds the file-based config passed to Provision.
 type ProvisionRequest struct {
-	Outputs         map[string]map[string]any
-	DisableDeletion bool
+	Outputs map[string]map[string]any
 }
 
 // OutputConfigEntry wraps an output config with metadata.
