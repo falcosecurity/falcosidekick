@@ -33,6 +33,8 @@ type Dispatcher struct {
 	outputs map[string]*Output
 	// retiring holds the outputs replaced or removed whose retirement has not finished; Shutdown awaits them.
 	retiring map[*Output]struct{}
+	// failed holds the reason of each output that is not running because it did not build.
+	failed   map[string]string
 	mu       sync.RWMutex
 	stopping bool
 }
@@ -43,7 +45,16 @@ func NewDispatcher(outputs []*Output) *Dispatcher {
 	for _, o := range outputs {
 		m[o.Name()] = o
 	}
-	return &Dispatcher{outputs: m, retiring: make(map[*Output]struct{})}
+	return &Dispatcher{outputs: m, retiring: make(map[*Output]struct{}), failed: make(map[string]string)}
+}
+
+// MarkFailed reports name as not running for reason until an Apply sets or removes it.
+func (d *Dispatcher) MarkFailed(name, reason string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if _, running := d.outputs[name]; !running {
+		d.failed[name] = reason
+	}
 }
 
 // Start launches all output worker pools with the given context.
@@ -150,6 +161,7 @@ func (d *Dispatcher) Apply(retireCtx, runCtx context.Context, set map[string]*Ou
 	}
 	var retiring []*Output
 	for name, out := range set {
+		delete(d.failed, name)
 		if old, exists := d.outputs[name]; exists {
 			out.inherit(old)
 			retiring = append(retiring, old)
@@ -158,6 +170,7 @@ func (d *Dispatcher) Apply(retireCtx, runCtx context.Context, set map[string]*Ou
 		d.outputs[name] = out
 	}
 	for _, name := range remove {
+		delete(d.failed, name)
 		if old, exists := d.outputs[name]; exists {
 			delete(d.outputs, name)
 			retiring = append(retiring, old)
@@ -211,13 +224,16 @@ func (d *Dispatcher) GetReadableStore(name string) (output.ReadableStore, bool) 
 	return rs, ok
 }
 
-// CollectStatus returns status for every output.
+// CollectStatus returns status for every output, including those that failed to build.
 func (d *Dispatcher) CollectStatus() []OutputStatus {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	statuses := make([]OutputStatus, 0, len(d.outputs))
+	statuses := make([]OutputStatus, 0, len(d.outputs)+len(d.failed))
 	for _, out := range d.outputs {
 		statuses = append(statuses, out.GetStatus())
+	}
+	for name, reason := range d.failed {
+		statuses = append(statuses, OutputStatus{Name: name, Status: HealthFailed, LastError: reason})
 	}
 	return statuses
 }

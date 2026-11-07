@@ -325,3 +325,33 @@ func TestHealthWarningSurvivesFailedDelivery(t *testing.T) {
 	assert.Equal(t, HealthError, status.Status)
 	assert.Equal(t, "not reachable", status.LastWarning)
 }
+
+func TestDispatcherReportsOutputsThatFailedToBuildUntilTheyAreAppliedOrRemoved(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	running := NewOutput(&testutil.MockDriver{DriverName: "slack"}, defaultRuntimeDefaults(), nil)
+	d := NewDispatcher([]*Output{running})
+	d.Start(ctx)
+	t.Cleanup(func() { _ = d.Shutdown(context.Background(), cancel) })
+
+	d.MarkFailed("loki", "not started: invalid host")
+	d.MarkFailed("webhook", "not started: x")
+	d.MarkFailed("slack", "ignored: slack is running")
+	failed := func() map[string]string {
+		got := map[string]string{}
+		for _, s := range d.CollectStatus() {
+			if s.Status == HealthFailed {
+				got[s.Name] = s.LastError
+			}
+		}
+		return got
+	}
+	assert.Equal(t, map[string]string{"loki": "not started: invalid host", "webhook": "not started: x"}, failed())
+	assert.Len(t, d.CollectStatus(), 3)
+	assert.ElementsMatch(t, []string{"slack"}, d.OutputNames(), "a failed output is not running")
+
+	require.NoError(t, d.AddOutput(ctx, NewOutput(&testutil.MockDriver{DriverName: "loki"}, defaultRuntimeDefaults(), nil)))
+	require.NoError(t, d.RemoveOutput(ctx, "webhook"))
+	assert.Empty(t, failed())
+	assert.Len(t, d.CollectStatus(), 2)
+}

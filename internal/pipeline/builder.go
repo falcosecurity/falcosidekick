@@ -97,6 +97,25 @@ func BuildOutputs(
 	defaults output.RuntimeConfig,
 	deps output.Deps,
 ) (map[string]*Output, error) {
+	outputs, failures := BuildEach(ctx, cat, configs, defaults, deps)
+	if len(failures) > 0 {
+		for _, out := range outputs {
+			_ = out.Close()
+		}
+		name := slices.Sorted(maps.Keys(failures))[0]
+		return nil, fmt.Errorf("output %q: %w", name, failures[name])
+	}
+	return outputs, nil
+}
+
+// BuildEach builds outputs concurrently and returns those that built and the failure of each other one.
+func BuildEach(
+	ctx context.Context,
+	cat *catalog.Catalog,
+	configs map[string]map[string]any,
+	defaults output.RuntimeConfig,
+	deps output.Deps,
+) (outputs map[string]*Output, failures map[string]error) {
 	type result struct {
 		out *Output
 		err error
@@ -112,22 +131,16 @@ func BuildOutputs(
 	}
 	wg.Wait()
 
-	names := slices.Sorted(maps.Keys(results))
-	for _, name := range names {
-		if err := results[name].err; err != nil {
-			for _, res := range results {
-				if res.out != nil {
-					_ = res.out.Close()
-				}
-			}
-			return nil, fmt.Errorf("output %q: %w", name, err)
-		}
-	}
-	outputs := make(map[string]*Output, len(results))
+	outputs = make(map[string]*Output, len(results))
+	failures = make(map[string]error)
 	for name, res := range results {
+		if res.err != nil {
+			failures[name] = res.err
+			continue
+		}
 		outputs[name] = res.out
 	}
-	return outputs, nil
+	return outputs, failures
 }
 
 const healthCheckTimeout = 5 * time.Second

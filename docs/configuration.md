@@ -53,6 +53,7 @@ Outputs are probed concurrently. `runtime.health_check: false` skips the probe f
 | `ok` | delivering |
 | `degraded` | delivering with a problem: circuit open or half-open, a destination not reachable before start, or an Alertmanager host failing while another accepts |
 | `error` | the last delivery failed (`last_error`) |
+| `failed` | not running: an output created through the API did not build at startup (`last_error`); its stored settings are kept, and a `PUT` or `DELETE` clears the state |
 
 ## HTTP endpoints
 

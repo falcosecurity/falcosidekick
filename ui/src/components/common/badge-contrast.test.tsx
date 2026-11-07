@@ -65,7 +65,7 @@ function composite(color: RGB, background: RGB, opacity: number): RGB {
   ]
 }
 
-const statuses: OutputStatusState[] = ["ok", "idle", "error", "degraded", "disabled", "unknown"]
+const statuses: OutputStatusState[] = ["ok", "idle", "failed", "error", "degraded", "disabled", "unknown"]
 const cases = [
   ...PRIORITIES.map((priority) => ({ name: `priority ${priority}`, badge: <PriorityBadge priority={priority} /> })),
   ...statuses.map((status) => ({ name: `status ${status}`, badge: <StatusBadge status={status} /> })),

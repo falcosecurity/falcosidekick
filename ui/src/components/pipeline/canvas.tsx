@@ -307,6 +307,8 @@ function edgeStyleForStatus(status?: OutputStatus["status"]): React.CSSPropertie
   switch (status) {
     case "ok":
       return { stroke: "var(--status-ok)", strokeWidth: 1.75 }
+    case "failed":
+      return { stroke: "var(--status-error)", strokeWidth: 1.25, strokeDasharray: "4 4" }
     case "error":
       return { stroke: "var(--status-error)", strokeWidth: 1.5 }
     case "degraded":

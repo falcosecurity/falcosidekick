@@ -39,6 +39,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/metrics"
 	"github.com/falcosecurity/falcosidekick/internal/pipeline"
 	"github.com/falcosecurity/falcosidekick/internal/reload"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 	"github.com/falcosecurity/falcosidekick/ui"
 )
 
@@ -98,7 +99,7 @@ func NewApp(
 		}
 	}()
 
-	restored, err := restoreFromDB(ctx, cfg, db, cat, collector, outsCfg.Outputs)
+	restored, restoreFailures, err := restoreFromDB(ctx, cfg, db, cat, collector, outsCfg.Outputs)
 	if err != nil {
 		return nil, fmt.Errorf("restore outputs: %w", err)
 	}
@@ -110,6 +111,9 @@ func NewApp(
 	outputs = append(outputs, restored...)
 
 	dispatcher := pipeline.NewDispatcher(outputs)
+	for name, failure := range restoreFailures {
+		dispatcher.MarkFailed(name, "not started: "+failure.Error())
+	}
 
 	if cfg.UI.Enabled {
 		if _, ok := dispatcher.GetReadableStore(cfg.UI.EventSource); !ok {
@@ -279,6 +283,7 @@ func createOutputs(
 }
 
 // restoreFromDB rebuilds outputs stored in the database but absent from the output files.
+// A stored output that does not build is left out and returned with its failure; its row is kept.
 func restoreFromDB(
 	ctx context.Context,
 	cfg *config.Config,
@@ -286,26 +291,41 @@ func restoreFromDB(
 	cat *catalog.Catalog,
 	mc core.MetricsCollector,
 	fileOutputs map[string]map[string]any,
-) ([]*pipeline.Output, error) {
+) ([]*pipeline.Output, map[string]error, error) {
 	entries, err := db.GetOutputConfigs(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("read persisted outputs: %w", err)
+		return nil, nil, fmt.Errorf("read persisted outputs: %w", err)
 	}
-	raw := make(map[string]map[string]any)
+	resolved := make(map[string]map[string]any)
+	failures := make(map[string]error)
 	for name, entry := range entries {
 		if _, inFiles := fileOutputs[name]; inFiles {
 			continue
 		}
-		raw[name] = entry.Config
+		outputType, ok := cat.Get(name)
+		if !ok {
+			failures[name] = fmt.Errorf("unknown output type %q", name)
+			continue
+		}
+		cfgCopy := utils.DeepCopyMap(entry.Config)
+		if err := config.ResolveSecrets(name, cfgCopy, outputType.Schema); err != nil {
+			failures[name] = err
+			continue
+		}
+		resolved[name] = cfgCopy
 	}
-	if len(raw) == 0 {
-		return nil, nil
+
+	built, buildFailures := pipeline.BuildEach(ctx, cat, resolved, cfg.RuntimeDefaults, output.Deps{Logger: slog.Default(), Metrics: mc})
+	maps.Copy(failures, buildFailures)
+	outputs := make([]*pipeline.Output, 0, len(built))
+	for _, name := range slices.Sorted(maps.Keys(built)) {
+		outputs = append(outputs, built[name])
+		slog.Info("output enabled", "output", name)
 	}
-	resolved, err := config.ResolvedOutputs(raw, cat)
-	if err != nil {
-		return nil, fmt.Errorf("secret resolution: %w", err)
+	for _, name := range slices.Sorted(maps.Keys(failures)) {
+		slog.Error("stored output not started", "output", name, "error", failures[name])
 	}
-	return createOutputs(ctx, cfg, resolved, cat, mc)
+	return outputs, failures, nil
 }
 
 func closeOutputs(outputs []*pipeline.Output) {

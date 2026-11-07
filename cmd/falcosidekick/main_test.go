@@ -24,12 +24,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -400,8 +402,9 @@ func TestRestoreFromDB_BuildsFromProvisionedFalseEntries(t *testing.T) {
 	require.NoError(t, err)
 
 	fileOutputs := map[string]map[string]any{}
-	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
+	outs, failures, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
 	require.NoError(t, err)
+	require.Empty(t, failures)
 	require.Len(t, outs, 1, "UI-only entry must be rebuilt into a live Output on startup")
 	assert.Equal(t, "webhook", outs[0].Name())
 
@@ -431,14 +434,62 @@ func TestRestoreFromDB_ReadsStoredSecretFiles(t *testing.T) {
 	_, err = db.SaveOutputConfig(ctx, "webhook", 0, map[string]any{"token_file": secret})
 	require.NoError(t, err)
 
-	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), nil)
+	outs, failures, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), nil)
 	require.NoError(t, err)
+	require.Empty(t, failures)
 	require.Len(t, outs, 1)
 	t.Cleanup(func() { _ = outs[0].Close() })
 	assert.Equal(t, map[string]any{"token": "from-file"}, built)
 	stored, err := db.GetOutputConfig(ctx, "webhook")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"token_file": secret}, stored.Config, "restore never writes the secret back")
+}
+
+// One broken stored output must not keep Sidekick or the other stored outputs from starting.
+func TestRestoreFromDB_LeavesOutUnbuildableOutputsAndKeepsTheirRows(t *testing.T) {
+	ctx := context.Background()
+	cfg := loadDefaultConfigForCmdTest(t)
+	mockType := func(name string, build error) output.Type {
+		return output.Type{
+			Name:   name,
+			Schema: output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
+			New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+				if build != nil {
+					return nil, build
+				}
+				return &testutil.MockDriver{DriverName: name}, nil
+			},
+		}
+	}
+	cat, err := catalog.New([]output.Type{
+		mockType("webhook", nil),
+		mockType("slack", nil),
+		mockType("loki", errors.New("invalid host")),
+	})
+	require.NoError(t, err)
+	db := database.NewMemory()
+	stored := map[string]map[string]any{
+		"webhook": {"token": "ok"},
+		"slack":   {"token_file": filepath.Join(t.TempDir(), "missing")},
+		"loki":    {"token": "ok"},
+		"retired": {"address": "http://x"},
+	}
+	for name, c := range stored {
+		_, err := db.SaveOutputConfig(ctx, name, 0, c)
+		require.NoError(t, err)
+	}
+
+	outs, failures, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), nil)
+	require.NoError(t, err)
+	require.Len(t, outs, 1)
+	t.Cleanup(func() { _ = outs[0].Close() })
+	assert.Equal(t, "webhook", outs[0].Name())
+	assert.ElementsMatch(t, []string{"slack", "loki", "retired"}, slices.Collect(maps.Keys(failures)))
+	assert.ErrorContains(t, failures["loki"], "invalid host")
+
+	entries, err := db.GetOutputConfigs(ctx)
+	require.NoError(t, err)
+	assert.Len(t, entries, 4, "rows of outputs that did not start are kept")
 }
 
 func TestRestoreFromDB_SkipsProvisionedEntries(t *testing.T) {
@@ -460,8 +511,9 @@ func TestRestoreFromDB_SkipsProvisionedEntries(t *testing.T) {
 	}))
 	// The file already built webhook, so restore must skip it.
 	fileOutputs := map[string]map[string]any{"webhook": {"address": "http://from-file"}}
-	outs, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
+	outs, failures, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
 	require.NoError(t, err)
+	require.Empty(t, failures)
 	assert.Empty(t, outs, "provisioned entries must not be rebuilt by the UI-only restore path")
 }
 
