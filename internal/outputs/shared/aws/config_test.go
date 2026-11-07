@@ -18,6 +18,8 @@ package aws
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -230,6 +232,38 @@ func TestLoadWebIdentityIsNotRetriedByTheSDK(t *testing.T) {
 	_, err = cfg.Credentials.Retrieve(context.Background())
 	require.Error(t, err)
 	assert.Equal(t, int32(1), calls.Load())
+}
+
+// tls.ca_file trusts a private CA for the destination only. STS has a public certificate: when
+// the credential calls shared the output's CA pool, IRSA with a private endpoint could not start.
+func TestLoadKeepsTheOutputTLSOffTheCredentialCalls(t *testing.T) {
+	awstest.Isolate(t)
+	var stsCalls atomic.Int32
+	stsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		stsCalls.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	t.Cleanup(stsServer.Close)
+	caFile := filepath.Join(t.TempDir(), "ca.pem")
+	require.NoError(t, os.WriteFile(caFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: stsServer.Certificate().Raw}), 0o600))
+	token := filepath.Join(t.TempDir(), "token")
+	require.NoError(t, os.WriteFile(token, []byte("web-identity-token"), 0o600))
+	t.Setenv("AWS_ENDPOINT_URL_STS", stsServer.URL)
+	t.Setenv("AWS_WEB_IDENTITY_TOKEN_FILE", token)
+	t.Setenv("AWS_ROLE_ARN", "arn:aws:iam::123456789012:role/falco")
+
+	cfg, err := (&Config{Region: "eu-west-1", TLS: shared.TLSClientConfig{CAFile: caFile}}).Load(context.Background(), "")
+	require.NoError(t, err)
+	_, err = cfg.Credentials.Retrieve(context.Background())
+	require.Error(t, err)
+	assert.ErrorAs(t, err, new(*tls.CertificateVerificationError), "the credential client trusts the system roots, not the output's CA")
+	assert.Zero(t, stsCalls.Load())
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, stsServer.URL, http.NoBody)
+	require.NoError(t, err)
+	resp, err := cfg.HTTPClient.Do(req)
+	require.NoError(t, err, "the service client trusts the output's CA")
+	_ = resp.Body.Close()
 }
 
 func TestLoadRefusesCrossOriginRedirect(t *testing.T) {
