@@ -40,16 +40,50 @@ func hostPort(addr string) map[string]any {
 	return map[string]any{"host": host, "port": port}
 }
 
-// Drivers must stop waiting on a silent destination once ctx ends, or retire and shutdown deadlines cannot hold.
-func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
-	tests := []struct {
-		config     func(host string) map[string]any
-		name       string
-		typ        string // output type when it differs from name
-		tcp        bool
-		noProbe    bool
-		kubeconfig bool // host is a kubeconfig for the silent API server
-	}{
+// silentCase builds one registered output against a destination that accepts and never answers.
+type silentCase struct {
+	config     func(host string) map[string]any
+	name       string
+	typ        string // output type when it differs from name
+	tcp        bool
+	noProbe    bool
+	kubeconfig bool // host is a kubeconfig for the silent API server
+}
+
+// newDriver starts the silent destination and returns the initialized driver, closed at cleanup.
+func (c silentCase) newDriver(t *testing.T) output.Driver {
+	t.Helper()
+	driver := c.build(t)
+	require.NoError(t, driver.Init(context.Background()))
+	return driver
+}
+
+// build starts the silent destination and returns the driver before Init, closed at cleanup.
+func (c silentCase) build(t *testing.T) output.Driver {
+	t.Helper()
+	var host string
+	switch {
+	case c.tcp:
+		host = testutil.HangingTCPServer(t)
+	case c.kubeconfig:
+		host = testutil.WriteKubeconfig(t, testutil.HangingHTTPServer(t).URL, "", "token")
+	default:
+		host = testutil.HangingHTTPServer(t).URL
+	}
+	typ := c.name
+	if c.typ != "" {
+		typ = c.typ
+	}
+	driver, err := outputTypes[typ].New(c.config(host), output.Deps{})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = driver.Close() })
+	return driver
+}
+
+// silentCases has one case per registered output with a destination; the check fails when one is missing.
+func silentCases(t *testing.T) []silentCase {
+	t.Helper()
+	cases := []silentCase{
 		{name: "webhook", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h} }},
 		{name: "slack", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h, "secret_endpoint": "/services/T/B/X"} }},
 		{name: "loki", config: func(h string) map[string]any { return map[string]any{"host": h} }},
@@ -103,32 +137,20 @@ func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
 		}},
 	}
 	covered := map[string]bool{"inmemory": true} // stores in process, no destination
-	for _, tt := range tests {
-		covered[tt.name] = true
+	for _, c := range cases {
+		covered[c.name] = true
 	}
 	for name := range outputTypes {
 		require.True(t, covered[name], "output %s has no silent-destination case", name)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var host string
-			switch {
-			case tt.tcp:
-				host = testutil.HangingTCPServer(t)
-			case tt.kubeconfig:
-				host = testutil.WriteKubeconfig(t, testutil.HangingHTTPServer(t).URL, "", "token")
-			default:
-				host = testutil.HangingHTTPServer(t).URL
-			}
-			typ := tt.name
-			if tt.typ != "" {
-				typ = tt.typ
-			}
-			driver, err := outputTypes[typ].New(tt.config(host), output.Deps{})
-			require.NoError(t, err)
-			require.NoError(t, driver.Init(context.Background()))
-			t.Cleanup(func() { _ = driver.Close() })
+	return cases
+}
 
+// Drivers must stop waiting on a silent destination once ctx ends, or retire and shutdown deadlines cannot hold.
+func TestDriversReturnWhenContextEndsOnSilentDestination(t *testing.T) {
+	for _, tt := range silentCases(t) {
+		t.Run(tt.name, func(t *testing.T) {
+			driver := tt.newDriver(t)
 			_ = testutil.RequireReturnsOnCancel(t, "Send", func(ctx context.Context) error {
 				return driver.Send(ctx, testutil.CreateValidEvent())
 			})
