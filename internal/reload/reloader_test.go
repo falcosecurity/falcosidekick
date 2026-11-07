@@ -170,6 +170,7 @@ func TestReloaderSuccessRemoveOutput(t *testing.T) {
 		Deps:            output.Deps{Logger: slog.Default()},
 		Logger:          slog.Default(),
 		InitialOutputs:  map[string]map[string]any{"slack": {"secret_endpoint": "old"}},
+		FileOutputs:     map[string]map[string]any{"slack": {"secret_endpoint": "old"}},
 	})
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -200,6 +201,7 @@ func TestReloaderNoChangeIsNoop(t *testing.T) {
 		Deps:            output.Deps{Logger: slog.Default()},
 		Logger:          slog.Default(),
 		InitialOutputs:  initial,
+		FileOutputs:     initial,
 	})
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -226,6 +228,7 @@ func TestReloaderParseErrorKeepsOldConfig(t *testing.T) {
 		Deps:            output.Deps{Logger: slog.Default()},
 		Logger:          slog.Default(),
 		InitialOutputs:  map[string]map[string]any{"slack": {"secret_endpoint": "old"}},
+		FileOutputs:     map[string]map[string]any{"slack": {"secret_endpoint": "old"}},
 	})
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -329,6 +332,7 @@ func TestReloaderChangedOutputTriggersReplace(t *testing.T) {
 		Deps:            output.Deps{Logger: slog.Default()},
 		Logger:          slog.Default(),
 		InitialOutputs:  initial,
+		FileOutputs:     initial,
 	})
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -536,6 +540,7 @@ func TestReloaderReplaceRetireTimeoutKeepsLiveReplacement(t *testing.T) {
 		Registry:        reg,
 		Logger:          slog.Default(),
 		InitialOutputs:  map[string]map[string]any{"myout": {"host": "http://old"}},
+		FileOutputs:     map[string]map[string]any{"myout": {"host": "http://old"}},
 	})
 
 	// The short retireTimeout makes the old output's retire time out.
@@ -594,6 +599,7 @@ func TestReloaderRemoveRetireTimeoutIsWarning(t *testing.T) {
 		Deps:            output.Deps{Logger: slog.Default()},
 		Logger:          slog.Default(),
 		InitialOutputs:  map[string]map[string]any{"myout": {"host": "http://old"}},
+		FileOutputs:     map[string]map[string]any{"myout": {"host": "http://old"}},
 	})
 
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -689,6 +695,7 @@ func TestReloadNoOpCountsAsAttempt(t *testing.T) {
 		Registry:        reg,
 		Logger:          slog.Default(),
 		InitialOutputs:  map[string]map[string]any{"slack": {"host": "same"}},
+		FileOutputs:     map[string]map[string]any{"slack": {"host": "same"}},
 	})
 
 	reloadCtx := context.Background()
@@ -741,12 +748,18 @@ func TestReloaderSuccessWithDBSync(t *testing.T) {
 	assert.NotEqual(t, float64(0), getLastSuccessTimestamp(gathered), "reload_last_success_timestamp must be updated")
 }
 
-func TestReloaderPartialSuccessDBSyncFailure(t *testing.T) {
+// A file reload the database refuses changes nothing; the next reload with the same files tries again.
+func TestReloaderProvisionFailureChangesNothingAndIsRetried(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
 	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: https://hooks.slack.com/new\n")
 
-	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
+	var closed atomic.Int32
+	typ := stubOutputType("slack", nil)
+	typ.New = func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+		return &testutil.MockDriver{DriverName: "slack", CloseFunc: func() error { closed.Add(1); return nil }}, nil
+	}
+	cat, err := catalog.New([]output.Type{typ})
 	require.NoError(t, err)
 
 	env := newReloaderTestEnv(t, nil)
@@ -763,23 +776,60 @@ func TestReloaderPartialSuccessDBSyncFailure(t *testing.T) {
 		Deps:            output.Deps{Logger: slog.Default()},
 		Registry:        reg,
 		Logger:          slog.Default(),
-		InitialOutputs:  map[string]map[string]any{},
 	})
+	ctx := t.Context()
 
-	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	err = r.Reload(ctx, env.workerRunCtx, 10*time.Second)
+	require.ErrorIs(t, err, ErrDatabaseUnavailable)
+	assert.Empty(t, env.d.OutputNames(), "nothing swapped in")
+	assert.Equal(t, int32(1), closed.Load(), "the built output is closed")
+	assert.NotContains(t, r.fileState, "slack")
 
-	// The runtime accepted the config, so a DB failure does not fail Reload.
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
-
-	assert.Contains(t, r.fileState, "slack", "file state must reflect new config despite DB failure")
+	db.ProvisionErr = nil
+	require.NoError(t, r.Reload(ctx, env.workerRunCtx, 10*time.Second))
+	assert.Equal(t, []string{"slack"}, env.d.OutputNames(), "the same files apply once the database accepts them")
 
 	gathered, gatherErr := reg.Gather()
 	require.NoError(t, gatherErr)
-	assert.Equal(t, float64(1), getMetricValue(gathered, metricReloadTotal), "reload_total must be 1")
-	assert.Equal(t, float64(0), getMetricValue(gathered, metricReloadFailures), "reload_failures_total must be 0")
-	assert.Equal(t, float64(1), getMetricValue(gathered, metricReloadPartial), "reload_partial_total must be 1")
-	assert.Equal(t, float64(0), getLastSuccessTimestamp(gathered), "reload_last_success_timestamp must NOT be updated on partial")
+	assert.Equal(t, float64(1), getMetricValue(gathered, metricReloadFailures))
+	assert.Equal(t, float64(0), getMetricValue(gathered, metricReloadPartial))
+}
+
+// Moving a secret to another file with the same content changes nothing at runtime, but the stored path follows.
+func TestReloaderProvisionsANewSecretPathWithTheSameContent(t *testing.T) {
+	dir := t.TempDir()
+	first, second := filepath.Join(dir, "a"), filepath.Join(dir, "b")
+	require.NoError(t, os.WriteFile(first, []byte("same"), 0o600))
+	require.NoError(t, os.WriteFile(second, []byte("same"), 0o600))
+	path := filepath.Join(dir, "outputs.yaml")
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    token_file: "+first+"\n")
+
+	var builds atomic.Int32
+	typ := stubOutputType("slack", nil)
+	typ.Schema.Fields = []output.SchemaField{{Name: "token", Type: "string", Secret: true}}
+	typ.New = func(_ map[string]any, _ output.Deps) (output.Driver, error) {
+		builds.Add(1)
+		return &testutil.MockDriver{DriverName: "slack"}, nil
+	}
+	cat, err := catalog.New([]output.Type{typ})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		OutputPaths: []string{path}, Catalog: cat, Dispatcher: env.d, Database: db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+	})
+	ctx := t.Context()
+	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    token_file: "+second+"\n")
+	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+
+	stored, err := db.GetOutputConfig(ctx, "slack")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"token_file": second}, stored.Config)
+	assert.Equal(t, int32(1), builds.Load(), "the running output is not rebuilt")
 }
 
 func newApplyReloader(t *testing.T, cat *catalog.Catalog, env *reloaderTestEnv, initial map[string]map[string]any) *Reloader {
@@ -792,6 +842,7 @@ func newApplyReloader(t *testing.T, cat *catalog.Catalog, env *reloaderTestEnv, 
 		Deps:            output.Deps{Logger: slog.Default()},
 		Logger:          slog.Default(),
 		InitialOutputs:  initial,
+		FileOutputs:     initial,
 	})
 	r.BindWorkerContext(env.workerRunCtx, 2*time.Second)
 	return r
@@ -1119,6 +1170,7 @@ func TestReloaderApplyThenReload_FileWinsOverUIEdit(t *testing.T) {
 		Deps:            output.Deps{Logger: slog.Default()},
 		Logger:          slog.Default(),
 		InitialOutputs:  map[string]map[string]any{"slack": {"secret_endpoint": "file-value"}},
+		FileOutputs:     map[string]map[string]any{"slack": {"secret_endpoint": "file-value"}},
 	})
 	r.BindWorkerContext(env.workerRunCtx, time.Second)
 

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"reflect"
 	"sync"
 	"time"
 
@@ -37,13 +38,16 @@ import (
 
 // ReloaderConfig holds the Reloader dependencies; contexts are passed to Reload and BindWorkerContext.
 type ReloaderConfig struct {
-	Deps            output.Deps
-	Database        core.Database
-	Registry        prometheus.Registerer
-	Catalog         *catalog.Catalog
-	Dispatcher      *pipeline.Dispatcher
-	Logger          *slog.Logger
-	InitialOutputs  map[string]map[string]any
+	Deps       output.Deps
+	Database   core.Database
+	Registry   prometheus.Registerer
+	Catalog    *catalog.Catalog
+	Dispatcher *pipeline.Dispatcher
+	Logger     *slog.Logger
+	// InitialOutputs are the file outputs running at startup, built from resolved secret files.
+	InitialOutputs map[string]map[string]any
+	// FileOutputs are the same outputs as written in the files, as they were provisioned.
+	FileOutputs     map[string]map[string]any
 	OutputPaths     []string
 	RuntimeDefaults output.RuntimeConfig
 	Provisioning    core.ProvisioningConfig
@@ -69,7 +73,9 @@ type Reloader struct {
 	dispatcher *pipeline.Dispatcher
 	metrics    *reloadMetrics
 
+	// fileState holds the file outputs with resolved secrets, fileRaw the same outputs as written.
 	fileState       map[string]map[string]any
+	fileRaw         map[string]map[string]any
 	logger          *slog.Logger
 	workerRunCtx    context.Context
 	outputPaths     []string
@@ -81,15 +87,8 @@ type Reloader struct {
 	closed          bool
 }
 
-// NewReloader returns a Reloader with its own deep copy of InitialOutputs.
+// NewReloader returns a Reloader with its own deep copies of InitialOutputs and FileOutputs.
 func NewReloader(cfg *ReloaderConfig) *Reloader {
-	var initial map[string]map[string]any
-	if cfg.InitialOutputs != nil {
-		initial = make(map[string]map[string]any, len(cfg.InitialOutputs))
-		for name, m := range cfg.InitialOutputs {
-			initial[name] = utils.DeepCopyMap(m)
-		}
-	}
 	return &Reloader{
 		outputPaths:     cfg.OutputPaths,
 		catalog:         cfg.Catalog,
@@ -99,9 +98,18 @@ func NewReloader(cfg *ReloaderConfig) *Reloader {
 		provisioning:    cfg.Provisioning,
 		deps:            cfg.Deps,
 		metrics:         newReloadMetrics(cfg.Registry),
-		fileState:       initial,
+		fileState:       copyConfigs(cfg.InitialOutputs),
+		fileRaw:         copyConfigs(cfg.FileOutputs),
 		logger:          cfg.Logger,
 	}
+}
+
+func copyConfigs(configs map[string]map[string]any) map[string]map[string]any {
+	result := make(map[string]map[string]any, len(configs))
+	for name, cfg := range configs {
+		result[name] = utils.DeepCopyMap(cfg)
+	}
+	return result
 }
 
 // BindWorkerContext sets the worker context and retire timeout for UI writes; it panics if called twice.
@@ -230,8 +238,9 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 	return nil
 }
 
-// Reload applies the delta between the output config files and the running state.
-// ctx bounds parse, Init and Provision; new workers run on workerRunCtx so they outlive ctx.
+// Reload applies the delta between the output files and the running file outputs, in the order of
+// API writes: build, provision, then swap. A failed provision changes nothing and the next reload
+// tries again. ctx bounds parse, Init and Provision; new workers run on workerRunCtx so they outlive ctx.
 func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.Duration) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -264,7 +273,9 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 		}
 	}
 
-	if diff.IsEmpty() {
+	// A new secret path whose file holds the same value changes nothing at runtime but must reach the store.
+	rawChanged := !reflect.DeepEqual(r.fileRaw, outsCfg.Outputs)
+	if diff.IsEmpty() && !rawChanged {
 		r.logger.Debug("reload: no output config changes detected")
 		r.metrics.recordNoop(SourceFile)
 		return nil
@@ -277,6 +288,13 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	built, err := r.createOutputs(ctx, toBuild)
 	if err != nil {
 		return r.fail(start, SourceFile, "reload create: %w", err)
+	}
+
+	if r.database != nil {
+		if err := r.database.Provision(ctx, &core.ProvisionRequest{Outputs: outsCfg.Outputs}); err != nil {
+			closeOutputs(built)
+			return r.fail(start, SourceFile, "reload provision: %w", databaseError(err))
+		}
 	}
 
 	retireCtx, retireCancel := context.WithTimeout(ctx, retireTimeout)
@@ -293,28 +311,17 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 		r.logger.Warn("reload: retire timeout, replacements active", "error", err)
 	}
 
-	var dbSyncFailed bool
-	if r.database != nil {
-		if err := r.database.Provision(ctx, &core.ProvisionRequest{
-			Outputs: outsCfg.Outputs,
-		}); err != nil {
-			dbSyncFailed = true
-			r.logger.Error("reload: database re-provision failed", "error", err)
-		}
-	}
-
-	// The runtime is applied, so fileState advances even on DB or retire failure.
 	r.fileState = resolved
+	r.fileRaw = copyConfigs(outsCfg.Outputs)
 	duration := time.Since(start)
 
-	if retireWarning || dbSyncFailed {
+	if retireWarning {
 		r.metrics.recordPartialSuccess(duration, SourceFile)
 		r.logger.Warn("reload partial",
 			"added", len(diff.Added),
 			"changed", len(diff.Changed),
 			"removed", len(diff.Removed),
 			"retire_warning", retireWarning,
-			"db_sync_failed", dbSyncFailed,
 			"duration", duration,
 		)
 	} else {
