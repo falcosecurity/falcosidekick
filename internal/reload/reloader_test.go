@@ -1491,3 +1491,49 @@ func TestReloaderRejectsInlineSecretsForAPersistentDatabase(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, stored)
 }
+
+// A reload, even without output files, rereads the secret files of API outputs: a rotated value
+// rebuilds the output and leaves the stored config and version alone.
+func TestReloaderRebuildsAPIOutputsWhoseSecretFileChanged(t *testing.T) {
+	dir := t.TempDir()
+	secret := filepath.Join(dir, "token")
+	require.NoError(t, os.WriteFile(secret, []byte("first"), 0o600))
+	var seen []string
+	typ := stubOutputType("slack", nil)
+	typ.Schema.Fields = []output.SchemaField{{Name: "token", Type: "string", Secret: true}}
+	typ.New = func(cfg map[string]any, _ output.Deps) (output.Driver, error) {
+		seen = append(seen, fmt.Sprint(cfg["token"]))
+		return &testutil.MockDriver{DriverName: "slack"}, nil
+	}
+	cat, err := catalog.New([]output.Type{typ})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		Catalog: cat, Dispatcher: env.d, Database: db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+	ctx := t.Context()
+	version, err := r.ApplyOutput(ctx, "slack", 0, map[string]any{"token_file": secret})
+	require.NoError(t, err)
+
+	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	assert.Equal(t, []string{"first"}, seen, "an unchanged secret file rebuilds nothing")
+
+	require.NoError(t, os.WriteFile(secret, []byte("rotated"), 0o600))
+	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	assert.Equal(t, []string{"first", "rotated"}, seen)
+	assert.Equal(t, []string{"slack"}, env.d.OutputNames())
+
+	require.NoError(t, os.Remove(secret))
+	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second), "an unreadable secret file keeps the running output")
+	assert.Equal(t, []string{"first", "rotated"}, seen)
+	assert.Equal(t, []string{"slack"}, env.d.OutputNames())
+
+	stored, err := db.GetOutputConfig(ctx, "slack")
+	require.NoError(t, err)
+	assert.Equal(t, version, stored.Version)
+	assert.Equal(t, map[string]any{"token_file": secret}, stored.Config)
+}
