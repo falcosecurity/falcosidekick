@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"io/fs"
 	"log/slog"
 	"os"
 	"strings"
@@ -157,12 +156,9 @@ func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
 			return nil, fmt.Errorf("%s: kubeconfig: required when not running in a Kubernetes pod", name)
 		}
 	} else {
-		if _, statErr := os.Stat(kubeconfig); errors.Is(statErr, fs.ErrNotExist) {
-			return nil, fmt.Errorf("%s: kubeconfig: file not found", name)
-		}
-		cfg, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		cfg, err = restConfigFromFile(kubeconfig)
 		if err != nil {
-			return nil, fmt.Errorf("%s: kubeconfig: cannot load file", name)
+			return nil, fmt.Errorf("%s: kubeconfig: %w", name, err)
 		}
 	}
 	cfg = rest.CopyConfig(cfg)
@@ -170,6 +166,33 @@ func loadRESTConfig(kubeconfig string) (*rest.Config, error) {
 	cfg.QPS, cfg.Burst = clientQPS, clientBurst
 	// client-go sets no request timeout by default; an API server that never answers would hold a worker.
 	cfg.Timeout = requestTimeout
+	return cfg, nil
+}
+
+// restConfigFromFile reads the kubeconfig like every other output file, then resolves its relative
+// paths from its directory as client-go's file loader does. Errors never name the path.
+func restConfigFromFile(path string) (*rest.Config, error) {
+	data, err := utils.ReadRegularFile(path)
+	if err != nil {
+		return nil, errors.New(utils.FileProblem(err))
+	}
+	config, err := clientcmd.Load(data)
+	if err != nil {
+		return nil, errors.New("cannot load file")
+	}
+	for _, cluster := range config.Clusters {
+		cluster.LocationOfOrigin = path
+	}
+	for _, user := range config.AuthInfos {
+		user.LocationOfOrigin = path
+	}
+	if err := clientcmd.ResolveLocalPaths(config); err != nil {
+		return nil, errors.New("cannot load file")
+	}
+	cfg, err := clientcmd.NewNonInteractiveClientConfig(*config, config.CurrentContext, &clientcmd.ConfigOverrides{}, nil).ClientConfig()
+	if err != nil {
+		return nil, errors.New("cannot load file")
+	}
 	return cfg, nil
 }
 

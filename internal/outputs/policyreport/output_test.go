@@ -411,7 +411,12 @@ func TestInitLoadsClientConfiguration(t *testing.T) {
 		{
 			name:    "missing kubeconfig file",
 			raw:     map[string]any{"kubeconfig": filepath.Join(t.TempDir(), "absent")},
-			wantErr: "policyreport: kubeconfig: file not found",
+			wantErr: "policyreport: kubeconfig: file does not exist",
+		},
+		{
+			name:    "kubeconfig is a FIFO",
+			raw:     map[string]any{"kubeconfig": fifo(t)},
+			wantErr: "policyreport: kubeconfig: not a regular file",
 		},
 		{
 			name:    "unreadable kubeconfig",
@@ -500,6 +505,33 @@ func withInClusterConfig(t *testing.T, fn func() (*rest.Config, error)) {
 	old := inClusterConfig
 	inClusterConfig = fn
 	t.Cleanup(func() { inClusterConfig = old })
+}
+
+func TestKubeconfigRelativePathsResolveFromItsDirectory(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"ca.pem", "token"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o600))
+	}
+	path := filepath.Join(dir, "kubeconfig")
+	require.NoError(t, os.WriteFile(path, []byte(`apiVersion: v1
+kind: Config
+current-context: c
+clusters: [{name: k, cluster: {server: "https://127.0.0.1:6443", certificate-authority: ca.pem}}]
+users: [{name: u, user: {tokenFile: token}}]
+contexts: [{name: c, context: {cluster: k, user: u}}]
+`), 0o600))
+	cfg, err := restConfigFromFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(dir, "ca.pem"), cfg.CAFile)
+	assert.Equal(t, filepath.Join(dir, "token"), cfg.BearerTokenFile)
+	assert.Equal(t, "https://127.0.0.1:6443", cfg.Host)
+}
+
+func fifo(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "fifo")
+	require.NoError(t, syscall.Mkfifo(path, 0o600))
+	return path
 }
 
 func writeFile(t *testing.T, content string) string {
