@@ -15,6 +15,7 @@ v2 configuration does not load in v3: unknown keys are rejected. Rewrite it with
 | Delivery | - | per-output queue, retry, circuit breaker, optional batching |
 | Image tags | `2.*`, `stable` (latest release), `latest` (master build) | `3.*`, `3`, `v3-latest` (latest release), `v3-main` (master build), `-slim` variants |
 | Port | 2801 | 2801 for events, health, version and metrics; 2802 on `127.0.0.1` for the API and the UI |
+| Storage | none: configuration lives in files | outputs can also be created through the API; kept in memory, sqlite or postgres (`database`), never with secret values |
 
 Falco needs no change: it posts to `/` as before.
 

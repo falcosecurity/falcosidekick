@@ -2,7 +2,7 @@
 
 Falcosidekick v3 is in beta. It reads two kinds of files:
 
-- one core file (`-c sidekick.yaml`): listener, logging, UI, API, runtime defaults;
+- one core file (`-c sidekick.yaml`): listener, logging, UI, API, database, runtime defaults;
 - one or more output files (`-o outputs.yaml`, repeatable): where events go.
 
 Start from [`config_example_sidekick.yaml`](../config_example_sidekick.yaml) and [`config_example_outputs.yaml`](../config_example_outputs.yaml).
@@ -142,7 +142,35 @@ ui:
   event_source: inmemory
 ```
 
-The UI is served on the management port, 2802, with the API. In Kubernetes reach it with `kubectl port-forward deploy/falcosidekick 2802`, which works with the default `127.0.0.1`. To expose it through a Service instead, set `management.listen_address: "0.0.0.0"` and restrict that Service to trusted clients: the API has no authentication. Editing outputs from the UI also needs `api.allow_writes: true`.
+The UI is served on the management port, 2802, with the API. In Kubernetes reach it with `kubectl port-forward deploy/falcosidekick 2802`, which works with the default `127.0.0.1`. To expose it through a Service instead, set `management.listen_address: "0.0.0.0"` and restrict that Service to trusted clients: the API has no authentication. The UI only reads: outputs are created and changed through the API, which needs `api.allow_writes: true`.
+
+## Keep API outputs across restarts
+
+Outputs created through the API live in memory by default. To keep them, and the UI layout, use a database in `sidekick.yaml`; secrets must then be file paths, as in the output files.
+
+One instance, with a volume:
+
+```yaml
+database:
+  backend: sqlite
+  sqlite:
+    path: /var/lib/falcosidekick/sidekick.db
+```
+
+Several instances sharing outputs (each needs the same output files):
+
+```yaml
+database:
+  backend: postgres
+  postgres:
+    host: postgres.default.svc
+    database: falcosidekick
+    user: falcosidekick
+    password_file: /run/secrets/postgres-password
+    sslmode: verify-full
+```
+
+See [configuration](configuration.md#database) for every setting.
 
 ## Build from source
 
