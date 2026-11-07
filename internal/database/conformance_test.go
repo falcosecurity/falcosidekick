@@ -32,8 +32,12 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 )
 
-// postgresDSNEnv names the postgres the conformance suite runs on; without it the postgres run is skipped.
-const postgresDSNEnv = "FALCOSIDEKICK_E2E_POSTGRES_DSN"
+// postgresDSNEnv names the postgres the conformance suite runs on; without it the postgres run is
+// skipped, unless postgresRequiredEnv is set, as in CI, where a skip would hide the missing database.
+const (
+	postgresDSNEnv      = "FALCOSIDEKICK_E2E_POSTGRES_DSN"
+	postgresRequiredEnv = "FALCOSIDEKICK_E2E_POSTGRES_REQUIRED"
+)
 
 type openStore func(t *testing.T) core.Database
 
@@ -59,6 +63,9 @@ func postgresConfig(t *testing.T, schema string) *pgx.ConnConfig {
 	t.Helper()
 	dsn := os.Getenv(postgresDSNEnv)
 	if dsn == "" {
+		if os.Getenv(postgresRequiredEnv) != "" {
+			t.Fatal(postgresDSNEnv + " is not set")
+		}
 		t.Skip(postgresDSNEnv + " is not set")
 	}
 	cfg, err := pgx.ParseConfig(dsn)
