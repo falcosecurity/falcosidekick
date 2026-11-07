@@ -141,6 +141,15 @@ func (c *signalConfig) target(defaultPath string) target {
 	return target{host: u.Host, path: path, secure: u.Scheme == schemeHTTPS}
 }
 
+// url is the full HTTP endpoint; given whole, its scheme overrides the OTEL_*_INSECURE variables.
+func (t target) url() string {
+	scheme := schemeHTTP
+	if t.secure {
+		scheme = schemeHTTPS
+	}
+	return scheme + "://" + t.host + t.path
+}
+
 // resolveHeaders reads header values, secrets and files once.
 func (c *signalConfig) resolveHeaders() (map[string]string, error) {
 	req := &http.Request{Header: http.Header{}}

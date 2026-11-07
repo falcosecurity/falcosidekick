@@ -488,6 +488,28 @@ func TestHTTPRedirectPolicy(t *testing.T) {
 	assert.Empty(t, r.snapshot().logs)
 }
 
+// With the INSECURE variables set, an https endpoint used to get plain HTTP, its headers in clear.
+func TestInsecureVariablesNeverDowngradeHTTPS(t *testing.T) {
+	for _, key := range []string{"OTEL_EXPORTER_OTLP_INSECURE", "OTEL_EXPORTER_OTLP_TRACES_INSECURE",
+		"OTEL_EXPORTER_OTLP_LOGS_INSECURE", "OTEL_EXPORTER_OTLP_METRICS_INSECURE"} {
+		t.Setenv(key, "true")
+	}
+	t.Setenv("OTEL_EXPORTER_OTLP_TIMEOUT", "1")
+	r := &receiver{}
+	server := httptest.NewTLSServer(r)
+	t.Cleanup(server.Close)
+	caFile := filepath.Join(t.TempDir(), "ca.pem")
+	require.NoError(t, os.WriteFile(caFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600))
+	signal := map[string]any{"endpoint": server.URL, "tls": map[string]any{"ca_file": caFile}}
+
+	d := newDriver(t, map[string]any{"traces": signal, "logs": signal, "metrics": signal})
+	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
+	got := r.snapshot()
+	assert.Len(t, got.traces, 1)
+	assert.Len(t, got.logs, 1)
+	assert.Len(t, got.metrics, 1)
+}
+
 func TestHTTPSWithCAFile(t *testing.T) {
 	r := &receiver{}
 	server := httptest.NewTLSServer(r)

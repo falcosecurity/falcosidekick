@@ -105,18 +105,14 @@ func newSpanExporter(ctx context.Context, s *exporterSettings) (sdktrace.SpanExp
 	if s.gzip() {
 		compression = otlptracehttp.GzipCompression
 	}
-	opts := []otlptracehttp.Option{
-		otlptracehttp.WithEndpoint(s.target.host),
-		otlptracehttp.WithURLPath(s.target.path),
+	return otlptracehttp.New(ctx,
+		otlptracehttp.WithEndpointURL(s.target.url()),
+		otlptracehttp.WithTimeout(s.cfg.Timeout),
 		otlptracehttp.WithHeaders(s.headers),
 		otlptracehttp.WithHTTPClient(s.httpClient),
 		otlptracehttp.WithCompression(compression),
 		otlptracehttp.WithRetry(otlptracehttp.RetryConfig{Enabled: false}),
-	}
-	if !s.target.secure {
-		opts = append(opts, otlptracehttp.WithInsecure())
-	}
-	return otlptracehttp.New(ctx, opts...)
+	)
 }
 
 func newLogExporter(ctx context.Context, s *exporterSettings) (sdklog.Exporter, error) {
@@ -140,18 +136,14 @@ func newLogExporter(ctx context.Context, s *exporterSettings) (sdklog.Exporter, 
 	if s.gzip() {
 		compression = otlploghttp.GzipCompression
 	}
-	opts := []otlploghttp.Option{
-		otlploghttp.WithEndpoint(s.target.host),
-		otlploghttp.WithURLPath(s.target.path),
+	return otlploghttp.New(ctx,
+		otlploghttp.WithEndpointURL(s.target.url()),
+		otlploghttp.WithTimeout(s.cfg.Timeout),
 		otlploghttp.WithHeaders(s.headers),
 		otlploghttp.WithHTTPClient(s.httpClient),
 		otlploghttp.WithCompression(compression),
 		otlploghttp.WithRetry(otlploghttp.RetryConfig{Enabled: false}),
-	}
-	if !s.target.secure {
-		opts = append(opts, otlploghttp.WithInsecure())
-	}
-	return otlploghttp.New(ctx, opts...)
+	)
 }
 
 func newMetricExporter(ctx context.Context, s *exporterSettings) (sdkmetric.Exporter, error) {
@@ -177,17 +169,13 @@ func newMetricExporter(ctx context.Context, s *exporterSettings) (sdkmetric.Expo
 	if s.gzip() {
 		compression = otlpmetrichttp.GzipCompression
 	}
-	opts := []otlpmetrichttp.Option{
-		otlpmetrichttp.WithEndpoint(s.target.host),
-		otlpmetrichttp.WithURLPath(s.target.path),
+	return otlpmetrichttp.New(ctx,
+		otlpmetrichttp.WithEndpointURL(s.target.url()),
+		otlpmetrichttp.WithTimeout(s.cfg.Timeout),
 		otlpmetrichttp.WithHeaders(s.headers),
 		otlpmetrichttp.WithHTTPClient(s.httpClient),
 		otlpmetrichttp.WithCompression(compression),
 		otlpmetrichttp.WithRetry(otlpmetrichttp.RetryConfig{Enabled: false}),
 		otlpmetrichttp.WithTemporalitySelector(sdkmetric.DefaultTemporalitySelector),
-	}
-	if !s.target.secure {
-		opts = append(opts, otlpmetrichttp.WithInsecure())
-	}
-	return otlpmetrichttp.New(ctx, opts...)
+	)
 }
