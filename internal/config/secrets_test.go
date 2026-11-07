@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
@@ -240,4 +241,30 @@ func TestNavigateMap(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckNoInlineSecrets(t *testing.T) {
+	secretType := func(name string) output.Type {
+		return output.Type{
+			Name:   name,
+			Schema: output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
+			New:    func(map[string]any, output.Deps) (output.Driver, error) { return nil, assert.AnError },
+		}
+	}
+	cat, err := catalog.New([]output.Type{secretType("slack"), secretType("loki")})
+	require.NoError(t, err)
+
+	require.NoError(t, CheckNoInlineSecrets(map[string]map[string]any{
+		"slack":   {"token_file": "/run/secrets/t"},
+		"unknown": {"token": "left to the build"},
+	}, cat))
+
+	err = CheckNoInlineSecrets(map[string]map[string]any{
+		"slack": {"token": "private-1"},
+		"loki":  {"token": "private-2"},
+	}, cat)
+	require.Error(t, err)
+	assert.Equal(t, "output \"loki\": token: secrets cannot be stored; use token_file\n"+
+		"output \"slack\": token: secrets cannot be stored; use token_file", err.Error())
+	assert.NotContains(t, err.Error(), "private")
 }

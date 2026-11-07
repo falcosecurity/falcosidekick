@@ -28,6 +28,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
+	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/pipeline"
 	"github.com/falcosecurity/falcosidekick/internal/reload"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
@@ -174,6 +175,11 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 	stored, merged, err := mergeOutputConfigForSchema(existingCfg, body.Config, t.Schema)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	if s.rejectInlineSecrets {
+		if found := output.InlineSecrets(merged, t.Schema.Fields); len(found) > 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": found[0].String()})
+		}
 	}
 	if err := checkFilePaths(stored, merged, t.Schema.Fields, s.secretDirs); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})

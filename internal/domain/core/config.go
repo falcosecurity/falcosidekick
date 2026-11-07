@@ -259,6 +259,9 @@ var ValidDatabaseBackends = map[DatabaseBackend]bool{
 	DatabaseInMemory: true, DatabaseSQLite: true, DatabasePostgres: true,
 }
 
+// Persistent reports whether the backend keeps what it stores across restarts.
+func (b DatabaseBackend) Persistent() bool { return b == DatabaseSQLite || b == DatabasePostgres }
+
 // DatabaseConfig holds database backend selection.
 type DatabaseConfig struct {
 	Backend DatabaseBackend `json:"backend" mapstructure:"backend"`

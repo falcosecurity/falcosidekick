@@ -51,6 +51,8 @@ type ReloaderConfig struct {
 	OutputPaths     []string
 	RuntimeDefaults output.RuntimeConfig
 	Provisioning    core.ProvisioningConfig
+	// RejectInlineSecrets fails a reload whose files write a secret inline, for a persistent database.
+	RejectInlineSecrets bool
 }
 
 // ErrReloaderNotBound is returned by UI writes before BindWorkerContext is called.
@@ -81,6 +83,7 @@ type Reloader struct {
 	outputPaths     []string
 	runtimeDefaults output.RuntimeConfig
 	retireTimeout   time.Duration
+	rejectInline    bool
 	provisioning    core.ProvisioningConfig
 	mu              sync.Mutex
 	bound           bool
@@ -100,6 +103,7 @@ func NewReloader(cfg *ReloaderConfig) *Reloader {
 		metrics:         newReloadMetrics(cfg.Registry),
 		fileState:       copyConfigs(cfg.InitialOutputs),
 		fileRaw:         copyConfigs(cfg.FileOutputs),
+		rejectInline:    cfg.RejectInlineSecrets,
 		logger:          cfg.Logger,
 	}
 }
@@ -254,6 +258,11 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	outsCfg, err := config.LoadOutputs(r.outputPaths)
 	if err != nil {
 		return r.fail(start, SourceFile, "reload parse: %w", err)
+	}
+	if r.rejectInline {
+		if err := config.CheckNoInlineSecrets(outsCfg.Outputs, r.catalog); err != nil {
+			return r.fail(start, SourceFile, "reload secrets: %w", err)
+		}
 	}
 
 	// fileState and the builds use resolved copies, so a rotated secret file is a change;
