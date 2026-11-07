@@ -33,6 +33,8 @@ type Health string
 
 // Output health values, ordered from worst to best.
 const (
+	// HealthFailed means the output is not running: its stored configuration did not build.
+	HealthFailed Health = "failed"
 	// HealthError means the last delivery failed.
 	HealthError Health = "error"
 	// HealthDegraded means delivering with the circuit not closed or a warning set.

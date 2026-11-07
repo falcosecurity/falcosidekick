@@ -9,6 +9,7 @@ interface StatusBadgeProps {
 const TOKEN: Record<OutputStatusState, string> = {
   ok: "bg-status-ok/15 text-status-ok-foreground border-status-ok/30",
   idle: "bg-muted text-muted-foreground border-border",
+  failed: "bg-status-error/15 text-status-error-foreground border-status-error/30 border-dashed",
   error: "bg-status-error/15 text-status-error-foreground border-status-error/30",
   degraded: "bg-status-degraded/15 text-status-degraded-foreground border-status-degraded/30",
   disabled: "bg-status-disabled/10 text-status-disabled-foreground border-status-disabled/30",
@@ -18,6 +19,7 @@ const TOKEN: Record<OutputStatusState, string> = {
 const DOT: Record<OutputStatusState, string> = {
   ok: "bg-status-ok",
   idle: "bg-muted-foreground",
+  failed: "bg-status-error",
   error: "bg-status-error",
   degraded: "bg-status-degraded",
   disabled: "bg-status-disabled",

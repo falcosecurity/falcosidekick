@@ -60,7 +60,7 @@ export interface SearchResult {
   limit: number
 }
 
-export type OutputStatusState = "ok" | "idle" | "error" | "degraded" | "disabled" | "unknown"
+export type OutputStatusState = "ok" | "idle" | "failed" | "error" | "degraded" | "disabled" | "unknown"
 export type CircuitState = "closed" | "open" | "half-open"
 
 export interface OutputStatus {

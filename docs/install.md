@@ -60,7 +60,7 @@ docker run ... -p 2801:2801 -p 127.0.0.1:2802:2802 ...
 curl -s localhost:2802/api/v1/pipeline/status
 ```
 
-At startup each output probes its destination. A configuration error (rejected credentials, wrong path, untrusted certificate) stops the process with the reason in the log. An unreachable destination does not: the output starts as `degraded` (see [configuration](configuration.md#output-status)).
+At startup each output probes its destination. A configuration error (rejected credentials, wrong path, untrusted certificate) in an output file stops the process with the reason in the log; in an output created through the API it leaves that output `failed` and the others start. An unreachable destination does not: the output starts as `degraded` (see [configuration](configuration.md#output-status)).
 
 ## Kubernetes
 
