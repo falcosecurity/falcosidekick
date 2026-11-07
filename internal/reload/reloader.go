@@ -47,7 +47,9 @@ type ReloaderConfig struct {
 	// InitialOutputs are the file outputs running at startup, built from resolved secret files.
 	InitialOutputs map[string]map[string]any
 	// FileOutputs are the same outputs as written in the files, as they were provisioned.
-	FileOutputs     map[string]map[string]any
+	FileOutputs map[string]map[string]any
+	// APIOutputs are the stored API outputs running at startup, built from resolved secret files.
+	APIOutputs      map[string]map[string]any
 	OutputPaths     []string
 	RuntimeDefaults output.RuntimeConfig
 	Provisioning    core.ProvisioningConfig
@@ -76,8 +78,10 @@ type Reloader struct {
 	metrics    *reloadMetrics
 
 	// fileState holds the file outputs with resolved secrets, fileRaw the same outputs as written.
-	fileState       map[string]map[string]any
-	fileRaw         map[string]map[string]any
+	fileState map[string]map[string]any
+	fileRaw   map[string]map[string]any
+	// apiState holds the running API outputs with resolved secrets, to see a rotated secret file.
+	apiState        map[string]map[string]any
 	logger          *slog.Logger
 	workerRunCtx    context.Context
 	outputPaths     []string
@@ -103,6 +107,7 @@ func NewReloader(cfg *ReloaderConfig) *Reloader {
 		metrics:         newReloadMetrics(cfg.Registry),
 		fileState:       copyConfigs(cfg.InitialOutputs),
 		fileRaw:         copyConfigs(cfg.FileOutputs),
+		apiState:        copyConfigs(cfg.APIOutputs),
 		rejectInline:    cfg.RejectInlineSecrets,
 		logger:          cfg.Logger,
 	}
@@ -197,6 +202,9 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 		r.fileState[name] = resolved
 	}
 
+	if _, fromFile := r.fileState[name]; !fromFile {
+		r.apiState[name] = resolved
+	}
 	r.recordUI(start, retireWarning)
 	return newVersion, nil
 }
@@ -237,6 +245,7 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 
 	// The next file reload then sees the name as added and restores a file-provisioned output.
 	delete(r.fileState, name)
+	delete(r.apiState, name)
 
 	r.recordUI(start, retireWarning)
 	return nil
@@ -284,7 +293,13 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 
 	// A new secret path whose file holds the same value changes nothing at runtime but must reach the store.
 	rawChanged := !reflect.DeepEqual(r.fileRaw, outsCfg.Outputs)
-	if diff.IsEmpty() && !rawChanged {
+
+	rotated, err := r.rotatedAPIOutputs(ctx, resolved)
+	if err != nil {
+		return r.fail(start, SourceFile, "reload: %w", err)
+	}
+
+	if diff.IsEmpty() && !rawChanged && len(rotated) == 0 {
 		r.logger.Debug("reload: no output config changes detected")
 		r.metrics.recordNoop(SourceFile)
 		return nil
@@ -298,6 +313,13 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	if err != nil {
 		return r.fail(start, SourceFile, "reload create: %w", err)
 	}
+
+	// A stored API output whose secret file changed is rebuilt; one that does not build keeps running as it was.
+	rebuilt, rotationFailures := pipeline.BuildEach(ctx, r.catalog, rotated, r.runtimeDefaults, r.deps)
+	for name, failure := range rotationFailures {
+		r.logger.Warn("reload: stored output keeps its previous secret", "output", name, "error", failure)
+	}
+	maps.Copy(built, rebuilt)
 
 	if r.database != nil {
 		if err := r.database.Provision(ctx, &core.ProvisionRequest{Outputs: outsCfg.Outputs}); err != nil {
@@ -322,6 +344,12 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 
 	r.fileState = resolved
 	r.fileRaw = copyConfigs(outsCfg.Outputs)
+	for name := range rebuilt {
+		r.apiState[name] = rotated[name]
+	}
+	for name := range resolved {
+		delete(r.apiState, name)
+	}
 	duration := time.Since(start)
 
 	if retireWarning {
@@ -330,6 +358,7 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 			"added", len(diff.Added),
 			"changed", len(diff.Changed),
 			"removed", len(diff.Removed),
+			"rotated", len(rebuilt),
 			"retire_warning", retireWarning,
 			"duration", duration,
 		)
@@ -339,10 +368,43 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 			"added", len(diff.Added),
 			"changed", len(diff.Changed),
 			"removed", len(diff.Removed),
+			"rotated", len(rebuilt),
 			"duration", duration,
 		)
 	}
 	return nil
+}
+
+// rotatedAPIOutputs returns the running API outputs, not shadowed by a file output, whose secret files
+// now read differently, resolved again from their stored config.
+func (r *Reloader) rotatedAPIOutputs(ctx context.Context, fileOutputs map[string]map[string]any) (map[string]map[string]any, error) {
+	if r.database == nil || len(r.apiState) == 0 {
+		return nil, nil
+	}
+	entries, err := r.database.GetOutputConfigs(ctx)
+	if err != nil {
+		return nil, databaseError(err)
+	}
+	rotated := make(map[string]map[string]any)
+	for name, running := range r.apiState {
+		entry, stored := entries[name]
+		if _, fromFile := fileOutputs[name]; fromFile || !stored {
+			continue
+		}
+		outputType, ok := r.catalog.Get(name)
+		if !ok {
+			continue
+		}
+		cfg := utils.DeepCopyMap(entry.Config)
+		if err := config.ResolveSecrets(name, cfg, outputType.Schema); err != nil {
+			r.logger.Warn("reload: stored output keeps its previous secret", "output", name, "error", err)
+			continue
+		}
+		if !reflect.DeepEqual(cfg, running) {
+			rotated[name] = cfg
+		}
+	}
+	return rotated, nil
 }
 
 func (r *Reloader) createOutputs(ctx context.Context, configs map[string]map[string]any) (map[string]*pipeline.Output, error) {

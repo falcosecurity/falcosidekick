@@ -402,8 +402,9 @@ func TestRestoreFromDB_BuildsFromProvisionedFalseEntries(t *testing.T) {
 	require.NoError(t, err)
 
 	fileOutputs := map[string]map[string]any{}
-	outs, failures, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
+	restored, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
 	require.NoError(t, err)
+	outs, failures := restored.outputs, restored.failures
 	require.Empty(t, failures)
 	require.Len(t, outs, 1, "UI-only entry must be rebuilt into a live Output on startup")
 	assert.Equal(t, "webhook", outs[0].Name())
@@ -434,12 +435,15 @@ func TestRestoreFromDB_ReadsStoredSecretFiles(t *testing.T) {
 	_, err = db.SaveOutputConfig(ctx, "webhook", 0, map[string]any{"token_file": secret})
 	require.NoError(t, err)
 
-	outs, failures, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), nil)
+	restored, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), nil)
 	require.NoError(t, err)
+	outs, failures := restored.outputs, restored.failures
 	require.Empty(t, failures)
 	require.Len(t, outs, 1)
 	t.Cleanup(func() { _ = outs[0].Close() })
 	assert.Equal(t, map[string]any{"token": "from-file"}, built)
+	assert.Equal(t, map[string]map[string]any{"webhook": {"token": "from-file"}}, restored.resolved,
+		"the reloader gets the resolved config to see a later rotation")
 	stored, err := db.GetOutputConfig(ctx, "webhook")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"token_file": secret}, stored.Config, "restore never writes the secret back")
@@ -479,8 +483,9 @@ func TestRestoreFromDB_LeavesOutUnbuildableOutputsAndKeepsTheirRows(t *testing.T
 		require.NoError(t, err)
 	}
 
-	outs, failures, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), nil)
+	restored, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), nil)
 	require.NoError(t, err)
+	outs, failures := restored.outputs, restored.failures
 	require.Len(t, outs, 1)
 	t.Cleanup(func() { _ = outs[0].Close() })
 	assert.Equal(t, "webhook", outs[0].Name())
@@ -511,8 +516,9 @@ func TestRestoreFromDB_SkipsProvisionedEntries(t *testing.T) {
 	}))
 	// The file already built webhook, so restore must skip it.
 	fileOutputs := map[string]map[string]any{"webhook": {"address": "http://from-file"}}
-	outs, failures, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
+	restored, err := restoreFromDB(ctx, cfg, db, cat, metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}), fileOutputs)
 	require.NoError(t, err)
+	outs, failures := restored.outputs, restored.failures
 	require.Empty(t, failures)
 	assert.Empty(t, outs, "provisioned entries must not be rebuilt by the UI-only restore path")
 }

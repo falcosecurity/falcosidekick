@@ -107,19 +107,19 @@ func NewApp(
 	}
 	slog.Info("database provisioned", "backend", cfg.Database.Backend, "outputs", len(outsCfg.Outputs))
 
-	restored, restoreFailures, err := restoreFromDB(ctx, cfg, db, cat, collector, outsCfg.Outputs)
+	restored, err := restoreFromDB(ctx, cfg, db, cat, collector, outsCfg.Outputs)
 	if err != nil {
 		return nil, fmt.Errorf("restore outputs: %w", err)
 	}
 	defer func() {
 		if retErr != nil {
-			closeOutputs(restored)
+			closeOutputs(restored.outputs)
 		}
 	}()
-	outputs = append(outputs, restored...)
+	outputs = append(outputs, restored.outputs...)
 
 	dispatcher := pipeline.NewDispatcher(outputs)
-	for name, failure := range restoreFailures {
+	for name, failure := range restored.failures {
 		dispatcher.MarkFailed(name, "not started: "+failure.Error())
 	}
 
@@ -148,6 +148,7 @@ func NewApp(
 		Logger:              logger,
 		InitialOutputs:      resolved,
 		FileOutputs:         outsCfg.Outputs,
+		APIOutputs:          restored.resolved,
 		RejectInlineSecrets: persistent,
 	})
 
@@ -182,22 +183,21 @@ func (a *app) startReloadWatchers(
 ) {
 	a.reloader.BindWorkerContext(workerRunCtx, reloadCfg.RetireTimeout)
 
-	if len(outputPaths) == 0 {
-		return
-	}
-
 	reloadFn := func() error {
 		return a.reloader.Reload(appCtx, workerRunCtx, reloadCfg.RetireTimeout)
 	}
 
-	watcher := reload.NewWatcher(outputPaths, 100*time.Millisecond, reloadFn, slog.Default())
-	go func() {
-		if err := watcher.Run(appCtx); err != nil && !errors.Is(err, context.Canceled) {
-			slog.Error("watcher stopped", "error", err)
-		}
-	}()
+	// SIGHUP also rereads the secret files of API outputs, so it runs without output files too.
+	if len(outputPaths) > 0 {
+		watcher := reload.NewWatcher(outputPaths, 100*time.Millisecond, reloadFn, slog.Default())
+		go func() {
+			if err := watcher.Run(appCtx); err != nil && !errors.Is(err, context.Canceled) {
+				slog.Error("watcher stopped", "error", err)
+			}
+		}()
+	}
 
-	if reloadCfg.PollInterval > 0 {
+	if len(outputPaths) > 0 && reloadCfg.PollInterval > 0 {
 		poller := reload.NewPoller(outputPaths, reloadCfg.PollInterval, reloadFn, slog.Default())
 		go func() {
 			if err := poller.Run(appCtx); err != nil && !errors.Is(err, context.Canceled) {
@@ -296,6 +296,14 @@ func createOutputs(
 	return outputs, nil
 }
 
+// restoredOutputs are the stored API outputs rebuilt at startup.
+type restoredOutputs struct {
+	// resolved holds the configs of the outputs that built, with secret files read.
+	resolved map[string]map[string]any
+	failures map[string]error
+	outputs  []*pipeline.Output
+}
+
 // restoreFromDB rebuilds outputs stored in the database but absent from the output files.
 // A stored output that does not build is left out and returned with its failure; its row is kept.
 func restoreFromDB(
@@ -305,10 +313,10 @@ func restoreFromDB(
 	cat *catalog.Catalog,
 	mc core.MetricsCollector,
 	fileOutputs map[string]map[string]any,
-) ([]*pipeline.Output, map[string]error, error) {
+) (*restoredOutputs, error) {
 	entries, err := db.GetOutputConfigs(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("read persisted outputs: %w", err)
+		return nil, fmt.Errorf("read persisted outputs: %w", err)
 	}
 	resolved := make(map[string]map[string]any)
 	failures := make(map[string]error)
@@ -331,15 +339,16 @@ func restoreFromDB(
 
 	built, buildFailures := pipeline.BuildEach(ctx, cat, resolved, cfg.RuntimeDefaults, output.Deps{Logger: slog.Default(), Metrics: mc})
 	maps.Copy(failures, buildFailures)
-	outputs := make([]*pipeline.Output, 0, len(built))
+	restored := &restoredOutputs{resolved: make(map[string]map[string]any, len(built)), failures: failures}
 	for _, name := range slices.Sorted(maps.Keys(built)) {
-		outputs = append(outputs, built[name])
+		restored.outputs = append(restored.outputs, built[name])
+		restored.resolved[name] = resolved[name]
 		slog.Info("output enabled", "output", name)
 	}
 	for _, name := range slices.Sorted(maps.Keys(failures)) {
 		slog.Error("stored output not started", "output", name, "error", failures[name])
 	}
-	return outputs, failures, nil
+	return restored, nil
 }
 
 func closeOutputs(outputs []*pipeline.Output) {
