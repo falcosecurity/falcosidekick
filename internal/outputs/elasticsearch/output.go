@@ -74,7 +74,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "logs",
+	Category: output.CategoryLogs,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{Name: "index", Type: "string", Default: "falco", Label: "Index"},

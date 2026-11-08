@@ -42,7 +42,7 @@ const (
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "observability",
+	Category: output.CategoryObservability,
 	Schema:   output.Schema{Fields: schemaFields()},
 }
 

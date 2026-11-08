@@ -117,7 +117,7 @@ var OutputType = output.Type{
 	New:           createOutput,
 	CheckAPIWrite: checkAPIWrite,
 	Name:          name,
-	Category:      "queue",
+	Category:      output.CategoryQueue,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
 			{Name: "project_id", Type: "string", Required: true, Label: "Project ID"},

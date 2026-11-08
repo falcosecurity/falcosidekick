@@ -56,7 +56,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "alerting",
+	Category: output.CategoryAlerting,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{Name: "hosts", Type: "string[]", Required: true, Label: "Hosts (scheme, host and port)"},

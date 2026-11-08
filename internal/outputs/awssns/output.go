@@ -52,7 +52,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "queue",
+	Category: output.CategoryQueue,
 	Schema: output.Schema{
 		Fields: append(append([]output.SchemaField{
 			{Name: "topic_arn", Type: "string", Required: true, Label: "Topic ARN"},

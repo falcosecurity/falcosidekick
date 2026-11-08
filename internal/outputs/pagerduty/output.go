@@ -59,7 +59,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "alerting",
+	Category: output.CategoryAlerting,
 	Schema: output.Schema{
 		Fields: append(append(shared.RegionTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{Name: "routing_key", Type: "string", Required: true, Secret: true, Label: "Routing Key (Integration Key)"},

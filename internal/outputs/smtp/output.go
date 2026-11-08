@@ -85,7 +85,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "email",
+	Category: output.CategoryEmail,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
 			{Name: "host", Type: "string", Required: true, Label: "Host"},

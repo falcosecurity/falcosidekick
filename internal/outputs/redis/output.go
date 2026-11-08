@@ -63,7 +63,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "storage",
+	Category: output.CategoryStorage,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
 			{Name: "address", Type: "string", Required: true, Label: "Address (host:port)"},

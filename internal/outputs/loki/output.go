@@ -50,7 +50,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "logs",
+	Category: output.CategoryLogs,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{Name: "tenant", Type: "string", Label: "Tenant (X-Scope-OrgID)"},

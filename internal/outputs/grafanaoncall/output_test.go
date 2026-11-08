@@ -98,7 +98,7 @@ func TestCreateValidation(t *testing.T) {
 
 func TestSchema(t *testing.T) {
 	assert.Equal(t, "grafanaoncall", OutputType.Name)
-	assert.Equal(t, "alerting", OutputType.Category)
+	assert.Equal(t, output.CategoryAlerting, OutputType.Category)
 	fields := map[string]output.SchemaField{}
 	for _, f := range OutputType.Schema.Fields {
 		_, dup := fields[f.Name]

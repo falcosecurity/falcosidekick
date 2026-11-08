@@ -70,7 +70,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "logging",
+	Category: output.CategoryLogs,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
 			{Name: "host", Type: "string", Required: true, Label: "Host"},

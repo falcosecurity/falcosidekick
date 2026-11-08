@@ -45,7 +45,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "alerting",
+	Category: output.CategoryAlerting,
 	Schema: output.Schema{
 		Fields: append(shared.HTTPTargetSchemaFields(&targetOptions),
 			append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),

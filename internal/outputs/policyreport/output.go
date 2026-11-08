@@ -79,7 +79,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "other",
+	Category: output.CategoryOther,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
 			{Name: "kubeconfig", Type: "string", File: true, Label: "Kubeconfig file (in-cluster configuration when empty)"},

@@ -27,7 +27,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
-func stubType(name, category string) output.Type {
+func stubType(name string, category output.Category) output.Type {
 	return output.Type{
 		Name:     name,
 		Category: category,
@@ -41,7 +41,7 @@ func stubType(name, category string) output.Type {
 func failingType(name string) output.Type {
 	return output.Type{
 		Name:     name,
-		Category: "test",
+		Category: output.CategoryOther,
 		Schema:   output.Schema{},
 		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
 			return nil, fmt.Errorf("constructor failed")
@@ -102,6 +102,16 @@ func TestNew(t *testing.T) {
 			},
 			wantErr: true,
 			errMsg:  "nil constructor",
+		},
+		{
+			name:    "unknown category",
+			types:   []output.Type{stubType("syslog", "logging")},
+			wantErr: true,
+			errMsg:  `unknown category "logging"`,
+		},
+		{
+			name:  "no category, as test doubles leave it",
+			types: []output.Type{stubType("noop", "")},
 		},
 	}
 

@@ -117,7 +117,7 @@ func TestSchema(t *testing.T) {
 	assert.NotContains(t, fields, "endpoint")
 	assert.Equal(t, defaultIcon, fields["icon"].Default)
 	assert.Contains(t, fields, "runtime.minimum_priority")
-	assert.Equal(t, "chat", OutputType.Category)
+	assert.Equal(t, output.CategoryChat, OutputType.Category)
 }
 
 func TestPayloadV2Parity(t *testing.T) {
