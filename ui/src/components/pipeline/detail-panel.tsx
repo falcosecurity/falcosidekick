@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { Server } from "lucide-react"
+import { Pencil, Server, Trash2 } from "lucide-react"
 
 import falcoIcon from "@/assets/falco-icon.svg"
 import { ConfigTree } from "@/components/common/config-tree"
@@ -12,6 +12,7 @@ import { SectionHeading } from "@/components/common/section-heading"
 import { StatTile } from "@/components/common/stat-tile"
 import { StatusBadge } from "@/components/common/status-badge"
 import { TimeAgo } from "@/components/common/time-ago"
+import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
@@ -26,13 +27,20 @@ import { queueTone } from "@/components/dashboard/output-status-grid"
 
 import type { PipelineSelection } from "./canvas"
 
+/** Present only when the API allows changing the selected output. */
+export interface OutputActions {
+  onEdit: () => void
+  onDelete: () => void
+}
+
 interface DetailPanelProps {
   selection: PipelineSelection
   entry: OutputConfigEntry | null
   status: OutputStatus | null
+  actions?: OutputActions
 }
 
-export function PipelineDetailPanel({ selection, entry, status }: DetailPanelProps) {
+export function PipelineDetailPanel({ selection, entry, status, actions }: DetailPanelProps) {
   if (!selection) {
     return (
       <Card className="h-full min-w-0">
@@ -47,7 +55,7 @@ export function PipelineDetailPanel({ selection, entry, status }: DetailPanelPro
   }
   if (selection.kind === "source") return <SourceDetail />
   if (selection.kind === "core") return <CoreDetail />
-  return <OutputDetail entry={entry} status={status} />
+  return <OutputDetail entry={entry} status={status} actions={actions} />
 }
 
 function SourceDetail() {
@@ -166,7 +174,15 @@ function CoreDetail() {
   )
 }
 
-function OutputDetail({ entry, status }: { entry: OutputConfigEntry | null; status: OutputStatus | null }) {
+function OutputDetail({
+  entry,
+  status,
+  actions,
+}: {
+  entry: OutputConfigEntry | null
+  status: OutputStatus | null
+  actions?: OutputActions
+}) {
   const isInmemory = entry?.name === "inmemory"
   const inmemoryCapacity = typeof entry?.config?.["capacity"] === "number" ? entry.config["capacity"] : undefined
   const refetchInterval = useRefetchInterval()
@@ -208,6 +224,16 @@ function OutputDetail({ entry, status }: { entry: OutputConfigEntry | null; stat
           </div>
           {status && <StatusBadge status={statusOf(status)} />}
         </div>
+        {actions && (
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={actions.onEdit}>
+              <Pencil className="size-3.5" aria-hidden /> Edit
+            </Button>
+            <Button type="button" variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={actions.onDelete}>
+              <Trash2 className="size-3.5" aria-hidden /> Remove
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <ScrollArea className="min-h-0 min-w-0 flex-1 px-6 pb-6">
         {status && (

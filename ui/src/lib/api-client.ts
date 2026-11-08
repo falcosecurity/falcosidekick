@@ -24,6 +24,7 @@ import type {
   SchemaField,
   SearchQuery,
   SearchResult,
+  SecretsListing,
   VersionInfo,
 } from "./types"
 
@@ -229,6 +230,23 @@ export const api = {
     return http
       .get<OutputTypesWire>("/pipeline/outputs/types", { signal })
       .then((r) => normalizeOutputTypes(r.data))
+  },
+
+  /** Creates (version 0) or updates an output; config is a patch, `null` clears a key. */
+  putOutput(name: string, version: number, config: Record<string, unknown>): Promise<OutputConfigEntry> {
+    return http
+      .put<OutputConfigEntry>(`/pipeline/outputs/${encodeURIComponent(name)}`, { version, config })
+      .then(unwrap)
+  },
+
+  deleteOutput(name: string, version: number): Promise<void> {
+    return http
+      .delete(`/pipeline/outputs/${encodeURIComponent(name)}`, { params: { version } })
+      .then(() => undefined)
+  },
+
+  getSecrets(signal?: AbortSignal): Promise<SecretsListing> {
+    return http.get<SecretsListing>("/secrets", { signal }).then(unwrap)
   },
 
   getConfig(signal?: AbortSignal): Promise<MaskedConfig> {

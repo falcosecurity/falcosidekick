@@ -144,6 +144,16 @@ export interface OutputConfigEntry {
   updated_at: string
 }
 
+/** GET /api/v1/secrets: names of the files under api.secret_dirs, never their contents. */
+export interface SecretsListing {
+  dirs: {
+    path: string
+    keys: string[]
+    secrets: { name: string; path: string; keys: string[] }[]
+  }[]
+  truncated: boolean
+}
+
 export interface LayoutNode {
   id: string
   x: number

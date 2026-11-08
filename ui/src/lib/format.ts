@@ -4,9 +4,14 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat().format(value)
 }
 
+// Server and browser clocks drift by seconds; an instant that close reads as now, not as the future.
+const CLOCK_SKEW_MS = 60_000
+
 export function formatTimeAgo(input: string | Date | number, now: number | Date = Date.now()): string {
   const date = new Date(input)
   if (Number.isNaN(date.getTime())) return "-"
+  const ahead = date.getTime() - new Date(now).getTime()
+  if (ahead > 0 && ahead < CLOCK_SKEW_MS) return "just now"
   return formatDistanceStrict(date, now, { addSuffix: true })
 }
 
