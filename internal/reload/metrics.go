@@ -32,10 +32,16 @@ const (
 	SourceReplica = "replica"
 )
 
+// Values of the "result" label of reloads_total.
+const (
+	resultSuccess = "success"
+	resultPartial = "partial"
+	resultFailure = "failure"
+	resultNoop    = "noop"
+)
+
 type reloadMetrics struct {
 	total       *prometheus.CounterVec
-	failures    *prometheus.CounterVec
-	partial     *prometheus.CounterVec
 	duration    *prometheus.HistogramVec
 	lastSuccess prometheus.Gauge
 }
@@ -45,57 +51,46 @@ func newReloadMetrics(reg prometheus.Registerer) *reloadMetrics {
 	m := &reloadMetrics{
 		total: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: metricsNamespace,
-			Name:      "reload_total",
-			Help:      "Total reload attempts including no-op. Label source is file (file-driven), ui (UI-driven apply) or replica (changes from another instance).",
-		}, []string{"source"}),
-		failures: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: metricsNamespace,
-			Name:      "reload_failures_total",
-			Help:      "Failed reload attempts by source (file, ui or replica).",
-		}, []string{"source"}),
-		partial: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: metricsNamespace,
-			Name:      "reload_partial_total",
-			Help:      "Reload attempts where runtime apply succeeded but a non-runtime step failed, by source.",
-		}, []string{"source"}),
+			Name:      "reloads_total",
+			Help: "Reload attempts by source (file, ui, or replica: changes from another instance) and result: " +
+				"success, partial (outputs applied, a later step failed), failure, or noop (nothing changed).",
+		}, []string{"source", "result"}),
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: metricsNamespace,
 			Name:      "reload_duration_seconds",
-			Help:      "Duration of reload cycles in seconds, by source.",
+			Help:      "Duration of reloads that changed something, by source.",
 			Buckets:   prometheus.DefBuckets,
 		}, []string{"source"}),
 		lastSuccess: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: metricsNamespace,
-			Name:      "reload_last_success_timestamp",
-			Help:      "Unix timestamp of last fully successful reload from any source.",
+			Name:      "reload_last_success_timestamp_seconds",
+			Help:      "Unix time of the last fully successful reload from any source.",
 		}),
 	}
 
 	if reg != nil {
-		reg.MustRegister(m.total, m.failures, m.partial, m.duration, m.lastSuccess)
+		reg.MustRegister(m.total, m.duration, m.lastSuccess)
 	}
 
 	return m
 }
 
 func (m *reloadMetrics) recordSuccess(d time.Duration, source string) {
-	m.total.WithLabelValues(source).Inc()
+	m.total.WithLabelValues(source, resultSuccess).Inc()
 	m.duration.WithLabelValues(source).Observe(d.Seconds())
 	m.lastSuccess.SetToCurrentTime()
 }
 
 func (m *reloadMetrics) recordPartialSuccess(d time.Duration, source string) {
-	m.total.WithLabelValues(source).Inc()
-	m.partial.WithLabelValues(source).Inc()
+	m.total.WithLabelValues(source, resultPartial).Inc()
 	m.duration.WithLabelValues(source).Observe(d.Seconds())
 }
 
 func (m *reloadMetrics) recordFailure(d time.Duration, source string) {
-	m.total.WithLabelValues(source).Inc()
-	m.failures.WithLabelValues(source).Inc()
+	m.total.WithLabelValues(source, resultFailure).Inc()
 	m.duration.WithLabelValues(source).Observe(d.Seconds())
 }
 
 func (m *reloadMetrics) recordNoop(source string) {
-	m.total.WithLabelValues(source).Inc()
+	m.total.WithLabelValues(source, resultNoop).Inc()
 }

@@ -31,8 +31,10 @@ const SECTIONS = {
   ui: { id: "ui", title: "UI", icon: Monitor },
 } satisfies Record<string, SettingsNavItem>
 
-function address(host: string, port: number): string {
-  return host ? `${host}:${port}` : `:${port}`
+/** host:port as Go writes it: ":2801" for every interface, IPv6 hosts in brackets. */
+export function address(host: string, port: number): string {
+  if (!host) return `:${port}`
+  return host.includes(":") ? `[${host}]:${port}` : `${host}:${port}`
 }
 
 function PathOrNone({ path, none = "Not set" }: { path: string | undefined; none?: string }) {
@@ -68,10 +70,26 @@ function ListenersSection({ cfg }: { cfg: CoreConfig }) {
   const tls = cfg.tls
   return (
     <SettingsSection {...SECTIONS.listeners} description="Where Sidekick accepts connections.">
-      <SettingRow label="Ingestion" hint="Where Falco posts events, with the health, version and metrics endpoints.">
+      <SettingRow
+        label="Ingestion"
+        hint={`Where Falco posts events, with /livez, /readyz and /metrics.${cfg.listen_address ? "" : " Every interface, IPv4 and IPv6."}`}
+      >
         <CopyValue value={address(cfg.listen_address, cfg.listen_port)} />
       </SettingRow>
-      <SettingRow label="Ingestion TLS" hint={tls?.enabled && tls.mutual_tls ? "Clients must present a certificate signed by the client CA." : undefined}>
+      <SettingRow
+        label="Shutdown delay"
+        hint="After SIGTERM, /readyz fails while events are still accepted for this long, so Kubernetes stops routing first."
+      >
+        {cfg.shutdown_delay > 0 ? formatGoDuration(cfg.shutdown_delay) : <NoValue>None</NoValue>}
+      </SettingRow>
+      <SettingRow
+        label="Ingestion TLS"
+        hint={
+          tls?.enabled && tls.mutual_tls
+            ? "Clients must present a certificate signed by the client CA; /livez, /readyz and /metrics do not ask for one."
+            : undefined
+        }
+      >
         <StateBadge on={tls?.enabled === true} labels={[tls?.mutual_tls ? "Mutual TLS" : "Enabled", "Disabled"]} />
       </SettingRow>
       {tls?.enabled && (

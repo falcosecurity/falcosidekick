@@ -30,29 +30,42 @@ import (
 func (s *Server) handlePostEvent(c fiber.Ctx) error {
 	var evt event.Event
 	if err := c.Bind().JSON(&evt); err != nil {
+		s.recordRequest(core.IngestInvalid)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "invalid JSON",
 		})
 	}
 
 	if err := evt.Validate(); err != nil {
+		s.recordRequest(core.IngestInvalid)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
-
-	if s.metrics != nil {
-		s.metrics.RecordInput(context.Background(), evt.Source, "accepted")
-	}
+	s.recordRequest(core.IngestAccepted)
 
 	s.pipeline.ProcessEvent(context.Background(), &evt)
 	return c.SendStatus(fiber.StatusOK)
 }
 
-func (s *Server) handleGetHealthz(c fiber.Ctx) error {
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "ok",
-	})
+func (s *Server) recordRequest(status string) {
+	if s.metrics != nil {
+		s.metrics.RecordRequest(context.Background(), status)
+	}
+}
+
+// handleGetLive answers while the process serves requests.
+func (s *Server) handleGetLive(c fiber.Ctx) error {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ok"})
+}
+
+// handleGetReady answers 503 before the pipeline runs and from SIGTERM on, so Kubernetes routes
+// events only to a replica that delivers them.
+func (s *Server) handleGetReady(c fiber.Ctx) error {
+	if !s.ready.Load() {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"status": "not ready"})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "ready"})
 }
 
 func (s *Server) handleGetVersion(c fiber.Ctx) error {

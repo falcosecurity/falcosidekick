@@ -25,6 +25,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
@@ -40,10 +41,30 @@ func queryValues(c fiber.Ctx, key string) []string {
 	return out
 }
 
+// priorityFilter accepts any casing and Falco's "info", and names each priority as events carry it.
+func priorityFilter(values []string) ([]string, error) {
+	out := make([]string, 0, len(values))
+	for _, v := range values {
+		p, err := event.ParsePriority(v)
+		if err != nil {
+			return nil, errors.New("priority must be one of emergency, alert, critical, error, warning, notice, informational, debug")
+		}
+		out = append(out, p.String())
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return out, nil
+}
+
 func parseFilters(c fiber.Ctx) (*output.Filters, error) {
+	priorities, err := priorityFilter(queryValues(c, "priority"))
+	if err != nil {
+		return nil, err
+	}
 	f := &output.Filters{
 		Filter:   c.Query("filter"),
-		Priority: queryValues(c, "priority"),
+		Priority: priorities,
 		Rule:     queryValues(c, "rule"),
 		Source:   queryValues(c, "source"),
 		Hostname: queryValues(c, "hostname"),
@@ -120,9 +141,16 @@ func (s *Server) handleEventsSearch(c fiber.Ctx) error {
 	}
 	result, err := rs.Search(c.Context(), q)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return s.storeError(c, "search", err)
 	}
 	return c.Status(fiber.StatusOK).JSON(result)
+}
+
+// storeError logs what the event store failed with and answers a fixed message: the error can
+// carry backend details, such as a connection string, that a client must not see.
+func (s *Server) storeError(c fiber.Ctx, operation string, err error) error {
+	s.logger.Error("event store request failed", "operation", operation, "error", err)
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "event store unavailable; see the falcosidekick log"})
 }
 
 func (s *Server) handleEventsCount(c fiber.Ctx) error {
@@ -136,7 +164,7 @@ func (s *Server) handleEventsCount(c fiber.Ctx) error {
 	}
 	n, err := rs.Count(c.Context(), f)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return s.storeError(c, "count", err)
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"count": n})
 }
@@ -156,7 +184,7 @@ func (s *Server) handleEventsCountBy(c fiber.Ctx) error {
 	}
 	groups, err := rs.CountBy(c.Context(), field, f)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return s.storeError(c, "count by "+field, err)
 	}
 	if groups == nil {
 		groups = map[string]int64{}
@@ -191,7 +219,7 @@ func (s *Server) handleEventsHistogram(c fiber.Ctx) error {
 	}
 	res, err := rs.Histogram(c.Context(), req)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return s.storeError(c, "histogram", err)
 	}
 	return c.Status(fiber.StatusOK).JSON(res)
 }
@@ -207,7 +235,7 @@ func (s *Server) handleEventByUUID(c fiber.Ctx) error {
 		if errors.Is(err, output.ErrEmptyUUID) {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return s.storeError(c, "get event", err)
 	}
 	if evt == nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "event not found"})

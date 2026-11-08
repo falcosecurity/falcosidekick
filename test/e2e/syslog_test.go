@@ -241,7 +241,7 @@ func TestSyslogDeliversEvent(t *testing.T) {
 			var payload map[string]any
 			require.NoError(t, json.Unmarshal([]byte(m.Msg), &payload))
 			assert.Equal(t, "E2E "+marker, payload["rule"])
-			assert.Equal(t, "warning", payload["priority"])
+			assert.Equal(t, "Warning", payload["priority"], "the event JSON keeps Falco's casing")
 			assert.Equal(t, marker, payload["output_fields"].(map[string]any)["e2e.marker"])
 
 			st := sk.waitStatus(t, "syslog", func(st outputStatus) bool { return st.SentTotal == 1 })

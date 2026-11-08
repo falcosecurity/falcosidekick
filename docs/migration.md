@@ -14,7 +14,12 @@ v2 configuration does not load in v3: unknown keys are rejected. Rewrite it with
 | Reload | restart | output files reload on change, `SIGHUP` or poll |
 | Delivery | - | per-output queue, retry, circuit breaker, optional batching |
 | Image tags | `2.*`, `stable` (latest release), `latest` (master build) | `3.*`, `3`, `v3-latest` (latest release), `v3-main` (master build), `-slim` variants |
-| Port | 2801 | 2801 for events, health, version and metrics; 2802 on `127.0.0.1` for the API and the UI |
+| Port | 2801 | 2801 for events, `/livez`, `/readyz` and `/metrics`, IPv4 and IPv6; 2802 on `127.0.0.1` for the API and the UI |
+| Probes | `/ping`, `/healthz` | `/livez`, `/readyz`; the version is `/api/v1/version` on the management port |
+| Container | alpine, user 1234 | distroless static, user and group 65532, no shell; a volume for sqlite needs `fsGroup: 65532` |
+| Enrichment | `customfields`, `templatedfields`, `customtags`, `bracketreplacer` | `enricher.custom_fields`, `templated_fields`, `custom_tags`, `bracket_replacer`; truncation off by default |
+| Logs | `debug: true` | `log_level: debug` (`debug`, `info`, `warn`, `error`), `log_format: text` or `json` |
+| Hostname | `unknown` when Falco sends none | left empty |
 | Storage | none: configuration lives in files | outputs can also be created through the API; kept in memory, sqlite or postgres (`database`), never with secret values |
 
 Falco needs no change: it posts to `/` as before.
@@ -56,9 +61,9 @@ v3 splits every address into public and secret parts, so tokens in a URL never a
 
 | v2 | v3 |
 | --- | --- |
-| `falcosecurity_falcosidekick_inputs_total` | `falcosidekick_input_total{source,status}` |
-| `falcosecurity_falcosidekick_outputs_total{destination,status}` | `falcosidekick_output_total{output,status}` |
-| `falcosecurity_falcosidekick_falco_events_total{hostname,rule,priority,priority_raw,source,k8s_ns_name,k8s_pod_name,...}` | `falcosidekick_event_total{rule,priority,source,...}` |
+| `falcosecurity_falcosidekick_inputs_total` | `falcosidekick_ingest_requests_total{status}` (`accepted`, `invalid`) |
+| `falcosecurity_falcosidekick_outputs_total{destination,status}` | `falcosidekick_output_events_total{output,status}` |
+| `falcosecurity_falcosidekick_falco_events_total{hostname,rule,priority,priority_raw,source,k8s_ns_name,k8s_pod_name,...}` | `falcosidekick_events_total{rule,priority,source,...}` |
 | `prometheus.extralabels: "k8s.ns.name,proc.name"` | `metrics.extra_labels: [k8s.ns.name, proc.name]` in the core file |
 | unbounded label values | `metrics.max_label_values` (default 1000) per label taken from events; later values become `other` |
 

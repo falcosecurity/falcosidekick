@@ -159,7 +159,7 @@ func TestSendBinaryMode(t *testing.T) {
 	require.NoError(t, json.Unmarshal(got.Body, &body))
 	assert.Equal(t, "Write below binary dir", body["rule"])
 	assert.Equal(t, "test-uuid-001", body["uuid"])
-	assert.Equal(t, "error", body["priority"])
+	assert.Equal(t, "Error", body["priority"], "the data is the event as Falco sends it")
 	assert.Equal(t, "/bin/hack", body["output_fields"].(map[string]any)["fd.name"])
 }
 

@@ -26,10 +26,7 @@ import (
 )
 
 func TestNewLoggerValidLevels(t *testing.T) {
-	levels := []core.LogLevel{
-		core.LogLevelTrace, core.LogLevelDebug, core.LogLevelInfo,
-		core.LogLevelWarning, core.LogLevelError,
-	}
+	levels := []core.LogLevel{core.LogLevelDebug, core.LogLevelInfo, core.LogLevelWarn, core.LogLevelError}
 	for _, level := range levels {
 		t.Run(string(level), func(t *testing.T) {
 			logger, err := NewLogger(level, core.LogFormatText)

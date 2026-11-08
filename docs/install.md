@@ -18,7 +18,7 @@ Start from [`config_example_sidekick.yaml`](../config_example_sidekick.yaml) and
 
 Images are published to Docker Hub only. `latest` is still v2.
 
-The container runs as user 1234. It receives Falco events on port 2801, which also serves `/healthz`, `/version` and `/metrics`. The API and the UI are on a separate management port, 2802, bound to `127.0.0.1` by default because the API has no authentication.
+The image is distroless static: the binary, CA certificates and no shell. It runs as user and group 65532. It receives Falco events on port 2801, IPv4 and IPv6, which also serves `/livez`, `/readyz` and `/metrics`. The API and the UI are on a separate management port, 2802, bound to `127.0.0.1` by default because the API has no authentication.
 
 ## Container
 
@@ -44,7 +44,7 @@ docker run -d --name falcosidekick -p 2801:2801 \
 Check it:
 
 ```sh
-curl -s localhost:2801/healthz
+curl -s localhost:2801/readyz
 ```
 
 The management port listens on the container's loopback, which `-p` cannot reach. To use the API or the UI from the host, bind it to every container interface and publish it on the host loopback only:
@@ -52,7 +52,7 @@ The management port listens on the container's loopback, which `-p` cannot reach
 ```yaml
 # sidekick.yaml
 management:
-  listen_address: "0.0.0.0"
+  listen_address: "::"
 ```
 
 ```sh
@@ -98,8 +98,10 @@ spec:
           args: ["-c", "/etc/falcosidekick/sidekick.yaml", "-o", "/etc/falcosidekick/outputs.yaml"]
           ports:
             - containerPort: 2801
+          livenessProbe:
+            httpGet: {path: /livez, port: 2801}
           readinessProbe:
-            httpGet: {path: /healthz, port: 2801}
+            httpGet: {path: /readyz, port: 2801}
           volumeMounts:
             - name: config
               mountPath: /etc/falcosidekick
@@ -142,13 +144,13 @@ ui:
   event_source: inmemory
 ```
 
-The UI is served on the management port, 2802, with the API. In Kubernetes reach it with `kubectl port-forward deploy/falcosidekick 2802`, which works with the default `127.0.0.1`. To expose it through a Service instead, set `management.listen_address: "0.0.0.0"` and restrict that Service to trusted clients: the API has no authentication. The UI only reads: outputs are created and changed through the API, which needs `api.allow_writes: true`.
+The UI is served on the management port, 2802, with the API. In Kubernetes reach it with `kubectl port-forward deploy/falcosidekick 2802`, which works with the default `127.0.0.1`. To expose it through a Service instead, set `management.listen_address: "::"` and restrict that Service to trusted clients: the API has no authentication. The UI only reads: outputs are created and changed through the API, which needs `api.allow_writes: true`.
 
 ## Keep API outputs across restarts
 
 Outputs created through the API live in memory by default. To keep them, and the UI layout, use a database in `sidekick.yaml`; secrets must then be file paths, as in the output files.
 
-One instance, with a volume:
+One instance, with a volume mounted at `/var/lib/falcosidekick` and writable by the container user (in Kubernetes, `securityContext.fsGroup: 65532`):
 
 ```yaml
 database:

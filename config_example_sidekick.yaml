@@ -9,12 +9,13 @@
 # Server
 # =============================================================================
 
-listen_address: "0.0.0.0"    # IP address to bind (empty = all interfaces)
-listen_port: 2801             # Falco events, /healthz, /version, /metrics
+listen_address: ""            # empty listens on every interface, IPv4 and IPv6
+listen_port: 2801             # Falco events, /livez, /readyz, /metrics
+shutdown_delay: 5s            # after SIGTERM /readyz fails and events are still accepted this long
 
 # The API and the UI have their own listener; the API has no authentication.
 # management:
-#   listen_address: "127.0.0.1"         # "0.0.0.0" for every interface; empty is refused
+#   listen_address: "127.0.0.1"         # "::" for every interface; empty is refused
 #   listen_port: 2802
 
 # =============================================================================
@@ -22,7 +23,7 @@ listen_port: 2801             # Falco events, /healthz, /version, /metrics
 # Log level can be overridden via FALCOSIDEKICK_LOG_LEVEL env var.
 # =============================================================================
 
-log_level: info               # trace, debug, info, warning, error
+log_level: info               # debug, info, warn, error
 log_format: text              # text (human-readable), json (structured)
 
 # =============================================================================
@@ -82,7 +83,7 @@ database:
 #   max_label_values: 1000               # distinct values kept per label taken from events;
 #                                        # later values are recorded as "other"
 #   extra_labels: []                     # output fields added as labels to
-#                                        # falcosidekick_event_total, e.g. [k8s.ns.name];
+#                                        # falcosidekick_events_total, e.g. [k8s.ns.name];
 #                                        # dots become underscores; each value is a new series
 
 # provisioning:
@@ -99,16 +100,16 @@ database:
 # =============================================================================
 
 # enricher:
-#   customfields:                        # static fields added to every event
+#   custom_fields:                       # static fields added to every event
 #     environment: production
 #     cluster: us-west-2
-#   customtags:                          # static tags added to every event
+#   custom_tags:                         # static tags added to every event
 #     - security
-#   templatedfields:                     # Go template fields (event.OutputFields as data)
+#   templated_fields:                    # Go template fields (event.OutputFields as data)
 #     namespace: '{{ or (index . "k8s.ns.name") "unknown" }}'
-#   bracketreplacer: "_"                 # replace [ and ] in field names
-#   truncate_event_threshold: 4096       # max event JSON size before truncating fields (0 = disabled)
-#   truncate_field_threshold: 512        # max field length before truncating (must be > 5 when event truncation enabled)
+#   bracket_replacer: "_"                # replace [ and ] in field names
+#   truncate_event_threshold: 0          # off by default; above this event JSON size, long fields are cut
+#   truncate_field_threshold: 512        # length a field is cut to once event truncation is on (> 5)
 
 # =============================================================================
 # Hot-Reload

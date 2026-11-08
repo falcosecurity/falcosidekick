@@ -14,7 +14,7 @@ Unknown keys are rejected at startup, in both files.
 
 ## Environment
 
-Every core key can be set as `FALCOSIDEKICK_<KEY>`, with dots turned into underscores, also keys without a default: `FALCOSIDEKICK_LISTEN_PORT=2802`, `FALCOSIDEKICK_TLS_ENABLED=true`. Lists are comma-separated. Outputs are configured only in files. For secrets, use the `_file` variant of a secret field (`password_file`, `api_key_file`, ...) and mount the file.
+Every core key can be set as `FALCOSIDEKICK_<KEY>`, with dots turned into underscores, also keys without a default: `FALCOSIDEKICK_LISTEN_PORT=3801`, `FALCOSIDEKICK_TLS_ENABLED=true`. Lists are comma-separated. Outputs are configured only in files. For secrets, use the `_file` variant of a secret field (`password_file`, `api_key_file`, ...) and mount the file.
 
 Every file an output reads (`_file` secrets, header and query `files`, TLS certificates and keys) must be a regular file of at most 1 MiB; symlinks to one, as in Kubernetes secret volumes, are fine. An output file that writes `name:` with nothing after it is rejected: write `name: {}` to use the defaults.
 
@@ -59,17 +59,17 @@ Outputs are probed concurrently. `runtime.health_check: false` skips the probe f
 
 Two listeners keep event ingestion apart from the API, which has no authentication:
 
-- ingestion, `listen_address:listen_port` (default `0.0.0.0:2801`): `POST /`, `/healthz`, `/version`, `/metrics`;
-- management, `management.listen_address:management.listen_port` (default `127.0.0.1:2802`): `/api/v1/...`, the UI and `/healthz`. An empty address is refused; write `0.0.0.0` to listen on every interface.
+- ingestion, `listen_address:listen_port` (default `:2801`, every interface, IPv4 and IPv6): `POST /`, `/livez`, `/readyz`, `/metrics`;
+- management, `management.listen_address:management.listen_port` (default `127.0.0.1:2802`): `/api/v1/...` and the UI. An empty address is refused; write `::` to listen on every interface.
 
-`tls` applies to both. Expose the management listener only to trusted clients.
+`tls` applies to both. With `tls.mutual_tls`, the management listener requires a client certificate in the handshake; ingestion requires one on every route except `/livez`, `/readyz` and `/metrics`, since kubelet probes and most scrapers present none. Expose the management listener only to trusted clients.
 
 | Route | Use |
 | --- | --- |
-| `POST /` | Falco events (JSON) |
-| `GET /healthz` | liveness and readiness, on both listeners |
-| `GET /metrics` | Prometheus metrics, prefix `falcosidekick_`; `metrics.extra_labels` adds output fields as labels of `falcosidekick_event_total`. Labels taken from events (rule, source, extra labels) keep at most `metrics.max_label_values` distinct values each (default 1000); later values are recorded as `other` and counted in `falcosidekick_metric_label_overflow_total{label}`. `falcosidekick_output_total` and `falcosidekick_output_drop_total` count events, a batch included |
-| `GET /version` | build version, ingestion listener |
+| `POST /` | Falco events (JSON), the format of Falco's `http_output` |
+| `GET /livez` | liveness: 200 while the process serves |
+| `GET /readyz` | readiness: 200 once the pipeline runs; 503 from SIGTERM on, while events are still accepted for `shutdown_delay` (default `5s`), so Kubernetes stops routing to the pod before the listener closes |
+| `GET /metrics` | Prometheus metrics; see [Metrics](#metrics) |
 | `/api/v1/...` | management listener: events (list filters repeat their parameter once per value, each taken as written: `?rule=A&rule=B`, so a rule name may contain a comma), pipeline status, output config and types, UI layout, `/api/v1/version`, `/api/v1/config` (the core configuration this instance runs with and its `runtime_defaults`, read from its files; the database never stores it), `/api/v1/secrets` (the names of the files under `api.secret_dirs`, never their contents) |
 
 Routes that change outputs or the layout, and `GET /api/v1/secrets`, answer 403 unless `api.allow_writes: true`. With writes on, keep `management.listen_address` on `127.0.0.1` or a trusted network.
@@ -81,6 +81,46 @@ With `database.backend: sqlite` or `postgres`, no secret value is stored: a secr
 A file path sent through the API (a `_file` secret, header and query `files`, TLS files, `kubeconfig`) is accepted only if it resolves, after symlinks, to a regular file of at most 1 MiB inside one of the absolute directories in `api.secret_dirs`. The default, an empty list, refuses every such path. Paths already in the output file are kept as they are. The check matters because the output sends what it reads to a destination the same request chooses. Changes are watched in each directory of `api.secret_dirs` and in the directories directly below it, such as `<secret_dir>/<name>/<key>` for a mounted Kubernetes Secret; a file deeper than that is not watched, so send `SIGHUP` after changing it. The files an output file names (`_file` secrets, header and query `files`, TLS files) are watched where they are, at any depth, and also checked every `reload.poll_interval`.
 
 Both listeners close a connection that takes more than 30s to send a request or to read the answer, or stays idle for 2 minutes.
+
+## Events
+
+Sidekick reads the JSON of Falco's `http_output` (`json_output: true`).
+
+- `priority` is read in any casing, and Falco's short `Info` too. The event JSON that outputs forward and the API serves writes it as Falco does: `Warning`.
+- `output_fields` may be missing, as with Falco's `json_include_output_fields_property: false`.
+- A missing `hostname` stays missing: it is not replaced by a made-up value. Falco 0.33 and later always send it.
+
+`enricher` in the core file changes every event before it is dispatched:
+
+| Key | Effect |
+| --- | --- |
+| `custom_fields` | static output fields added to every event |
+| `templated_fields` | output fields computed by a Go template over the event's output fields |
+| `custom_tags` | tags added to every event |
+| `bracket_replacer` | replaces `[` and `]` in output field names |
+| `truncate_event_threshold` | off by default (`0`): above this event JSON size, string fields longer than `truncate_field_threshold` are cut. Cutting loses evidence, so set it only for a destination with a size limit |
+
+## Metrics
+
+`GET /metrics` on the ingestion listener serves Prometheus metrics. Counters of events count each event, a batch included.
+
+| Metric | Meaning |
+| --- | --- |
+| `falcosidekick_ingest_requests_total{status}` | requests to `POST /`: `accepted`, or `invalid` (not a Falco event; a misconfigured sender shows here) |
+| `falcosidekick_events_total{rule,priority,source,...}` | events accepted; `metrics.extra_labels` adds output fields as labels |
+| `falcosidekick_output_events_total{output,status}` | events per output: `ok` delivered, `error` failed for good |
+| `falcosidekick_output_dropped_events_total{output}` | events an output dropped because its queue was full |
+| `falcosidekick_output_request_duration_seconds{output}` | duration of each delivery request, a batch being one |
+| `falcosidekick_output_queue_length{output}`, `falcosidekick_output_queue_capacity{output}` | events waiting, and the queue size |
+| `falcosidekick_output_status{output,status}` | 1 for the current status (`ok`, `idle`, `degraded`, `error`, `failed`), 0 for the others |
+| `falcosidekick_output_circuit_state{output,state}` | 1 for the current circuit state (`closed`, `open`, `half-open`) |
+| `falcosidekick_reloads_total{source,result}` | reloads by source (`file`, `ui`, `replica`) and result (`success`, `partial`, `failure`, `noop`) |
+| `falcosidekick_reload_duration_seconds{source}`, `falcosidekick_reload_last_success_timestamp_seconds` | reload timing |
+| `falcosidekick_label_overflows_total{label}` | values recorded as `other` because a label reached `metrics.max_label_values` (default 1000) |
+| `falcosidekick_build_info{version,revision,goversion}` | always 1 |
+| `go_*`, `process_*` | Go runtime and process metrics |
+
+An alert on a failing output: `falcosidekick_output_status{status="error"} == 1`.
 
 ## Database
 
@@ -94,7 +134,7 @@ Both listeners close a connection that takes more than 30s to send a request or 
 
 Postgres settings: `host`, `port` (5432), `database`, `user`, `password` or `password_file`, `sslmode` (`verify-full` by default; `disable`, `require`, `verify-ca`), `tls.ca_file` (system CAs when empty), `max_connections` (4), `poll_interval` (10s). Postgres 17 and 18 are tested. Sidekick creates and upgrades its tables (all named `falcosidekick_*`) at start; a database upgraded by a newer Sidekick is refused. `database.connect_timeout` (30s) bounds opening it; an unreachable database stops startup.
 
-With postgres, every instance applies the outputs another instance creates, changes or deletes through the API: it is notified at once, and checks the stored outputs every `poll_interval` in case a notification was lost (a lost listener connection reconnects and checks too). A change an instance cannot build, for example because a secret file is missing there, leaves its previous output running with status `degraded` and `last_warning` naming the version it could not apply; it is tried again at each check. Each check is counted in `falcosidekick_reload_total{source="replica"}`, a change not applied in `falcosidekick_reload_failures_total{source="replica"}`. A write whose commit the database did not confirm answers 503 with "the change may have been applied": read the output again.
+With postgres, every instance applies the outputs another instance creates, changes or deletes through the API: it is notified at once, and checks the stored outputs every `poll_interval` in case a notification was lost (a lost listener connection reconnects and checks too). A change an instance cannot build, for example because a secret file is missing there, leaves its previous output running with status `degraded` and `last_warning` naming the version it could not apply; it is tried again at each check. Each check is counted in `falcosidekick_reloads_total{source="replica"}`, a change not applied with `result="failure"`. A write whose commit the database did not confirm answers 503 with "the change may have been applied": read the output again.
 
 Outputs from the output files are written to the database at each start and reload; instances sharing a database should run the same output files, otherwise each start or reload of one replaces the outputs of the others, as happens briefly during a rolling update.
 

@@ -27,6 +27,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/config"
@@ -72,6 +73,26 @@ func writeVersion(w io.Writer, v version.Info) error {
 	return nil
 }
 
+// readiness is what drainBeforeShutdown needs from the server.
+type readiness interface{ SetReady(bool) }
+
+// drainBeforeShutdown fails /readyz and keeps accepting events for delay, so Kubernetes removes the
+// pod from its Service before the listener closes. A failing listener ends the wait.
+func drainBeforeShutdown(srv readiness, delay time.Duration, serverErr <-chan error) {
+	srv.SetReady(false)
+	if delay <= 0 {
+		return
+	}
+	slog.Info("not ready, still accepting events before shutdown", "delay", delay)
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case err := <-serverErr:
+		slog.Error("server failed", "error", err)
+	}
+}
+
 // fatal uses its own logger because slog.SetDefault redirects the log package default.
 func fatal(err error) {
 	log.New(os.Stderr, "", 0).Fatalf("fatal: %v", err)
@@ -84,10 +105,6 @@ func run(parentCtx context.Context, configPath string, outputPaths []string) err
 	// Workers outlive appCtx so SIGTERM does not abort the queued-event drain.
 	workerRunCtx, stopWorkers := context.WithCancel(context.Background())
 	defer stopWorkers()
-
-	if configPath == "" {
-		slog.Warn("no config file specified (-c flag), running with defaults and environment variables only")
-	}
 
 	cfg, err := config.Load(configPath)
 	if err != nil {
@@ -108,6 +125,9 @@ func run(parentCtx context.Context, configPath string, outputPaths []string) err
 		return fmt.Errorf("logger: %w", err)
 	}
 	slog.SetDefault(logger)
+	if configPath == "" {
+		slog.Warn("no config file specified (-c flag), running with defaults and environment variables only")
+	}
 
 	v := version.GetInfo()
 	slog.Info("starting falcosidekick",
@@ -129,6 +149,18 @@ func run(parentCtx context.Context, configPath string, outputPaths []string) err
 		return err
 	}
 
+	collector.WatchOutputs(func() []metrics.OutputState {
+		statuses := app.pipe.CollectOutputStatus()
+		states := make([]metrics.OutputState, len(statuses))
+		for i := range statuses {
+			s := &statuses[i]
+			states[i] = metrics.OutputState{
+				Name: s.Name, Status: string(s.Status), CircuitState: s.CircuitState,
+				QueueLength: s.QueueDepth, QueueCapacity: s.QueueCapacity,
+			}
+		}
+		return states
+	})
 	app.pipe.Start(workerRunCtx, stopWorkers)
 	app.startReloadWatchers(appCtx, workerRunCtx, outsCfg.Paths, cfg.API.SecretDirs, cfg.Reload)
 	if err := app.startReplicaSync(appCtx, &cfg.Database); err != nil {
@@ -138,10 +170,12 @@ func run(parentCtx context.Context, configPath string, outputPaths []string) err
 	}
 
 	serverErr := make(chan error, 1)
+	app.srv.SetReady(true)
 	app.serve(serverErr)
 
 	select {
 	case <-appCtx.Done():
+		drainBeforeShutdown(app.srv, cfg.ShutdownDelay, serverErr)
 	case srvErr := <-serverErr:
 		slog.Error("server failed", "error", srvErr)
 		stop()

@@ -168,11 +168,40 @@ export function normalizePipeline(data: PipelineWire): PipelineComposite {
   }
 }
 
+/**
+ * The API writes priorities as Falco does ("Warning"); the UI keys its colours, labels and filters by
+ * the lowercase name, so every priority is lowercased here, once, as it arrives.
+ */
+export function normalizeEvent(evt: Event): Event {
+  return { ...evt, priority: String(evt.priority).toLowerCase() as Event["priority"] }
+}
+
+function lowercaseKeys(groups: Record<string, number> | undefined): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const [key, value] of Object.entries(groups ?? {})) out[key.toLowerCase()] = (out[key.toLowerCase()] ?? 0) + value
+  return out
+}
+
+export function normalizeHistogram(result: HistogramResult): HistogramResult {
+  if (result.group_by !== "priority") return result
+  return { ...result, buckets: result.buckets.map((b) => (b.by ? { ...b, by: lowercaseKeys(b.by) } : b)) }
+}
+
+export function normalizeConfig(masked: MaskedConfig): MaskedConfig {
+  const defaults = masked.config?.runtime_defaults
+  if (!defaults?.minimum_priority) return masked
+  return {
+    ...masked,
+    config: { ...masked.config, runtime_defaults: { ...defaults, minimum_priority: defaults.minimum_priority.toLowerCase() } },
+  }
+}
+
 export const api = {
   searchEvents(query: SearchQuery, signal?: AbortSignal): Promise<SearchResult> {
     return http
       .get<SearchResult>("/events/search", { params: paramsFromQuery(query), signal })
       .then(unwrap)
+      .then((r) => ({ ...r, events: (r.events ?? []).map(normalizeEvent) }))
   },
 
   countEvents(filters: EventFilters, signal?: AbortSignal): Promise<number> {
@@ -187,7 +216,7 @@ export const api = {
         params: paramsFromFilters(filters),
         signal,
       })
-      .then((r) => r.data.groups)
+      .then((r) => (groupby === "priority" ? lowercaseKeys(r.data.groups) : r.data.groups))
   },
 
   getEventsHistogram(req: HistogramRequest, signal?: AbortSignal): Promise<HistogramResult> {
@@ -197,12 +226,14 @@ export const api = {
     return http
       .get<HistogramResult>("/events/histogram", { params, signal })
       .then(unwrap)
+      .then(normalizeHistogram)
   },
 
   getEvent(uuid: string, signal?: AbortSignal): Promise<Event | null> {
     return http
       .get<Event>(`/events/${encodeURIComponent(uuid)}`, { signal })
       .then(unwrap)
+      .then(normalizeEvent)
       .catch(nullOn404<Event>)
   },
 
@@ -255,7 +286,7 @@ export const api = {
   },
 
   getConfig(signal?: AbortSignal): Promise<MaskedConfig> {
-    return http.get<MaskedConfig>("/config", { signal }).then(unwrap)
+    return http.get<MaskedConfig>("/config", { signal }).then(unwrap).then(normalizeConfig)
   },
 
   getVersion(signal?: AbortSignal): Promise<VersionInfo> {

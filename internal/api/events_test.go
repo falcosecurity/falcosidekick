@@ -104,7 +104,7 @@ func TestHandleEventsSearch_ParsesAllFilters(t *testing.T) {
 	q := store.LastSearchQuery
 	require.NotNil(t, q)
 	assert.Equal(t, "hello", q.Filters.Filter)
-	assert.Equal(t, []string{"critical", "error"}, q.Filters.Priority)
+	assert.Equal(t, []string{"Critical", "Error"}, q.Filters.Priority, "named as events carry them")
 	assert.Equal(t, []string{"foo", "bar"}, q.Filters.Rule)
 	assert.Equal(t, []string{"syscall"}, q.Filters.Source)
 	assert.Equal(t, []string{"node-1", "node-2"}, q.Filters.Hostname)
@@ -156,7 +156,7 @@ func TestHandleEventsSearch_NoEventSource(t *testing.T) {
 func TestHandleEventsSearch_StoreError(t *testing.T) {
 	store := &fakeReadableStore{
 		SearchFn: func(_ context.Context, _ *output.SearchQuery) (*output.SearchResult, error) {
-			return nil, errors.New("boom")
+			return nil, errors.New("dial postgres://sidekick:hunter2@db: refused")
 		},
 	}
 	srv := buildTestServerWithStore(t, store)
@@ -168,7 +168,8 @@ func TestHandleEventsSearch_StoreError(t *testing.T) {
 
 	assert.Equal(t, 500, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "boom")
+	assert.JSONEq(t, `{"error":"event store unavailable; see the falcosidekick log"}`, string(body),
+		"the store error can carry backend details and stays in the log")
 }
 
 func TestHandleEventsCount(t *testing.T) {
@@ -235,7 +236,16 @@ func TestHandleEventsCount_HonorsFreeTextFilter(t *testing.T) {
 	require.Equal(t, 200, resp.StatusCode)
 	require.NotNil(t, store.LastCountFilters)
 	assert.Equal(t, "bash", store.LastCountFilters.Filter, "count handler must propagate free-text filter= to the store")
-	assert.Equal(t, []string{"error"}, store.LastCountFilters.Priority)
+	assert.Equal(t, []string{"Error"}, store.LastCountFilters.Priority)
+}
+
+func TestUnknownPriorityFilterIsRefused(t *testing.T) {
+	srv := buildTestServerWithStore(t, &fakeReadableStore{})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/events/count?priority=urgent", http.NoBody)
+	resp, err := srv.app.Test(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
 func TestHandleEventsCount_StoreError(t *testing.T) {
@@ -397,7 +407,7 @@ func TestHandleEventByUUID_StoreError(t *testing.T) {
 
 	assert.Equal(t, 500, resp.StatusCode)
 	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), "lookup failed")
+	assert.NotContains(t, string(body), "lookup failed")
 }
 
 func TestHandleEventByUUID_NoEventSource(t *testing.T) {
@@ -460,7 +470,7 @@ func TestHandleEventsHistogram_PassesAllParams(t *testing.T) {
 	assert.Equal(t, int64(1_800_000), last.BucketMs)
 	assert.Equal(t, "source", last.GroupBy)
 	assert.Equal(t, "needle", last.Filters.Filter)
-	assert.Equal(t, []string{"error", "warning"}, last.Filters.Priority)
+	assert.Equal(t, []string{"Error", "Warning"}, last.Filters.Priority)
 	assert.Equal(t, []string{"r1", "r2"}, last.Filters.Rule)
 	assert.Equal(t, []string{"syscall"}, last.Filters.Source)
 	assert.Equal(t, []string{"node-a"}, last.Filters.Hostname)
@@ -496,7 +506,7 @@ func TestHandleEventsHistogram_Valid(t *testing.T) {
 	assert.Equal(t, int64(900_000), store.LastHistogramReq.BucketMs)
 	assert.Equal(t, "source", store.LastHistogramReq.GroupBy)
 	assert.Equal(t, time.Hour, store.LastHistogramReq.Filters.Since)
-	assert.Equal(t, []string{"error"}, store.LastHistogramReq.Filters.Priority)
+	assert.Equal(t, []string{"Error"}, store.LastHistogramReq.Filters.Priority)
 
 	body := struct {
 		GroupBy  string                   `json:"group_by"`

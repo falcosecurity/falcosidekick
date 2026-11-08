@@ -166,7 +166,7 @@ func assertEventJSON(t *testing.T, payload string) {
 	var got map[string]any
 	require.NoError(t, json.Unmarshal([]byte(payload), &got))
 	assert.Equal(t, "Write below binary dir", got["rule"])
-	assert.Equal(t, "error", got["priority"])
+	assert.Equal(t, "Error", got["priority"], "the stored event keeps Falco's casing")
 	assert.Equal(t, "test-uuid-001", got["uuid"])
 	assert.Equal(t, "/bin/hack", got["output_fields"].(map[string]any)["fd.name"])
 }

@@ -23,8 +23,10 @@ import (
 )
 
 func applyDefaults(v *viper.Viper) {
-	v.SetDefault("listen_address", "0.0.0.0")
+	// Empty listens on every interface, IPv4 and IPv6.
+	v.SetDefault("listen_address", "")
 	v.SetDefault("listen_port", 2801)
+	v.SetDefault("shutdown_delay", 5*time.Second)
 	v.SetDefault("management.listen_address", "127.0.0.1")
 	v.SetDefault("management.listen_port", 2802)
 	v.SetDefault("log_level", "info")
@@ -58,7 +60,8 @@ func applyDefaults(v *viper.Viper) {
 	v.SetDefault("runtime_defaults.batching.batch_size", 500)
 	v.SetDefault("runtime_defaults.batching.flush_interval", time.Second)
 
-	v.SetDefault("enricher.truncate_event_threshold", 4096)
+	// Truncation drops evidence, so it is opt-in; the field threshold applies once it is enabled.
+	v.SetDefault("enricher.truncate_event_threshold", 0)
 	v.SetDefault("enricher.truncate_field_threshold", 512)
 
 	v.SetDefault("reload.poll_interval", 30*time.Second)

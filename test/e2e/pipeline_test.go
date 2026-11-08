@@ -165,8 +165,13 @@ func TestMetricLabelsAreBounded(t *testing.T) {
 	require.NoError(t, err)
 	metrics := string(body)
 	assert.Contains(t, metrics, `rule="other"`)
-	assert.Contains(t, metrics, `falcosidekick_metric_label_overflow_total{label="rule"} 1`)
-	assert.Contains(t, metrics, `falcosidekick_output_total{output="webhook",status="ok"} 3`)
+	assert.Contains(t, metrics, `falcosidekick_label_overflows_total{label="rule"} 1`)
+	assert.Contains(t, metrics, `falcosidekick_output_events_total{output="webhook",status="ok"} 3`)
+	assert.Contains(t, metrics, `falcosidekick_ingest_requests_total{status="accepted"} 3`)
+	assert.Contains(t, metrics, `falcosidekick_output_status{output="webhook",status="ok"} 1`)
+	assert.Contains(t, metrics, `falcosidekick_output_queue_capacity{output="webhook"}`)
+	assert.Contains(t, metrics, "falcosidekick_build_info{")
+	assert.Contains(t, metrics, "go_goroutines ")
 }
 
 // An outage opens the circuit; the queue waits and is delivered once the destination recovers.

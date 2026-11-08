@@ -52,20 +52,20 @@ help: ## Show this help
 
 .PHONY: falcosidekick
 falcosidekick: ui-build ## Build the binary with the embedded UI (host OS and arch)
-	$(GO) build -trimpath -tags=builtinui -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/falcosidekick/
+	CGO_ENABLED=0 $(GO) build -trimpath -tags=builtinui -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/falcosidekick/
 
 .PHONY: falcosidekick-slim
 falcosidekick-slim: ## Build the binary without the UI (host OS and arch)
-	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(BINARY_SLIM) ./cmd/falcosidekick/
+	CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(BINARY_SLIM) ./cmd/falcosidekick/
 
 # Pattern rules: GNU make skips implicit rules for .PHONY targets, so these
-# are not declared phony.
+# are not declared phony. Static like the release build: the image has no libc.
 falcosidekick-linux-%: ui-build
-	GOOS=linux GOARCH=$* $(GO) build -trimpath -tags=builtinui -ldflags "$(LDFLAGS)" \
+	CGO_ENABLED=0 GOOS=linux GOARCH=$* $(GO) build -trimpath -tags=builtinui -ldflags "$(LDFLAGS)" \
 		-o $(DIST)/linux/$*/$(BINARY) ./cmd/falcosidekick/
 
 falcosidekick-slim-linux-%:
-	GOOS=linux GOARCH=$* $(GO) build -trimpath -ldflags "$(LDFLAGS)" \
+	CGO_ENABLED=0 GOOS=linux GOARCH=$* $(GO) build -trimpath -ldflags "$(LDFLAGS)" \
 		-o $(DIST)/linux/$*/$(BINARY_SLIM) ./cmd/falcosidekick/
 
 .PHONY: dist-license
@@ -75,19 +75,19 @@ dist-license:
 .PHONY: image
 image: falcosidekick-linux-$(GOARCH) dist-license ## Build the UI image for the host arch and load it as falcosidekick:local
 	$(DOCKER) buildx build --platform $(LOCAL_PLATFORM) -f Dockerfile \
-		--build-arg BINARY=$(BINARY) --build-arg VARIANT=ui \
+		--build-arg BINARY=$(BINARY) \
 		-t $(IMAGE):local --load $(DIST)
 
 .PHONY: image-slim
 image-slim: falcosidekick-slim-linux-$(GOARCH) dist-license ## Build the slim image for the host arch and load it as falcosidekick:local-slim
 	$(DOCKER) buildx build --platform $(LOCAL_PLATFORM) -f Dockerfile \
-		--build-arg BINARY=$(BINARY_SLIM) --build-arg VARIANT=slim \
+		--build-arg BINARY=$(BINARY_SLIM) \
 		-t $(IMAGE):local-slim --load $(DIST)
 
 .PHONY: image-multiarch
 image-multiarch: falcosidekick-linux-amd64 falcosidekick-linux-arm64 dist-license ## Build the UI image for amd64 and arm64 (no --load)
 	$(DOCKER) buildx build --platform linux/amd64,linux/arm64 -f Dockerfile \
-		--build-arg BINARY=$(BINARY) --build-arg VARIANT=ui \
+		--build-arg BINARY=$(BINARY) \
 		-t $(IMAGE):local $(DIST)
 
 .PHONY: goreleaser-snapshot

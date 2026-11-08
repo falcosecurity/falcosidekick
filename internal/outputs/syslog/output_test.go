@@ -168,7 +168,7 @@ func TestJSONMessage(t *testing.T) {
 	var got map[string]any
 	require.NoError(t, json.Unmarshal([]byte(m[4]), &got))
 	assert.Equal(t, evt.Rule, got["rule"])
-	assert.Equal(t, "error", got["priority"])
+	assert.Equal(t, "Error", got["priority"], "the event JSON keeps Falco's casing")
 	assert.Equal(t, evt.Output, got["output"])
 	assert.Equal(t, "/bin/hack", got["output_fields"].(map[string]any)["fd.name"])
 }

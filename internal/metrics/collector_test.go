@@ -18,6 +18,7 @@ package metrics
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,22 +35,23 @@ func newTestCollector() *Collector {
 	return NewCollector(core.MetricsConfig{MaxLabelValues: 1000})
 }
 
-// series returns the label sets of a metric family.
-func series(t *testing.T, c *Collector, family string) []map[string]string {
+// series returns the label sets and values of a metric family.
+func series(t *testing.T, c *Collector, family string) map[string]float64 {
 	t.Helper()
 	families, err := c.Registry().Gather()
 	require.NoError(t, err)
-	var all []map[string]string
+	all := map[string]float64{}
 	for _, f := range families {
 		if f.GetName() != family {
 			continue
 		}
 		for _, m := range f.GetMetric() {
-			labels := map[string]string{}
+			var labels []string
 			for _, l := range m.GetLabel() {
-				labels[l.GetName()] = l.GetValue()
+				labels = append(labels, l.GetName()+"="+l.GetValue())
 			}
-			all = append(all, labels)
+			value := m.GetCounter().GetValue() + m.GetGauge().GetValue() + float64(m.GetHistogram().GetSampleCount())
+			all[strings.Join(labels, ",")] = value
 		}
 	}
 	return all
@@ -71,69 +73,64 @@ func collectCounter(t *testing.T, c prometheus.Collector) float64 {
 	return total
 }
 
-func TestRecordInput(t *testing.T) {
+// The exposed names are a contract dashboards and alerts depend on: each says what it counts,
+// counters end in _total, durations in _seconds, and the standard Go, process and build metrics exist.
+func TestExposedMetricNames(t *testing.T) {
 	c := newTestCollector()
 	ctx := context.Background()
+	c.RecordRequest(ctx, core.IngestAccepted)
+	c.RecordEvent(ctx, &event.Event{Rule: "r", Priority: event.PriorityWarning, Source: "syscall"})
+	c.RecordOutput(ctx, "slack", "sent", 1, time.Millisecond)
+	c.RecordDrop(ctx, "slack", 1)
+	c.WatchOutputs(func() []OutputState { return []OutputState{{Name: "slack"}} })
 
-	c.RecordInput(ctx, "syscall", "ok")
-	c.RecordInput(ctx, "syscall", "ok")
-	c.RecordInput(ctx, "plugin", "error")
+	families, err := c.Registry().Gather()
+	require.NoError(t, err)
+	names := map[string]bool{}
+	for _, f := range families {
+		names[f.GetName()] = true
+	}
+	for _, want := range []string{
+		"falcosidekick_ingest_requests_total",
+		"falcosidekick_events_total",
+		"falcosidekick_output_events_total",
+		"falcosidekick_output_request_duration_seconds",
+		"falcosidekick_output_dropped_events_total",
+		"falcosidekick_output_queue_length",
+		"falcosidekick_output_queue_capacity",
+		"falcosidekick_output_status",
+		"falcosidekick_output_circuit_state",
+		"falcosidekick_build_info",
+		"go_goroutines",
+		"process_start_time_seconds",
+	} {
+		assert.True(t, names[want], want)
+	}
+	for name := range names {
+		assert.False(t, strings.HasPrefix(name, "falcosidekick_input") || name == "falcosidekick_error_total", name)
+	}
+}
 
-	assert.Equal(t, 3.0, collectCounter(t, c.inputTotal))
+func TestRecordRequestCountsInvalidPosts(t *testing.T) {
+	c := newTestCollector()
+	ctx := context.Background()
+	c.RecordRequest(ctx, core.IngestAccepted)
+	c.RecordRequest(ctx, core.IngestAccepted)
+	c.RecordRequest(ctx, core.IngestInvalid)
+	assert.Equal(t, map[string]float64{"status=accepted": 2, "status=invalid": 1}, series(t, c, "falcosidekick_ingest_requests_total"))
 }
 
 func TestRecordOutput(t *testing.T) {
 	c := newTestCollector()
 	ctx := context.Background()
 
-	c.RecordOutput(ctx, "slack", "ok", 1, 100*time.Millisecond)
+	c.RecordOutput(ctx, "slack", "sent", 1, 100*time.Millisecond)
 	c.RecordOutput(ctx, "slack", "error", 1, 0)
-	c.RecordOutput(ctx, "elasticsearch", "ok", 500, time.Second)
+	c.RecordOutput(ctx, "elasticsearch", "sent", 500, time.Second)
 
-	assert.Equal(t, 502.0, collectCounter(t, c.outputTotal), "a batch counts each of its events")
-}
-
-func TestRecordOutputLatency(t *testing.T) {
-	c := newTestCollector()
-	ctx := context.Background()
-
-	c.RecordOutput(ctx, "elasticsearch", "ok", 10, 50*time.Millisecond)
-	c.RecordOutput(ctx, "elasticsearch", "ok", 10, 150*time.Millisecond)
-
-	ch := make(chan prometheus.Metric, 10)
-	c.outputLatency.Collect(ch)
-	close(ch)
-
-	var observations uint64
-	for m := range ch {
-		var dto io_prometheus_client.Metric
-		require.NoError(t, m.Write(&dto))
-		if dto.Histogram != nil {
-			observations += dto.Histogram.GetSampleCount()
-		}
-	}
-	assert.Equal(t, uint64(2), observations)
-}
-
-func TestRecordOutputZeroDurationSkipsHistogram(t *testing.T) {
-	c := newTestCollector()
-	ctx := context.Background()
-
-	c.RecordOutput(ctx, "slack", "error", 1, 0)
-
-	ch := make(chan prometheus.Metric, 10)
-	c.outputLatency.Collect(ch)
-	close(ch)
-
-	var observations uint64
-	for m := range ch {
-		var dto io_prometheus_client.Metric
-		require.NoError(t, m.Write(&dto))
-		if dto.Histogram != nil {
-			observations += dto.Histogram.GetSampleCount()
-		}
-	}
-	assert.Equal(t, uint64(0), observations, "zero duration must not record histogram observation")
+	assert.Equal(t, 502.0, collectCounter(t, c.outputEvents), "a batch counts each of its events")
+	assert.Equal(t, map[string]float64{"output=slack": 1, "output=elasticsearch": 1},
+		series(t, c, "falcosidekick_output_request_duration_seconds"), "one observation per request; none without a duration")
 }
 
 func TestRecordDrop(t *testing.T) {
@@ -143,27 +140,7 @@ func TestRecordDrop(t *testing.T) {
 	c.RecordDrop(ctx, "loki", 1)
 	c.RecordDrop(ctx, "loki", 3)
 
-	assert.Equal(t, 4.0, collectCounter(t, c.dropTotal))
-}
-
-func TestRecordError(t *testing.T) {
-	c := newTestCollector()
-	ctx := context.Background()
-
-	c.RecordError(ctx, "eventstore", assert.AnError)
-	c.RecordError(ctx, "pipeline", assert.AnError)
-
-	assert.Equal(t, 2.0, collectCounter(t, c.errorTotal))
-}
-
-func TestRecordEvent(t *testing.T) {
-	c := newTestCollector()
-	ctx := context.Background()
-
-	c.RecordEvent(ctx, &event.Event{Rule: "Write below binary dir", Priority: event.PriorityError, Source: "syscall"})
-	c.RecordEvent(ctx, &event.Event{Rule: "Read secret", Priority: event.PriorityWarning, Source: "syscall"})
-
-	assert.Equal(t, 2.0, collectCounter(t, c.eventTotal))
+	assert.Equal(t, 4.0, collectCounter(t, c.outputDropped))
 }
 
 func TestRecordEventExtraLabels(t *testing.T) {
@@ -174,13 +151,13 @@ func TestRecordEventExtraLabels(t *testing.T) {
 		OutputFields: map[string]any{"k8s.ns.name": "prod", "proc.pid": 42}})
 	c.RecordEvent(ctx, &event.Event{Rule: "r", Priority: event.PriorityWarning, Source: "syscall"})
 
-	assert.ElementsMatch(t, []map[string]string{
-		{"rule": "r", "priority": string(event.PriorityWarning), "source": "syscall", "k8s_ns_name": "prod", "proc_pid": "42"},
-		{"rule": "r", "priority": string(event.PriorityWarning), "source": "syscall", "k8s_ns_name": "", "proc_pid": ""},
-	}, series(t, c, "falcosidekick_event_total"))
+	assert.Equal(t, map[string]float64{
+		"k8s_ns_name=prod,priority=warning,proc_pid=42,rule=r,source=syscall": 1,
+		"k8s_ns_name=,priority=warning,proc_pid=,rule=r,source=syscall":       1,
+	}, series(t, c, "falcosidekick_events_total"))
 }
 
-// D8: labels taken from events keep at most max_label_values distinct values each.
+// Labels taken from events keep at most max_label_values distinct values each.
 func TestEventLabelsAreBounded(t *testing.T) {
 	c := NewCollector(core.MetricsConfig{ExtraLabels: []string{"k8s.ns.name"}, MaxLabelValues: 2})
 	ctx := context.Background()
@@ -194,33 +171,44 @@ func TestEventLabelsAreBounded(t *testing.T) {
 	record("d", "qa")
 	record("a", "qa")
 
-	rules := map[string]bool{}
-	namespaces := map[string]bool{}
-	for _, s := range series(t, c, "falcosidekick_event_total") {
-		rules[s["rule"]] = true
-		namespaces[s["k8s_ns_name"]] = true
+	assert.Equal(t, 5.0, collectCounter(t, c.events), "no event is lost to the cap")
+	assert.Equal(t, map[string]float64{"label=rule": 2, "label=k8s_ns_name": 2}, series(t, c, "falcosidekick_label_overflows_total"))
+	for labels := range series(t, c, "falcosidekick_events_total") {
+		assert.NotContains(t, labels, "rule=c", "a third rule becomes other")
 	}
-	assert.Equal(t, map[string]bool{"a": true, "b": true, "other": true}, rules, "a value seen before keeps its series")
-	assert.Equal(t, map[string]bool{"prod": true, "dev": true, "other": true}, namespaces)
-	assert.Equal(t, 5.0, collectCounter(t, c.eventTotal), "no event is lost to the cap")
+}
 
-	overflow := map[string]float64{}
-	families, err := c.Registry().Gather()
-	require.NoError(t, err)
-	for _, f := range families {
-		if f.GetName() == "falcosidekick_metric_label_overflow_total" {
-			for _, m := range f.GetMetric() {
-				overflow[m.GetLabel()[0].GetValue()] = m.GetCounter().GetValue()
-			}
-		}
+// The output gauges are read at scrape time, one series per status and circuit state, so an alert
+// can match output_status{status="error"} == 1.
+func TestOutputGaugesFollowTheCurrentState(t *testing.T) {
+	c := newTestCollector()
+	assert.Empty(t, series(t, c, "falcosidekick_output_queue_length"), "nothing before the pipeline is watched")
+
+	state := OutputState{Name: "loki", Status: "degraded", CircuitState: "open", QueueLength: 7, QueueCapacity: 1000}
+	c.WatchOutputs(func() []OutputState { return []OutputState{state} })
+	assert.Equal(t, map[string]float64{"output=loki": 7}, series(t, c, "falcosidekick_output_queue_length"))
+	assert.Equal(t, map[string]float64{"output=loki": 1000}, series(t, c, "falcosidekick_output_queue_capacity"))
+	assert.Equal(t, map[string]float64{
+		"output=loki,status=ok": 0, "output=loki,status=idle": 0, "output=loki,status=degraded": 1,
+		"output=loki,status=error": 0, "output=loki,status=failed": 0,
+	}, series(t, c, "falcosidekick_output_status"))
+	assert.Equal(t, map[string]float64{
+		"output=loki,state=closed": 0, "output=loki,state=open": 1, "output=loki,state=half-open": 0,
+	}, series(t, c, "falcosidekick_output_circuit_state"))
+
+	state.QueueLength, state.CircuitState = 0, "closed"
+	assert.Equal(t, map[string]float64{"output=loki": 0}, series(t, c, "falcosidekick_output_queue_length"), "read again at each scrape")
+}
+
+func TestBuildInfo(t *testing.T) {
+	c := newTestCollector()
+	got := series(t, c, "falcosidekick_build_info")
+	require.Len(t, got, 1)
+	for labels, value := range got {
+		assert.Equal(t, 1.0, value)
+		assert.Contains(t, labels, "version=")
+		assert.Contains(t, labels, "revision=")
 	}
-	assert.Equal(t, map[string]float64{"rule": 2, "k8s_ns_name": 2}, overflow)
-
-	c.RecordInput(ctx, "s1", "accepted")
-	c.RecordInput(ctx, "s2", "accepted")
-	assert.ElementsMatch(t, []map[string]string{
-		{"source": "s1", "status": "accepted"}, {"source": "other", "status": "accepted"},
-	}, series(t, c, "falcosidekick_input_total"), "input and event share the source budget: syscall and s1")
 }
 
 func TestCollectorImplementsInterface(t *testing.T) {
@@ -232,9 +220,8 @@ func TestNoopCollectorDoesNotPanic(t *testing.T) {
 	var noop NoopCollector
 	ctx := context.Background()
 
-	noop.RecordInput(ctx, "test", "ok")
-	noop.RecordOutput(ctx, "test", "ok", 1, time.Second)
+	noop.RecordRequest(ctx, core.IngestAccepted)
+	noop.RecordOutput(ctx, "test", "sent", 1, time.Second)
 	noop.RecordDrop(ctx, "test", 1)
-	noop.RecordError(ctx, "test", assert.AnError)
 	noop.RecordEvent(ctx, &event.Event{Rule: "rule", Priority: event.PriorityDebug, Source: "test"})
 }

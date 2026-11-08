@@ -44,10 +44,10 @@ done
 
 command -v curl >/dev/null 2>&1 || { echo "curl not found" >&2; exit 1; }
 
-# Strip trailing slash for healthz probe
+# Strip trailing slash for the readiness probe
 BASE="${URL%/}"
-if ! curl -sf --max-time 3 "${BASE}/healthz" >/dev/null 2>&1; then
-  echo "[ingest] falcosidekick not reachable at ${BASE}/healthz" >&2
+if ! curl -sf --max-time 3 "${BASE}/readyz" >/dev/null 2>&1; then
+  echo "[ingest] falcosidekick not ready at ${BASE}/readyz" >&2
   echo "[ingest] start the backend or port-forward first (see hack/ui-dev-cluster.sh)" >&2
   exit 1
 fi

@@ -444,9 +444,9 @@ func TestCountByHonorsFreeTextFilter(t *testing.T) {
 
 	groups, err := o.CountBy(ctx, "priority", &output.Filters{Filter: "exec"})
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), groups["warning"])
-	assert.Equal(t, int64(1), groups["error"])
-	assert.NotContains(t, groups, "notice", "events matching neither filter nor priority must not appear")
+	assert.Equal(t, int64(1), groups["Warning"], "group keys use Falco's casing")
+	assert.Equal(t, int64(1), groups["Error"])
+	assert.NotContains(t, groups, "Notice", "events matching neither filter nor priority must not appear")
 }
 
 func TestCountBy(t *testing.T) {
@@ -463,7 +463,7 @@ func TestCountBy(t *testing.T) {
 		name  string
 		field string
 	}{
-		{map[string]int64{"warning": 2, "critical": 1}, "by priority", "priority"},
+		{map[string]int64{"Warning": 2, "Critical": 1}, "by priority", "priority"},
 		{map[string]int64{"syscall": 2, "k8s_audit": 1}, "by source", "source"},
 		{map[string]int64{"r1": 1, "r2": 1, "r3": 1}, "by rule", "rule"},
 		{map[string]int64{"node-1": 3}, "by hostname", "hostname"},
@@ -490,7 +490,18 @@ func TestCountByWithFilters(t *testing.T) {
 
 	result, err := o.CountBy(ctx, "priority", &output.Filters{Source: []string{"syscall"}})
 	require.NoError(t, err)
-	assert.Equal(t, map[string]int64{"warning": 1, "critical": 1}, result)
+	assert.Equal(t, map[string]int64{"Warning": 1, "Critical": 1}, result)
+
+	// A priority filter matches in any casing, Falco's "Info" included.
+	require.NoError(t, o.Send(ctx, testEvent("r4", event.PriorityInformational, "syscall", now.Add(3*time.Second))))
+	for _, filter := range []string{"warning", "Warning", "WARNING"} {
+		n, err := o.Count(ctx, &output.Filters{Priority: []string{filter}})
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), n, filter)
+	}
+	n, err := o.Count(ctx, &output.Filters{Priority: []string{"Info"}})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), n)
 }
 
 func TestCountByInvalidField(t *testing.T) {
@@ -874,8 +885,8 @@ func TestHistogramGroupByAllFields(t *testing.T) {
 			require.NotNil(t, by)
 			switch field {
 			case fieldPriority:
-				assert.Equal(t, int64(1), by["error"])
-				assert.Equal(t, int64(1), by["warning"])
+				assert.Equal(t, int64(1), by["Error"])
+				assert.Equal(t, int64(1), by["Warning"])
 			case fieldRule:
 				assert.Equal(t, int64(1), by["rule-a"])
 				assert.Equal(t, int64(1), by["rule-b"])

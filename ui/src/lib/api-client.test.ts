@@ -4,8 +4,8 @@ import { AxiosError, CanceledError, type InternalAxiosRequestConfig } from "axio
 import { composite, errorResponse, fixtureAdapter, fixtures, networkError, outputs, statuses } from "@/test/fixtures"
 
 import { ApiError } from "./api-error"
-import { api, normalizeLayout, setAccessToken, setApiAdapterForTests, setUnauthorizedHandler } from "./api-client"
-import { CIRCUIT_STATES, OUTPUT_STATUS_STATES, PRIORITIES } from "./types"
+import { api, normalizeConfig, normalizeEvent, normalizeLayout, setAccessToken, setApiAdapterForTests, setUnauthorizedHandler } from "./api-client"
+import { CIRCUIT_STATES, OUTPUT_STATUS_STATES, PRIORITIES, type Event } from "./types"
 
 function paramsOf(config: InternalAxiosRequestConfig): URLSearchParams {
   return config.params as URLSearchParams
@@ -64,7 +64,7 @@ describe("api-client requests", () => {
     expect(paramsOf(calls.at(-1)!).getAll("rule")).toEqual(["Write below etc, root or binary dirs"])
 
     await expect(api.countEventsBy("priority", { priority: ["critical"] })).resolves.toEqual(
-      fixtures.eventsCountByPriority.groups,
+      Object.fromEntries(Object.entries(fixtures.eventsCountByPriority.groups).map(([k, v]) => [k.toLowerCase(), v])),
     )
     expect(calls.at(-1)?.url).toBe("/events/count/priority")
 
@@ -73,11 +73,13 @@ describe("api-client requests", () => {
     expect(paramsOf(calls.at(-1)!).get("bucket_ms")).toBe("3600000")
     expect(paramsOf(calls.at(-1)!).get("group_by")).toBe("source")
 
-    await expect(api.getEvent(fixtures.event.uuid)).resolves.toEqual(fixtures.event)
+    await expect(api.getEvent(fixtures.event.uuid)).resolves.toEqual(normalizeEvent(fixtures.event as Event))
+    expect(String(fixtures.event.priority)).toBe("Critical")
+    expect((await api.getEvent(fixtures.event.uuid))?.priority).toBe("critical")
     await expect(api.getPipelineLayout()).resolves.toEqual(normalizeLayout(fixtures.layout))
     await expect(api.getOutput("webhook")).resolves.toEqual(fixtures.output)
     expect(calls.at(-1)?.url).toBe("/pipeline/outputs/webhook")
-    await expect(api.getConfig()).resolves.toEqual(fixtures.config)
+    await expect(api.getConfig()).resolves.toEqual(normalizeConfig(fixtures.config))
     await expect(api.getVersion()).resolves.toEqual(fixtures.version)
     expect(calls.at(-1)?.url).toBe("/version")
   })
@@ -127,8 +129,11 @@ describe("api-client normalization of the real responses", () => {
     expect(statuses.find((s) => s.name === "alertmanager")?.circuit_state).toBe("")
   })
 
-  test("events carry the fields the table renders", () => {
-    for (const event of fixtures.eventsSearch.events) {
+  test("events carry the fields the table renders; the priority Falco writes as Warning is read as warning", async () => {
+    setApiAdapterForTests(fixtureAdapter([]))
+    const { events } = await api.searchEvents({ page: 1, limit: 50, sort_by: "timestamp", sort_desc: true })
+    expect(fixtures.eventsSearch.events.map((e) => String(e.priority))).toContain("Critical")
+    for (const event of events) {
       expect(PRIORITIES).toContain(event.priority)
       expect(typeof event.uuid).toBe("string")
       expect(typeof event.time).toBe("string")

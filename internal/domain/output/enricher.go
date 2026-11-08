@@ -26,10 +26,10 @@ const truncateFieldSuffixLen = 5 // len("[...]")
 
 // EnricherConfig holds event enrichment settings.
 type EnricherConfig struct {
-	CustomFields           map[string]string `json:"customfields" mapstructure:"customfields"`
-	TemplatedFields        map[string]string `json:"templatedfields" mapstructure:"templatedfields"`
-	BracketReplacer        string            `json:"bracketreplacer" mapstructure:"bracketreplacer"`
-	CustomTags             []string          `json:"customtags" mapstructure:"customtags"`
+	CustomFields           map[string]string `json:"custom_fields" mapstructure:"custom_fields"`
+	TemplatedFields        map[string]string `json:"templated_fields" mapstructure:"templated_fields"`
+	BracketReplacer        string            `json:"bracket_replacer" mapstructure:"bracket_replacer"`
+	CustomTags             []string          `json:"custom_tags" mapstructure:"custom_tags"`
 	TruncateEventThreshold int               `json:"truncate_event_threshold" mapstructure:"truncate_event_threshold"`
 	TruncateFieldThreshold int               `json:"truncate_field_threshold" mapstructure:"truncate_field_threshold"`
 }

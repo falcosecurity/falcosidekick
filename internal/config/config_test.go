@@ -17,6 +17,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -37,14 +39,32 @@ func TestLoadEmptyPathUsesDefaults(t *testing.T) {
 	cfg, err := Load("")
 	require.NoError(t, err)
 	assert.Equal(t, 2801, cfg.ListenPort)
-	assert.Equal(t, "0.0.0.0", cfg.ListenAddress)
+	assert.Empty(t, cfg.ListenAddress, "every interface, IPv4 and IPv6")
+	assert.Equal(t, 5*time.Second, cfg.ShutdownDelay)
 }
 
 func TestDefaultEnricherFromConfig(t *testing.T) {
 	cfg := loadDefaults(t)
 
-	assert.Equal(t, 4096, cfg.Enricher.TruncateEventThreshold)
+	assert.Zero(t, cfg.Enricher.TruncateEventThreshold, "truncation drops evidence, so it is opt-in")
 	assert.Equal(t, 512, cfg.Enricher.TruncateFieldThreshold)
+}
+
+func TestEnricherKeysAreSnakeCase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sidekick.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("enricher:\n  custom_fields: {env: prod}\n  custom_tags: [security]\n"+
+		"  templated_fields: {ns: '{{ index . \"k8s.ns.name\" }}'}\n  bracket_replacer: _\n"), 0o600))
+	cfg, err := Load(path)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"env": "prod"}, cfg.Enricher.CustomFields)
+	assert.Equal(t, []string{"security"}, cfg.Enricher.CustomTags)
+	assert.Contains(t, cfg.Enricher.TemplatedFields, "ns")
+	assert.Equal(t, "_", cfg.Enricher.BracketReplacer)
+
+	require.NoError(t, os.WriteFile(path, []byte("enricher:\n  customfields: {env: prod}\n"), 0o600))
+	_, err = Load(path)
+	require.Error(t, err, "the old v2 spelling is refused, not ignored")
+	assert.Contains(t, err.Error(), "customfields")
 }
 
 func TestDefaultPipelineWorkerFromConfig(t *testing.T) {

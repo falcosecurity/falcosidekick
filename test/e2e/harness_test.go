@@ -138,7 +138,11 @@ func startSidekickWith(t *testing.T, core launchOptions, outputs string) *sideki
 	s := launchSidekick(t, core, outputs)
 	deadline := time.After(startTimeout)
 	ready := func(url string) bool {
-		resp, err := httpDo(http.MethodGet, url+"/healthz", nil)
+		path := "/readyz"
+		if url == s.apiURL {
+			path = "/api/v1/version"
+		}
+		resp, err := httpDo(http.MethodGet, url+path, nil)
 		if err != nil {
 			return false
 		}
@@ -181,8 +185,10 @@ func launchSidekick(t *testing.T, opts launchOptions, outputs string) *sidekick 
 	t.Helper()
 	dir := t.TempDir()
 	port, managementPort := freePort(t), freePort(t)
+	// No shutdown delay: tests time the shutdown itself; the drain has its own test.
 	core := fmt.Sprintf(`listen_address: "127.0.0.1"
 listen_port: %d
+shutdown_delay: 0s
 management:
   listen_port: %d
 log_level: %q

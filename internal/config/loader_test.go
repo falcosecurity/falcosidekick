@@ -29,7 +29,7 @@ func TestLoadDefaults(t *testing.T) {
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	assert.Equal(t, "0.0.0.0", cfg.ListenAddress)
+	assert.Empty(t, cfg.ListenAddress)
 	assert.Equal(t, 2801, cfg.ListenPort)
 	assert.Equal(t, "127.0.0.1", cfg.Management.ListenAddress, "the API listens on loopback by default")
 	assert.Equal(t, 2802, cfg.Management.ListenPort)
@@ -66,7 +66,7 @@ enricher:
 	assert.True(t, cfg.UI.Enabled)
 	assert.True(t, cfg.API.AllowWrites)
 	assert.Equal(t, 5000, cfg.RuntimeDefaults.QueueSize)
-	assert.Equal(t, "0.0.0.0", cfg.ListenAddress)
+	assert.Empty(t, cfg.ListenAddress)
 	assert.Equal(t, 8192, cfg.Enricher.TruncateEventThreshold)
 }
 

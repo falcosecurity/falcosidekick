@@ -18,6 +18,7 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -25,6 +26,7 @@ import (
 	"net"
 	"slices"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -85,6 +87,8 @@ type Server struct {
 	allowWrites       bool
 	// rejectInlineSecrets refuses API writes with an inline secret, for a persistent database.
 	rejectInlineSecrets bool
+	// ready is what /readyz reports; see SetReady.
+	ready atomic.Bool
 }
 
 // NewServer creates the Fiber applications of both listeners.
@@ -157,24 +161,46 @@ func newApp() *fiber.App {
 	return app
 }
 
+// Probe and scrape routes of the ingestion listener; with mutual TLS they need no client certificate,
+// since kubelet probes and most scrapers present none.
+const (
+	routeLive    = "/livez"
+	routeReady   = "/readyz"
+	routeMetrics = "/metrics"
+)
+
 // mountIngestion serves what Falco, Kubernetes probes and Prometheus reach from other hosts.
 func (s *Server) mountIngestion(registry *prometheus.Registry) *fiber.App {
 	app := newApp()
+	if s.tls != nil && s.tls.Enabled && s.tls.MutualTLS {
+		app.Use(requireClientCertificate)
+	}
 	app.Post("/", s.handlePostEvent)
-	app.Get("/healthz", s.handleGetHealthz)
-	app.Get("/version", s.handleGetVersion)
+	app.Get(routeLive, s.handleGetLive)
+	app.Get(routeReady, s.handleGetReady)
 	if registry != nil {
 		handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-		app.Get("/metrics", adaptor.HTTPHandler(handler))
+		app.Get(routeMetrics, adaptor.HTTPHandler(handler))
 	}
 	return app
 }
 
+// requireClientCertificate refuses a request without a verified client certificate, except on the
+// probe and scrape routes. The TLS handshake already verified any certificate that was sent.
+func requireClientCertificate(c fiber.Ctx) error {
+	switch c.Path() {
+	case routeLive, routeReady, routeMetrics:
+		return c.Next()
+	}
+	if state := c.RequestCtx().TLSConnectionState(); state == nil || len(state.VerifiedChains) == 0 {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "client certificate required"})
+	}
+	return c.Next()
+}
+
 // mountManagement declares static segments before :name so Fiber matches the literals first.
-// /healthz is also here, for a readiness probe on this listener.
 func (s *Server) mountManagement() *fiber.App {
 	app := newApp()
-	app.Get("/healthz", s.handleGetHealthz)
 
 	v1 := app.Group("/api/v1", s.boundOperation)
 
@@ -220,23 +246,32 @@ func (s *Server) GetReadableStore() output.ReadableStore {
 	return rs
 }
 
-// Start listens on both addresses and blocks until one listener stops; TLS applies to both.
+// Start listens on both addresses, IPv4 and IPv6, and blocks until one listener stops; TLS applies
+// to both. With mutual TLS the management listener requires a client certificate in the handshake;
+// ingestion verifies one when sent and requireClientCertificate enforces it per route.
 func (s *Server) Start() error {
-	cfg := fiber.ListenConfig{DisableStartupMessage: true}
+	management := fiber.ListenConfig{DisableStartupMessage: true, ListenerNetwork: fiber.NetworkTCP}
 	if s.tls != nil && s.tls.Enabled {
-		cfg.CertFile = s.tls.CertFile
-		cfg.CertKeyFile = s.tls.KeyFile
+		management.CertFile = s.tls.CertFile
+		management.CertKeyFile = s.tls.KeyFile
 		if s.tls.MutualTLS {
-			cfg.CertClientFile = s.tls.CACertFile
+			management.CertClientFile = s.tls.CACertFile
 		}
+	}
+	ingestion := management
+	if s.tls != nil && s.tls.Enabled && s.tls.MutualTLS {
+		ingestion.TLSConfigFunc = func(c *tls.Config) { c.ClientAuth = tls.VerifyClientCertIfGiven }
 	}
 	s.logger.Info("listening", "address", s.address, "management_address", s.managementAddress,
 		"outputs", s.pipeline.Dispatcher().OutputNames())
 	stopped := make(chan error, 2)
-	go func() { stopped <- s.ingestion.Listen(s.address, cfg) }()
-	go func() { stopped <- s.app.Listen(s.managementAddress, cfg) }()
+	go func() { stopped <- s.ingestion.Listen(s.address, ingestion) }()
+	go func() { stopped <- s.app.Listen(s.managementAddress, management) }()
 	return <-stopped
 }
+
+// SetReady sets what /readyz answers: ready once the pipeline runs, not ready from SIGTERM on.
+func (s *Server) SetReady(ready bool) { s.ready.Store(ready) }
 
 // Shutdown gracefully stops both listeners, bounded by the caller's context.
 // The management listener stops first, so no API change starts while ingestion drains. An API
