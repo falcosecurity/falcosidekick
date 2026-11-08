@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event"
 import { api } from "@/lib/api-client"
 import { ApiError } from "@/lib/api-error"
 import type { Event, SearchResult } from "@/lib/types"
+import { useUIStore } from "@/stores/ui-store"
 import { events, fixtures } from "@/test/fixtures"
 import {
   act,
@@ -244,6 +245,21 @@ describe("EventsPage", () => {
     await act(async () => pending.resolve(result))
     await waitFor(() => expect(table).toHaveAttribute("aria-busy", "false"))
     expect(within(table).getByRole("columnheader", { name: "Time" })).toHaveAttribute("aria-sort", "descending")
+  })
+})
+
+describe("EventsPage live refresh", () => {
+  test("is off by default, so the list does not move, and can be turned on", async () => {
+    useUIStore.setState({ eventsLive: false })
+    renderWithProviders(<EventsPage />)
+    await rowButton()
+    const live = screen.getByRole("switch", { name: "Live" })
+    expect(live).toHaveAttribute("aria-checked", "false")
+    expect(screen.getByText(/The list stays still while you work/)).toBeInTheDocument()
+    fireEvent.click(live)
+    expect(useUIStore.getState().eventsLive).toBe(true)
+    expect(screen.getByText(/Live: the list follows the refresh interval/)).toBeInTheDocument()
+    useUIStore.setState({ eventsLive: false })
   })
 })
 

@@ -5,6 +5,7 @@ import logoIcon from "@/assets/logo-icon.svg"
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { MEDIA_LG, MEDIA_MD, useMediaQuery } from "@/hooks/use-media-query"
+import { useReturnFocus } from "@/hooks/use-return-focus"
 import { cn } from "@/lib/utils"
 import { useUIStore } from "@/stores/ui-store"
 
@@ -76,11 +77,12 @@ export function NavSidebar() {
   const collapsedPreference = useUIStore((s) => s.sidebarCollapsed)
   const open = useUIStore((s) => s.sidebarOpen)
   const setOpen = useUIStore((s) => s.setSidebarOpen)
+  const returnFocus = useReturnFocus()
 
   if (!isDesktop) {
     return (
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="flex w-64 flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground" aria-label="Navigation">
+        <SheetContent {...returnFocus} side="left" className="flex w-64 flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground" aria-label="Navigation">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SheetDescription className="sr-only">Pages of this Falco Sidekick instance.</SheetDescription>
           <SidebarNav collapsed={false} onNavigate={() => setOpen(false)} />

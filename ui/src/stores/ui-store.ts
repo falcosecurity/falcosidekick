@@ -23,9 +23,12 @@ interface UIState {
   /** The navigation sheet below `md`; never persisted. */
   sidebarOpen: boolean
   refreshIntervalMs: number
+  /** The events list follows the refresh interval; off by default so rows stay still while selecting. */
+  eventsLive: boolean
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   setRefreshIntervalMs: (value: number) => void
+  setEventsLive: (live: boolean) => void
 }
 
 export const useUIStore = create<UIState>()(
@@ -34,6 +37,7 @@ export const useUIStore = create<UIState>()(
       sidebarCollapsed: false,
       sidebarOpen: false,
       refreshIntervalMs: DEFAULT_REFRESH_MS,
+      eventsLive: false,
 
       toggleSidebar() {
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }))
@@ -46,6 +50,9 @@ export const useUIStore = create<UIState>()(
           set({ refreshIntervalMs: value })
         }
       },
+      setEventsLive(live) {
+        set({ eventsLive: live })
+      },
     }),
     {
       name: "falcosidekick-ui",
@@ -53,6 +60,7 @@ export const useUIStore = create<UIState>()(
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
         refreshIntervalMs: state.refreshIntervalMs,
+        eventsLive: state.eventsLive,
       }),
     },
   ),

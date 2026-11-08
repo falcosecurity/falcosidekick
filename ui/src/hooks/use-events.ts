@@ -11,15 +11,22 @@ import type {
   SearchResult,
 } from "@/lib/types"
 
+import { useUIStore } from "@/stores/ui-store"
+
 import { useRefetchInterval } from "./use-refetch-interval"
 
+// The event list refreshes on its own only when the page is set live: otherwise rows must not move
+// while someone reads or selects them, and it changes with the query or on Refresh.
 export function useSearchEvents(query: SearchQuery) {
-  const refetchInterval = useRefetchInterval()
+  const interval = useRefetchInterval()
+  const live = useUIStore((s) => s.eventsLive)
   return useQuery<SearchResult>({
     queryKey: ["events", "search", query],
     queryFn: ({ signal }) => api.searchEvents(query, signal),
     placeholderData: (prev) => prev,
-    refetchInterval,
+    refetchInterval: live ? interval : false,
+    refetchOnWindowFocus: live,
+    staleTime: live ? 0 : Infinity,
   })
 }
 

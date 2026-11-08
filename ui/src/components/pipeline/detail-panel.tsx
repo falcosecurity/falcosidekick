@@ -4,7 +4,7 @@ import type { ReactNode } from "react"
 
 import falcoIcon from "@/assets/falco-icon.svg"
 import { ConfigTree } from "@/components/common/config-tree"
-import { EmptyState } from "@/components/common/empty-state"
+import { ErrorState } from "@/components/common/error-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { Meter } from "@/components/common/meter"
 import { OriginMark } from "@/components/common/origin-mark"
@@ -109,7 +109,7 @@ function CoreDetail() {
 
   const failure = [versionQuery, configQuery, outputsQuery].find((q) => q.isError)
   if (failure) {
-    return <EmptyState title="Unable to load pipeline details" description={errorMessage(failure.error)} />
+    return <ErrorState title="Unable to load pipeline details" description={errorMessage(failure.error)} />
   }
   const version = versionQuery.data
   const config = configQuery.data?.config
@@ -284,7 +284,7 @@ function OutputDetail({
             <section className="flex flex-col gap-2">
               <SectionHeading>Ring buffer</SectionHeading>
               {eventsCountQuery.isError ? (
-                <EmptyState title="Unable to load ring-buffer usage" description={errorMessage(eventsCountQuery.error)} />
+                <ErrorState title="Unable to load ring-buffer usage" description={errorMessage(eventsCountQuery.error)} />
               ) : eventsCountQuery.isPending ? (
                 <LoadingSkeleton lines={2} />
               ) : (

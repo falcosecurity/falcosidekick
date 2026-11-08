@@ -1,8 +1,6 @@
-import { AlertTriangle } from "lucide-react"
 import { Component, type ErrorInfo, type ReactNode } from "react"
 
-import { Button } from "@/components/ui/button"
-import { EmptyState } from "./empty-state"
+import { ErrorState } from "./error-state"
 
 interface Props {
   children: ReactNode
@@ -34,15 +32,11 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback(this.state.error, this.reset)
       }
       return (
-        <EmptyState
-          icon={<AlertTriangle className="size-8" aria-hidden />}
+        <ErrorState
+          className="m-4"
           title="Something went wrong rendering this view"
           description={this.state.error.message}
-          action={
-            <Button size="sm" variant="outline" onClick={this.reset}>
-              Retry
-            </Button>
-          }
+          onRetry={this.reset}
         />
       )
     }

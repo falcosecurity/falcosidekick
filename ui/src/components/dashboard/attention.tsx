@@ -1,11 +1,13 @@
-import { AlertTriangle, ArrowRight, CircleCheck, Siren } from "lucide-react"
+import { AlertTriangle, ArrowRight, CircleCheck, CircleDashed, Siren } from "lucide-react"
 import { useMemo, type ReactNode } from "react"
 import { Link } from "react-router"
 
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEventsCountBy } from "@/hooks/use-events"
 import { usePipelineStatus } from "@/hooks/use-pipeline"
@@ -91,7 +93,8 @@ function useAttentionItems() {
 /** What an operator should look at now; it turns red while anything is listed. */
 export function AttentionCard({ className }: { className?: string }) {
   const { items, isPending, error } = useAttentionItems()
-  const alerting = items.length > 0
+  const known = !isPending && !error
+  const alerting = known && items.length > 0
   return (
     <Card
       className={cn(
@@ -101,18 +104,24 @@ export function AttentionCard({ className }: { className?: string }) {
       )}
     >
       <CardHeader className="px-5">
-        <CardTitle className="flex items-center gap-2 text-base">
-          {alerting ? (
-            <AlertTriangle className="size-4 text-status-error-foreground" aria-hidden />
-          ) : (
-            <CircleCheck className="size-4 text-status-ok-foreground" aria-hidden />
-          )}
-          Needs attention
+        <CardTitle asChild className="flex items-center gap-2 text-base">
+          <h2>
+            {alerting ? (
+              <AlertTriangle className="size-4 text-status-error-foreground" aria-hidden />
+            ) : known ? (
+              <CircleCheck className="size-4 text-status-ok-foreground" aria-hidden />
+            ) : (
+              <CircleDashed className="size-4 text-muted-foreground" aria-hidden />
+            )}
+            Needs attention
+          </h2>
         </CardTitle>
         <CardDescription>Outputs that do not deliver and critical events of the last hour.</CardDescription>
         {alerting && (
           <CardAction>
-            <Badge className="bg-status-error text-white tabular-nums">{items.length}</Badge>
+            <Badge variant="destructive" className="tabular-nums">
+              {items.length}
+            </Badge>
           </CardAction>
         )}
       </CardHeader>
@@ -123,7 +132,11 @@ export function AttentionCard({ className }: { className?: string }) {
             <Skeleton className="h-14 w-full" />
           </div>
         ) : error ? (
-          <p className="text-sm text-destructive">{errorMessage(error)}</p>
+          <Alert variant="destructive">
+            <AlertTriangle aria-hidden />
+            <AlertTitle>Unable to check what needs attention</AlertTitle>
+            <AlertDescription>{errorMessage(error)}</AlertDescription>
+          </Alert>
         ) : !alerting ? (
           <Empty className="h-full gap-3 border border-dashed p-6">
             <EmptyHeader>
@@ -135,7 +148,8 @@ export function AttentionCard({ className }: { className?: string }) {
             </EmptyHeader>
           </Empty>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ScrollArea className="max-h-80">
+          <ul className="flex flex-col gap-2 pr-1">
             {items.map((item) => (
               <li key={item.key}>
                 <Link
@@ -154,6 +168,7 @@ export function AttentionCard({ className }: { className?: string }) {
               </li>
             ))}
           </ul>
+          </ScrollArea>
         )}
       </CardContent>
     </Card>

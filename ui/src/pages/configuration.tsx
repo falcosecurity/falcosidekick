@@ -1,6 +1,6 @@
 import { Activity, Database, KeyRound, Monitor, Network, RefreshCw } from "lucide-react"
 
-import { EmptyState } from "@/components/common/empty-state"
+import { ErrorState } from "@/components/common/error-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { PageHeader } from "@/components/common/page-header"
 import {
@@ -229,7 +229,7 @@ export function ConfigurationPage() {
       <PageHeader title="Configuration" description="The running configuration, read-only. Secrets are never shown." />
       <div className="mt-4 min-h-0 flex-1 overflow-auto pr-1 pb-6">
         {failure ? (
-          <EmptyState title="Unable to load the configuration" description={errorMessage(failure.error)} />
+          <ErrorState title="Unable to load the configuration" description={errorMessage(failure.error)} />
         ) : !version || !cfg ? (
           <LoadingSkeleton lines={8} />
         ) : (
