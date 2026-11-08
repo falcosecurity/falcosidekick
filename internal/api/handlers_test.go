@@ -24,6 +24,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -272,6 +273,39 @@ func TestStartAndShutdown(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 	require.NoError(t, srv.Shutdown(t.Context()))
+}
+
+// A sender posting something that is not a Falco event shows in ingest_requests_total{status="invalid"}:
+// a malformed body and an event that fails validation both count, and neither reaches the pipeline.
+func TestInvalidPostsAreCounted(t *testing.T) {
+	collector := metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000})
+	enricher, err := pipeline.NewEnricher(output.EnricherConfig{})
+	require.NoError(t, err)
+	p, err := pipeline.NewPipeline(enricher, pipeline.NewDispatcher(nil), collector)
+	require.NoError(t, err)
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Metrics: collector,
+		Registry: collector.Registry(), Config: testConfig(t)})
+	require.NoError(t, err)
+
+	post := func(body string) int {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := srv.ingestion.Test(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		return resp.StatusCode
+	}
+	assert.Equal(t, http.StatusBadRequest, post(`{bad`), "malformed JSON")
+	assert.Equal(t, http.StatusBadRequest, post(`{"priority":"Warning","time":"2026-01-01T00:00:00Z"}`), "no rule")
+	assert.Equal(t, http.StatusOK, post(string(createValidEventJSON())))
+
+	resp, err := srv.ingestion.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	assert.Contains(t, string(body), `falcosidekick_ingest_requests_total{status="invalid"} 2`)
+	assert.Contains(t, string(body), `falcosidekick_ingest_requests_total{status="accepted"} 1`)
+	assert.Equal(t, 1, strings.Count(string(body), "\nfalcosidekick_events_total{"), "only the valid post reaches the pipeline")
 }
 
 func TestHandlePostEventWithMetrics(t *testing.T) {
