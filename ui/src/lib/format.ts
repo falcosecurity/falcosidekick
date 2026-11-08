@@ -54,6 +54,15 @@ export function formatGoDuration(ns: number): string {
   return out
 }
 
+/** Clock time of an instant: seconds for today, with the day otherwise. */
+export function formatClock(input: string | Date | number, now: number | Date = Date.now()): string {
+  const date = new Date(input)
+  if (Number.isNaN(date.getTime())) return "-"
+  const today = new Date(now).toDateString() === date.toDateString()
+  const time = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  return today ? time : `${date.toLocaleDateString(undefined, { day: "2-digit", month: "short" })} ${time}`
+}
+
 export function truncate(s: string, max: number): string {
   if (s.length <= max) return s
   return `${s.slice(0, max - 1)}…`

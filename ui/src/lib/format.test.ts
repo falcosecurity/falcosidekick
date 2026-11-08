@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
-import { formatAbsoluteTime, formatGoDuration, formatNumber, formatTimeAgo, truncate } from "./format"
+import { formatAbsoluteTime, formatClock, formatGoDuration, formatNumber, formatTimeAgo, truncate } from "./format"
 
 describe("formatGoDuration", () => {
   test.each([
@@ -41,6 +41,14 @@ describe("formatTimeAgo", () => {
     expect(formatTimeAgo(now + 1_500, now)).toBe("just now")
     expect(formatTimeAgo(now + 59_000, now)).toBe("just now")
     expect(formatTimeAgo(now + 61_000, now)).toBe("in 1 minute")
+  })
+
+  test("the clock shows the time for today and adds the day otherwise", () => {
+    const today = new Date(now - 60_000)
+    expect(formatClock(today, now)).toBe(today.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }))
+    const yesterday = new Date(now - 26 * 3_600_000)
+    expect(formatClock(yesterday, now)).toContain(yesterday.toLocaleDateString(undefined, { day: "2-digit", month: "short" }))
+    expect(formatClock("not a date", now)).toBe("-")
   })
 
   test("renders a dash for an unparsable instant", () => {

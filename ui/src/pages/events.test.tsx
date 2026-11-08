@@ -47,7 +47,7 @@ describe("EventsPage", () => {
 
     expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true")
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled()
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled()
+    expect(screen.getByRole("link", { name: "Go to next page" })).toHaveAttribute("aria-disabled", "true")
 
     await act(async () => pending.resolve(result))
     expect(await screen.findByRole("table")).toBeInTheDocument()
@@ -62,7 +62,7 @@ describe("EventsPage", () => {
     expect(screen.getByText("0 events")).toBeInTheDocument()
     expect(screen.queryByRole("table")).not.toBeInTheDocument()
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled()
+    expect(screen.getByRole("link", { name: "Go to next page" })).toHaveAttribute("aria-disabled", "true")
   })
 
   test("shows the backend error text and recovers on retry", async () => {

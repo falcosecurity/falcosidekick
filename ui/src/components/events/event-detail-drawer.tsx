@@ -1,5 +1,6 @@
-import { Copy, FileCode2, X } from "lucide-react"
+import { Copy, FileCode2, ListFilter, Server, X } from "lucide-react"
 import { useRef } from "react"
+import { Link } from "react-router"
 import { toast } from "sonner"
 
 import { SourceChip, TagChip } from "@/components/common/chips"
@@ -9,6 +10,7 @@ import { SectionHeading } from "@/components/common/section-heading"
 import { StatTile } from "@/components/common/stat-tile"
 import { TimeAgo } from "@/components/common/time-ago"
 import { Button } from "@/components/ui/button"
+import { Item, ItemContent, ItemDescription } from "@/components/ui/item"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -95,6 +97,20 @@ export function EventDetailDrawer({ event, open, onClose, onCloseAutoFocus }: Ev
                   <FileCode2 className="mr-1 size-3" aria-hidden /> JSON
                 </Button>
               </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link to={`/events?rule=${encodeURIComponent(event.rule)}`} onClick={onClose}>
+                    <ListFilter aria-hidden /> Events of this rule
+                  </Link>
+                </Button>
+                {event.hostname && (
+                  <Button asChild size="sm" variant="outline">
+                    <Link to={`/events?hostname=${encodeURIComponent(event.hostname)}`} onClick={onClose}>
+                      <Server aria-hidden /> Events of this host
+                    </Link>
+                  </Button>
+                )}
+              </div>
             </SheetHeader>
 
             <ScrollArea className="flex-1">
@@ -127,9 +143,13 @@ export function EventDetailDrawer({ event, open, onClose, onCloseAutoFocus }: Ev
 
                 <section className="flex flex-col gap-2">
                   <SectionHeading>Rendered output</SectionHeading>
-                  <blockquote className="border-l-2 border-brand/60 bg-muted/40 px-3 py-2 text-sm leading-relaxed [overflow-wrap:anywhere]">
-                    {event.output}
-                  </blockquote>
+                  <Item variant="muted" size="sm">
+                    <ItemContent>
+                      <ItemDescription className="line-clamp-none text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">
+                        {event.output}
+                      </ItemDescription>
+                    </ItemContent>
+                  </Item>
                 </section>
 
                 <Separator />
