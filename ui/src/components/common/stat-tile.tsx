@@ -20,7 +20,12 @@ interface StatTileProps {
   children?: ReactNode
 }
 
-/** One labelled figure; render inside a `<dl>`. */
+/** The list that holds stat tiles. */
+export function StatGrid({ className, children }: { className?: string; children: ReactNode }) {
+  return <dl className={cn("grid grid-cols-3 gap-2 text-sm", className)}>{children}</dl>
+}
+
+/** One labelled figure; render inside a `StatGrid`. */
 export function StatTile({ label, value, tone = "neutral", className, valueClassName, children }: StatTileProps) {
   return (
     <div className={cn("flex min-w-0 flex-col gap-0.5 rounded-md border-l-2 px-2 py-1.5", TONE[tone].container, className)}>

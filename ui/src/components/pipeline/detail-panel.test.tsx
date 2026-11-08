@@ -6,7 +6,7 @@ import type { OutputConfigEntry, OutputStatus, OutputType } from "@/lib/types"
 import { fixtures, outputNamed, statusNamed } from "@/test/fixtures"
 import { cleanup, fireEvent, renderWithProviders, screen, within } from "@/test/test-utils"
 
-import { PipelineDetailPanel, problemOf } from "./detail-panel"
+import { falcoSnippet, PipelineDetailPanel, problemOf } from "./detail-panel"
 
 const entry: OutputConfigEntry = outputNamed("webhook")
 const delivering: OutputStatus = { ...statusNamed("inmemory"), name: "webhook" }
@@ -217,41 +217,76 @@ describe("PipelineDetailPanel", () => {
     expect(screen.getAllByRole("heading").map((h) => `${h.tagName}:${h.textContent}`).slice(0, 2)).toEqual(["H2:webhook", "H3:Configuration"])
   })
 
-  test("source selection shows the ingestion endpoint without output controls", () => {
+  test("Falco shows its recent activity and the settings that connect it, not the listener settings", async () => {
+    mockCoreQueries()
+    spies.push(
+      spyOn(api, "searchEvents").mockResolvedValue({ events: [], total: 0, page: 1, limit: 1 }),
+      spyOn(api, "countEventsBy").mockImplementation(async (groupBy): Promise<Record<string, number>> =>
+        groupBy === "priority" ? { critical: 2, warning: 5 } : groupBy === "source" ? { syscall: 7, k8s_audit: 1 } : { "node-1": 7, "node-2": 1 },
+      ),
+    )
     renderWithProviders(<PipelineDetailPanel selection={{ kind: "source" }} entry={null} status={null} />)
     expect(screen.getByRole("heading", { level: 2, name: "Falco" })).toBeInTheDocument()
-    expect(screen.getAllByText("POST /")).toHaveLength(2)
-    expect(screen.queryByText("Configuration")).not.toBeInTheDocument()
+    expect(await screen.findByText("none yet")).toBeInTheDocument()
+    const byPriority = await screen.findByRole("list", { name: "Last hour by priority" })
+    expect(within(byPriority).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["priority criticalCRIT 2", "priority warningWARN 5"])
+    expect(metric("Last hour")).toHaveTextContent("7")
+    expect(metric("Hosts")).toHaveTextContent("2")
+    expect(within(screen.getByRole("list", { name: "Sources in the last 24 hours" })).getAllByRole("listitem")).toHaveLength(2)
+    expect(await screen.findByText(/url: http:\/\/127\.0\.0\.1:3801\//)).toBeInTheDocument()
+    expect(screen.queryByText(fixtures.version.commit)).not.toBeInTheDocument()
+  })
+
+  test("Falco activity that cannot be read says so instead of showing zero", async () => {
+    mockCoreQueries()
+    spies.push(
+      spyOn(api, "searchEvents").mockRejectedValue(new ApiError(503, "event source not readable")),
+      spyOn(api, "countEventsBy").mockResolvedValue({}),
+    )
+    renderWithProviders(<PipelineDetailPanel selection={{ kind: "source" }} entry={null} status={null} />)
+    expect(await screen.findByText("Activity unavailable")).toBeInTheDocument()
+    expect(screen.queryByText("Last hour")).not.toBeInTheDocument()
+  })
+
+  test.each([
+    { listen_address: "", tls: false, want: "http://<sidekick-host>:2801/" },
+    { listen_address: "0.0.0.0", tls: true, want: "https://<sidekick-host>:2801/" },
+    { listen_address: "10.0.0.5", tls: false, want: "http://10.0.0.5:2801/" },
+  ])("the Falco snippet for $listen_address with TLS $tls points at $want", ({ listen_address, tls, want }) => {
+    const snippet = falcoSnippet({ listen_address, listen_port: 2801, tls: { ...fixtures.config.config.tls!, enabled: tls } })
+    expect(snippet).toContain(`url: ${want}`)
+    expect(snippet).toContain("json_output: true")
   })
 
   test("core details remain loading until their queries resolve", () => {
-    const { version } = mockCoreQueries()
-    version.mockImplementation(() => new Promise(() => {}))
+    mockCoreQueries()
+    spies.push(spyOn(api, "getPipelineStatus").mockImplementation(() => new Promise(() => {})))
     const { container } = renderWithProviders(<PipelineDetailPanel selection={{ kind: "core" }} entry={null} status={null} />)
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull()
-    expect(screen.queryByText(":2801")).not.toBeInTheDocument()
-    expect(screen.queryByText("Outputs")).not.toBeInTheDocument()
+    expect(screen.queryByText("Delivering")).not.toBeInTheDocument()
   })
 
-  test("core query failures show the backend text instead of fallback runtime values", async () => {
-    const { config } = mockCoreQueries()
-    config.mockRejectedValue(new ApiError(503, fixtures.errors.database_not_configured.body.error))
+  test("core query failures show the backend text instead of fallback values", async () => {
+    mockCoreQueries()
+    spies.push(spyOn(api, "getPipelineStatus").mockRejectedValue(new ApiError(503, fixtures.errors.database_not_configured.body.error)))
     renderWithProviders(<PipelineDetailPanel selection={{ kind: "core" }} entry={null} status={null} />)
     expect(await screen.findByText("Unable to load pipeline details")).toBeInTheDocument()
     expect(screen.getByText("database not configured")).toBeInTheDocument()
-    expect(screen.queryByText(":2801")).not.toBeInTheDocument()
+    expect(screen.queryByText("Delivering")).not.toBeInTheDocument()
   })
 
-  test("core details display the build as reported and the runtime configuration", async () => {
+  test("core details show live delivery and the outputs that need attention, not the build or settings", async () => {
     mockCoreQueries()
+    spies.push(spyOn(api, "getPipelineStatus").mockResolvedValue([failing]))
     renderWithProviders(<PipelineDetailPanel selection={{ kind: "core" }} entry={null} status={null} />)
-    expect(await screen.findByText(fixtures.version.version)).toBeInTheDocument()
-    expect(screen.getByText(fixtures.version.commit)).toBeInTheDocument()
-    expect(screen.getByText(fixtures.version.go_version)).toBeInTheDocument()
-    expect(screen.getByText("127.0.0.1:3801")).toBeInTheDocument()
-    expect(screen.getByText("inmemory")).toBeInTheDocument()
-    expect(screen.getByText("debug")).toBeInTheDocument()
-    expect(screen.getByText("1", { selector: "dd" })).toBeInTheDocument()
+    expect(await screen.findByText("Delivering")).toBeInTheDocument()
+    expect(metric("Delivering")).toHaveTextContent("0 of 1")
+    expect(metric("Failed")).toHaveTextContent(String(failing.failed_total))
+    const attention = screen.getByRole("list")
+    expect(within(attention).getByText("webhook")).toBeInTheDocument()
+    expect(screen.getByRole("link", { name: /Version and settings/ })).toHaveAttribute("href", "/configuration")
+    expect(screen.queryByText(fixtures.version.commit)).not.toBeInTheDocument()
+    expect(screen.queryByText("127.0.0.1:3801")).not.toBeInTheDocument()
   })
 
   test("ring-buffer usage remains loading instead of showing a fabricated zero", () => {
