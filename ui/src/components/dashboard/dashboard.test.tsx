@@ -141,7 +141,7 @@ describe("SeverityCard", () => {
     fireEvent.click(screen.getByRole("radio", { name: "24h" }))
     const param = (c: InternalAxiosRequestConfig, key: string) => (c.params as URLSearchParams).get(key)
     await waitFor(() =>
-      expect(calls.some((c) => param(c, "since") === "24h" && param(c, "group_by") === "priority" && param(c, "bucket_ms") === String(2 * HOUR))).toBe(true),
+      expect(calls.some((c) => param(c, "since") === "24h" && param(c, "group_by") === "priority" && param(c, "bucket_ms") === String(HOUR / 2))).toBe(true),
     )
   })
 })
