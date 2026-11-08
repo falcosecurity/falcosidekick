@@ -27,7 +27,7 @@ import {
 } from "react"
 
 import falcoIcon from "@/assets/falco-icon.svg"
-import { EmptyState } from "@/components/common/empty-state"
+import { ErrorState } from "@/components/common/error-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
 import { OriginMark } from "@/components/common/origin-mark"
@@ -485,7 +485,7 @@ function CanvasInner({
   return (
     <div className="pipeline-canvas h-full w-full rounded-lg border bg-card" aria-busy={layoutPending}>
       {!layoutPending && layoutResult?.error ? (
-        <EmptyState title="Unable to lay out pipeline" />
+        <ErrorState className="m-4" title="Unable to lay out the pipeline" />
       ) : liveNodes.length === 0 ? (
         <LoadingSkeleton lines={4} />
       ) : (
@@ -495,8 +495,9 @@ function CanvasInner({
           nodeTypes={nodeTypes}
           onNodesChange={handleNodesChange}
           fitView
-          fitViewOptions={{ padding: 0.25 }}
-          minZoom={0.1}
+          // Fit, but never below a readable size: a larger pipeline is panned, not shrunk to dots.
+          fitViewOptions={{ padding: 0.12, minZoom: 0.7, maxZoom: 1 }}
+          minZoom={0.25}
           nodesDraggable
           nodesConnectable={false}
           nodesFocusable={false}

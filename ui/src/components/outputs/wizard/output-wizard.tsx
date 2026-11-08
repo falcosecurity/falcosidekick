@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { useConfig } from "@/hooks/use-config"
 import { MEDIA_LG, useMediaQuery } from "@/hooks/use-media-query"
+import { useReturnFocus } from "@/hooks/use-return-focus"
 import { useOutputTypes, useSaveOutput, useStoredOutput } from "@/hooks/use-output-writes"
 import { usePipelineComposite } from "@/hooks/use-pipeline"
 import { errorMessage, isApiError } from "@/lib/api-error"
@@ -68,10 +69,11 @@ function Surface({ open, onClose, title, description, stepper, children }: {
   children: ReactNode
 }) {
   const desktop = useMediaQuery(MEDIA_LG)
+  const returnFocus = useReturnFocus()
   if (desktop) {
     return (
       <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-        <SheetContent side="right" className="w-full gap-0 bg-popover sm:max-w-2xl xl:max-w-3xl">
+        <SheetContent {...returnFocus} side="right" className="w-full gap-0 bg-popover sm:max-w-2xl xl:max-w-3xl">
           <SheetHeader className="gap-3 border-b bg-background px-6 py-4">
             <div className="flex flex-col gap-1">
               <SheetTitle>{title}</SheetTitle>
@@ -86,7 +88,7 @@ function Surface({ open, onClose, title, description, stepper, children }: {
   }
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex h-[min(90dvh,56rem)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden bg-popover p-0 sm:max-w-2xl">
+      <DialogContent {...returnFocus} className="flex h-[min(90dvh,56rem)] max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden bg-popover p-0 sm:max-w-2xl">
         <DialogHeader className="gap-3 border-b bg-background px-6 py-4 text-left">
           <div className="flex flex-col gap-1">
             <DialogTitle>{title}</DialogTitle>

@@ -6,6 +6,7 @@ import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } 
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEventsCountBy, useEventsHistogram } from "@/hooks/use-events"
 import { usePipelineStatus } from "@/hooks/use-pipeline"
+import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
 import type { Priority } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -30,7 +31,7 @@ function useHourTrend(only?: readonly Priority[]) {
     return only ? only.reduce((sum, p) => sum + (b.by?.[p] ?? 0), 0) : b.count
   }
   const trend: Trend | null = buckets.length >= 2 ? { current: count(buckets.length - 1), previous: count(buckets.length - 2) } : null
-  return { trend, isPending: query.isPending }
+  return { trend, query }
 }
 
 /** Direction and size of the change; "up" is bad for these metrics, so it carries the alert tone. */
@@ -57,7 +58,7 @@ function Kpi({
   action,
   footer,
   tone,
-  loading,
+  query,
 }: {
   label: string
   value: string
@@ -65,31 +66,36 @@ function Kpi({
   action?: ReactNode
   footer: ReactNode
   tone?: "alert" | "ok"
-  loading: boolean
+  /** The figure is shown only once its data loaded: a zero must never stand for "unknown". */
+  query: { isPending: boolean; error: unknown }
 }) {
+  const ready = !query.isPending && !query.error
   return (
     <Card className="@container/card min-w-0 gap-3 py-5 shadow-xs">
       <CardHeader className="px-5">
-        <CardDescription className="flex min-w-0 items-center gap-1.5">
-          {icon}
-          {label}
+        <CardDescription className="flex min-h-[2lh] min-w-0 items-start gap-1.5">
+          <span className="mt-0.5 shrink-0">{icon}</span>
+          <span className="line-clamp-2">{label}</span>
         </CardDescription>
-        {loading ? (
+        {query.isPending ? (
           <Skeleton className="h-8 w-20" />
         ) : (
           <CardTitle
             className={cn(
-              "text-2xl font-semibold tabular-nums tracking-tight @[250px]/card:text-3xl",
-              tone === "alert" && "text-priority-alert-foreground",
-              tone === "ok" && "text-status-ok-foreground",
+              "text-2xl font-semibold tabular-nums tracking-tight whitespace-nowrap @[250px]/card:text-3xl",
+              ready && tone === "alert" && "text-priority-alert-foreground",
+              ready && tone === "ok" && "text-status-ok-foreground",
+              !ready && "text-muted-foreground",
             )}
           >
-            {value}
+            {ready ? value : "—"}
           </CardTitle>
         )}
-        {action && <CardAction>{action}</CardAction>}
+        {ready && action && <CardAction>{action}</CardAction>}
       </CardHeader>
-      <CardFooter className="px-5 text-xs text-muted-foreground">{footer}</CardFooter>
+      <CardFooter className="px-5 text-xs text-muted-foreground">
+        {query.isPending ? <Skeleton className="h-3 w-32" /> : query.error ? `Unavailable: ${errorMessage(query.error)}` : footer}
+      </CardFooter>
     </Card>
   )
 }
@@ -112,7 +118,7 @@ export function KpiCards() {
         value={formatNumber(all.trend?.current ?? 0)}
         action={all.trend && <TrendBadge trend={all.trend} />}
         footer={`${formatNumber(all.trend?.previous ?? 0)} the hour before`}
-        loading={all.isPending}
+        query={all.query}
       />
       <Kpi
         label="Critical or worse, last hour"
@@ -121,7 +127,7 @@ export function KpiCards() {
         tone={(critical.trend?.current ?? 0) > 0 ? "alert" : undefined}
         action={critical.trend && <TrendBadge trend={critical.trend} />}
         footer="Emergency, alert and critical"
-        loading={critical.isPending}
+        query={critical.query}
       />
       <Kpi
         label="Outputs delivering"
@@ -136,14 +142,14 @@ export function KpiCards() {
           ) : undefined
         }
         footer={outputs.length === 0 ? "No outputs configured" : `Up to ${formatNumber(perMinute)} events per minute per output`}
-        loading={status.isPending}
+        query={status}
       />
       <Kpi
         label="Events, last 24 hours"
         icon={<Activity className="size-3.5" aria-hidden />}
         value={formatNumber(dayTotal)}
         footer="Kept by the event store the UI reads"
-        loading={day.isPending}
+        query={day}
       />
     </div>
   )

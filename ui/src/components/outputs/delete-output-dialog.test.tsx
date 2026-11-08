@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test"
 import type { InternalAxiosRequestConfig } from "axios"
+import { useState } from "react"
 
 import { setApiAdapterForTests } from "@/lib/api-client"
 import { errorResponse, fixtures } from "@/test/fixtures"
@@ -41,6 +42,29 @@ describe("DeleteOutputDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove" }))
     await waitFor(() => expect(onClose).toHaveBeenCalled())
     expect(onDeleted).not.toHaveBeenCalled()
+  })
+
+  test("closing returns focus to the control that opened it", async () => {
+    setApiAdapterForTests(async (config) => ({ data: "", status: 204, statusText: "", headers: {}, config }))
+    function Host() {
+      const [entry, setEntry] = useState<typeof fixtures.output | null>(null)
+      return (
+        <>
+          <button type="button" onClick={() => setEntry(fixtures.output)}>
+            Remove webhook
+          </button>
+          <DeleteOutputDialog entry={entry} onClose={() => setEntry(null)} />
+        </>
+      )
+    }
+    renderWithProviders(<Host />)
+    const opener = screen.getByRole("button", { name: "Remove webhook" })
+    opener.focus()
+    fireEvent.click(opener)
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(opener))
   })
 
   test("warns that an output from the files comes back at the next reload", () => {

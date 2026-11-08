@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useGroupRef } from "react-resizable-panels"
 
 import { EmptyState } from "@/components/common/empty-state"
+import { ErrorState } from "@/components/common/error-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { PageHeader } from "@/components/common/page-header"
 import { DeleteOutputDialog } from "@/components/outputs/delete-output-dialog"
@@ -13,13 +14,16 @@ import {
   type PipelineSelection,
 } from "@/components/pipeline/canvas"
 import { PipelineDetailPanel, type OutputActions } from "@/components/pipeline/detail-panel"
+import { PipelineList } from "@/components/pipeline/pipeline-list"
 import { Button } from "@/components/ui/button"
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useConfig } from "@/hooks/use-config"
+import { MEDIA_MD, useMediaQuery } from "@/hooks/use-media-query"
 import { usePipelineComposite, usePipelineStatus } from "@/hooks/use-pipeline"
 import { errorMessage } from "@/lib/api-error"
 import type { OutputConfigEntry } from "@/lib/types"
@@ -32,12 +36,20 @@ export function PipelinePage() {
   const config = useConfig()
   const statusByName = usePipelineStore((s) => s.statusByName)
   const [selection, setSelection] = useState<PipelineSelection>(null)
-  const [wizard, setWizard] = useState<WizardTarget | null>(null)
+  const [wizard, setWizardTarget] = useState<WizardTarget | null>(null)
+  // A new session per opening resets the wizard; closing keeps it mounted so the sheet animates out
+  // and returns focus to its opener.
+  const [wizardSession, setWizardSession] = useState(0)
+  const setWizard = useCallback((target: WizardTarget | null) => {
+    if (target) setWizardSession((n) => n + 1)
+    setWizardTarget(target)
+  }, [])
   const [removing, setRemoving] = useState<OutputConfigEntry | null>(null)
   const writes = config.data?.config.api.allow_writes === true
   const fileOutputsWritable = config.data?.config.provisioning.allow_ui_updates === true
-  const openCreate = useCallback(() => setWizard({ kind: "create" }), [])
+  const openCreate = useCallback(() => setWizard({ kind: "create" }), [setWizard])
   const canvasRef = useRef<PipelineCanvasHandle>(null)
+  const wide = useMediaQuery(MEDIA_MD)
   const groupRef = useGroupRef()
   const containerRef = useRef<HTMLDivElement>(null)
   const [orientation, setOrientation] = useState<"horizontal" | "vertical">("vertical")
@@ -101,28 +113,31 @@ export function PipelinePage() {
       onEdit: () => setWizard({ kind: "edit", name: selectedEntry.name }),
       onDelete: () => setRemoving(selectedEntry),
     }
-  }, [writes, fileOutputsWritable, selectedEntry])
+  }, [writes, fileOutputsWritable, selectedEntry, setWizard])
 
   return (
     <div ref={containerRef} className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto">
       <PageHeader
         title="Pipeline"
-        description={
-          writes
-            ? "Click a node to inspect it, add outputs from the canvas, drag to rearrange."
-            : "Click a node to inspect it; drag to rearrange. Changes are disabled (api.allow_writes)."
-        }
+        description={[
+          wide ? "Click a node to inspect it; drag to rearrange." : "Tap an entry to inspect it.",
+          config.isSuccess && !writes ? "Changes are disabled (api.allow_writes)." : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         actions={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => canvasRef.current?.resetPositions()}
-              disabled={!composite}
-            >
-              <Maximize2 className="size-3.5" aria-hidden />
-              Reset layout
-            </Button>
+            {wide && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => canvasRef.current?.resetPositions()}
+                disabled={!composite}
+              >
+                <Maximize2 className="size-3.5" aria-hidden />
+                Reset layout
+              </Button>
+            )}
             {writes && (
               <Button size="sm" onClick={openCreate}>
                 <Plus className="size-3.5" aria-hidden />
@@ -133,7 +148,7 @@ export function PipelinePage() {
         }
       />
       <OutputWizard
-        key={wizard ? (wizard.kind === "edit" ? `edit:${wizard.name}` : "create") : "closed"}
+        key={wizardSession}
         target={wizard}
         onClose={() => setWizard(null)}
         onSaved={(name) => setSelection({ kind: "sink", name })}
@@ -147,7 +162,7 @@ export function PipelinePage() {
       {loading ? (
         <LoadingSkeleton lines={8} />
       ) : isError ? (
-        <EmptyState title="Unable to load pipeline" description={errorMessage(error)} />
+        <ErrorState title="Unable to load the pipeline" description={errorMessage(error)} />
       ) : !composite ? (
         <EmptyState title="Pipeline is empty" />
       ) : (
@@ -159,14 +174,27 @@ export function PipelinePage() {
         >
           <ResizablePanel id="pipeline-canvas-panel" defaultSize={stacked ? "50%" : "70%"} minSize={stacked ? "300px" : "320px"}>
             <div className={cn("relative h-full min-h-0 min-w-0", stacked ? "pb-2" : "pr-2")}>
-              <PipelineCanvas
-                ref={canvasRef}
-                composite={composite}
-                statusByName={statusByName}
-                selection={selection}
-                onSelect={handleSelect}
-                onAdd={writes ? openCreate : undefined}
-              />
+              {/* Below md the canvas would shrink to unreadable text: the same pipeline as a list. */}
+              {wide ? (
+                <PipelineCanvas
+                  ref={canvasRef}
+                  composite={composite}
+                  statusByName={statusByName}
+                  selection={selection}
+                  onSelect={handleSelect}
+                  onAdd={writes ? openCreate : undefined}
+                />
+              ) : (
+                <ScrollArea className="h-full">
+                  <PipelineList
+                    composite={composite}
+                    statusByName={statusByName}
+                    selection={selection}
+                    onSelect={handleSelect}
+                    onAdd={writes ? openCreate : undefined}
+                  />
+                </ScrollArea>
+              )}
             </div>
           </ResizablePanel>
           <ResizableHandle withHandle />

@@ -113,7 +113,8 @@
   --destructive: oklch(0.5 0.24 27);
   --border: oklch(0.85 0.008 230);
   --input: oklch(0.85 0.008 230);
-  --ring: oklch(0.68 0.12 207);
+  /* Darker than --brand: shadcn draws focus rings at 50% alpha, which must stay >= 3:1 on white. */
+  --ring: oklch(0.22 0.07 207);
   --brand: oklch(0.68 0.12 207);
   --brand-foreground: oklch(0.985 0 0);
   --chart-1: oklch(0.68 0.12 207);
@@ -307,4 +308,16 @@
 }
 .pipeline-canvas .react-flow__edge-textbg {
   fill: var(--background);
+}
+
+/* Users who ask the system for less motion get no animations: sheets, dialogs and flowing edges. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,8 +1,11 @@
+import { AlertTriangle } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useEventsHistogram } from "@/hooks/use-events"
@@ -36,13 +39,23 @@ export function SeverityCard({ className }: { className?: string }) {
     [rows],
   )
   const all = Object.values(totals).reduce((a, b) => a + b, 0)
+  // Totals are shown only from loaded data: a zero must never stand for "unknown".
+  const known = !isPending && !error
 
   return (
     <Card className={cn("gap-4 py-5 shadow-xs", className)}>
       <CardHeader className="px-5">
-        <CardTitle className="text-base">Events by severity</CardTitle>
+        <CardTitle asChild className="text-base">
+          <h2>Events by severity</h2>
+        </CardTitle>
         <CardDescription>
-          <span className="font-medium tabular-nums text-foreground">{formatNumber(all)}</span> in the last {window.label}
+          {known ? (
+            <>
+              <span className="font-medium tabular-nums text-foreground">{formatNumber(all)}</span> in the last {window.label}
+            </>
+          ) : (
+            `Last ${window.label}`
+          )}
         </CardDescription>
         <CardAction>
           <ToggleGroup type="single" variant="outline" size="sm" value={windowLabel} onValueChange={(v) => v && setWindowLabel(v as typeof windowLabel)} aria-label="Time window">
@@ -58,9 +71,18 @@ export function SeverityCard({ className }: { className?: string }) {
         {isPending ? (
           <Skeleton className="h-52 w-full" />
         ) : error ? (
-          <p className="text-sm text-destructive">{errorMessage(error)}</p>
+          <Alert variant="destructive">
+            <AlertTriangle aria-hidden />
+            <AlertTitle>Unable to load events by severity</AlertTitle>
+            <AlertDescription>{errorMessage(error)}</AlertDescription>
+          </Alert>
         ) : all === 0 ? (
-          <p className="flex h-52 items-center justify-center text-sm text-muted-foreground">No events in the last {window.label}.</p>
+          <Empty className="h-52">
+            <EmptyHeader>
+              <EmptyTitle>No events</EmptyTitle>
+              <EmptyDescription>Nothing arrived in the last {window.label}.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <ChartContainer config={CONFIG} className="aspect-auto h-52 w-full" initialDimension={{ width: 360, height: 208 }}>
             <AreaChart data={rows} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -95,8 +117,8 @@ export function SeverityCard({ className }: { className?: string }) {
           {SEVERITY_TIERS.map((tier) => (
             <li key={tier.key} className="flex items-center gap-2">
               <span className={cn("size-2.5 shrink-0 rounded-[3px]", tier.swatch)} aria-hidden />
-              <span className="truncate text-muted-foreground">{tier.label}</span>
-              <span className="ml-auto font-medium tabular-nums">{formatNumber(totals[tier.key] ?? 0)}</span>
+              <span className="text-muted-foreground">{tier.label}</span>
+              <span className="ml-auto font-medium tabular-nums">{known ? formatNumber(totals[tier.key] ?? 0) : "—"}</span>
             </li>
           ))}
         </ul>

@@ -9,6 +9,7 @@ export function NotFoundPage() {
     <div className="flex flex-col gap-6">
       <PageHeader title="Not found" description="The route you requested does not exist." />
       <EmptyState
+        headingLevel={2}
         title="404"
         description="Follow the sidebar back to a valid view."
         action={

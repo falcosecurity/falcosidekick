@@ -11,6 +11,7 @@ import {
 } from "recharts"
 
 import { EmptyState } from "@/components/common/empty-state"
+import { ErrorState } from "@/components/common/error-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -125,24 +126,24 @@ export function TimelineChart({ className }: TimelineChartProps) {
               ))}
             </SelectContent>
           </Select>
-          <div className="hidden text-right text-xs tabular-nums text-muted-foreground sm:block">
-            <div>
-              <span className="font-semibold text-foreground">
-                {formatNumber(total)}
-              </span>{" "}
-              total
+          {/* Totals only from loaded data: a zero must never stand for "unknown". */}
+          {data && !isError && (
+            <div className="hidden text-right text-xs tabular-nums text-muted-foreground sm:block">
+              <div>
+                <span className="font-semibold text-foreground">{formatNumber(total)}</span> total
+              </div>
+              <div>peak {formatNumber(peak)}/bucket</div>
             </div>
-            <div>peak {formatNumber(peak)}/bucket</div>
-          </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="h-64 px-5">
         {isPending ? (
           <LoadingSkeleton lines={5} />
         ) : isError ? (
-          <EmptyState title="Unable to load timeline" description={errorMessage(error)} />
+          <ErrorState title="Unable to load events over time" description={errorMessage(error)} />
         ) : total === 0 ? (
-          <EmptyState title={`No events in the last ${cfg.label}`} />
+          <EmptyState title="No events" description={`Nothing arrived in the last ${cfg.label}.`} />
         ) : (
           <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 600, height: 256 }}>
             <ComposedChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>

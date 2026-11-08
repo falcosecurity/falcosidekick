@@ -10,6 +10,7 @@ import { useSearchParams } from "react-router"
 
 import { SourceChip, TagChip } from "@/components/common/chips"
 import { EmptyState } from "@/components/common/empty-state"
+import { ErrorState } from "@/components/common/error-state"
 import { TableSkeleton } from "@/components/common/loading-skeleton"
 import { PageHeader } from "@/components/common/page-header"
 import { PriorityBadge } from "@/components/common/priority-badge"
@@ -23,6 +24,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Field, FieldLabel } from "@/components/ui/field"
+import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useSearchEvents } from "@/hooks/use-events"
 import { errorMessage } from "@/lib/api-error"
@@ -30,6 +33,7 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
 import { formatClock, formatNumber } from "@/lib/format"
 import type { Event, SortField } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { useUIStore } from "@/stores/ui-store"
 
 const MAX_VISIBLE_TAGS = 4
 
@@ -71,6 +75,8 @@ export function EventsPage() {
   const [params, setParams] = useSearchParams()
   const query = useQueryFromUrl()
   const { data, isPending, isError, error, refetch, isFetching, isPlaceholderData } = useSearchEvents(query)
+  const live = useUIStore((s) => s.eventsLive)
+  const setLive = useUIStore((s) => s.setEventsLive)
   const [selected, setSelected] = useState<Event | null>(null)
   // Picked events by uuid; the selection survives paging and filtering until it is cleared.
   const [picked, setPicked] = useState<ReadonlyMap<string, Event>>(new Map())
@@ -129,9 +135,19 @@ export function EventsPage() {
     <div className="flex h-full flex-col gap-4">
       <PageHeader
         title="Events"
-        description="Search, filter, and inspect Falco events as they flow through Falco Sidekick."
+        description={
+          live
+            ? "Search, filter and inspect Falco events. Live: the list follows the refresh interval."
+            : "Search, filter and inspect Falco events. The list stays still while you work: it updates when you refresh or change the filters."
+        }
         actions={
           <>
+            <Field orientation="horizontal" className="w-auto gap-2">
+              <Switch id="events-live" checked={live} onCheckedChange={setLive} />
+              <FieldLabel htmlFor="events-live" className="font-normal">
+                Live
+              </FieldLabel>
+            </Field>
             <ExportAllButton query={query} total={total} />
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw className={cn("size-3.5", isFetching && "animate-spin")} aria-hidden />
@@ -159,18 +175,11 @@ export function EventsPage() {
             <TableSkeleton rows={10} />
           </div>
         ) : isError ? (
-          <EmptyState
-            title="Unable to load events"
-            description={errorMessage(error)}
-            action={
-              <Button size="sm" variant="outline" onClick={() => refetch()}>
-                Retry
-              </Button>
-            }
-          />
+          <ErrorState className="m-4" title="Unable to load events" description={errorMessage(error)} onRetry={() => refetch()} />
         ) : !data || data.events.length === 0 ? (
           <EmptyState
-            icon={<Inbox className="size-8" aria-hidden />}
+            headingLevel={2}
+            icon={<Inbox aria-hidden />}
             title="No events match"
             description="Adjust the filters above or widen the time window."
           />
@@ -198,7 +207,7 @@ export function EventsPage() {
                     active={!isPlaceholderData && sortBy === "timestamp"}
                     desc={sortDesc}
                     onClick={() => toggleSort("timestamp")}
-                    className="w-36"
+                    className="w-24 sm:w-36"
                   >
                     Time
                   </SortHeader>
@@ -220,7 +229,7 @@ export function EventsPage() {
                   <TableHead className="hidden w-40 font-medium text-muted-foreground lg:table-cell">
                     Hostname
                   </TableHead>
-                  <TableHead className="hidden w-64 font-medium text-muted-foreground xl:table-cell">
+                  <TableHead className="hidden w-44 font-medium text-muted-foreground xl:table-cell 2xl:w-56">
                     Tags
                   </TableHead>
                 </TableRow>
@@ -249,7 +258,7 @@ export function EventsPage() {
                       <PriorityBadge priority={evt.priority} />
                     </TableCell>
                     <TableCell className="py-2.5 align-middle">
-                      <div className="font-mono text-xs tabular-nums">{formatClock(evt.time)}</div>
+                      <div className="hidden font-mono text-xs tabular-nums sm:block">{formatClock(evt.time)}</div>
                       <TimeAgo value={evt.time} className="block text-xs text-muted-foreground" />
                     </TableCell>
                     <TableCell className="py-2.5 align-middle">

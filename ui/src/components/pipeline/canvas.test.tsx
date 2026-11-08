@@ -281,11 +281,11 @@ describe("PipelineCanvas", () => {
     const { container } = renderWithProviders(
       <PipelineCanvas ref={ref} composite={composite} statusByName={{}} selection={null} onSelect={mock()} />,
     )
-    expect(await screen.findByText("Unable to lay out pipeline")).toBeInTheDocument()
+    expect(await screen.findByText("Unable to lay out the pipeline")).toBeInTheDocument()
     expect(container.querySelector(".pipeline-canvas")).toHaveAttribute("aria-busy", "false")
     act(() => ref.current?.resetPositions())
     expect(await screen.findByRole("button", { name: "alerts File provisioned" })).toBeInTheDocument()
-    expect(screen.queryByText("Unable to lay out pipeline")).not.toBeInTheDocument()
+    expect(screen.queryByText("Unable to lay out the pipeline")).not.toBeInTheDocument()
   })
 
   test("an empty output set retains the source and core with a non-flowing edge", async () => {

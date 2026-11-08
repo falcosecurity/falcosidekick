@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Spinner } from "@/components/ui/spinner"
 import { useDeleteOutput } from "@/hooks/use-output-writes"
+import { useReturnFocus } from "@/hooks/use-return-focus"
 import { errorMessage, isApiError } from "@/lib/api-error"
 import type { OutputConfigEntry } from "@/lib/types"
 
@@ -25,6 +26,7 @@ interface DeleteOutputDialogProps {
 
 export function DeleteOutputDialog({ entry, onClose, onDeleted }: DeleteOutputDialogProps) {
   const remove = useDeleteOutput()
+  const returnFocus = useReturnFocus()
   const name = entry ? driverTitle(entry.name) : ""
   const confirm = (event: React.MouseEvent) => {
     event.preventDefault()
@@ -50,7 +52,7 @@ export function DeleteOutputDialog({ entry, onClose, onDeleted }: DeleteOutputDi
   }
   return (
     <AlertDialog open={entry !== null} onOpenChange={(open) => !open && !remove.isPending && onClose()}>
-      <AlertDialogContent>
+      <AlertDialogContent {...returnFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>Remove {name}?</AlertDialogTitle>
           <AlertDialogDescription>
