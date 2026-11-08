@@ -58,6 +58,14 @@ describe("centerOnCore", () => {
     expect(centers.reduce((s, c) => s + c, 0) / centers.length).toBeCloseTo(200 + 64 / 2)
   })
 
+  test("the event source goes under Sidekick, outside the outputs column", () => {
+    const nodes = [...graph(2), { id: "sink:inmemory", type: "store", position: { x: 0, y: 0 }, height: 80 }]
+    const placed = Object.fromEntries(centerOnCore(nodes, heightOf).map((n) => [n.id, n.position]))
+    expect(placed["sink:inmemory"]).toEqual({ x: 320, y: 200 + 64 + 72 })
+    const sinkCenters = ["sink:0", "sink:1"].map((id) => placed[id]!.y)
+    expect(sinkCenters.every((y) => y !== placed["sink:inmemory"]!.y)).toBe(true)
+  })
+
   test("leaves a graph without the Sidekick node unchanged", () => {
     const nodes = graph(2).filter((n) => n.type !== "core")
     expect(centerOnCore(nodes, heightOf)).toBe(nodes)
