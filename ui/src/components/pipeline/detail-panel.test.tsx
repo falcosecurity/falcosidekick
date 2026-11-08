@@ -82,6 +82,15 @@ describe("PipelineDetailPanel", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
   })
 
+  test("a long error is cut to a few lines and can be shown whole", () => {
+    const long = `loki send: ${"x".repeat(400)}`
+    renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={{ ...failing, last_error: long }} />)
+    expect(screen.getByText(long)).toHaveClass("line-clamp-4")
+    fireEvent.click(screen.getByRole("button", { name: "Show the full error" }))
+    expect(screen.getByText(long)).not.toHaveClass("line-clamp-4")
+    expect(screen.getByRole("button", { name: "Show less" })).toBeInTheDocument()
+  })
+
   test("the output the UI reads events from says so", async () => {
     spies.push(
       spyOn(api, "getConfig").mockResolvedValue({

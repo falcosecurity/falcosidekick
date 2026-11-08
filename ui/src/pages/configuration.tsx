@@ -159,7 +159,7 @@ function ApiSection({ cfg }: { cfg: CoreConfig }) {
       <SettingRow label="Writes" hint="Outputs and the layout can be changed from the UI and the API.">
         <StateBadge on={cfg.api.allow_writes} labels={["Allowed", "Read-only"]} />
       </SettingRow>
-      <SettingRow label="File outputs" hint="Outputs defined in the output files, changed from the UI and the API.">
+      <SettingRow label="File outputs" hint="Whether the UI and the API may change outputs defined in the output files.">
         <StateBadge on={cfg.provisioning.allow_ui_updates} labels={["Editable", "Read-only"]} />
       </SettingRow>
       <SettingRow label="Secret directories" hint="Where secret files named through the API must be.">

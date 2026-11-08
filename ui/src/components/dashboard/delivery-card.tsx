@@ -24,7 +24,9 @@ export function DeliveryCard({ className }: { className?: string }) {
   return (
     <Card className={cn("@container/delivery gap-4 py-5 shadow-xs", className)}>
       <CardHeader className="px-5">
-        <CardTitle className="text-base">Delivery</CardTitle>
+        <CardTitle asChild className="text-base">
+          <h2>Delivery</h2>
+        </CardTitle>
         <CardDescription>Totals since start; outputs that need attention first.</CardDescription>
         <CardAction>
           <Button asChild variant="ghost" size="sm">

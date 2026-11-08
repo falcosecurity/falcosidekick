@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { AlertTriangle, DatabaseZap, Pencil, Server, Trash2 } from "lucide-react"
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 
 import falcoIcon from "@/assets/falco-icon.svg"
 import { ConfigTree } from "@/components/common/config-tree"
@@ -347,20 +347,30 @@ export function problemOf(status: OutputStatus): { main: string; extra?: string 
 }
 
 function OutputProblem({ status }: { status: OutputStatus }) {
+  const [expanded, setExpanded] = useState(false)
   const problem = problemOf(status)
   if (!problem) return null
   const error = status.last_error !== ""
+  // A long error is cut to a few lines so the counters and the configuration stay in view.
+  const long = problem.main.length + (problem.extra?.length ?? 0) > LONG_PROBLEM
   return (
     <Alert variant={error ? "destructive" : "default"} className={cn("mb-4", !error && "border-status-degraded/40 text-status-degraded-foreground")}>
       <AlertTriangle aria-hidden />
       <AlertTitle>{error ? "Not delivering" : "Needs a look"}</AlertTitle>
       <AlertDescription>
-        <p className="font-mono text-xs [overflow-wrap:anywhere]">{problem.main}</p>
-        {problem.extra && <p className="text-xs [overflow-wrap:anywhere]">Also: {problem.extra}</p>}
+        <p className={cn("font-mono text-xs [overflow-wrap:anywhere]", long && !expanded && "line-clamp-4")}>{problem.main}</p>
+        {problem.extra && (!long || expanded) && <p className="text-xs [overflow-wrap:anywhere]">Also: {problem.extra}</p>}
+        {long && (
+          <Button type="button" variant="link" size="sm" className="h-auto px-0 text-xs" onClick={() => setExpanded((v) => !v)}>
+            {expanded ? "Show less" : "Show the full error"}
+          </Button>
+        )}
       </AlertDescription>
     </Alert>
   )
 }
+
+const LONG_PROBLEM = 240
 
 function BufferUsage({ used, capacity }: { used: number; capacity: number }) {
   const pct = capacity > 0 ? Math.min(100, (used / capacity) * 100) : 0

@@ -20,7 +20,8 @@ export function DashboardPage() {
           <TimelineChart className="xl:col-span-2" />
           <SeverityCard />
         </div>
-        <div className="grid gap-4 xl:grid-cols-2 *:min-w-0">
+        {/* Each card is as tall as its content: no empty space under a short table. */}
+        <div className="grid items-start gap-4 xl:grid-cols-2 *:min-w-0">
           <DeliveryCard />
           <TopCard />
         </div>

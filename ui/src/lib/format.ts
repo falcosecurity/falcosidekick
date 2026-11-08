@@ -6,12 +6,15 @@ export function formatNumber(value: number): string {
 
 // Server and browser clocks drift by seconds; an instant that close reads as now, not as the future.
 const CLOCK_SKEW_MS = 60_000
+// Under this, "0 seconds ago" or "3 seconds ago" reads worse than "just now".
+const JUST_NOW_MS = 5_000
 
 export function formatTimeAgo(input: string | Date | number, now: number | Date = Date.now()): string {
   const date = new Date(input)
   if (Number.isNaN(date.getTime())) return "-"
   const ahead = date.getTime() - new Date(now).getTime()
   if (ahead > 0 && ahead < CLOCK_SKEW_MS) return "just now"
+  if (ahead <= 0 && ahead > -JUST_NOW_MS) return "just now"
   return formatDistanceStrict(date, now, { addSuffix: true })
 }
 
