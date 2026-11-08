@@ -1,34 +1,40 @@
 import { useQuery } from "@tanstack/react-query"
-import { AlertTriangle, DatabaseZap, Pencil, Server, Trash2 } from "lucide-react"
+import { AlertTriangle, ArrowRight, DatabaseZap, Pencil, Server, Trash2 } from "lucide-react"
 import { useState, type ReactNode } from "react"
+import { Link } from "react-router"
 
 import falcoIcon from "@/assets/falco-icon.svg"
+import { SourceChip } from "@/components/common/chips"
+import { CodeBlock, InlineCode } from "@/components/common/code"
 import { ConfigTree } from "@/components/common/config-tree"
 import { ErrorState } from "@/components/common/error-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { Meter } from "@/components/common/meter"
 import { OriginMark } from "@/components/common/origin-mark"
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
+import { PriorityBadge } from "@/components/common/priority-badge"
 import { SectionHeading } from "@/components/common/section-heading"
-import { StatTile } from "@/components/common/stat-tile"
+import { StatGrid, StatTile } from "@/components/common/stat-tile"
 import { StatusBadge } from "@/components/common/status-badge"
 import { TimeAgo } from "@/components/common/time-ago"
-import { queueTone } from "@/components/dashboard/attention"
+import { byAttention, needsAttention, queueTone } from "@/components/dashboard/attention"
 import { OutputConfigView } from "@/components/outputs/output-config-view"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { useConfig, useVersion } from "@/hooks/use-config"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useConfig } from "@/hooks/use-config"
+import { useEventsCountBy, useLatestEvent } from "@/hooks/use-events"
 import { useOutputTypes } from "@/hooks/use-output-writes"
-import { useOutputs } from "@/hooks/use-pipeline"
+import { useOutputs, usePipelineStatus } from "@/hooks/use-pipeline"
 import { useRefetchInterval } from "@/hooks/use-refetch-interval"
 import { api } from "@/lib/api-client"
 import { errorMessage } from "@/lib/api-error"
-import { formatAbsoluteTime, formatNumber } from "@/lib/format"
-import { driverOf, lastSuccessOf, statusOf, type OutputConfigEntry, type OutputStatus } from "@/lib/types"
+import { formatNumber } from "@/lib/format"
+import { driverOf, lastSuccessOf, PRIORITIES, statusOf, type CoreConfig, type OutputConfigEntry, type OutputStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 import type { PipelineSelection } from "./canvas"
@@ -64,117 +70,172 @@ export function PipelineDetailPanel({ selection, entry, status, actions }: Detai
   return <OutputDetail entry={entry} status={status} actions={actions} />
 }
 
+function NodeHeader({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
+  return (
+    <CardHeader className="min-w-0 shrink-0">
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-brand/15 text-brand">{icon}</span>
+        <div className="min-w-0">
+          <CardTitle asChild className="text-base">
+            <h2>{title}</h2>
+          </CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </div>
+      </div>
+    </CardHeader>
+  )
+}
+
+/** The Falco settings that send events here, built from the ingestion listener. */
+export function falcoSnippet(cfg: Pick<CoreConfig, "listen_address" | "listen_port" | "tls">): string {
+  const host = cfg.listen_address && cfg.listen_address !== "0.0.0.0" && cfg.listen_address !== "::" ? cfg.listen_address : "<sidekick-host>"
+  const scheme = cfg.tls?.enabled ? "https" : "http"
+  return `json_output: true\nhttp_output:\n  enabled: true\n  url: ${scheme}://${host}:${cfg.listen_port}/`
+}
+
+// What Falco has sent lately, read from the event source; the listener itself is on the Configuration page.
 function SourceDetail() {
+  const config = useConfig()
+  const latest = useLatestEvent()
+  const hour = useEventsCountBy("priority", { since: "1h" })
+  const sources = useEventsCountBy("source", { since: "24h" })
+  const hosts = useEventsCountBy("hostname", { since: "24h" })
+  const activityError = [latest, hour, sources, hosts].find((q) => q.isError)?.error
+  const hourTotal = Object.values(hour.data ?? {}).reduce((a, b) => a + b, 0)
+  const byPriority = PRIORITIES.filter((p) => (hour.data?.[p] ?? 0) > 0)
+  const sourceNames = Object.keys(sources.data ?? {}).sort()
+  const hostCount = Object.keys(hosts.data ?? {}).length
+
   return (
     <Card className="flex h-full min-h-0 min-w-0 flex-col">
-      <CardHeader className="min-w-0 shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-md bg-brand/15">
-            <img src={falcoIcon} alt="" aria-hidden className="size-6" />
-          </span>
-          <div>
-            <CardTitle asChild className="text-base">
-              <h2>Falco</h2>
-            </CardTitle>
-            <CardDescription>event source</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
+      <NodeHeader icon={<img src={falcoIcon} alt="" aria-hidden className="size-6" />} title="Falco" description="Sends events to Sidekick over HTTP" />
       <ScrollArea className="min-h-0 min-w-0 flex-1 px-6 pb-6">
-        <section className="flex flex-col gap-2 text-sm">
-          <p>Falco sends events to this falcosidekick instance over HTTP.</p>
-          <p className="text-muted-foreground">
-            Falco's <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">http_output</code> posts
-            detected events as JSON to <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">POST /</code> on
-            this server. There is no outbound connection from falcosidekick to Falco; the arrow above represents
-            the inbound event flow.
-          </p>
+        <section className="flex flex-col gap-3" aria-label="Activity">
+          <SectionHeading>Activity</SectionHeading>
+          {activityError ? (
+            <ErrorState title="Activity unavailable" description={errorMessage(activityError)} />
+          ) : (
+            <>
+              <StatGrid>
+                <StatTile label="Latest" value={latest.isPending ? <Skeleton className="h-5 w-16" /> : latest.data ? <TimeAgo value={latest.data.time} /> : "none yet"} />
+                <StatTile label="Last hour" value={hour.isPending ? <Skeleton className="h-5 w-10" /> : formatNumber(hourTotal)} />
+                <StatTile label="Hosts" value={hosts.isPending ? <Skeleton className="h-5 w-10" /> : formatNumber(hostCount)} />
+              </StatGrid>
+              <p className="text-xs text-muted-foreground">Hosts and sources over the last 24 hours.</p>
+              {byPriority.length > 0 && (
+                <ul className="flex flex-wrap gap-1.5" aria-label="Last hour by priority">
+                  {byPriority.map((p) => (
+                    <li key={p} className="flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
+                      <PriorityBadge priority={p} /> {formatNumber(hour.data?.[p] ?? 0)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {sourceNames.length > 0 && (
+                <ul className="flex flex-wrap gap-1.5" aria-label="Sources in the last 24 hours">
+                  {sourceNames.map((s) => (
+                    <li key={s} className="min-w-0">
+                      <SourceChip source={s} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+          <Button asChild variant="outline" size="sm" className="self-start">
+            <Link to="/events?since=1h">
+              Events of the last hour <ArrowRight aria-hidden />
+            </Link>
+          </Button>
         </section>
         <Separator className="my-4" />
         <section className="flex flex-col gap-2 text-sm">
-          <SectionHeading>Endpoint</SectionHeading>
-          <code className="block rounded bg-muted p-2 font-mono text-xs">POST /</code>
-          <p className="text-xs text-muted-foreground">
-            Point your Falco <code>http_output.url</code> at this host and port.
+          <SectionHeading>Connect Falco</SectionHeading>
+          <p className="text-muted-foreground">
+            Add this to <InlineCode>falco.yaml</InlineCode>: Falco then posts each event as JSON to <InlineCode>POST /</InlineCode>.
           </p>
+          {config.data ? (
+            <CodeBlock code={falcoSnippet(config.data.config)} label="the Falco settings" />
+          ) : config.isError ? (
+            <ErrorState title="Unable to load the listener" description={errorMessage(config.error)} />
+          ) : (
+            <Skeleton className="h-24 w-full" />
+          )}
         </section>
       </ScrollArea>
     </Card>
   )
 }
 
+// How the pipeline delivers right now; build and settings are on the Configuration page.
 function CoreDetail() {
-  const versionQuery = useVersion()
-  const configQuery = useConfig()
+  const statusQuery = usePipelineStatus()
   const outputsQuery = useOutputs()
-
-  const failure = [versionQuery, configQuery, outputsQuery].find((q) => q.isError)
+  const failure = [statusQuery, outputsQuery].find((q) => q.isError)
   if (failure) {
     return <ErrorState title="Unable to load pipeline details" description={errorMessage(failure.error)} />
   }
-  const version = versionQuery.data
-  const config = configQuery.data?.config
+  const statuses = statusQuery.data
   const outputs = outputsQuery.data
-  if (!version || !config || !outputs) {
+  if (!statuses || !outputs) {
     return <LoadingSkeleton lines={5} />
   }
 
-  const listenAddress = config.listen_address
-  const listenPort = config.listen_port
-  const logLevel = config.log_level
-  const database = config.database.backend
+  const attention = byAttention(statuses).filter(needsAttention)
+  const sum = (key: "sent_total" | "failed_total" | "dropped_total") => statuses.reduce((n, s) => n + s[key], 0)
+  const failed = sum("failed_total")
+  const dropped = sum("dropped_total")
+  const peak = statuses.reduce((m, s) => Math.max(m, s.events_per_minute), 0)
 
   return (
     <Card className="flex h-full min-h-0 min-w-0 flex-col">
-      <CardHeader className="min-w-0 shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-md bg-brand/15 text-brand">
-            <Server className="size-5" aria-hidden />
-          </span>
-          <div>
-            <CardTitle asChild className="text-base">
-              <h2>Falco Sidekick</h2>
-            </CardTitle>
-            <CardDescription>event pipeline</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
+      <NodeHeader icon={<Server className="size-5" aria-hidden />} title="Falco Sidekick" description="Receives events and fans them out to the outputs" />
       <ScrollArea className="min-h-0 min-w-0 flex-1 px-6 pb-6">
-        <section className="flex flex-col gap-2">
-          <SectionHeading>Build</SectionHeading>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-            <dt className="text-muted-foreground">Version</dt>
-            <dd className="font-mono [overflow-wrap:anywhere]">{version.version}</dd>
-            <dt className="text-muted-foreground">Commit</dt>
-            <dd className="font-mono text-xs [overflow-wrap:anywhere]">{version.commit}</dd>
-            <dt className="text-muted-foreground">Built</dt>
-            <dd className="font-mono text-xs">{formatAbsoluteTime(version.build_date)}</dd>
-            <dt className="text-muted-foreground">Go</dt>
-            <dd className="font-mono text-xs">{version.go_version}</dd>
-          </dl>
+        <section className="flex flex-col gap-3" aria-label="Delivery">
+          <SectionHeading>Delivery</SectionHeading>
+          <StatGrid className="grid-cols-2">
+            <StatTile
+              label="Delivering"
+              value={`${statuses.length - attention.length} of ${outputs.length}`}
+              tone={attention.length > 0 ? "error" : statuses.length > 0 ? "ok" : "neutral"}
+            />
+            <StatTile label="Peak rate" value={`${formatNumber(Math.round(peak))}/min`} />
+          </StatGrid>
+          <StatGrid>
+            <StatTile label="Sent" value={formatNumber(sum("sent_total"))} />
+            <StatTile label="Failed" value={formatNumber(failed)} tone={failed > 0 ? "error" : "neutral"} />
+            <StatTile label="Dropped" value={formatNumber(dropped)} tone={dropped > 0 ? "warning" : "neutral"} />
+          </StatGrid>
+          <p className="text-xs text-muted-foreground">Totals since start. The peak rate is the busiest output.</p>
         </section>
         <Separator className="my-4" />
-        <section className="flex flex-col gap-2">
-          <SectionHeading>Runtime</SectionHeading>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-            <dt className="text-muted-foreground">Listen</dt>
-            <dd className="font-mono">{listenAddress ? `${listenAddress}:${listenPort}` : `:${listenPort}`}</dd>
-            {logLevel && (
-              <>
-                <dt className="text-muted-foreground">Log level</dt>
-                <dd className="font-mono">{logLevel}</dd>
-              </>
-            )}
-            {database && (
-              <>
-                <dt className="text-muted-foreground">Database</dt>
-                <dd className="font-mono">{database}</dd>
-              </>
-            )}
-            <dt className="text-muted-foreground">Outputs</dt>
-            <dd>{outputs.length}</dd>
-          </dl>
+        <section className="flex flex-col gap-2" aria-label="Needs attention">
+          <SectionHeading>Needs attention</SectionHeading>
+          {attention.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Every output is delivering.</p>
+          ) : (
+            <ItemGroup role="list" className="gap-1.5">
+              {attention.map((s) => (
+                <Item key={s.name} role="listitem" variant="outline" size="sm">
+                  <ItemMedia>
+                    <OutputTypeIcon driver={s.name} size="sm" />
+                  </ItemMedia>
+                  <ItemContent className="min-w-0">
+                    <ItemTitle>{s.name}</ItemTitle>
+                    {(s.last_error || s.last_warning) && <ItemDescription className="truncate">{s.last_error || s.last_warning}</ItemDescription>}
+                  </ItemContent>
+                  <StatusBadge status={statusOf(s)} />
+                </Item>
+              ))}
+            </ItemGroup>
+          )}
         </section>
+        <Separator className="my-4" />
+        <Button asChild variant="outline" size="sm">
+          <Link to="/configuration">
+            Version and settings <ArrowRight aria-hidden />
+          </Link>
+        </Button>
       </ScrollArea>
     </Card>
   )
@@ -260,11 +321,11 @@ function OutputDetail({
         )}
         {status && (
           <section className="flex flex-col gap-3" aria-label="Health">
-            <dl className="grid grid-cols-3 gap-2 text-sm">
+            <StatGrid>
               <StatTile label="Sent" value={formatNumber(status.sent_total)} tone="ok" />
               <StatTile label="Failed" value={formatNumber(status.failed_total)} tone={status.failed_total > 0 ? "error" : "neutral"} />
               <StatTile label="Dropped" value={formatNumber(status.dropped_total)} tone={status.dropped_total > 0 ? "warning" : "neutral"} />
-            </dl>
+            </StatGrid>
             <dl className="flex flex-col gap-2 rounded-lg border bg-background px-3 py-2.5 text-sm">
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between gap-2">

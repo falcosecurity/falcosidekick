@@ -30,6 +30,16 @@ export function useSearchEvents(query: SearchQuery) {
   })
 }
 
+/** The newest stored event, refreshed with the rest of the live views. */
+export function useLatestEvent() {
+  const refetchInterval = useRefetchInterval()
+  return useQuery<Event | null>({
+    queryKey: ["events", "latest"],
+    queryFn: async ({ signal }) => (await api.searchEvents({ limit: 1, sort_by: "timestamp", sort_desc: true }, signal)).events[0] ?? null,
+    refetchInterval,
+  })
+}
+
 export function useEvent(uuid: string | null) {
   return useQuery<Event | null>({
     queryKey: ["events", "by-uuid", uuid],
