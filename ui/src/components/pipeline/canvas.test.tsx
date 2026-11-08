@@ -298,6 +298,22 @@ describe("PipelineCanvas", () => {
     expect(container.querySelectorAll(".react-flow__node")).toHaveLength(2)
   })
 
+  test("the event source has a line back into Sidekick that the layout ignores, and only it", async () => {
+    const two: PipelineComposite = {
+      ...composite,
+      outputs: [...composite.outputs, { name: "inmemory", config: {}, provisioned: true, version: 1, updated_at: "" }],
+    }
+    const { container } = renderWithProviders(
+      <PipelineCanvas composite={two} statusByName={{}} selection={null} onSelect={mock()} eventSource="inmemory" />,
+    )
+    const read = await edge(container, "inmemory->sidekick:read")
+    expect(read).toHaveClass("animated")
+    expect(container.querySelector('[data-testid="rf__edge-alerts->sidekick:read"]')).toBeNull()
+    expect(screen.getByRole("button", { name: /^inmemory File provisioned Event source/ })).toBeInTheDocument()
+    const laidOut = layoutSpy.mock.calls.at(-1)![0]
+    expect(laidOut.edges?.map((e) => e.id)).not.toContain("inmemory->sidekick:read")
+  })
+
   test("each node is a single tab stop: the wrapper is not focusable, the card button is", async () => {
     const { container } = renderWithProviders(
       <PipelineCanvas composite={composite} statusByName={{}} selection={null} onSelect={mock()} />,

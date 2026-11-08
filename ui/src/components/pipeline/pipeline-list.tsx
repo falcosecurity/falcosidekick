@@ -2,6 +2,7 @@ import { ChevronRight, Plus, Server } from "lucide-react"
 import type { ReactNode } from "react"
 
 import falcoIcon from "@/assets/falco-icon.svg"
+import { EventSourceMark } from "@/components/common/event-source-mark"
 import { OriginMark } from "@/components/common/origin-mark"
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
 import { StatusBadge } from "@/components/common/status-badge"
@@ -16,6 +17,8 @@ interface PipelineListProps {
   selection: PipelineSelection
   onSelect: (selection: PipelineSelection) => void
   onAdd?: () => void
+  /** The output the UI reads events from. */
+  eventSource?: string
 }
 
 function Row({
@@ -51,7 +54,7 @@ function Row({
 }
 
 /** The pipeline as a list, for screens too narrow for the canvas. */
-export function PipelineList({ composite, statusByName, selection, onSelect, onAdd }: PipelineListProps) {
+export function PipelineList({ composite, statusByName, selection, onSelect, onAdd, eventSource }: PipelineListProps) {
   return (
     // Groups, not lists: the entries are buttons.
     <ItemGroup role="group" className="gap-2" aria-label="Pipeline">
@@ -88,6 +91,7 @@ export function PipelineList({ composite, statusByName, selection, onSelect, onA
                 <span className="flex min-w-0 items-center gap-1.5">
                   <span className="truncate">{out.name}</span>
                   <OriginMark provisioned={out.provisioned} />
+                  {out.name === eventSource && <EventSourceMark />}
                 </span>
               }
               actions={status && <StatusBadge status={statusOf(status)} />}

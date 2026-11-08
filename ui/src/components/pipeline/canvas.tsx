@@ -28,6 +28,7 @@ import {
 
 import falcoIcon from "@/assets/falco-icon.svg"
 import { ErrorState } from "@/components/common/error-state"
+import { EventSourceMark } from "@/components/common/event-source-mark"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
 import { OriginMark } from "@/components/common/origin-mark"
@@ -49,11 +50,16 @@ type KindData = {
   status?: OutputStatus
   outputName?: string
   provisioned?: boolean
+  /** The output the UI reads events back from. */
+  eventSource?: boolean
   onSelect?: () => void
   selected?: boolean
 }
 
 type FlowNode = Node<KindData, NodeKind>
+// The read-back edge runs as a second lane beside the forward edge: it leaves the event source's
+// left side and enters Sidekick's right side just below where the forward edge leaves.
+const READ_HANDLE = "read"
 type FlowEdge = Edge
 
 const elk = new ELK()
@@ -68,6 +74,7 @@ const HIDDEN_HANDLE: React.CSSProperties = {
   opacity: 0,
   pointerEvents: "none",
 }
+const READ_LANE: React.CSSProperties = { ...HIDDEN_HANDLE, top: "calc(50% + 12px)" }
 
 function NodeCard({
   iconSlot,
@@ -80,6 +87,8 @@ function NodeCard({
   selected,
   sourceHandle,
   targetHandle,
+  readSource,
+  readTarget,
 }: {
   iconSlot: ReactNode
   title: string
@@ -91,6 +100,8 @@ function NodeCard({
   selected?: boolean
   sourceHandle?: boolean
   targetHandle?: boolean
+  readSource?: boolean
+  readTarget?: boolean
 }) {
   return (
     <button
@@ -121,6 +132,8 @@ function NodeCard({
         )}
       </div>
       {sourceHandle && <Handle type="source" position={Position.Right} style={HIDDEN_HANDLE} />}
+      {readSource && <Handle id={READ_HANDLE} type="source" position={Position.Left} style={READ_LANE} />}
+      {readTarget && <Handle id={READ_HANDLE} type="target" position={Position.Right} style={READ_LANE} />}
     </button>
   )
 }
@@ -174,6 +187,7 @@ function CoreFlowNode({ data }: NodeProps<FlowNode>) {
       selected={data.selected}
       sourceHandle
       targetHandle
+      readTarget
     />
   )
 }
@@ -183,13 +197,19 @@ function SinkFlowNode({ data }: NodeProps<FlowNode>) {
     <NodeCard
       iconSlot={<OutputTypeIcon driver={data.outputName ?? data.label} />}
       title={data.label}
-      titleMark={<OriginMark provisioned={data.provisioned ?? false} />}
+      titleMark={
+        <>
+          <OriginMark provisioned={data.provisioned ?? false} />
+          {data.eventSource && <EventSourceMark />}
+        </>
+      }
       subtitle={data.subtype}
       accent="neutral"
       status={data.status}
       onSelect={data.onSelect}
       selected={data.selected}
       targetHandle
+      readSource={data.eventSource}
     />
   )
 }
@@ -222,7 +242,8 @@ async function layoutElk(nodes: FlowNode[], edges: FlowEdge[]): Promise<FlowNode
       "elk.layered.spacing.nodeNodeBetweenLayers": "90",
     },
     children: nodes.map((n) => ({ id: n.id, width: NODE_WIDTH, height: NODE_HEIGHT })),
-    edges: edges.map((e) => ({ id: e.id, sources: [e.source], targets: [e.target] })),
+    // The read-back edge closes a loop; ELK lays out only the forward flow.
+    edges: edges.filter((e) => !e.data?.readBack).map((e) => ({ id: e.id, sources: [e.source], targets: [e.target] })),
   }
   const positioned = await elk.layout(graph)
   const positionsById = new Map<string, { x: number; y: number }>()
@@ -263,6 +284,7 @@ function buildGraph(
   selection: PipelineSelection,
   onSelect: (sel: PipelineSelection) => void,
   onAdd?: () => void,
+  eventSource?: string,
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const sourceSelected = selection?.kind === "source"
   const coreSelected = selection?.kind === "core"
@@ -318,6 +340,7 @@ function buildGraph(
         kind: "sink",
         label: out.name,
         provisioned: out.provisioned,
+        eventSource: out.name === eventSource,
         status,
         outputName: out.name,
         onSelect: () => onSelect({ kind: "sink", name: out.name }),
@@ -332,6 +355,20 @@ function buildGraph(
       style: edgeStyleForStatus(status ? statusOf(status) : undefined),
       animated: isFlowing(status),
     })
+    if (out.name === eventSource) {
+      const readBack: FlowEdge = {
+        id: `${out.name}->sidekick:read`,
+        source: id,
+        sourceHandle: READ_HANDLE,
+        target: "core:sidekick",
+        targetHandle: READ_HANDLE,
+        data: { readBack: true },
+        markerEnd: { type: MarkerType.ArrowClosed, color: "var(--brand)" },
+        style: { stroke: "var(--brand)", strokeWidth: 1.5, strokeDasharray: "6 4" },
+        animated: true,
+      }
+      edges.push(readBack)
+    }
   }
 
   if (onAdd) {
@@ -376,6 +413,8 @@ interface CanvasProps {
   onSelect: (sel: PipelineSelection) => void
   /** Shows the "Add output" node; absent when the API refuses writes. */
   onAdd?: () => void
+  /** The output the UI reads events from, drawn with a line back into Sidekick. */
+  eventSource?: string
 }
 
 export interface PipelineCanvasHandle {
@@ -388,6 +427,7 @@ function CanvasInner({
   selection,
   onSelect,
   onAdd,
+  eventSource,
   handleRef,
 }: CanvasProps & { handleRef: React.Ref<PipelineCanvasHandle> }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([])
@@ -401,8 +441,8 @@ function CanvasInner({
 
   const graphKey = JSON.stringify([composite.outputs.map((o) => [o.name, o.provisioned]), onAdd !== undefined])
   const graph = useMemo(
-    () => buildGraph(composite, statusByName, selection, onSelect, onAdd),
-    [composite, statusByName, selection, onSelect, onAdd],
+    () => buildGraph(composite, statusByName, selection, onSelect, onAdd, eventSource),
+    [composite, statusByName, selection, onSelect, onAdd, eventSource],
   )
   const liveNodes = useMemo(() => {
     const dataById = new Map(graph.nodes.map((node) => [node.id, node.data]))

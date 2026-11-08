@@ -46,6 +46,8 @@ export function PipelinePage() {
   }, [])
   const [removing, setRemoving] = useState<OutputConfigEntry | null>(null)
   const writes = config.data?.config.api.allow_writes === true
+  const ui = config.data?.config.ui
+  const eventSource = ui?.enabled ? ui.event_source : undefined
   const fileOutputsWritable = config.data?.config.provisioning.allow_ui_updates === true
   const openCreate = useCallback(() => setWizard({ kind: "create" }), [setWizard])
   const canvasRef = useRef<PipelineCanvasHandle>(null)
@@ -183,6 +185,7 @@ export function PipelinePage() {
                   selection={selection}
                   onSelect={handleSelect}
                   onAdd={writes ? openCreate : undefined}
+                  eventSource={eventSource}
                 />
               ) : (
                 <ScrollArea className="h-full">
@@ -192,6 +195,7 @@ export function PipelinePage() {
                     selection={selection}
                     onSelect={handleSelect}
                     onAdd={writes ? openCreate : undefined}
+                    eventSource={eventSource}
                   />
                 </ScrollArea>
               )}
