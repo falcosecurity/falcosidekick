@@ -1392,13 +1392,21 @@ func testRotatedAPISecret(t *testing.T, sighup, inRoots bool) {
 	_, err = a.reloader.ApplyOutput(t.Context(), "webhook", 0, map[string]any{"token_file": secret})
 	require.NoError(t, err)
 
-	require.NoError(t, os.WriteFile(secret, []byte("rotated"), 0o600))
+	// Rotations replace the file whole, as the kubelet does: a reload never reads it half written.
+	rotate := func() error {
+		tmp := secret + ".tmp"
+		if err := os.WriteFile(tmp, []byte("rotated"), 0o600); err != nil {
+			return err
+		}
+		return os.Rename(tmp, secret)
+	}
+	require.NoError(t, rotate())
 	if sighup {
 		require.NoError(t, syscall.Kill(os.Getpid(), syscall.SIGHUP))
 	}
 	require.Eventually(t, func() bool {
-		// The watcher starts in the background and misses a write before it watches the mount.
-		if !sighup && os.WriteFile(secret, []byte("rotated"), 0o600) != nil {
+		// The watcher starts in the background and misses a rotation before it watches the mount.
+		if !sighup && rotate() != nil {
 			return false
 		}
 		mu.Lock()
