@@ -5,6 +5,7 @@ import { OutputTypeIcon } from "@/components/common/output-type-icon"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { FieldDescription } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { OutputType } from "@/lib/types"
@@ -34,9 +35,9 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
   }, [types, query, category, configured])
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Search and categories stay on top while the drivers scroll, with room for the focus ring. */}
-      <div className="sticky top-0 z-10 -mx-6 -mt-5 flex flex-col gap-3 border-b bg-popover px-6 pt-3 pb-3">
+    // Search and categories stay fixed; only the drivers scroll, in their own area.
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 flex-col gap-3 border-b px-6 pt-5 pb-4">
       <InputGroup>
         <InputGroupAddon>
           <Search aria-hidden />
@@ -81,6 +82,9 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
         </FieldDescription>
       )}
       </div>
+      <ScrollArea className="min-h-0 flex-1">
+      {/* Padding keeps tile borders and focus rings inside the scroll area. */}
+      <div className="px-6 py-4">
       {visible.length === 0 ? (
         <Empty className="border">
           <EmptyHeader>
@@ -136,6 +140,8 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
           })}
         </ul>
       )}
+      </div>
+      </ScrollArea>
     </div>
   )
 }

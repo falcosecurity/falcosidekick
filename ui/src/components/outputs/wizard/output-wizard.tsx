@@ -250,9 +250,11 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
   }
 
   const canNext = step === 0 ? driver !== null : state !== null
+  // The driver step scrolls its own list under fixed search and categories.
+  const ownScroll = step === 0 && !loading && !loadError
   return (
     <Surface open={target !== null} onClose={onClose} title={title} description={description} stepper={<Stepper step={step} editing={editing} />}>
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+      <div className={cn("flex min-h-0 flex-1 flex-col", !ownScroll && "overflow-y-auto px-6 py-5")}>
         {conflict && (
           <Alert className="mb-5">
             <AlertCircle aria-hidden />
