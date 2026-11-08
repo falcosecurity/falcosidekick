@@ -95,14 +95,13 @@ export function setApiAdapterForTests(adapter: AxiosAdapter | null): void {
   http.defaults.adapter = adapter ?? defaultAdapter
 }
 
+// List filters repeat their parameter once per value: rule names, hostnames and tags may hold commas.
+const LIST_FILTERS = ["priority", "rule", "source", "hostname", "tags"] as const
+
 function paramsFromFilters(filters: EventFilters): URLSearchParams {
   const params = new URLSearchParams()
   if (filters.filter) params.set("filter", filters.filter)
-  if (filters.priority?.length) params.set("priority", filters.priority.join(","))
-  if (filters.rule?.length) params.set("rule", filters.rule.join(","))
-  if (filters.source?.length) params.set("source", filters.source.join(","))
-  if (filters.hostname?.length) params.set("hostname", filters.hostname.join(","))
-  if (filters.tags?.length) params.set("tags", filters.tags.join(","))
+  for (const key of LIST_FILTERS) for (const value of filters[key] ?? []) params.append(key, value)
   if (filters.since) params.set("since", filters.since)
   return params
 }

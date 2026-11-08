@@ -48,7 +48,7 @@ interface AttentionItem {
   to: string
 }
 
-const CRITICAL_LINK = `/events?priority=${CRITICAL_PRIORITIES.join(",")}&since=1h`
+const CRITICAL_LINK = `/events?${new URLSearchParams([...CRITICAL_PRIORITIES.map((p) => ["priority", p]), ["since", "1h"]])}`
 
 function useAttentionItems() {
   const status = usePipelineStatus()

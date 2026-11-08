@@ -28,19 +28,14 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-func splitCSV(s string) []string {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if p = strings.TrimSpace(p); p != "" {
-			out = append(out, p)
+// queryValues returns every value of a repeated query parameter, each taken as written: rule names,
+// hostnames and tags may contain commas. Empty values are dropped.
+func queryValues(c fiber.Ctx, key string) []string {
+	var out []string
+	for _, raw := range c.RequestCtx().QueryArgs().PeekMulti(key) {
+		if v := strings.TrimSpace(string(raw)); v != "" {
+			out = append(out, v)
 		}
-	}
-	if len(out) == 0 {
-		return nil
 	}
 	return out
 }
@@ -48,11 +43,11 @@ func splitCSV(s string) []string {
 func parseFilters(c fiber.Ctx) (*output.Filters, error) {
 	f := &output.Filters{
 		Filter:   c.Query("filter"),
-		Priority: splitCSV(c.Query("priority")),
-		Rule:     splitCSV(c.Query("rule")),
-		Source:   splitCSV(c.Query("source")),
-		Hostname: splitCSV(c.Query("hostname")),
-		Tags:     splitCSV(c.Query("tags")),
+		Priority: queryValues(c, "priority"),
+		Rule:     queryValues(c, "rule"),
+		Source:   queryValues(c, "source"),
+		Hostname: queryValues(c, "hostname"),
+		Tags:     queryValues(c, "tags"),
 	}
 	if raw := c.Query("since"); raw != "" {
 		d, err := time.ParseDuration(raw)

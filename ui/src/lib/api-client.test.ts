@@ -44,7 +44,7 @@ describe("api-client requests", () => {
     expect(calls[0]?.headers.get("Authorization")).toBe("Bearer abc123")
     const params = paramsOf(calls[0]!)
     expect(params.get("filter")).toBe("shell")
-    expect(params.get("priority")).toBe("critical,error")
+    expect(params.getAll("priority")).toEqual(["critical", "error"])
     expect(params.get("source")).toBe("syscall")
     expect(params.get("page")).toBe("2")
     expect(params.get("limit")).toBe("50")
@@ -55,9 +55,13 @@ describe("api-client requests", () => {
     const calls: InternalAxiosRequestConfig[] = []
     setApiAdapterForTests(fixtureAdapter(calls))
 
-    await expect(api.countEvents({ since: "1h", tags: ["shell", "network"] })).resolves.toBe(fixtures.eventsCount.count)
+    await expect(api.countEvents({ since: "1h", tags: ["shell", "network"], rule: ["Write below etc, root or binary dirs"] })).resolves.toBe(
+      fixtures.eventsCount.count,
+    )
     expect(calls.at(-1)?.url).toBe("/events/count")
-    expect(paramsOf(calls.at(-1)!).get("tags")).toBe("shell,network")
+    // One parameter per value: a comma inside a value stays part of it.
+    expect(paramsOf(calls.at(-1)!).getAll("tags")).toEqual(["shell", "network"])
+    expect(paramsOf(calls.at(-1)!).getAll("rule")).toEqual(["Write below etc, root or binary dirs"])
 
     await expect(api.countEventsBy("priority", { priority: ["critical"] })).resolves.toEqual(
       fixtures.eventsCountByPriority.groups,

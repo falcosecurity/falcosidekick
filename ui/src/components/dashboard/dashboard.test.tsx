@@ -87,7 +87,7 @@ describe("AttentionCard", () => {
     })
     renderWithProviders(<AttentionCard />)
     const critical = await screen.findByRole("link", { name: /3 critical or worse events in the last hour/ })
-    expect(critical).toHaveAttribute("href", "/events?priority=emergency,alert,critical&since=1h")
+    expect(critical).toHaveAttribute("href", "/events?priority=emergency&priority=alert&priority=critical&since=1h")
     const webhook = screen.getByRole("link", { name: /webhook is not delivering/ })
     expect(webhook).toHaveTextContent("connection refused · 7 of 100 queued")
     expect(webhook).toHaveAttribute("href", "/pipeline")

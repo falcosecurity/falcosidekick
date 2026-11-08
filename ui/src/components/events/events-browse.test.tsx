@@ -81,8 +81,21 @@ describe("PriorityQuickFilter", () => {
     expect(calls[0]).not.toContain("priority")
     expect(calls[0]).toContain("rule=X")
     fireEvent.click(critical)
-    await waitFor(() => expect(screen.getByRole("status", { name: "location" })).toHaveTextContent("priority=warning%2Ccritical&rule=X"))
+    await waitFor(() => expect(screen.getByRole("status", { name: "location" })).toHaveTextContent("rule=X&priority=warning&priority=critical"))
     expect(screen.getByRole("status", { name: "location" })).not.toHaveTextContent("page=")
+  })
+
+  test("a rule with a comma in its name reaches the API as one value", async () => {
+    const calls: URLSearchParams[] = []
+    const base = fixtureAdapter()
+    setApiAdapterForTests(async (config) => {
+      if (routeKey(config) === "GET /events/count/priority") calls.push(new URLSearchParams(String(config.params)))
+      return base(config)
+    })
+    const rule = "Write below etc, root or binary dirs"
+    renderWithProviders(<PriorityQuickFilter />, { initialEntries: [`/events?${new URLSearchParams([["rule", rule], ["rule", "X"]])}`] })
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0))
+    expect(calls[0]!.getAll("rule")).toEqual([rule, "X"])
   })
 
   test("while counts load or when they fail, no priority reads zero or is disabled, and the failure is said", async () => {
