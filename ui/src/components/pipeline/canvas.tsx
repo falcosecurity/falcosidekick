@@ -13,8 +13,6 @@ import {
   type NodeProps,
 } from "@xyflow/react"
 import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js"
-
-import { centerOnCore } from "./center-on-core"
 import { Server } from "lucide-react"
 import {
   forwardRef,
@@ -32,10 +30,13 @@ import falcoIcon from "@/assets/falco-icon.svg"
 import { EmptyState } from "@/components/common/empty-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
+import { OriginMark } from "@/components/common/origin-mark"
 import { StatusBadge } from "@/components/common/status-badge"
 import { cn } from "@/lib/utils"
 import type { OutputHealth, OutputStatus, PipelineComposite } from "@/lib/types"
 import { isFlowing, statusOf } from "@/lib/types"
+
+import { centerOnCore } from "./center-on-core"
 
 import "@xyflow/react/dist/style.css"
 
@@ -47,6 +48,7 @@ type KindData = {
   subtype?: string
   status?: OutputStatus
   outputName?: string
+  provisioned?: boolean
   onSelect?: () => void
   selected?: boolean
 }
@@ -70,6 +72,7 @@ const HIDDEN_HANDLE: React.CSSProperties = {
 function NodeCard({
   iconSlot,
   title,
+  titleMark,
   subtitle,
   accent,
   status,
@@ -80,6 +83,7 @@ function NodeCard({
 }: {
   iconSlot: ReactNode
   title: string
+  titleMark?: ReactNode
   subtitle?: string
   accent: "brand" | "neutral" | "solid"
   status?: OutputStatus
@@ -105,7 +109,10 @@ function NodeCard({
       {targetHandle && <Handle type="target" position={Position.Left} style={HIDDEN_HANDLE} />}
       {iconSlot}
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold">{title}</div>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div className="truncate text-sm font-semibold">{title}</div>
+          {titleMark}
+        </div>
         {subtitle && <div className="truncate text-xs text-muted-foreground">{subtitle}</div>}
         {status && (
           <div className="mt-1">
@@ -176,6 +183,7 @@ function SinkFlowNode({ data }: NodeProps<FlowNode>) {
     <NodeCard
       iconSlot={<OutputTypeIcon driver={data.outputName ?? data.label} />}
       title={data.label}
+      titleMark={<OriginMark provisioned={data.provisioned ?? false} />}
       subtitle={data.subtype}
       accent="neutral"
       status={data.status}
@@ -292,7 +300,7 @@ function buildGraph(
       data: {
         kind: "sink",
         label: out.name,
-        subtype: out.provisioned ? "from output files" : undefined,
+        provisioned: out.provisioned,
         status,
         outputName: out.name,
         onSelect: () => onSelect({ kind: "sink", name: out.name }),

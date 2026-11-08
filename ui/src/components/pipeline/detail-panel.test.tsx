@@ -47,7 +47,7 @@ describe("PipelineDetailPanel", () => {
   test("names the output by its driver, shows its origin and the real counters", () => {
     renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={delivering} />)
     expect(screen.getByRole("heading", { level: 2, name: "webhook" })).toBeInTheDocument()
-    expect(screen.getByText("created through the API")).toBeInTheDocument()
+    expect(screen.getByText("API provisioned")).toBeInTheDocument()
     expect(document.querySelector('[data-driver="webhook"]')).not.toBeNull()
     expect(metric("Sent")).toHaveTextContent("3")
     expect(metric("Evt/min")).toHaveTextContent("3")
@@ -60,9 +60,9 @@ describe("PipelineDetailPanel", () => {
     expect(screen.getByRole("meter", { name: "Queue webhook" })).toHaveAttribute("aria-valuemax", "100")
   })
 
-  test("a provisioned output says it comes from the output files", () => {
+  test("a provisioned output says it is file provisioned", () => {
     renderWithProviders(<PipelineDetailPanel selection={sink("inmemory")} entry={memoryEntry} status={null} />)
-    expect(screen.getByText("from output files")).toBeInTheDocument()
+    expect(screen.getByText("File provisioned")).toBeInTheDocument()
   })
 
   test("an output that never delivered shows never, its error and a failed state", () => {
