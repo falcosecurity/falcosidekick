@@ -21,11 +21,11 @@ export function EventFiltersBar({ className }: EventFiltersBarProps) {
   const [params, setParams] = useSearchParams()
 
   const filter = params.get("filter") ?? ""
-  const priority = csvFromParam(params.get("priority"))
-  const source = csvFromParam(params.get("source"))
-  const rule = csvFromParam(params.get("rule"))
-  const hostname = csvFromParam(params.get("hostname"))
-  const tags = csvFromParam(params.get("tags"))
+  const priority = listParam(params, "priority")
+  const source = listParam(params, "source")
+  const rule = listParam(params, "rule")
+  const hostname = listParam(params, "hostname")
+  const tags = listParam(params, "tags")
   const since = params.get("since") ?? ""
 
   const activeFilters: EventFilters = {
@@ -45,8 +45,8 @@ export function EventFiltersBar({ className }: EventFiltersBarProps) {
 
   function setParam(key: string, values: string[] | string) {
     const next = new URLSearchParams(params)
-    const value = Array.isArray(values) ? values.join(",") : values
-    if (value) next.set(key, value)
+    if (Array.isArray(values)) setListParam(next, key, values)
+    else if (values) next.set(key, values)
     else next.delete(key)
     next.delete("page")
     setParams(next, { replace: true })
@@ -141,12 +141,18 @@ export function EventFiltersBar({ className }: EventFiltersBarProps) {
   )
 }
 
-function csvFromParam(value: string | null): string[] {
-  if (!value) return []
-  return value
-    .split(",")
+// A list filter repeats its URL parameter once per value, as the API does: values may hold commas.
+function listParam(params: URLSearchParams, key: string): string[] {
+  return params
+    .getAll(key)
     .map((s) => s.trim())
     .filter(Boolean)
+}
+
+/** Replaces the values of a list filter in params, one parameter per value. */
+export function setListParam(params: URLSearchParams, key: string, values: readonly string[]): void {
+  params.delete(key)
+  for (const value of values) params.append(key, value)
 }
 
 type FacetField = "source" | "rule" | "hostname" | "tags"
@@ -169,11 +175,11 @@ export function useFiltersFromUrl() {
   const [params] = useSearchParams()
   return {
     filter: params.get("filter") || undefined,
-    priority: csvFromParam(params.get("priority")) as Priority[],
-    source: csvFromParam(params.get("source")),
-    rule: csvFromParam(params.get("rule")),
-    hostname: csvFromParam(params.get("hostname")),
-    tags: csvFromParam(params.get("tags")),
+    priority: listParam(params, "priority") as Priority[],
+    source: listParam(params, "source"),
+    rule: listParam(params, "rule"),
+    hostname: listParam(params, "hostname"),
+    tags: listParam(params, "tags"),
     since: params.get("since") || undefined,
   }
 }

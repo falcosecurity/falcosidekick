@@ -7,7 +7,7 @@ import { formatNumber } from "@/lib/format"
 import { PRIORITIES, PRIORITY_LABELS, type Priority } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-import { useFiltersFromUrl } from "./event-filters"
+import { setListParam, useFiltersFromUrl } from "./event-filters"
 
 const DOT: Record<Priority, string> = {
   emergency: "bg-priority-emergency",
@@ -34,8 +34,7 @@ export function PriorityQuickFilter({ className }: { className?: string }) {
 
   const select = (values: string[]) => {
     const next = new URLSearchParams(params)
-    if (values.length > 0) next.set("priority", values.join(","))
-    else next.delete("priority")
+    setListParam(next, "priority", values)
     next.delete("page")
     setParams(next, { replace: true })
   }

@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -33,22 +34,32 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-func TestSplitCSV(t *testing.T) {
+// A list filter repeats its parameter once per value; each value is taken as written, commas included.
+func TestListFiltersRepeatTheParameterAndKeepCommas(t *testing.T) {
 	tests := []struct {
-		name string
-		in   string
-		want []string
+		name  string
+		query string
+		want  []string
 	}{
-		{"empty", "", nil},
-		{"single", "foo", []string{"foo"}},
-		{"multiple", "foo,bar,baz", []string{"foo", "bar", "baz"}},
-		{"trim spaces", " foo , bar ,baz", []string{"foo", "bar", "baz"}},
-		{"drop empties", "foo,,bar", []string{"foo", "bar"}},
-		{"only empties", ",,,", nil},
+		{"absent", "", nil},
+		{"single", "rule=foo", []string{"foo"}},
+		{"repeated", "rule=foo&rule=bar&rule=baz", []string{"foo", "bar", "baz"}},
+		{"a comma is part of the value", "rule=" + url.QueryEscape("Write below etc, root or binary dirs") + "&rule=foo", []string{"Write below etc, root or binary dirs", "foo"}},
+		{"trim spaces", "rule=%20foo%20&rule=bar", []string{"foo", "bar"}},
+		{"drop empties", "rule=foo&rule=&rule=bar", []string{"foo", "bar"}},
+		{"only empties", "rule=&rule=", nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, splitCSV(tt.in))
+			store := &fakeReadableStore{}
+			srv := buildTestServerWithStore(t, store)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/events/search?"+tt.query, http.NoBody)
+			resp, err := srv.app.Test(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+			require.NotNil(t, store.LastSearchQuery)
+			assert.Equal(t, tt.want, store.LastSearchQuery.Filters.Rule)
 		})
 	}
 }
@@ -75,16 +86,16 @@ func TestHandleEventsSearch_ParsesAllFilters(t *testing.T) {
 	store := &fakeReadableStore{}
 	srv := buildTestServerWithStore(t, store)
 
-	url := "/api/v1/events/search?filter=hello" +
-		"&priority=critical,error" +
-		"&rule=foo,bar" +
+	target := "/api/v1/events/search?filter=hello" +
+		"&priority=critical&priority=error" +
+		"&rule=foo&rule=bar" +
 		"&source=syscall" +
-		"&hostname=node-1,node-2" +
-		"&tags=a,b" +
+		"&hostname=node-1&hostname=node-2" +
+		"&tags=a&tags=b" +
 		"&since=30m" +
 		"&page=3&limit=25"
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -427,17 +438,17 @@ func TestHandleEventsHistogram_PassesAllParams(t *testing.T) {
 	}
 	srv := buildTestServerWithStore(t, store)
 
-	url := "/api/v1/events/histogram?filter=needle" +
-		"&priority=error,warning" +
-		"&rule=r1,r2" +
+	target := "/api/v1/events/histogram?filter=needle" +
+		"&priority=error&priority=warning" +
+		"&rule=r1&rule=r2" +
 		"&source=syscall" +
 		"&hostname=node-a" +
-		"&tags=x,y" +
+		"&tags=x&tags=y" +
 		"&since=1h" +
 		"&bucket_ms=1800000" +
 		"&group_by=source"
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
@@ -474,8 +485,8 @@ func TestHandleEventsHistogram_Valid(t *testing.T) {
 	}
 	srv := buildTestServerWithStore(t, store)
 
-	url := "/api/v1/events/histogram?since=1h&bucket_ms=900000&group_by=source&priority=error"
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
+	target := "/api/v1/events/histogram?since=1h&bucket_ms=900000&group_by=source&priority=error"
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, http.NoBody)
 	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
