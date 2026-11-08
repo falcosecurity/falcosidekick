@@ -2,8 +2,6 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
   Inbox,
   RefreshCw,
 } from "lucide-react"
@@ -18,14 +16,16 @@ import { PriorityBadge } from "@/components/common/priority-badge"
 import { TimeAgo } from "@/components/common/time-ago"
 import { EventDetailDrawer } from "@/components/events/event-detail-drawer"
 import { EventFiltersBar, useQueryFromUrl } from "@/components/events/event-filters"
+import { EventsPagination } from "@/components/events/events-pagination"
+import { PriorityQuickFilter } from "@/components/events/priority-quick-filter"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useSearchEvents } from "@/hooks/use-events"
 import { errorMessage } from "@/lib/api-error"
-import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from "@/lib/constants"
-import { formatNumber } from "@/lib/format"
+import { DEFAULT_PAGE_SIZE } from "@/lib/constants"
+import { formatClock, formatNumber } from "@/lib/format"
 import type { Event, SortField } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -93,18 +93,6 @@ export function EventsPage() {
     )
   }
 
-  function goToPage(page: number) {
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev)
-        if (page <= 1) next.delete("page")
-        else next.set("page", String(page))
-        return next
-      },
-      { replace: true },
-    )
-  }
-
   function open(event: Event, trigger: HTMLButtonElement) {
     opener.current = trigger
     setSelected(event)
@@ -130,14 +118,17 @@ export function EventsPage() {
         }
       />
 
-      <EventFiltersBar />
+      <div className="flex flex-col gap-3">
+        <EventFiltersBar />
+        <PriorityQuickFilter />
+      </div>
 
-      <div
+      <Card
         ref={resultsRegion}
         role="region"
         aria-label="Event results"
         tabIndex={-1}
-        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="min-h-0 flex-1 gap-0 overflow-hidden py-0 shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {isPending ? (
           <div className="p-4">
@@ -176,7 +167,7 @@ export function EventsPage() {
                     active={!isPlaceholderData && sortBy === "timestamp"}
                     desc={sortDesc}
                     onClick={() => toggleSort("timestamp")}
-                    className="w-28"
+                    className="w-36"
                   >
                     Time
                   </SortHeader>
@@ -205,33 +196,47 @@ export function EventsPage() {
               </TableHeader>
               <TableBody>
                 {data.events.map((evt) => (
-                  <TableRow key={evt.uuid} className="border-b-border/60 has-[button:focus-visible]:bg-muted/60">
-                    <TableCell className="py-3">
+                  <TableRow
+                    key={evt.uuid}
+                    className="cursor-pointer border-b-border/60 has-[button:focus-visible]:bg-muted/60"
+                    onClick={(e) => {
+                      // The rule button opens the event; a click elsewhere on the row does the same.
+                      if ((e.target as HTMLElement).closest("button, a")) return
+                      const trigger = e.currentTarget.querySelector<HTMLButtonElement>("button[data-open-event]")
+                      if (trigger) open(evt, trigger)
+                    }}
+                  >
+                    <TableCell className="py-2.5 align-top">
                       <PriorityBadge priority={evt.priority} />
                     </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">
-                      <TimeAgo value={evt.time} />
+                    <TableCell className="py-2.5 align-top">
+                      <div className="font-mono text-xs tabular-nums">{formatClock(evt.time)}</div>
+                      <TimeAgo value={evt.time} className="text-xs text-muted-foreground" />
                     </TableCell>
-                    <TableCell className="py-3">
+                    <TableCell className="py-2.5">
                       <button
                         type="button"
+                        data-open-event
                         title={evt.rule}
                         onClick={(e) => open(evt, e.currentTarget)}
                         className="block w-full truncate rounded-sm text-left font-medium text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         {evt.rule}
                       </button>
+                      <p className="truncate text-xs text-muted-foreground" title={evt.output}>
+                        {evt.output}
+                      </p>
                     </TableCell>
-                    <TableCell className="hidden py-3 md:table-cell">
+                    <TableCell className="hidden py-2.5 align-top md:table-cell">
                       <SourceChip source={evt.source} />
                     </TableCell>
                     <TableCell
-                      className="hidden truncate py-3 font-mono text-xs text-muted-foreground lg:table-cell"
+                      className="hidden truncate py-2.5 align-top font-mono text-xs text-muted-foreground lg:table-cell"
                       title={evt.hostname}
                     >
                       {evt.hostname ?? "-"}
                     </TableCell>
-                    <TableCell className="hidden py-3 xl:table-cell">
+                    <TableCell className="hidden py-2.5 align-top xl:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {(evt.tags ?? []).slice(0, MAX_VISIBLE_TAGS).map((tag) => (
                           <TagChip key={tag} tag={tag} />
@@ -249,65 +254,23 @@ export function EventsPage() {
             </Table>
           </div>
         )}
-      </div>
+      </Card>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span aria-live="polite" className="tabular-nums">
-          {isError
+      <EventsPagination
+        page={page}
+        totalPages={totalPages}
+        limit={limit}
+        disabled={isPending}
+        summary={
+          isError
             ? "Events unavailable"
             : data && data.events.length > 0
               ? `Showing ${formatNumber(start)}-${formatNumber(end)} of ${formatNumber(total)}`
               : data
                 ? `${formatNumber(total)} events`
-                : "Loading…"}
-        </span>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="hidden sm:inline" aria-hidden>
-            Rows per page
-          </span>
-          <Select
-            value={String(query.limit ?? DEFAULT_PAGE_SIZE)}
-            onValueChange={(v) => {
-              setParams(
-                (prev) => {
-                  const next = new URLSearchParams(prev)
-                  next.set("limit", v)
-                  next.delete("page")
-                  return next
-                },
-                { replace: true },
-              )
-            }}
-          >
-            <SelectTrigger className="h-8 w-20" aria-label="Rows per page">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PAGE_SIZES.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" onClick={() => goToPage(page - 1)} disabled={page <= 1 || isPending}>
-            <ChevronLeft className="mr-1 size-3.5" aria-hidden />
-            Previous
-          </Button>
-          <span className="tabular-nums">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => goToPage(page + 1)}
-            disabled={page >= totalPages || isPending}
-          >
-            Next
-            <ChevronRight className="ml-1 size-3.5" aria-hidden />
-          </Button>
-        </div>
-      </div>
+                : "Loading…"
+        }
+      />
 
       <EventDetailDrawer
         event={selected}

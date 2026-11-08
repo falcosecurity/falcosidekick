@@ -2,11 +2,11 @@ import { Search, X } from "lucide-react"
 import { useSearchParams } from "react-router"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useEventsCountBy } from "@/hooks/use-events"
 import { SINCE_PRESETS } from "@/lib/constants"
-import { PRIORITIES, PRIORITY_LABELS, type EventFilters, type Priority } from "@/lib/types"
+import type { EventFilters, Priority } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 import { MultiSelectFilter, type MultiSelectOption } from "./multi-select-filter"
@@ -16,11 +16,6 @@ interface EventFiltersBarProps {
 }
 
 const ANY_SINCE = "any"
-
-const PRIORITY_OPTIONS: readonly MultiSelectOption[] = PRIORITIES.map((p) => ({
-  value: p,
-  label: PRIORITY_LABELS[p],
-}))
 
 export function EventFiltersBar({ className }: EventFiltersBarProps) {
   const [params, setParams] = useSearchParams()
@@ -75,27 +70,18 @@ export function EventFiltersBar({ className }: EventFiltersBarProps) {
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <div className="relative min-w-64 flex-1">
-        <Search
-          className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden
-        />
-        <Input
-          className="pl-8"
+      <InputGroup className="min-w-64 flex-1">
+        <InputGroupAddon>
+          <Search aria-hidden />
+        </InputGroupAddon>
+        <InputGroupInput
           placeholder="Search output, rule, tag, host…"
           value={filter}
           onChange={(e) => setParam("filter", e.target.value)}
           aria-label="Free-text search"
         />
-      </div>
+      </InputGroup>
 
-      <MultiSelectFilter
-        label="Priority"
-        placeholder="Priority"
-        options={PRIORITY_OPTIONS}
-        values={priority}
-        onChange={(v) => setParam("priority", v)}
-      />
       <MultiSelectFilter
         label="Source"
         placeholder="Source"
