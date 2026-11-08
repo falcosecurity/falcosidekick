@@ -13,7 +13,7 @@ import {
   type NodeProps,
 } from "@xyflow/react"
 import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js"
-import { Server } from "lucide-react"
+import { Plus, Server } from "lucide-react"
 import {
   forwardRef,
   useCallback,
@@ -40,7 +40,7 @@ import { centerOnCore } from "./center-on-core"
 
 import "@xyflow/react/dist/style.css"
 
-type NodeKind = "source" | "core" | "sink"
+type NodeKind = "source" | "core" | "sink" | "add"
 
 type KindData = {
   kind: NodeKind
@@ -194,7 +194,23 @@ function SinkFlowNode({ data }: NodeProps<FlowNode>) {
   )
 }
 
-const nodeTypes = { source: SourceFlowNode, core: CoreFlowNode, sink: SinkFlowNode }
+function AddFlowNode({ data }: NodeProps<FlowNode>) {
+  return (
+    <button
+      type="button"
+      onClick={data.onSelect}
+      className="nopan relative flex w-58 items-center gap-3 rounded-lg border border-dashed border-foreground/25 bg-card/60 px-3 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-brand hover:bg-brand/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Handle type="target" position={Position.Left} style={HIDDEN_HANDLE} />
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-dashed border-current">
+        <Plus className="size-5" aria-hidden />
+      </span>
+      <span className="font-medium">{data.label}</span>
+    </button>
+  )
+}
+
+const nodeTypes = { source: SourceFlowNode, core: CoreFlowNode, sink: SinkFlowNode, add: AddFlowNode }
 
 async function layoutElk(nodes: FlowNode[], edges: FlowEdge[]): Promise<FlowNode[]> {
   const graph: ElkNode = {
@@ -246,6 +262,7 @@ function buildGraph(
   statusByName: Record<string, OutputStatus>,
   selection: PipelineSelection,
   onSelect: (sel: PipelineSelection) => void,
+  onAdd?: () => void,
 ): { nodes: FlowNode[]; edges: FlowEdge[] } {
   const sourceSelected = selection?.kind === "source"
   const coreSelected = selection?.kind === "core"
@@ -317,8 +334,25 @@ function buildGraph(
     })
   }
 
+  if (onAdd) {
+    nodes.push({
+      id: ADD_NODE_ID,
+      type: "add",
+      position: { x: 0, y: 0 },
+      data: { kind: "add", label: "Add output", onSelect: onAdd },
+    })
+    edges.push({
+      id: "sidekick->add",
+      source: "core:sidekick",
+      target: ADD_NODE_ID,
+      style: { stroke: "var(--muted-foreground)", strokeOpacity: 0.5, strokeWidth: 1.25, strokeDasharray: "4 4" },
+    })
+  }
+
   return { nodes, edges }
 }
+
+const ADD_NODE_ID = "add:output"
 
 function edgeStyleForStatus(status?: OutputHealth): React.CSSProperties {
   switch (status) {
@@ -340,6 +374,8 @@ interface CanvasProps {
   statusByName: Record<string, OutputStatus>
   selection: PipelineSelection
   onSelect: (sel: PipelineSelection) => void
+  /** Shows the "Add output" node; absent when the API refuses writes. */
+  onAdd?: () => void
 }
 
 export interface PipelineCanvasHandle {
@@ -351,6 +387,7 @@ function CanvasInner({
   statusByName,
   selection,
   onSelect,
+  onAdd,
   handleRef,
 }: CanvasProps & { handleRef: React.Ref<PipelineCanvasHandle> }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([])
@@ -362,10 +399,10 @@ function CanvasInner({
     error: boolean
   } | null>(null)
 
-  const graphKey = JSON.stringify(composite.outputs.map((o) => [o.name, o.provisioned]))
+  const graphKey = JSON.stringify([composite.outputs.map((o) => [o.name, o.provisioned]), onAdd !== undefined])
   const graph = useMemo(
-    () => buildGraph(composite, statusByName, selection, onSelect),
-    [composite, statusByName, selection, onSelect],
+    () => buildGraph(composite, statusByName, selection, onSelect, onAdd),
+    [composite, statusByName, selection, onSelect, onAdd],
   )
   const liveNodes = useMemo(() => {
     const dataById = new Map(graph.nodes.map((node) => [node.id, node.data]))

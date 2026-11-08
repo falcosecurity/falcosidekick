@@ -50,6 +50,14 @@ describe("centerOnCore", () => {
     expect(order).toEqual(["sink:1", "sink:2", "sink:0"])
   })
 
+  test("the add node joins the outputs column, last, inside the symmetry", () => {
+    const nodes = [...graph(2), { id: "add:output", type: "add", position: { x: 640, y: -50 }, height: 64 }]
+    const placed = centerOnCore(nodes, heightOf).filter((n) => n.type !== "source" && n.type !== "core")
+    expect(placed.sort((a, b) => a.position.y - b.position.y).map((n) => n.id)).toEqual(["sink:0", "sink:1", "add:output"])
+    const centers = placed.map(center)
+    expect(centers.reduce((s, c) => s + c, 0) / centers.length).toBeCloseTo(200 + 64 / 2)
+  })
+
   test("leaves a graph without the Sidekick node unchanged", () => {
     const nodes = graph(2).filter((n) => n.type !== "core")
     expect(centerOnCore(nodes, heightOf)).toBe(nodes)

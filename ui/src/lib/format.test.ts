@@ -37,6 +37,12 @@ describe("formatTimeAgo", () => {
     expect(formatTimeAgo(now + 2 * 3_600_000, now)).toBe("in 2 hours")
   })
 
+  test("an instant a few seconds ahead, from clock skew, reads as just now", () => {
+    expect(formatTimeAgo(now + 1_500, now)).toBe("just now")
+    expect(formatTimeAgo(now + 59_000, now)).toBe("just now")
+    expect(formatTimeAgo(now + 61_000, now)).toBe("in 1 minute")
+  })
+
   test("renders a dash for an unparsable instant", () => {
     expect(formatTimeAgo("not a date", now)).toBe("-")
     expect(formatAbsoluteTime("not a date")).toBe("-")
