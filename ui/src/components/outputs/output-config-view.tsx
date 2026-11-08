@@ -1,8 +1,10 @@
-import { FileKey2, KeyRound } from "lucide-react"
+import { ChevronsDownUp, ChevronsUpDown, FileKey2, KeyRound } from "lucide-react"
 import { useMemo, useState, type ReactNode } from "react"
 
+import { SectionHeading } from "@/components/common/section-heading"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { OutputConfigEntry, SchemaField } from "@/lib/types"
 
@@ -121,15 +123,31 @@ export function OutputConfigView({ entry, fields }: { entry: OutputConfigEntry; 
     }))
     .filter((s) => s.views.length > 0)
   const [open, setOpen] = useState<string[]>(() => sections.filter((s) => s.fields.some((f) => views.get(f.name)?.set)).map((s) => s.key))
+  const allOpen = visible.length > 0 && visible.every((s) => open.includes(s.key))
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Configuration</h3>
-        <ToggleGroup type="single" variant="outline" size="sm" value={mode} onValueChange={(v) => v && setMode(v as Mode)} aria-label="Fields shown">
-          <ToggleGroupItem value="set" className="px-2.5 text-xs">Set</ToggleGroupItem>
-          <ToggleGroupItem value="all" className="px-2.5 text-xs">All fields</ToggleGroupItem>
-        </ToggleGroup>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <SectionHeading level={3} className="text-sm normal-case tracking-normal text-foreground">
+          Configuration
+        </SectionHeading>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={visible.length === 0}
+            onClick={() => setOpen(allOpen ? [] : visible.map((s) => s.key))}
+          >
+            {allOpen ? <ChevronsDownUp aria-hidden /> : <ChevronsUpDown aria-hidden />}
+            {allOpen ? "Collapse all" : "Expand all"}
+          </Button>
+          <ToggleGroup type="single" variant="outline" size="sm" value={mode} onValueChange={(v) => v && setMode(v as Mode)} aria-label="Fields shown">
+            <ToggleGroupItem value="set" className="px-2.5 text-xs">Set</ToggleGroupItem>
+            <ToggleGroupItem value="all" className="px-2.5 text-xs">All fields</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </div>
       {visible.length === 0 ? (
         <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">

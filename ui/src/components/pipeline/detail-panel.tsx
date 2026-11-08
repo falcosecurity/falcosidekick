@@ -299,7 +299,7 @@ function OutputDetail({
         {types.isPending ? (
           <LoadingSkeleton lines={4} />
         ) : outputType ? (
-          <OutputConfigView entry={entry} fields={outputType.schema.fields} />
+          <OutputConfigView key={entry.name} entry={entry} fields={outputType.schema.fields} />
         ) : (
           <section className="flex flex-col gap-2">
             <SectionHeading>Configuration</SectionHeading>
