@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
@@ -12,10 +12,11 @@ import { cn } from "@/lib/utils"
 
 import { SEVERITY_TIERS, tierRows } from "./severity"
 
+// Enough buckets per window for a curve to read as a trend.
 const WINDOWS = [
-  { label: "1h", since: "1h", bucketMs: 5 * 60_000 },
-  { label: "6h", since: "6h", bucketMs: 30 * 60_000 },
-  { label: "24h", since: "24h", bucketMs: 2 * 3_600_000 },
+  { label: "1h", since: "1h", bucketMs: 2 * 60_000 },
+  { label: "6h", since: "6h", bucketMs: 10 * 60_000 },
+  { label: "24h", since: "24h", bucketMs: 30 * 60_000 },
 ] as const
 
 const CONFIG = Object.fromEntries(SEVERITY_TIERS.map((t) => [t.key, { label: t.label, color: t.color }])) satisfies ChartConfig
@@ -62,22 +63,32 @@ export function SeverityCard({ className }: { className?: string }) {
           <p className="flex h-52 items-center justify-center text-sm text-muted-foreground">No events in the last {window.label}.</p>
         ) : (
           <ChartContainer config={CONFIG} className="aspect-auto h-52 w-full" initialDimension={{ width: 360, height: 208 }}>
-            <BarChart data={rows} margin={{ top: 4, right: 0, left: 0, bottom: 0 }} barCategoryGap={2}>
+            <AreaChart data={rows} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <defs>
+                {SEVERITY_TIERS.map((tier) => (
+                  <linearGradient key={tier.key} id={`severity-fill-${tier.key}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={`var(--color-${tier.key})`} stopOpacity={0.7} />
+                    <stop offset="95%" stopColor={`var(--color-${tier.key})`} stopOpacity={0.15} />
+                  </linearGradient>
+                ))}
+              </defs>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="t" tickFormatter={timeLabel} tickLine={false} axisLine={false} minTickGap={32} />
               <YAxis width={32} tickLine={false} axisLine={false} allowDecimals={false} />
-              <ChartTooltip cursor={{ fillOpacity: 0.4 }} content={<ChartTooltipContent labelFormatter={(_, payload) => timeLabel(Number(payload?.[0]?.payload?.t))} />} />
-              {SEVERITY_TIERS.map((tier, i) => (
-                <Bar
+              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" labelFormatter={(_, payload) => timeLabel(Number(payload?.[0]?.payload?.t))} />} />
+              {SEVERITY_TIERS.map((tier) => (
+                <Area
                   key={tier.key}
                   dataKey={tier.key}
+                  type="monotone"
                   stackId="tiers"
-                  fill={`var(--color-${tier.key})`}
-                  radius={i === SEVERITY_TIERS.length - 1 ? [3, 3, 0, 0] : 0}
+                  stroke={`var(--color-${tier.key})`}
+                  strokeWidth={1.5}
+                  fill={`url(#severity-fill-${tier.key})`}
                   isAnimationActive={false}
                 />
               ))}
-            </BarChart>
+            </AreaChart>
           </ChartContainer>
         )}
         <ul className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
