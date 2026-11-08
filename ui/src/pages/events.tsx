@@ -16,11 +16,13 @@ import { PriorityBadge } from "@/components/common/priority-badge"
 import { TimeAgo } from "@/components/common/time-ago"
 import { EventDetailDrawer } from "@/components/events/event-detail-drawer"
 import { EventFiltersBar, useQueryFromUrl } from "@/components/events/event-filters"
+import { ExportAllButton, SelectionBar } from "@/components/events/event-export"
 import { EventsPagination } from "@/components/events/events-pagination"
 import { PriorityQuickFilter } from "@/components/events/priority-quick-filter"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useSearchEvents } from "@/hooks/use-events"
 import { errorMessage } from "@/lib/api-error"
@@ -70,6 +72,8 @@ export function EventsPage() {
   const query = useQueryFromUrl()
   const { data, isPending, isError, error, refetch, isFetching, isPlaceholderData } = useSearchEvents(query)
   const [selected, setSelected] = useState<Event | null>(null)
+  // Picked events by uuid; the selection survives paging and filtering until it is cleared.
+  const [picked, setPicked] = useState<ReadonlyMap<string, Event>>(new Map())
   const opener = useRef<HTMLButtonElement | null>(null)
   const resultsRegion = useRef<HTMLDivElement>(null)
 
@@ -105,22 +109,42 @@ export function EventsPage() {
   const start = (page - 1) * limit + 1
   const end = Math.min(total, page * limit)
 
+  const pageEvents = data?.events ?? []
+  const pagePicked = pageEvents.filter((e) => picked.has(e.uuid)).length
+  const pageState: boolean | "indeterminate" =
+    pagePicked === 0 ? false : pagePicked === pageEvents.length ? true : "indeterminate"
+
+  function pick(events: readonly Event[], on: boolean) {
+    setPicked((prev) => {
+      const next = new Map(prev)
+      for (const e of events) {
+        if (on) next.set(e.uuid, e)
+        else next.delete(e.uuid)
+      }
+      return next
+    })
+  }
+
   return (
     <div className="flex h-full flex-col gap-4">
       <PageHeader
         title="Events"
         description="Search, filter, and inspect Falco events as they flow through Falco Sidekick."
         actions={
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCw className={cn("mr-1 size-3.5", isFetching && "animate-spin")} aria-hidden />
-            Refresh
-          </Button>
+          <>
+            <ExportAllButton query={query} total={total} />
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw className={cn("size-3.5", isFetching && "animate-spin")} aria-hidden />
+              Refresh
+            </Button>
+          </>
         }
       />
 
       <div className="flex flex-col gap-3">
         <EventFiltersBar />
         <PriorityQuickFilter />
+        {picked.size > 0 && <SelectionBar events={[...picked.values()]} onClear={() => setPicked(new Map())} />}
       </div>
 
       <Card
@@ -155,6 +179,13 @@ export function EventsPage() {
             <Table className="table-fixed" aria-busy={isFetching || isPlaceholderData}>
               <TableHeader className="sticky top-0 z-10 bg-muted/40 backdrop-blur">
                 <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10 pr-0">
+                    <Checkbox
+                      checked={pageState}
+                      onCheckedChange={(on) => pick(pageEvents, on === true)}
+                      aria-label="Select every event on this page"
+                    />
+                  </TableHead>
                   <SortHeader
                     active={!isPlaceholderData && sortBy === "priority"}
                     desc={sortDesc}
@@ -198,22 +229,30 @@ export function EventsPage() {
                 {data.events.map((evt) => (
                   <TableRow
                     key={evt.uuid}
+                    data-state={picked.has(evt.uuid) ? "selected" : undefined}
                     className="cursor-pointer border-b-border/60 has-[button:focus-visible]:bg-muted/60"
                     onClick={(e) => {
                       // The rule button opens the event; a click elsewhere on the row does the same.
-                      if ((e.target as HTMLElement).closest("button, a")) return
+                      if ((e.target as HTMLElement).closest("button, a, [data-select-cell]")) return
                       const trigger = e.currentTarget.querySelector<HTMLButtonElement>("button[data-open-event]")
                       if (trigger) open(evt, trigger)
                     }}
                   >
-                    <TableCell className="py-2.5 align-top">
+                    <TableCell data-select-cell className="w-10 cursor-default pr-0 align-middle">
+                      <Checkbox
+                        checked={picked.has(evt.uuid)}
+                        onCheckedChange={(on) => pick([evt], on === true)}
+                        aria-label={`Select ${evt.rule} at ${formatClock(evt.time)}`}
+                      />
+                    </TableCell>
+                    <TableCell className="py-2.5 align-middle">
                       <PriorityBadge priority={evt.priority} />
                     </TableCell>
-                    <TableCell className="py-2.5 align-top">
+                    <TableCell className="py-2.5 align-middle">
                       <div className="font-mono text-xs tabular-nums">{formatClock(evt.time)}</div>
-                      <TimeAgo value={evt.time} className="text-xs text-muted-foreground" />
+                      <TimeAgo value={evt.time} className="block text-xs text-muted-foreground" />
                     </TableCell>
-                    <TableCell className="py-2.5">
+                    <TableCell className="py-2.5 align-middle">
                       <button
                         type="button"
                         data-open-event
@@ -227,16 +266,16 @@ export function EventsPage() {
                         {evt.output}
                       </p>
                     </TableCell>
-                    <TableCell className="hidden py-2.5 align-top md:table-cell">
+                    <TableCell className="hidden py-2.5 align-middle md:table-cell">
                       <SourceChip source={evt.source} />
                     </TableCell>
                     <TableCell
-                      className="hidden truncate py-2.5 align-top font-mono text-xs text-muted-foreground lg:table-cell"
+                      className="hidden truncate py-2.5 align-middle font-mono text-xs text-muted-foreground lg:table-cell"
                       title={evt.hostname}
                     >
                       {evt.hostname ?? "-"}
                     </TableCell>
-                    <TableCell className="hidden py-2.5 align-top xl:table-cell">
+                    <TableCell className="hidden py-2.5 align-middle xl:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {(evt.tags ?? []).slice(0, MAX_VISIBLE_TAGS).map((tag) => (
                           <TagChip key={tag} tag={tag} />

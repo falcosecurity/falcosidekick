@@ -246,3 +246,43 @@ describe("EventsPage", () => {
     expect(within(table).getByRole("columnheader", { name: "Time" })).toHaveAttribute("aria-sort", "descending")
   })
 })
+
+describe("EventsPage selection and export", () => {
+  const page: SearchResult = { ...fixtures.eventsSearch, events, total: events.length }
+
+  test("picks rows or the whole page without opening the drawer, and copies them as JSON", async () => {
+    search.mockResolvedValue(page)
+    const writeText = spyOn(navigator.clipboard, "writeText").mockResolvedValue()
+    renderWithProviders(<EventsPage />)
+    await rowButton()
+    const boxes = screen.getAllByRole("checkbox")
+    fireEvent.click(boxes[1]!)
+    expect(screen.getByRole("toolbar", { name: "Selected events" })).toHaveTextContent("1 event selected")
+    expect(screen.queryByRole("dialog")).toBeNull()
+    expect(screen.getByRole("checkbox", { name: "Select every event on this page" })).toHaveAttribute("data-state", "indeterminate")
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select every event on this page" }))
+    expect(screen.getByRole("toolbar")).toHaveTextContent(`${events.length} events selected`)
+    fireEvent.click(screen.getByRole("button", { name: /Copy JSON/ }))
+    await waitFor(() => expect(writeText).toHaveBeenCalled())
+    expect(JSON.parse(String(writeText.mock.calls[0]![0])).map((e: Event) => e.uuid).sort()).toEqual(events.map((e) => e.uuid).sort())
+
+    fireEvent.click(screen.getByRole("button", { name: /Clear/ }))
+    expect(screen.queryByRole("toolbar", { name: "Selected events" })).toBeNull()
+    writeText.mockRestore()
+  })
+
+  test("exports every event the filters match with one search up to the export limit", async () => {
+    search.mockResolvedValue(page)
+    const created = spyOn(URL, "createObjectURL").mockReturnValue("blob:events")
+    const revoked = spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
+    renderWithProviders(<EventsPage />, { initialEntries: ["/events?rule=Write%20below%20etc&sort_by=priority"] })
+    await rowButton()
+    fireEvent.click(screen.getByRole("button", { name: /Export all matching/ }))
+    await waitFor(() => expect(created).toHaveBeenCalled())
+    const exported = search.mock.calls.at(-1)![0]
+    expect(exported).toMatchObject({ page: 1, limit: 10_000, rule: ["Write below etc"], sort_by: "priority" })
+    created.mockRestore()
+    revoked.mockRestore()
+  })
+})
