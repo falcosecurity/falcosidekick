@@ -48,17 +48,17 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 		case string:
 			for k := range config.Customfields {
 				if i == k {
-					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", "_"), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
+					s[lokiLabelName(i)] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 			for k := range config.Templatedfields {
 				if i == k {
-					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", "_"), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
+					s[lokiLabelName(i)] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 			for _, k := range config.Loki.ExtraLabelsList {
 				if i == k {
-					s[strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(i, ".", "_"), "]", ""), "[", "")] = strings.ReplaceAll(v, "\"", "")
+					s[lokiLabelName(i)] = strings.ReplaceAll(v, "\"", "")
 				}
 			}
 		default:
@@ -88,6 +88,19 @@ func newLokiPayload(falcopayload types.FalcoPayload, config *types.Configuration
 			Values: []lokiValue{[]string{fmt.Sprintf("%v", falcopayload.Time.UnixNano()), v}},
 		},
 	}}
+}
+
+// lokiLabelName turns a field name into a Loki label name. Loki rejects the
+// whole push when a label name does not match [a-zA-Z_][a-zA-Z0-9_]*, so the
+// characters that are still invalid after the historical replacements (for
+// example "/" and "-" in k8s.pod.label[app.kubernetes.io/name]) become "_".
+func lokiLabelName(field string) string {
+	name := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(field, ".", "_"), "]", ""), "[", "")
+	name = reg.ReplaceAllString(name, "_")
+	if name != "" && name[0] >= '0' && name[0] <= '9' {
+		name = "_" + name
+	}
+	return name
 }
 
 func lokiConfigureTenant(cfg *types.Configuration, req *http.Request) {
