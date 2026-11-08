@@ -27,88 +27,57 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-var fileFields = []output.SchemaField{
-	{Name: "token", Type: "string", Secret: true},
-	{Name: "password", Type: "map", Secret: true},
-	{Name: "tls.ca_file", Type: "string", File: true},
-	{Name: "certs", Type: "list", File: true},
-	{Name: "headers", Type: "map", EntryFields: []output.SchemaField{
-		{Name: "files", Type: "list", File: true},
-	}},
-}
+func TestFileFieldsDigest(t *testing.T) {
+	fields := []output.SchemaField{
+		{Name: "token", Type: "string", Secret: true},
+		{Name: "tls.ca_file", Type: "string", File: true},
+		{Name: "certs", Type: "list", File: true},
+		{Name: "headers", Type: "map", EntryFields: []output.SchemaField{
+			{Name: "files", Type: "list", File: true},
+		}},
+	}
+	dir := t.TempDir()
+	ca := filepath.Join(dir, "ca.pem")
+	writeFile(t, ca, "ca")
+	other := filepath.Join(dir, "other.pem")
+	writeFile(t, other, "other")
+	with := func(cfg map[string]any) string {
+		t.Helper()
+		digest, err := fileFieldsDigest("webhook", cfg, fields)
+		require.NoError(t, err)
+		return digest
+	}
+	withCA := map[string]any{"tls": map[string]any{"ca_file": ca}}
 
-func TestCollectFilePaths(t *testing.T) {
-	tests := []struct {
-		cfg     map[string]any
-		want    map[string]string
-		name    string
-		wantErr string
-	}{
-		{name: "empty", cfg: map[string]any{}, want: map[string]string{}},
-		{
-			name: "secret file variant",
-			cfg:  map[string]any{"token_file": "/s/token", "password_file": "/s/ignored"},
-			want: map[string]string{"token_file": "/s/token"},
-		},
-		{
-			name: "file field under a parent",
-			cfg:  map[string]any{"tls": map[string]any{"ca_file": "/s/ca.pem"}},
-			want: map[string]string{"tls.ca_file": "/s/ca.pem"},
-		},
-		{
-			name: "empty path is no path",
-			cfg:  map[string]any{"token_file": ""},
-			want: map[string]string{},
-		},
-		{
-			name: "list of any",
-			cfg:  map[string]any{"certs": []any{"/s/a", "/s/b"}},
-			want: map[string]string{"certs[0]": "/s/a", "certs[1]": "/s/b"},
-		},
-		{
-			name: "list of strings",
-			cfg:  map[string]any{"certs": []string{"/s/a"}},
-			want: map[string]string{"certs[0]": "/s/a"},
-		},
-		{
-			name: "map entries",
-			cfg: map[string]any{"headers": map[string]any{
-				"X-A": map[string]any{"files": []any{"/s/x"}},
-				"X-B": "not an object",
-			}},
-			want: map[string]string{`headers["X-A"].files[0]`: "/s/x"},
-		},
-		{
-			name:    "list item not a string",
-			cfg:     map[string]any{"token_file": "/s/token", "certs": []any{"/s/a", 1}},
-			want:    map[string]string{"token_file": "/s/token", "certs[0]": "/s/a"},
-			wantErr: "certs[1]: must be a string",
-		},
-		{
-			name:    "not a path",
-			cfg:     map[string]any{"tls": map[string]any{"ca_file": map[string]any{"path": "x"}}},
-			want:    map[string]string{},
-			wantErr: "tls.ca_file: must be a file path",
-		},
-		{
-			name:    "entry not a path",
-			cfg:     map[string]any{"headers": map[string]any{"X-A": map[string]any{"files": 3}}},
-			want:    map[string]string{},
-			wantErr: `headers["X-A"].files: must be a file path`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			paths := make(map[string]string)
-			err := CollectFilePaths(tt.cfg, fileFields, paths)
-			if tt.wantErr != "" {
-				require.EqualError(t, err, tt.wantErr)
-			} else {
-				require.NoError(t, err)
-			}
-			assert.Equal(t, tt.want, paths, "paths keeps what was collected before an error")
-		})
-	}
+	t.Run("no File field set", func(t *testing.T) {
+		assert.Empty(t, with(map[string]any{
+			"token_file": ca,
+			"headers":    map[string]any{"X-A": map[string]any{"files": []any{ca}}},
+		}), "secret files and entry files are not File fields")
+	})
+	t.Run("same contents, same digest", func(t *testing.T) {
+		first := with(withCA)
+		require.NotEmpty(t, first)
+		assert.Equal(t, first, with(withCA))
+	})
+	t.Run("contents change the digest", func(t *testing.T) {
+		before := with(withCA)
+		writeFile(t, ca, "renewed")
+		assert.NotEqual(t, before, with(withCA))
+	})
+	t.Run("the location is part of the digest", func(t *testing.T) {
+		assert.NotEqual(t, with(map[string]any{"certs": []any{ca, other}}), with(map[string]any{"certs": []any{other, ca}}))
+	})
+	t.Run("missing file", func(t *testing.T) {
+		missing := filepath.Join(dir, "missing")
+		_, err := fileFieldsDigest("webhook", map[string]any{"tls": map[string]any{"ca_file": missing}}, fields)
+		require.EqualError(t, err, `output "webhook": tls.ca_file: file does not exist`)
+		assert.NotContains(t, err.Error(), dir)
+	})
+	t.Run("not a path", func(t *testing.T) {
+		_, err := fileFieldsDigest("webhook", map[string]any{"certs": 3}, fields)
+		require.EqualError(t, err, `output "webhook": certs: must be a file path`)
+	})
 }
 
 // kubeletMount lays out dir as kubelet mounts a Secret: dir/<key> -> ..data/<key>, ..data -> version.

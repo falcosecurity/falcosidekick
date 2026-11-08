@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
-	"github.com/falcosecurity/falcosidekick/internal/reload"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
@@ -40,9 +39,9 @@ var (
 // same place were accepted before, from an output file or an earlier request.
 func checkFilePaths(stored, merged map[string]any, fields []output.SchemaField, secretDirs []string) error {
 	before := make(map[string]string)
-	_ = reload.CollectFilePaths(stored, fields, before)
+	_ = output.CollectFilePaths(stored, fields, before)
 	after := make(map[string]string)
-	if err := reload.CollectFilePaths(merged, fields, after); err != nil {
+	if err := output.CollectFilePaths(merged, fields, after); err != nil {
 		return err
 	}
 	locations := make([]string, 0, len(after))
