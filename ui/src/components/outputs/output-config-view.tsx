@@ -164,9 +164,10 @@ export function OutputConfigView({ entry, fields }: { entry: OutputConfigEntry; 
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <dl className="flex flex-col divide-y">
+                {/* The panel width, not the window, decides whether label and value share a row. */}
+                <dl className="@container flex flex-col divide-y">
                   {section.views.map(({ field, set, value }) => (
-                    <div key={field.name} className="grid gap-1 py-2 text-sm sm:grid-cols-[minmax(0,11rem)_1fr] sm:gap-3">
+                    <div key={field.name} className="grid gap-1 py-2 text-sm @sm:grid-cols-[minmax(0,9rem)_1fr] @sm:gap-3">
                       <dt className="text-muted-foreground [overflow-wrap:anywhere]">{field.label}</dt>
                       <dd className={set ? "min-w-0" : "flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground"}>
                         {value ?? <span aria-label="not set">—</span>}
