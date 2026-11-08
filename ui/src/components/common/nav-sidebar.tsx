@@ -1,4 +1,4 @@
-import { Activity, LayoutDashboard, Network, Settings } from "lucide-react"
+import { Activity, LayoutDashboard, Network, SlidersHorizontal } from "lucide-react"
 import { NavLink } from "react-router"
 
 import logoIcon from "@/assets/logo-icon.svg"
@@ -18,7 +18,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/events", label: "Events", icon: Activity },
   { to: "/pipeline", label: "Pipeline", icon: Network },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/configuration", label: "Configuration", icon: SlidersHorizontal },
 ] as const
 
 const LINK_CLASS =

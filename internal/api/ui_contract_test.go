@@ -179,6 +179,7 @@ func TestUIContractFixtures(t *testing.T) {
 		fixtures[c.name] = uiFixtureRequest(t, srv.app, http.MethodGet, c.path, "", http.StatusOK)
 	}
 	fixtures["errors"] = uiErrorFixtures(t, srv, cat)
+	fixtures["config-postgres"] = uiPostgresConfigFixture(t, p, db, cat, cfg)
 
 	canonicalizeUIFixtures(fixtures)
 	for name, body := range fixtures {
@@ -230,6 +231,36 @@ func uiFixtureEvents(now time.Time) []map[string]any {
 }
 
 // uiErrorFixtures collects the error envelopes the UI maps to messages, keyed by case.
+// uiPostgresConfigFixture serves a postgres configuration with an inline password and TLS files, so
+// the UI sees the masked password and every database field the Configuration page shows.
+func uiPostgresConfigFixture(
+	t *testing.T, p *pipeline.Pipeline, db core.Database, cat *catalog.Catalog, base *core.Config,
+) map[string]any {
+	t.Helper()
+	cfg := base.DeepCopy()
+	cfg.Database.Backend = core.DatabasePostgres
+	cfg.Database.Postgres.Host = "postgres.falco.svc"
+	cfg.Database.Postgres.Database = "falcosidekick"
+	cfg.Database.Postgres.User = "sidekick"
+	cfg.Database.Postgres.Password = "not-a-real-password"
+	cfg.Database.Postgres.TLS.CAFile = "/etc/falcosidekick/secrets/postgres-tls/ca.crt"
+	cfg.API.AllowWrites = true
+	cfg.API.SecretDirs = []string{"/etc/falcosidekick/secrets"}
+	cfg.Metrics.ExtraLabels = []string{"cluster"}
+	cfg.TLS = &core.TLSConfig{
+		Enabled:  true,
+		CertFile: "/etc/falcosidekick/certs/tls.crt",
+		KeyFile:  "/etc/falcosidekick/certs/tls.key",
+	}
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Database: db, Catalog: cat, Config: cfg})
+	require.NoError(t, err)
+	body := uiFixtureRequest(t, srv.app, http.MethodGet, "/api/v1/config", "", http.StatusOK)
+	encoded, err := json.Marshal(body)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "not-a-real-password")
+	return body
+}
+
 func uiErrorFixtures(t *testing.T, srv *Server, cat *catalog.Catalog) map[string]uiErrorFixture {
 	t.Helper()
 	cases := map[string]uiErrorFixture{

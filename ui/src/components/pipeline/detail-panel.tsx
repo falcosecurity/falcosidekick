@@ -105,10 +105,10 @@ function CoreDetail() {
     return <LoadingSkeleton lines={5} />
   }
 
-  const listenAddress = (config["listen_address"] as string | undefined) ?? ""
-  const listenPort = (config["listen_port"] as number | undefined) ?? 2801
-  const logLevel = (config["log_level"] as string | undefined) ?? ""
-  const database = (config["database"] as { backend?: string } | undefined)?.backend ?? ""
+  const listenAddress = config.listen_address
+  const listenPort = config.listen_port
+  const logLevel = config.log_level
+  const database = config.database.backend
 
   return (
     <Card className="flex h-full min-h-0 min-w-0 flex-col">

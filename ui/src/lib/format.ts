@@ -23,6 +23,32 @@ export function formatAbsoluteTime(input: string | Date | number): string {
   })
 }
 
+const DURATION_UNITS: readonly [string, number][] = [
+  ["h", 3_600_000_000_000],
+  ["m", 60_000_000_000],
+  ["s", 1_000_000_000],
+  ["ms", 1_000_000],
+  ["µs", 1_000],
+  ["ns", 1],
+]
+
+// formatGoDuration renders a Go time.Duration (integer nanoseconds) the way Go's String does,
+// without the trailing zero units: 30000000000 is "30s", 90000000000 is "1m30s".
+export function formatGoDuration(ns: number): string {
+  if (!Number.isFinite(ns)) return "-"
+  if (ns === 0) return "0s"
+  let rest = Math.abs(Math.trunc(ns))
+  let out = ns < 0 ? "-" : ""
+  for (const [unit, size] of DURATION_UNITS) {
+    const count = Math.floor(rest / size)
+    if (count > 0) {
+      out += `${count}${unit}`
+      rest -= count * size
+    }
+  }
+  return out
+}
+
 export function truncate(s: string, max: number): string {
   if (s.length <= max) return s
   return `${s.slice(0, max - 1)}…`
