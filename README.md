@@ -21,7 +21,7 @@ v2 configuration is not compatible with v3.
 
 - [Install](docs/install.md)
 - [Configuration](docs/configuration.md)
-- [Outputs and tested versions](docs/outputs.md)
+- [Outputs](docs/outputs/README.md): a page per output with its settings, an example and the tested versions
 - [Migrate from v2](docs/migration.md)
 - [Known limits of the beta](docs/known-limits.md)
 

@@ -54,3 +54,24 @@ var Categories = []Category{
 func (c Category) Known() bool {
 	return slices.Contains(Categories, c)
 }
+
+var categoryTitles = map[Category]string{
+	CategoryAlerting:      "Alerting and on-call",
+	CategoryChat:          "Chat",
+	CategoryEmail:         "Email",
+	CategoryLogs:          "Logs",
+	CategoryObservability: "Observability",
+	CategoryQueue:         "Queues and streams",
+	CategoryResponse:      "Response",
+	CategoryStorage:       "Storage",
+	CategoryWebhook:       "Webhooks",
+	CategoryOther:         "Other",
+}
+
+// Title is the name the docs show for c; the UI keeps the same names.
+func (c Category) Title() string {
+	if title, ok := categoryTitles[c]; ok {
+		return title
+	}
+	return string(c)
+}

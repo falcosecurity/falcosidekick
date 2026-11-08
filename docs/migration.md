@@ -10,7 +10,7 @@ v2 configuration does not load in v3: unknown keys are rejected. Rewrite it with
 | Key style | `listenport`, `webhookurl` | `listen_port`, `secret_endpoint` |
 | Output setup | file or environment variables | output files only; secrets through `_file` fields |
 | Enabling an output | non-empty address | presence of its block under `outputs:` |
-| Outputs | many, see the `2.x` README | see [outputs](outputs.md) |
+| Outputs | many, see the `2.x` README | see [outputs](outputs/README.md) |
 | Reload | restart | output files reload on change, `SIGHUP` or poll |
 | Delivery | - | per-output queue, retry, circuit breaker, optional batching |
 | Image tags | `2.*`, `stable` (latest release), `latest` (master build) | `3.*`, `3`, `v3-latest` (latest release), `v3-main` (master build), `-slim` variants |

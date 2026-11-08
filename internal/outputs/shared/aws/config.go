@@ -64,13 +64,34 @@ type Config struct {
 // SchemaFields returns the schema of the fields in Config.
 func SchemaFields() []output.SchemaField {
 	return append([]output.SchemaField{
-		{Name: "region", Type: "string", Label: "AWS Region (default from the environment or the resource)"},
-		{Name: "access_key_id", Type: "string", Secret: true, Label: "Access Key ID (default credential chain when empty)"},
-		{Name: "secret_access_key", Type: "string", Secret: true, Label: "Secret Access Key"},
-		{Name: "session_token", Type: "string", Secret: true, Label: "Session Token"},
-		{Name: "role_arn", Type: "string", Label: "Role ARN to assume"},
-		{Name: "external_id", Type: "string", Label: "External ID for the assumed role"},
-		{Name: "endpoint", Type: "string", Label: "Custom Endpoint (scheme, host and port)"},
+		{
+			Name: "region", Type: "string", Label: "AWS Region (default from the environment or the resource)",
+			Description: "AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`) or from the resource.",
+		},
+		{
+			Name: "access_key_id", Type: "string", Secret: true, Label: "Access Key ID (default credential chain when empty)",
+			Description: "Static access key, set with the secret access key. Empty uses the default credential chain: environment, shared files, web identity or instance role.",
+		},
+		{
+			Name: "secret_access_key", Type: "string", Secret: true, Label: "Secret Access Key",
+			Description: "Secret of the static access key.",
+		},
+		{
+			Name: "session_token", Type: "string", Secret: true, Label: "Session Token",
+			Description: "Session token of temporary static credentials; needs the access key and its secret.",
+		},
+		{
+			Name: "role_arn", Type: "string", Label: "Role ARN to assume",
+			Description: "IAM role assumed with the credentials above, as `arn:aws:iam::ACCOUNT:role/NAME`.",
+		},
+		{
+			Name: "external_id", Type: "string", Label: "External ID for the assumed role",
+			Description: "External ID the role's trust policy requires.",
+		},
+		{
+			Name: "endpoint", Type: "string", Label: "Custom Endpoint (scheme, host and port)",
+			Description: "Service address that replaces the AWS one, such as a LocalStack or VPC endpoint, as scheme, host and port.",
+		},
 	}, shared.TLSClientSchemaFields()...)
 }
 

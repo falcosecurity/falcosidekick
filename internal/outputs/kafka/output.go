@@ -72,23 +72,78 @@ var OutputType = output.Type{
 	Category: output.CategoryQueue,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
-			{Name: "brokers", Type: "string[]", Required: true, Label: "Broker addresses"},
-			{Name: "topic", Type: "string", Required: true, Label: "Default topic"},
-			{Name: "topic_field", Type: "string", Label: "Topic from event field (overrides default)"},
-			{Name: "message_key", Type: "string", Label: "Static message key (for partition affinity)"},
-			{Name: "message_key_field", Type: "string", Label: "Message key from event field"},
-			{Name: "tls_enabled", Type: "bool", Default: false, Label: "Enable TLS"},
-			{Name: "auth.sasl", Type: "enum", Values: []string{"", "plain", "scram_sha256", "scram_sha512"}, Label: "SASL Mechanism"},
-			{Name: "auth.username", Type: "string", Label: "SASL Username"},
-			{Name: "auth.password", Type: "string", Secret: true, Label: "SASL Password"},
-			{Name: "producer.compression", Type: "enum", Values: []string{"none", "gzip", "snappy", "lz4", "zstd"}, Default: "none", Label: "Compression"},
-			{Name: "producer.balancer", Type: "enum", Values: []string{"", "round_robin", "least_backup", "sticky"}, Default: "", Label: "Partition Balancer"},
-			{Name: "producer.required_acks", Type: "enum", Values: []string{"all", "one", "none"}, Default: "all", Label: "Required ACKs"},
-			{Name: "producer.client_id", Type: "string", Label: "Client ID"},
-			{Name: "producer.async", Type: "bool", Default: false, Label: "Async Produce (counted as sent once buffered; broker errors also count as failed)"},
-			{Name: "producer.auto_create_topic", Type: "bool", Default: false, Label: "Allow Auto Topic Creation"},
-			{Name: "producer.delivery_timeout", Type: "string", Default: defaultDeliveryTimeout.String(), Label: "Delivery Timeout"},
-		}, append(shared.TLSClientSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
+			{
+				Name: "brokers", Type: "string[]", Required: true, Label: "Broker addresses",
+				Description: "Seed brokers as `host:port`, without scheme or path. The client discovers the rest of the cluster from them.",
+			},
+			{
+				Name: "topic", Type: "string", Required: true, Label: "Default topic",
+				Description: "Topic for events without a `topic_field` value. Startup checks that it exists and is writable.",
+			},
+			{
+				Name: "topic_field", Type: "string", Label: "Topic from event field (overrides default)",
+				Description: "Output field, such as `k8s.ns.name`, whose string value names the topic. " +
+					"Events without a non-empty string value use `topic`. These topics are not checked at startup.",
+			},
+			{
+				Name: "message_key", Type: "string", Label: "Static message key (for partition affinity)",
+				Description: "Record key used when `message_key_field` gives no value. Empty sends records without a key. " +
+					"Only the default balancer places records by key.",
+			},
+			{
+				Name: "message_key_field", Type: "string", Label: "Message key from event field",
+				Description: "Output field whose non-empty string value is the record key. Otherwise `message_key` applies.",
+			},
+			{
+				Name: "tls_enabled", Type: "bool", Default: false, Label: "Enable TLS",
+				Description: "Connects to the brokers over TLS. `tls` settings are refused unless this is set.",
+			},
+			{
+				Name: "auth.sasl", Type: "enum", Values: []string{"", "plain", "scram_sha256", "scram_sha512"}, Label: "SASL Mechanism",
+				Description: "SASL mechanism for broker authentication: `plain`, `scram_sha256` or `scram_sha512`. " +
+					"Empty disables SASL; any mechanism requires username and password.",
+			},
+			{
+				Name: "auth.username", Type: "string", Label: "SASL Username",
+				Description: "User for SASL authentication.",
+			},
+			{
+				Name: "auth.password", Type: "string", Secret: true, Label: "SASL Password",
+				Description: "Password for SASL authentication.",
+			},
+			{
+				Name: "producer.compression", Type: "enum", Values: []string{"none", "gzip", "snappy", "lz4", "zstd"}, Default: "none", Label: "Compression",
+				Description: "Codec for record batches sent to the brokers.",
+			},
+			{
+				Name: "producer.balancer", Type: "enum", Values: []string{"", "round_robin", "least_backup", "sticky"}, Default: "", Label: "Partition Balancer",
+				Description: "How records are spread across partitions. Empty hashes the key like the Java client and moves keyless records between partitions in batches; " +
+					"`round_robin`, `least_backup` and `sticky` ignore the key.",
+			},
+			{
+				Name: "producer.required_acks", Type: "enum", Values: []string{"all", "one", "none"}, Default: "all", Label: "Required ACKs",
+				Description: "Acknowledgement the brokers give before a record counts as written: all in-sync replicas, the leader, or none. " +
+					"Idempotent writes are enabled only with `all`.",
+			},
+			{
+				Name: "producer.client_id", Type: "string", Label: "Client ID",
+				Description: "Client ID sent to the brokers, visible in their logs and quotas. Empty uses `kgo`.",
+			},
+			{
+				Name: "producer.async", Type: "bool", Default: false, Label: "Async Produce (counted as sent once buffered; broker errors also count as failed)",
+				Description: "Returns once the record is buffered, without waiting for the brokers. A later broker failure is counted as failed, " +
+					"so counters are exact only in sync mode.",
+			},
+			{
+				Name: "producer.auto_create_topic", Type: "bool", Default: false, Label: "Allow Auto Topic Creation",
+				Description: "Asks the brokers to create a missing topic, if they allow it, and lets startup accept a missing default topic.",
+			},
+			{
+				Name: "producer.delivery_timeout", Type: "string", Default: defaultDeliveryTimeout.String(), Label: "Delivery Timeout",
+				Description: "Go duration, such as `10s`, bounding the delivery of each record, client retries included, and the flush on shutdown. " +
+					"At least `1s`.",
+			},
+		}, append(shared.TLSClientSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
 	},
 }
 

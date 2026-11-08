@@ -66,15 +66,40 @@ var OutputType = output.Type{
 	Category: output.CategoryStorage,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
-			{Name: "address", Type: "string", Required: true, Label: "Address (host:port)"},
-			{Name: "username", Type: "string", Label: "Username (ACL)"},
-			{Name: "password", Type: "string", Secret: true, Label: "Password"},
-			{Name: "database", Type: "int", Default: 0, Label: "Database"},
-			{Name: "storage_type", Type: "enum", Values: []string{storageList, storageHashmap, storageStream}, Default: storageList, Label: "Storage Type"},
-			{Name: "key", Type: "string", Default: defaultKey, Label: "Key"},
-			{Name: "max_len", Type: "int", Default: 0, Label: "Approximate Stream Length Cap (0 = unbounded)"},
-			{Name: "tls_enabled", Type: "bool", Default: false, Label: "Enable TLS"},
-		}, append(shared.TLSClientSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
+			{
+				Name: "address", Type: "string", Required: true, Label: "Address (host:port)",
+				Description: "Redis server as `host:port`, without scheme or credentials.",
+			},
+			{
+				Name: "username", Type: "string", Label: "Username (ACL)",
+				Description: "ACL user; requires a password. Empty authenticates as the default user when a password is set.",
+			},
+			{
+				Name: "password", Type: "string", Secret: true, Label: "Password",
+				Description: "Password sent with `AUTH`, for the ACL user or the default user. Empty sends no `AUTH`.",
+			},
+			{
+				Name: "database", Type: "int", Default: 0, Label: "Database",
+				Description: "Database number selected on each connection, `0` or greater.",
+			},
+			{
+				Name: "storage_type", Type: "enum", Values: []string{storageList, storageHashmap, storageStream}, Default: storageList, Label: "Storage Type",
+				Description: "How the event JSON is stored under `key`: `list` appends with `RPUSH`, `hashmap` sets the event UUID field with `HSET`, " +
+					"`stream` adds an entry with field `event` with `XADD`.",
+			},
+			{
+				Name: "key", Type: "string", Default: defaultKey, Label: "Key",
+				Description: "Name of the list, hash or stream that receives the events.",
+			},
+			{
+				Name: "max_len", Type: "int", Default: 0, Label: "Approximate Stream Length Cap (0 = unbounded)",
+				Description: "Approximate stream length kept by `XADD MAXLEN ~`, trimming the oldest entries. Only with `storage_type` `stream`.",
+			},
+			{
+				Name: "tls_enabled", Type: "bool", Default: false, Label: "Enable TLS",
+				Description: "Connects to Redis over TLS. `tls` settings are refused unless this is set.",
+			},
+		}, append(shared.TLSClientSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
 	},
 }
 

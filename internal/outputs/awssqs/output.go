@@ -60,8 +60,12 @@ var OutputType = output.Type{
 	Category: output.CategoryQueue,
 	Schema: output.Schema{
 		Fields: append(append([]output.SchemaField{
-			{Name: "queue_url", Type: "string", Required: true, Label: "Queue URL"},
-		}, sharedaws.SchemaFields()...), shared.RuntimeConfigSchemaFields()...),
+			{
+				Name: "queue_url", Type: "string", Required: true, Label: "Queue URL",
+				Description: "URL of a standard queue, such as `https://sqs.eu-west-1.amazonaws.com/123456789012/falco`; FIFO queues are refused. " +
+					"Its region applies when neither the region field nor the environment sets one.",
+			},
+		}, sharedaws.SchemaFields()...), shared.BatchRuntimeConfigSchemaFields()...),
 	},
 }
 

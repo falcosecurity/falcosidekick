@@ -53,10 +53,20 @@ var OutputType = output.Type{
 	Category: output.CategoryLogs,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
-			{Name: "tenant", Type: "string", Label: "Tenant (X-Scope-OrgID)"},
-			{Name: "log_format", Type: "enum", Values: []string{"json", "text"}, Default: "json", Label: "Log Format"},
-			{Name: "extra_labels", Type: "string", Label: "Extra Labels (comma-separated field names)"},
-		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
+			{
+				Name: "tenant", Type: "string", Label: "Tenant (X-Scope-OrgID)",
+				Description: "Tenant ID sent in the `X-Scope-OrgID` header, for a multi-tenant Loki. Empty sends no header.",
+			},
+			{
+				Name: "log_format", Type: "enum", Values: []string{"json", "text"}, Default: "json", Label: "Log Format",
+				Description: "Content of each log line: `json` is the whole event as JSON, `text` is the event output text only.",
+			},
+			{
+				Name: "extra_labels", Type: "string", Label: "Extra Labels (comma-separated field names)",
+				Description: "Output field names, separated by commas, such as `container.id,proc.name`, added as stream labels when the event has them. " +
+					"Characters other than letters, digits and `_` in label names become `_`.",
+			},
+		}...), append(shared.HTTPConfigSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
 	},
 }
 

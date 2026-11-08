@@ -75,9 +75,19 @@ var OutputType = output.Type{
 	Category: output.CategoryAlerting,
 	Schema: output.Schema{
 		Fields: append(append(targetSchemaFields(), []output.SchemaField{
-			{Name: "api_key", Type: "string", Required: true, Secret: true, Label: "API Key"},
-			{Name: "app_key", Type: "string", Secret: true, Label: "Application Key (selects Events API v2)"},
-			{Name: "site", Type: "enum", Values: sites, Default: defaultSite, Label: "Datadog Site"},
+			{
+				Name: "api_key", Type: "string", Required: true, Secret: true, Label: "API Key",
+				Description: "Datadog API key, sent in the `DD-API-KEY` header.",
+			},
+			{
+				Name: "app_key", Type: "string", Secret: true, Label: "Application Key (selects Events API v2)",
+				Description: "Datadog application key, sent in the `DD-APPLICATION-KEY` header. " +
+					"When set, events go to Events API v2 on `event-management-intake.<site>`; empty uses v1 on `api.<site>`.",
+			},
+			{
+				Name: "site", Type: "enum", Values: sites, Default: defaultSite, Label: "Datadog Site",
+				Description: "Datadog site of the organization, which selects the API hosts.",
+			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }
@@ -89,6 +99,7 @@ func targetSchemaFields() []output.SchemaField {
 		if fields[i].Name == "host" {
 			fields[i].Default = nil
 			fields[i].Label = "Host (scheme, host and port; replaces every Datadog host; default from site)"
+			fields[i].Description = "Address that replaces every Datadog host, as scheme, host and optional port, such as a proxy. Empty uses the hosts of the site."
 		}
 	}
 	return fields

@@ -55,9 +55,20 @@ var OutputType = output.Type{
 	Category: output.CategoryQueue,
 	Schema: output.Schema{
 		Fields: append(append([]output.SchemaField{
-			{Name: "topic_arn", Type: "string", Required: true, Label: "Topic ARN"},
-			{Name: "raw_json", Type: "bool", Default: false, Label: "Publish the event JSON instead of the output text and attributes"},
-			{Name: "message_attributes", Type: "string[]", Default: defaultMessageAttributes, Label: "Message attributes: priority, rule, source, tags, hostname or output field names (at most 10)"},
+			{
+				Name: "topic_arn", Type: "string", Required: true, Label: "Topic ARN",
+				Description: "Standard topic the events are published to, as `arn:aws:sns:REGION:ACCOUNT:NAME`; FIFO topics are refused. " +
+					"Its region applies when neither the region field nor the environment sets one.",
+			},
+			{
+				Name: "raw_json", Type: "bool", Default: false, Label: "Publish the event JSON instead of the output text and attributes",
+				Description: "Publishes the whole event as JSON with no message attributes. Otherwise the message is the event output text, or the rule name when it is empty.",
+			},
+			{
+				Name: "message_attributes", Type: "string[]", Default: defaultMessageAttributes, Label: "Message attributes: priority, rule, source, tags, hostname or output field names (at most 10)",
+				Description: "Event values sent as message attributes, at most 10: `priority`, `rule`, `source`, `tags`, `hostname` or output field names such as `k8s.ns.name`. " +
+					"Missing, empty or non-text, non-number values are left out; an empty list sends none.",
+			},
 		}, sharedaws.SchemaFields()...), shared.RuntimeConfigSchemaFields()...),
 	},
 }

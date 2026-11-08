@@ -61,11 +61,26 @@ func (c *TLSClientConfig) Validate() utils.ValidationErrors {
 // TLSClientSchemaFields returns schema fields for the per-output tls: section.
 func TLSClientSchemaFields() []output.SchemaField {
 	return []output.SchemaField{
-		{Name: "tls.insecure_skip_verify", Type: "bool", Default: false, Label: "Skip TLS Certificate Verification"},
-		{Name: "tls.ca_file", Type: "string", File: true, Label: "CA Certificate File"},
-		{Name: "tls.cert_file", Type: "string", File: true, Label: "Client Certificate File (mTLS)"},
-		{Name: "tls.key_file", Type: "string", File: true, Label: "Client Key File (mTLS)"},
-		{Name: "tls.server_name", Type: "string", Label: "Server Name Override"},
+		{
+			Name: "tls.insecure_skip_verify", Type: "bool", Default: false, Label: "Skip TLS Certificate Verification",
+			Description: "Accepts any server certificate. The connection can then be intercepted: use it only for tests.",
+		},
+		{
+			Name: "tls.ca_file", Type: "string", File: true, Label: "CA Certificate File",
+			Description: "PEM file with the certificate authorities that sign the server certificate. Empty uses the system trust store.",
+		},
+		{
+			Name: "tls.cert_file", Type: "string", File: true, Label: "Client Certificate File (mTLS)",
+			Description: "PEM client certificate for mutual TLS, set together with the key file.",
+		},
+		{
+			Name: "tls.key_file", Type: "string", File: true, Label: "Client Key File (mTLS)",
+			Description: "PEM private key of the client certificate.",
+		},
+		{
+			Name: "tls.server_name", Type: "string", Label: "Server Name Override",
+			Description: "Name checked against the server certificate when it differs from the host the output connects to.",
+		},
 	}
 }
 

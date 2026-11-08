@@ -153,6 +153,8 @@ describe("PipelineDetailPanel", () => {
     expect(value("Password (Basic Auth)")).toHaveTextContent("stored, hidden")
     expect(value("Custom HTTP Headers")).toHaveTextContent("X-Api-Key→public")
     expect(screen.queryByText("HTTP Method", { selector: "dt" })).toBeNull()
+    // Each setting explains itself from the schema description.
+    expect(screen.getByRole("button", { name: "About Endpoint" })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("radio", { name: "All fields" }))
     expect(value("HTTP Method")).toHaveTextContent("POSTdefault")

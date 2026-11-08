@@ -120,13 +120,32 @@ var OutputType = output.Type{
 	Category:      output.CategoryQueue,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
-			{Name: "project_id", Type: "string", Required: true, Label: "Project ID"},
-			{Name: "topic", Type: "string", Required: true, Label: "Topic ID"},
-			{Name: "credentials", Type: "string", Secret: true, Label: "Credentials JSON, raw or base64 (default: Application Default Credentials)"},
-			{Name: "custom_attributes", Type: "map", Label: "Message attributes"},
-			{Name: "endpoint", Type: "string", Label: "gRPC endpoint host:port (TLS)"},
-			{Name: "emulator_host", Type: "string", Label: "Emulator host:port (plaintext, no authentication)"},
-		}, shared.RuntimeConfigSchemaFields()...),
+			{
+				Name: "project_id", Type: "string", Required: true, Label: "Project ID",
+				Description: "ID of the Google Cloud project that owns the topic, such as `my-project`, not its name or number path.",
+			},
+			{
+				Name: "topic", Type: "string", Required: true, Label: "Topic ID",
+				Description: "ID of the topic within the project, not its full `projects/.../topics/...` name: 3 to 255 characters starting with a letter, not with `goog`.",
+			},
+			{
+				Name: "credentials", Type: "string", Secret: true, Label: "Credentials JSON, raw or base64 (default: Application Default Credentials)",
+				Description: "Google credentials JSON, raw or base64-encoded, of type `service_account`, `authorized_user`, `impersonated_service_account` or `external_account`. " +
+					"Empty uses Application Default Credentials.",
+			},
+			{
+				Name: "custom_attributes", Type: "map", Label: "Message attributes",
+				Description: "Attributes set on every message, by name; at most 100, names up to 256 bytes not starting with `goog`, values up to 1024 bytes.",
+			},
+			{
+				Name: "endpoint", Type: "string", Label: "gRPC endpoint host:port (TLS)",
+				Description: "Pub/Sub service address as `host:port` without a scheme, such as a regional or private endpoint, reached over TLS. Empty uses the global Google endpoint.",
+			},
+			{
+				Name: "emulator_host", Type: "string", Label: "Emulator host:port (plaintext, no authentication)",
+				Description: "Address of a Pub/Sub emulator as `host:port`, reached in plaintext without authentication; cannot be combined with the endpoint or credentials.",
+			},
+		}, shared.BatchRuntimeConfigSchemaFields()...),
 	},
 }
 

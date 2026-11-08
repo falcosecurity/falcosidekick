@@ -82,10 +82,24 @@ var OutputType = output.Type{
 	Category: output.CategoryOther,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
-			{Name: "kubeconfig", Type: "string", File: true, Label: "Kubeconfig file (in-cluster configuration when empty)"},
-			{Name: "falco_namespace", Type: "string", Label: "Namespace for events whose namespace does not exist"},
-			{Name: "max_events", Type: "int", Default: defaultMaxEvents, Label: "Max results per report"},
-			{Name: "prune_by_priority", Type: "bool", Default: false, Label: "Remove lowest severity results first"},
+			{
+				Name: "kubeconfig", Type: "string", File: true, Label: "Kubeconfig file (in-cluster configuration when empty)",
+				Description: "Path to a kubeconfig file; its current context is used. Empty uses the pod service account.",
+			},
+			{
+				Name: "falco_namespace", Type: "string", Label: "Namespace for events whose namespace does not exist",
+				Description: "Namespace whose `Report` receives events naming a namespace that does not exist. " +
+					"Empty uses the pod namespace, else `default`.",
+			},
+			{
+				Name: "max_events", Type: "int", Default: defaultMaxEvents, Label: "Max results per report",
+				Description: "Results kept in each report, at least `1`, also set as `configuration.limits.maxResults`. " +
+					"Beyond it the oldest result is removed.",
+			},
+			{
+				Name: "prune_by_priority", Type: "bool", Default: false, Label: "Remove lowest severity results first",
+				Description: "When a report is full, removes the oldest result of the lowest severity instead of the oldest result.",
+			},
 		}, shared.RuntimeConfigSchemaFields()...),
 	},
 }

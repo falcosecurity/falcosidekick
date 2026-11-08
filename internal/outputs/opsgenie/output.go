@@ -64,7 +64,10 @@ var OutputType = output.Type{
 	Category: output.CategoryAlerting,
 	Schema: output.Schema{
 		Fields: append(append(shared.RegionTargetSchemaFields(&targetOptions), []output.SchemaField{
-			{Name: "api_key", Type: "string", Required: true, Secret: true, Label: "API Key (API integration)"},
+			{
+				Name: "api_key", Type: "string", Required: true, Secret: true, Label: "API Key (API integration)",
+				Description: "Key of an Opsgenie API integration, sent as `Authorization: GenieKey <key>`.",
+			},
 			regions.SchemaField("Region"),
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},

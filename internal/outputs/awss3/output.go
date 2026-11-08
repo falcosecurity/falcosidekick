@@ -77,11 +77,24 @@ var OutputType = output.Type{
 	Category: output.CategoryStorage,
 	Schema: output.Schema{
 		Fields: append(append([]output.SchemaField{
-			{Name: "bucket", Type: "string", Required: true, Label: "Bucket"},
-			{Name: "prefix", Type: "string", Default: defaultPrefix, Label: "Key Prefix"},
-			{Name: "object_canned_acl", Type: "enum", Values: cannedACLs, Default: defaultCannedACL, Label: "Object Canned ACL"},
-			{Name: "use_path_style", Type: "bool", Default: false, Label: "Path-style addressing (for S3-compatible endpoints)"},
-		}, sharedaws.SchemaFields()...), shared.RuntimeConfigSchemaFields()...),
+			{
+				Name: "bucket", Type: "string", Required: true, Label: "Bucket",
+				Description: "Name of the bucket the events are written to, 3 to 63 lowercase letters, digits, `.` or `-`.",
+			},
+			{
+				Name: "prefix", Type: "string", Default: defaultPrefix, Label: "Key Prefix",
+				Description: "Start of every object key, followed by `/YYYY-MM-DD/<event time>_<event id>.json`, or `.ndjson` for a batch. " +
+					"Leading and trailing `/` are removed; empty uses the default.",
+			},
+			{
+				Name: "object_canned_acl", Type: "enum", Values: cannedACLs, Default: defaultCannedACL, Label: "Object Canned ACL",
+				Description: "Canned ACL set on every object written.",
+			},
+			{
+				Name: "use_path_style", Type: "bool", Default: false, Label: "Path-style addressing (for S3-compatible endpoints)",
+				Description: "Addresses the bucket in the path, as `https://host/bucket/key`, instead of in the host name; S3-compatible stores such as MinIO often need it.",
+			},
+		}, sharedaws.SchemaFields()...), shared.BatchRuntimeConfigSchemaFields()...),
 	},
 }
 

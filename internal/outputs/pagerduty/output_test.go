@@ -39,9 +39,9 @@ const testKey = "R0UT1NGKEYs3cretSentinel00000000"
 
 func schemaField(t *testing.T, fieldName string) output.SchemaField {
 	t.Helper()
-	for _, f := range OutputType.Schema.Fields {
-		if f.Name == fieldName {
-			return f
+	for i := range OutputType.Schema.Fields {
+		if OutputType.Schema.Fields[i].Name == fieldName {
+			return OutputType.Schema.Fields[i]
 		}
 	}
 	t.Fatalf("schema has no field %q", fieldName)

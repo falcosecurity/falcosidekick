@@ -64,7 +64,10 @@ func (r RegionHosts) Resolve(region, host *string) utils.ValidationErrors {
 
 // SchemaField describes the region enum.
 func (r RegionHosts) SchemaField(label string) output.SchemaField {
-	return output.SchemaField{Name: "region", Type: "enum", Values: r.Names(), Default: r.Default, Label: label}
+	return output.SchemaField{
+		Name: "region", Type: "enum", Values: r.Names(), Default: r.Default, Label: label,
+		Description: "Region of the service account. It sets the host when the host is empty.",
+	}
 }
 
 // RegionTargetSchemaFields returns the target fields without a host default, since the region selects it.
@@ -74,6 +77,7 @@ func RegionTargetSchemaFields(opts *HTTPTargetOptions) []output.SchemaField {
 		if fields[i].Name == fieldHost {
 			fields[i].Default = nil
 			fields[i].Label = "Host (scheme, host and port; default from region)"
+			fields[i].Description = "Address of the destination as scheme, host and optional port. Empty uses the host of the selected region."
 		}
 	}
 	return fields

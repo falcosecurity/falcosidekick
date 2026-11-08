@@ -64,7 +64,8 @@ func ResolvedOutputs(outputs map[string]map[string]any, cat *catalog.Catalog) (m
 
 // ResolveSecrets fills empty Secret fields from their <field>_file counterparts.
 func ResolveSecrets(outputName string, cfg map[string]any, schema output.Schema) error {
-	for _, field := range schema.Fields {
+	for i := range schema.Fields {
+		field := &schema.Fields[i]
 		if !field.Secret {
 			continue
 		}
