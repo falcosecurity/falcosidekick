@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
-import { Pencil, Server, Trash2 } from "lucide-react"
+import { AlertTriangle, Pencil, Server, Trash2 } from "lucide-react"
+import type { ReactNode } from "react"
 
 import falcoIcon from "@/assets/falco-icon.svg"
 import { ConfigTree } from "@/components/common/config-tree"
@@ -12,18 +13,22 @@ import { SectionHeading } from "@/components/common/section-heading"
 import { StatTile } from "@/components/common/stat-tile"
 import { StatusBadge } from "@/components/common/status-badge"
 import { TimeAgo } from "@/components/common/time-ago"
+import { queueTone } from "@/components/dashboard/attention"
+import { OutputConfigView } from "@/components/outputs/output-config-view"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { useConfig, useVersion } from "@/hooks/use-config"
+import { useOutputTypes } from "@/hooks/use-output-writes"
 import { useOutputs } from "@/hooks/use-pipeline"
 import { useRefetchInterval } from "@/hooks/use-refetch-interval"
 import { api } from "@/lib/api-client"
 import { errorMessage } from "@/lib/api-error"
 import { formatAbsoluteTime, formatNumber } from "@/lib/format"
 import { driverOf, lastSuccessOf, statusOf, type OutputConfigEntry, type OutputStatus } from "@/lib/types"
-import { queueTone } from "@/components/dashboard/attention"
+import { cn } from "@/lib/utils"
 
 import type { PipelineSelection } from "./canvas"
 
@@ -183,6 +188,7 @@ function OutputDetail({
   status: OutputStatus | null
   actions?: OutputActions
 }) {
+  const types = useOutputTypes()
   const isInmemory = entry?.name === "inmemory"
   const inmemoryCapacity = typeof entry?.config?.["capacity"] === "number" ? entry.config["capacity"] : undefined
   const refetchInterval = useRefetchInterval()
@@ -207,6 +213,7 @@ function OutputDetail({
     )
   }
   const lastSuccess = status ? lastSuccessOf(status) : null
+  const outputType = types.data?.find((t) => t.name === entry.name)
   return (
     <Card className="flex h-full min-h-0 min-w-0 flex-col">
       <CardHeader className="min-w-0 shrink-0">
@@ -236,60 +243,38 @@ function OutputDetail({
         )}
       </CardHeader>
       <ScrollArea className="min-h-0 min-w-0 flex-1 px-6 pb-6">
+        {status && <OutputProblem status={status} />}
         {status && (
-          <section className="flex flex-col gap-2">
-            <SectionHeading>Health</SectionHeading>
-            <dl className="grid grid-cols-2 gap-2 text-sm">
+          <section className="flex flex-col gap-3" aria-label="Health">
+            <dl className="grid grid-cols-3 gap-2 text-sm">
               <StatTile label="Sent" value={formatNumber(status.sent_total)} tone="ok" />
-              <StatTile
-                label="Failed"
-                value={formatNumber(status.failed_total)}
-                tone={status.failed_total > 0 ? "error" : "neutral"}
-              />
-              <StatTile
-                label="Dropped"
-                value={formatNumber(status.dropped_total)}
-                tone={status.dropped_total > 0 ? "warning" : "neutral"}
-              />
-              <StatTile
-                label="Queue"
-                value={`${status.queue_depth} / ${status.queue_capacity}`}
-                tone={queueTone(status.queue_depth, status.queue_capacity)}
-              >
+              <StatTile label="Failed" value={formatNumber(status.failed_total)} tone={status.failed_total > 0 ? "error" : "neutral"} />
+              <StatTile label="Dropped" value={formatNumber(status.dropped_total)} tone={status.dropped_total > 0 ? "warning" : "neutral"} />
+            </dl>
+            <dl className="flex flex-col gap-2 rounded-lg border bg-background px-3 py-2.5 text-sm">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <dt className="text-muted-foreground">Queue</dt>
+                  <dd className="tabular-nums">
+                    {formatNumber(status.queue_depth)} / {formatNumber(status.queue_capacity)}
+                  </dd>
+                </div>
                 <Meter
                   value={status.queue_depth}
                   max={status.queue_capacity}
                   label={`Queue ${status.name}`}
                   tone={queueTone(status.queue_depth, status.queue_capacity) === "warning" ? "warning" : "brand"}
-                  className="mt-1"
+                  decorative
                 />
-              </StatTile>
-              <StatTile label="Evt/min" value={formatNumber(Math.round(status.events_per_minute))} />
-              <StatTile
-                label="Circuit"
-                value={status.circuit_state || "-"}
-                tone={status.circuit_state === "open" || status.circuit_state === "half-open" ? "warning" : "neutral"}
-              />
-              <StatTile label="Last success" className="col-span-2" valueClassName="font-normal">
-                {lastSuccess ? <TimeAgo value={lastSuccess} /> : "never"}
-              </StatTile>
+              </div>
+              <HealthRow term="Circuit breaker">
+                <span className={status.circuit_state === "open" || status.circuit_state === "half-open" ? "text-status-degraded-foreground" : undefined}>
+                  {status.circuit_state || "not running"}
+                </span>
+              </HealthRow>
+              <HealthRow term="Rate">{formatNumber(Math.round(status.events_per_minute))} events/min</HealthRow>
+              <HealthRow term="Last delivery">{lastSuccess ? <TimeAgo value={lastSuccess} /> : "never"}</HealthRow>
             </dl>
-            {status.last_error && (
-              <div className="mt-2 flex flex-col gap-1">
-                <SectionHeading className="text-2xs text-status-error-foreground">Last error</SectionHeading>
-                <div className="rounded-md border border-status-error/30 bg-status-error/10 px-2 py-1.5 font-mono text-xs text-status-error-foreground [overflow-wrap:anywhere]">
-                  {status.last_error}
-                </div>
-              </div>
-            )}
-            {status.last_warning && (
-              <div className="mt-2 flex flex-col gap-1">
-                <SectionHeading className="text-2xs text-status-degraded-foreground">Last warning</SectionHeading>
-                <div className="rounded-md border border-status-degraded/30 bg-status-degraded/10 px-2 py-1.5 font-mono text-xs text-status-degraded-foreground [overflow-wrap:anywhere]">
-                  {status.last_warning}
-                </div>
-              </div>
-            )}
           </section>
         )}
 
@@ -311,12 +296,55 @@ function OutputDetail({
 
         <Separator className="my-4" />
 
-        <section className="flex flex-col gap-2">
-          <SectionHeading>Configuration (masked)</SectionHeading>
-          <ConfigTree data={entry.config ?? {}} secretFields={entry.secret_fields} />
-        </section>
+        {types.isPending ? (
+          <LoadingSkeleton lines={4} />
+        ) : outputType ? (
+          <OutputConfigView entry={entry} fields={outputType.schema.fields} />
+        ) : (
+          <section className="flex flex-col gap-2">
+            <SectionHeading>Configuration</SectionHeading>
+            <ConfigTree data={entry.config ?? {}} secretFields={entry.secret_fields} />
+          </section>
+        )}
       </ScrollArea>
     </Card>
+  )
+}
+
+function HealthRow({ term, children }: { term: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <dt className="text-muted-foreground">{term}</dt>
+      <dd className="text-right">{children}</dd>
+    </div>
+  )
+}
+
+/**
+ * The output's problem, one cause: the last delivery error, or the warning when there is no error.
+ * The start-up check warning is added only when it says something the error does not.
+ */
+export function problemOf(status: OutputStatus): { main: string; extra?: string } | null {
+  const error = status.last_error
+  const warning = status.last_warning
+  if (error) return warning && !warning.includes(error) ? { main: error, extra: warning } : { main: error }
+  if (warning) return { main: warning }
+  return null
+}
+
+function OutputProblem({ status }: { status: OutputStatus }) {
+  const problem = problemOf(status)
+  if (!problem) return null
+  const error = status.last_error !== ""
+  return (
+    <Alert variant={error ? "destructive" : "default"} className={cn("mb-4", !error && "border-status-degraded/40 text-status-degraded-foreground")}>
+      <AlertTriangle aria-hidden />
+      <AlertTitle>{error ? "Not delivering" : "Needs a look"}</AlertTitle>
+      <AlertDescription>
+        <p className="font-mono text-xs [overflow-wrap:anywhere]">{problem.main}</p>
+        {problem.extra && <p className="text-xs [overflow-wrap:anywhere]">Also: {problem.extra}</p>}
+      </AlertDescription>
+    </Alert>
   )
 }
 
