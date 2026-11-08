@@ -2,11 +2,11 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test"
 
 import { api } from "@/lib/api-client"
 import { ApiError } from "@/lib/api-error"
-import type { OutputConfigEntry, OutputStatus } from "@/lib/types"
+import type { OutputConfigEntry, OutputStatus, OutputType } from "@/lib/types"
 import { fixtures, outputNamed, statusNamed } from "@/test/fixtures"
-import { cleanup, renderWithProviders, screen, within } from "@/test/test-utils"
+import { cleanup, fireEvent, renderWithProviders, screen, within } from "@/test/test-utils"
 
-import { PipelineDetailPanel } from "./detail-panel"
+import { PipelineDetailPanel, problemOf } from "./detail-panel"
 
 const entry: OutputConfigEntry = outputNamed("webhook")
 const delivering: OutputStatus = { ...statusNamed("inmemory"), name: "webhook" }
@@ -43,6 +43,30 @@ function sink(name: string) {
   return { kind: "sink", name } as const
 }
 
+function mockOutputTypes() {
+  spies.push(spyOn(api, "getOutputTypes").mockResolvedValue((fixtures.outputTypes.types ?? []) as OutputType[]))
+}
+
+describe("problemOf", () => {
+  test.each([
+    { error: "", warning: "", want: null },
+    { error: "loki send: connection refused", warning: "", want: { main: "loki send: connection refused" } },
+    {
+      error: "loki send: connection refused",
+      warning: "health check failed before start: loki send: connection refused",
+      want: { main: "loki send: connection refused" },
+    },
+    {
+      error: "loki send: 429 too many requests",
+      warning: "health check failed before start: dial tcp: lookup loki: no such host",
+      want: { main: "loki send: 429 too many requests", extra: "health check failed before start: dial tcp: lookup loki: no such host" },
+    },
+    { error: "", warning: "version 4 not applied: hosts: must be a valid URL", want: { main: "version 4 not applied: hosts: must be a valid URL" } },
+  ])("error $error, warning $warning", ({ error, warning, want }) => {
+    expect(problemOf({ ...delivering, last_error: error, last_warning: warning })).toEqual(want)
+  })
+})
+
 describe("PipelineDetailPanel", () => {
   test("names the output by its driver, shows its origin and the real counters", () => {
     renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={delivering} />)
@@ -50,14 +74,12 @@ describe("PipelineDetailPanel", () => {
     expect(screen.getByText("API provisioned")).toBeInTheDocument()
     expect(document.querySelector('[data-driver="webhook"]')).not.toBeNull()
     expect(metric("Sent")).toHaveTextContent("3")
-    expect(metric("Evt/min")).toHaveTextContent("3")
-    expect(metric("Circuit")).toHaveTextContent("closed")
-    expect(within(metric("Last success")).getByRole("time")).toBeInTheDocument()
-    expect(screen.queryByText(/p99/)).toBeNull()
-    expect(screen.getByRole("definition", { name: "secrets: secret configured" })).toHaveTextContent("Configured")
-    expect(screen.getByText("public")).toBeInTheDocument()
+    expect(metric("Rate")).toHaveTextContent("3 events/min")
+    expect(metric("Circuit breaker")).toHaveTextContent("closed")
+    expect(within(metric("Last delivery")).getByRole("time")).toBeInTheDocument()
+    expect(metric("Queue")).toHaveTextContent("0 / 100")
+    expect(screen.queryByRole("alert")).toBeNull()
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
-    expect(screen.getByRole("meter", { name: "Queue webhook" })).toHaveAttribute("aria-valuemax", "100")
   })
 
   test("a provisioned output says it is file provisioned", () => {
@@ -65,51 +87,66 @@ describe("PipelineDetailPanel", () => {
     expect(screen.getByText("File provisioned")).toBeInTheDocument()
   })
 
-  test("an output that never delivered shows never, its error and a failed state", () => {
+  test("an output that never delivered shows one problem, never and its failures", () => {
     renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={failing} />)
     expect(statusBadge("error")).toBeInTheDocument()
     expect(metric("Failed")).toHaveTextContent("3")
     expect(metric("Failed")).toHaveClass("text-status-error-foreground")
-    expect(metric("Last success")).toHaveTextContent("never")
-    expect(screen.getByText("Last error")).toHaveClass("text-status-error-foreground")
-    expect(screen.getByText(failing.last_error)).toHaveClass("text-status-error-foreground", "[overflow-wrap:anywhere]")
-    expect(screen.queryByText("Last warning")).toBeNull()
+    expect(metric("Last delivery")).toHaveTextContent("never")
+    const problem = screen.getByRole("alert")
+    expect(within(problem).getByText("Not delivering")).toBeInTheDocument()
+    expect(within(problem).getByText(failing.last_error)).toHaveClass("[overflow-wrap:anywhere]")
   })
 
-  test("an output that is not running shows a dash for its circuit", () => {
+  test("an output that is not running says so for its circuit", () => {
     renderWithProviders(<PipelineDetailPanel selection={sink("alertmanager")} entry={outputNamed("alertmanager")} status={statusNamed("alertmanager")} />)
     expect(statusBadge("failed")).toBeInTheDocument()
-    expect(metric("Circuit")).toHaveTextContent("-")
+    expect(metric("Circuit breaker")).toHaveTextContent("not running")
     expect(metric("Queue")).toHaveTextContent("0 / 0")
   })
 
-  test("wires nested secret metadata alongside public output configuration", () => {
-    const config = {
-      url: "https://example.test/events",
-      headers: { "X/Api~Key": { values: ["public"], files: ["/run/secrets/key"] } },
-      note: "****",
-    }
-    renderWithProviders(<PipelineDetailPanel
-      selection={sink("webhook")}
-      entry={{ ...entry, config, secret_fields: { "/headers/X~1Api~0Key/secrets": false, "/password": true } }}
-      status={delivering}
-    />)
-    const section = screen.getByText("Configuration (masked)").parentElement!
-    expect(within(section).getByText("X/Api~Key:")).toBeInTheDocument()
-    expect(within(section).getByRole("definition", { name: "secrets: secret not configured" })).toHaveTextContent("Not configured")
-    expect(within(section).getByRole("definition", { name: "password: secret configured" })).toHaveTextContent("Configured")
-    expect(within(section).getByText("https://example.test/events")).toBeInTheDocument()
-    expect(within(section).getByText("/run/secrets/key")).toBeInTheDocument()
-    expect(within(section).getByText("****")).toBeInTheDocument()
-    expect(Object.hasOwn(config.headers["X/Api~Key"], "secrets")).toBe(false)
+  test("a degraded output that still delivers shows its warning as the problem, not an error", () => {
+    renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={{
+      ...delivering, status: "degraded",
+      last_warning: "health check failed before start: connection refused",
+    }} />)
+    expect(statusBadge("degraded")).toBeInTheDocument()
+    const problem = screen.getByRole("alert")
+    expect(within(problem).getByText("Needs a look")).toBeInTheDocument()
+    expect(within(problem).getByText("health check failed before start: connection refused")).toBeInTheDocument()
+    expect(within(problem).queryByText("Not delivering")).toBeNull()
   })
 
-  test("shows metadata-only configuration for an output without live status or config", () => {
+  test("the configuration shows what is set by default, every field with its default on request", async () => {
+    mockOutputTypes()
+    renderWithProviders(<PipelineDetailPanel
+      selection={sink("webhook")}
+      entry={{ ...entry, secret_fields: { "/headers/X-Api-Key/secrets": false, "/password": true } }}
+      status={delivering}
+    />)
+    const value = (label: string) => screen.getByText(label, { selector: "dt" }).nextElementSibling as HTMLElement
+    expect(await screen.findByRole("heading", { level: 3, name: "Configuration" })).toBeInTheDocument()
+    expect(value("Host (scheme, host and port)")).toHaveTextContent("http://127.0.0.1:2899")
+    expect(value("Endpoint")).toHaveTextContent("/events")
+    expect(value("Password (Basic Auth)")).toHaveTextContent("stored, hidden")
+    expect(value("Custom HTTP Headers")).toHaveTextContent("X-Api-Key→public")
+    expect(screen.queryByText("HTTP Method", { selector: "dt" })).toBeNull()
+
+    fireEvent.click(screen.getByRole("radio", { name: "All fields" }))
+    expect(value("HTTP Method")).toHaveTextContent("POSTdefault")
+    fireEvent.click(screen.getByRole("button", { name: /Delivery/ }))
+    expect(value("Worker Count")).toHaveTextContent("2default")
+    expect(value("Host (scheme, host and port)")).not.toHaveTextContent("default")
+  })
+
+  test("an output type the catalog does not know falls back to the raw configuration", async () => {
+    mockOutputTypes()
     renderWithProviders(<PipelineDetailPanel
       selection={sink("custom")}
       entry={{ ...entry, name: "custom", config: null, secret_fields: { "/enabled": true, "/credentials/token": false } }}
       status={null}
     />)
+    expect(await screen.findByText("enabled", { selector: "dt" })).toBeInTheDocument()
     expect(metric("enabled")).toHaveTextContent("Configured")
     expect(screen.getByText("credentials:")).toBeInTheDocument()
     expect(metric("token")).toHaveTextContent("Not configured")
@@ -124,19 +161,6 @@ describe("PipelineDetailPanel", () => {
     expect(screen.getByText("Output not found.")).toBeInTheDocument()
   })
 
-  test("a degraded output that still delivers shows its warning wrapped by word, not an error", () => {
-    renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={{
-      ...delivering, status: "degraded",
-      last_warning: "health check failed before start: connection refused",
-    }} />)
-    expect(statusBadge("degraded")).toBeInTheDocument()
-    expect(screen.getByText("Last warning")).toHaveClass("text-status-degraded-foreground")
-    const warning = screen.getByText("health check failed before start: connection refused")
-    expect(warning).toHaveClass("text-status-degraded-foreground", "[overflow-wrap:anywhere]")
-    expect(warning).not.toHaveClass("break-all")
-    expect(screen.queryByText("Last error")).toBeNull()
-  })
-
   test("health text uses the dedicated foreground tokens", () => {
     renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={{
       ...delivering, failed_total: 1, dropped_total: 2, queue_depth: 90,
@@ -145,23 +169,21 @@ describe("PipelineDetailPanel", () => {
     expect(metric("Sent")).toHaveClass("text-status-ok-foreground")
     expect(metric("Failed")).toHaveClass("text-status-error-foreground")
     expect(metric("Dropped")).toHaveClass("text-status-degraded-foreground")
-    expect(metric("Queue")).toHaveClass("text-status-degraded-foreground")
-    expect(metric("Circuit")).toHaveClass("text-status-degraded-foreground")
-    expect(screen.getByText("Connection refused")).toHaveClass("text-status-error-foreground")
+    expect(within(metric("Circuit breaker")).getByText("open")).toHaveClass("text-status-degraded-foreground")
   })
 
-  test("headings follow the card title", () => {
+  test("headings follow the card title", async () => {
+    mockOutputTypes()
     renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={delivering} />)
-    expect(screen.getAllByRole("heading").map((h) => `${h.tagName}:${h.textContent}`)).toEqual([
-      "H2:webhook", "H3:Health", "H3:Configuration (masked)",
-    ])
+    await screen.findByRole("heading", { level: 3, name: "Configuration" })
+    expect(screen.getAllByRole("heading").map((h) => `${h.tagName}:${h.textContent}`).slice(0, 2)).toEqual(["H2:webhook", "H3:Configuration"])
   })
 
   test("source selection shows the ingestion endpoint without output controls", () => {
     renderWithProviders(<PipelineDetailPanel selection={{ kind: "source" }} entry={null} status={null} />)
     expect(screen.getByRole("heading", { level: 2, name: "Falco" })).toBeInTheDocument()
     expect(screen.getAllByText("POST /")).toHaveLength(2)
-    expect(screen.queryByText("Configuration (masked)")).not.toBeInTheDocument()
+    expect(screen.queryByText("Configuration")).not.toBeInTheDocument()
   })
 
   test("core details remain loading until their queries resolve", () => {

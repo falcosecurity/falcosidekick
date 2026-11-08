@@ -42,7 +42,8 @@ function isEntryMap(field: SchemaField): boolean {
   return field.type === "map" && (field.entry_fields?.length ?? 0) > 0
 }
 
-function getPath(cfg: Record<string, unknown> | null | undefined, path: string): unknown {
+/** Reads a dotted schema path ("tls.ca_file") from a nested config. */
+export function getPath(cfg: Record<string, unknown> | null | undefined, path: string): unknown {
   let current: unknown = cfg
   for (const part of path.split(".")) {
     if (current === null || typeof current !== "object") return undefined
