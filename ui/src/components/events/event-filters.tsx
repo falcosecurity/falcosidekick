@@ -118,7 +118,7 @@ export function EventFiltersBar({ className }: EventFiltersBarProps) {
         value={since || ANY_SINCE}
         onValueChange={(v) => setParam("since", v === ANY_SINCE ? "" : v)}
       >
-        <SelectTrigger className="h-9 w-36" aria-label="Time window">
+        <SelectTrigger className="h-9 w-fit min-w-36 shrink-0 whitespace-nowrap" aria-label="Time window">
           <SelectValue placeholder="Any time" />
         </SelectTrigger>
         <SelectContent>

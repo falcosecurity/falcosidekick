@@ -14,7 +14,7 @@ import {
   ValueList,
   type SettingsNavItem,
 } from "@/components/common/settings"
-import { Badge } from "@/components/ui/badge"
+import { InlineCode } from "@/components/common/code"
 import { Card, CardContent } from "@/components/ui/card"
 import { useConfig, useVersion } from "@/hooks/use-config"
 import { errorMessage } from "@/lib/api-error"
@@ -45,7 +45,7 @@ function BuildCard({ version }: { version: VersionInfo }) {
       <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 text-sm">
         <span className="flex items-center gap-2">
           <NoValue>Version</NoValue>
-          <Badge className="font-mono">{version.version}</Badge>
+          <CodeBadge variant="secondary">{version.version}</CodeBadge>
         </span>
         <span className="flex min-w-0 items-center gap-2">
           <NoValue>Commit</NoValue>
@@ -57,7 +57,7 @@ function BuildCard({ version }: { version: VersionInfo }) {
         </span>
         <span className="flex items-center gap-2">
           <NoValue>Go</NoValue>
-          <code className="font-mono text-xs">{version.go_version}</code>
+          <InlineCode>{version.go_version}</InlineCode>
         </span>
       </CardContent>
     </Card>
@@ -121,7 +121,7 @@ function DatabaseSection({ cfg }: { cfg: CoreConfig }) {
           <CopyValue value={address(pg.host, pg.port)} />
         </SettingRow>,
         <SettingRow key="db" label="Database and user">
-          <code className="font-mono text-xs">{`${pg.database} · ${pg.user}`}</code>
+          <InlineCode>{`${pg.database} · ${pg.user}`}</InlineCode>
         </SettingRow>,
         <SettingRow key="password" label="Password">
           {pg.password_file ? (

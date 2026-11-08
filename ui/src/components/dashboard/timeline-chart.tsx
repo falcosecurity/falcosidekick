@@ -1,31 +1,23 @@
 import { useMemo, useState } from "react"
-import {
-  Area,
-  CartesianGrid,
-  ComposedChart,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts"
+import { Area, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts"
 
 import { EmptyState } from "@/components/common/empty-state"
 import { ErrorState } from "@/components/common/error-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useEventsHistogram } from "@/hooks/use-events"
 import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
-import { cn } from "@/lib/utils"
 
 type Window = "1h" | "6h" | "24h"
 type Mode = "global" | "by-source"
@@ -78,9 +70,14 @@ export function TimelineChart({ className }: TimelineChartProps) {
     () => shapeHistogram(data?.buckets ?? [], mode),
     [data, mode],
   )
+  // Labels only: series colors stay on the marks, so source names never become CSS.
+  const config = useMemo<ChartConfig>(
+    () => Object.fromEntries(seriesKeys.map((key) => [key, { label: key === GLOBAL_SERIES_KEY ? "Events" : key }])),
+    [seriesKeys],
+  )
 
   return (
-    <Card className={cn("gap-4 py-5 shadow-xs", className)}>
+    <Card size="sm" className={className}>
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 px-5">
         <div>
           <CardTitle asChild className="text-base">
@@ -114,18 +111,13 @@ export function TimelineChart({ className }: TimelineChartProps) {
             </TabsList>
           </Tabs>
 
-          <Select value={window} onValueChange={(v) => setWindow(v as Window)}>
-            <SelectTrigger className="h-8 w-20" aria-label="Time window">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {WINDOWS.map((w) => (
-                <SelectItem key={w.value} value={w.value}>
-                  {w.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <ToggleGroup type="single" variant="outline" size="sm" value={window} onValueChange={(v) => v && setWindow(v as Window)} aria-label="Time window">
+            {WINDOWS.map((w) => (
+              <ToggleGroupItem key={w.value} value={w.value} className="px-2.5 text-xs">
+                {w.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
           {/* Totals only from loaded data: a zero must never stand for "unknown". */}
           {data && !isError && (
             <div className="hidden text-right text-xs tabular-nums text-muted-foreground sm:block">
@@ -145,7 +137,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
         ) : total === 0 ? (
           <EmptyState title="No events" description={`Nothing arrived in the last ${cfg.label}.`} />
         ) : (
-          <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 600, height: 256 }}>
+          <ChartContainer config={config} className="aspect-auto h-full w-full" initialDimension={{ width: 600, height: 256 }}>
             <ComposedChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 {seriesKeys.map((key, i) => (
@@ -179,39 +171,10 @@ export function TimelineChart({ className }: TimelineChartProps) {
                 ))}
               </defs>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                axisLine={false}
-                tickLine={false}
-                minTickGap={24}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                axisLine={false}
-                tickLine={false}
-                width={32}
-                allowDecimals={false}
-              />
-              <Tooltip
-                cursor={{ stroke: "var(--brand)", strokeOpacity: 0.3 }}
-                contentStyle={{
-                  background: "var(--popover)",
-                  borderColor: "var(--border)",
-                  borderRadius: "var(--radius-md)",
-                  fontSize: "12px",
-                }}
-                labelStyle={{ color: "var(--muted-foreground)" }}
-                itemStyle={{ color: "var(--foreground)" }}
-              />
-              {mode === "by-source" && (
-                <Legend
-                  verticalAlign="top"
-                  align="right"
-                  wrapperStyle={{ fontSize: "0.6875rem", paddingBottom: "4px" }}
-                  iconSize={8}
-                />
-              )}
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={24} />
+              <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={32} allowDecimals={false} />
+              <ChartTooltip cursor={{ stroke: "var(--brand)", strokeOpacity: 0.3 }} content={<ChartTooltipContent indicator="dot" />} />
+              {mode === "by-source" && <ChartLegend verticalAlign="top" content={<ChartLegendContent className="justify-end pt-0 pb-1" />} />}
               {mode === "global"
                 ? seriesKeys.map((key, i) => (
                     <Area
@@ -251,7 +214,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
                       />
                     ))}
             </ComposedChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         )}
       </CardContent>
     </Card>

@@ -10,6 +10,7 @@ import { SectionHeading } from "@/components/common/section-heading"
 import { StatTile } from "@/components/common/stat-tile"
 import { TimeAgo } from "@/components/common/time-ago"
 import { Button } from "@/components/ui/button"
+import { InlineCode } from "@/components/common/code"
 import { Item, ItemContent, ItemDescription } from "@/components/ui/item"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
@@ -84,7 +85,7 @@ export function EventDetailDrawer({ event, open, onClose, onCloseAutoFocus }: Ev
               </div>
               <SheetDescription className="sr-only">{event.output}</SheetDescription>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <code className="rounded bg-muted px-1.5 py-0.5 font-mono [overflow-wrap:anywhere]">{event.uuid}</code>
+                <InlineCode>{event.uuid}</InlineCode>
                 <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => copyText(event.uuid, "UUID")}>
                   <Copy className="mr-1 size-3" aria-hidden /> UUID
                 </Button>
