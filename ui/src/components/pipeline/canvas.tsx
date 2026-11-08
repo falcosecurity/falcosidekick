@@ -6,12 +6,15 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useNodesInitialized,
   useNodesState,
   type Edge,
   type Node,
   type NodeProps,
 } from "@xyflow/react"
 import ELK, { type ElkNode } from "elkjs/lib/elk.bundled.js"
+
+import { centerOnCore } from "./center-on-core"
 import { Server } from "lucide-react"
 import {
   forwardRef,
@@ -52,7 +55,8 @@ type FlowNode = Node<KindData, NodeKind>
 type FlowEdge = Edge
 
 const elk = new ELK()
-const NODE_WIDTH = 230
+// NodeCard is w-58; its height follows its content, so the centering uses the measured height.
+const NODE_WIDTH = 232
 const NODE_HEIGHT = 96
 const HIDDEN_HANDLE: React.CSSProperties = {
   width: 1,
@@ -203,10 +207,17 @@ async function layoutElk(nodes: FlowNode[], edges: FlowEdge[]): Promise<FlowNode
       positionsById.set(child.id, { x: child.x, y: child.y })
     }
   }
-  return nodes.map((n) => {
-    const pos = positionsById.get(n.id)
-    return pos ? { ...n, position: pos } : n
-  })
+  return centerOnCore(
+    nodes.map((n) => {
+      const pos = positionsById.get(n.id)
+      return pos ? { ...n, position: pos } : n
+    }),
+    measuredHeight,
+  )
+}
+
+function measuredHeight(node: FlowNode): number {
+  return node.measured?.height ?? NODE_HEIGHT
 }
 
 export type PipelineSelection =
@@ -389,6 +400,19 @@ function CanvasInner({
       cancelled = true
     }
   }, [graphKey, layoutRevision, setNodes])
+
+  // Heights follow the card content and are known once rendered: center again with them.
+  const nodesMeasured = useNodesInitialized()
+  useEffect(() => {
+    if (!nodesMeasured || layoutPending) return
+    setNodes((currentNodes) => {
+      const centered = centerOnCore(currentNodes, measuredHeight)
+      return centered.map((node, i) => {
+        const current = currentNodes[i]
+        return current && (current.dragging || userPositions.current[current.id]) ? current : node
+      })
+    })
+  }, [nodesMeasured, layoutPending, setNodes])
 
   const handleNodesChange: typeof onNodesChange = useCallback(
     (changes) => {
