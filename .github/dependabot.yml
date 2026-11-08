@@ -55,3 +55,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "2.x"
+    schedule:
+      interval: "weekly"
