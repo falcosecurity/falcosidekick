@@ -135,10 +135,24 @@ export function FieldControl({ field, value, onChange, error, filesOnly }: Field
       />
     )
   }
+  const suggested = field.suggested
   return (
     <Field data-invalid={error ? true : undefined}>
       {label}
       {control}
+      {suggested && text.trim() === "" && (
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          className="h-auto min-w-0 justify-start p-0 text-xs font-normal"
+          onClick={() => set(suggested)}
+          aria-label={`Use the suggested ${field.label}: ${suggested}`}
+        >
+          <span className="shrink-0 text-muted-foreground">Use suggested:</span>
+          <span className="truncate font-mono">{suggested}</span>
+        </Button>
+      )}
       {footer}
     </Field>
   )

@@ -42,7 +42,7 @@ func resolveSASL(cfg *config) (kgo.Opt, error) {
 			User: cfg.Auth.Username,
 			Pass: cfg.Auth.Password,
 		}.AsSha512Mechanism()), nil
-	case "", configNone:
+	case "":
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("%s: unsupported SASL mechanism %q", name, cfg.Auth.SASL)

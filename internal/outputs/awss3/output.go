@@ -42,7 +42,7 @@ const (
 	name             = "awss3"
 	opPutObject      = "PutObject"
 	opHeadBucket     = "HeadBucket"
-	defaultPrefix    = "falco"
+	suggestedPrefix  = "falco"
 	defaultCannedACL = string(s3types.ObjectCannedACLBucketOwnerFullControl)
 
 	contentTypeJSON   = "application/json"
@@ -82,9 +82,9 @@ var OutputType = output.Type{
 				Description: "Name of the bucket the events are written to, 3 to 63 lowercase letters, digits, `.` or `-`.",
 			},
 			{
-				Name: "prefix", Type: "string", Default: defaultPrefix, Label: "Key Prefix",
+				Name: "prefix", Type: "string", Suggested: suggestedPrefix, Label: "Key Prefix",
 				Description: "Start of every object key, followed by `/YYYY-MM-DD/<event time>_<event id>.json`, or `.ndjson` for a batch. " +
-					"Leading and trailing `/` are removed; empty uses the default.",
+					"Leading and trailing `/` are removed; empty writes the keys from the date, at the root of the bucket.",
 			},
 			{
 				Name: "object_canned_acl", Type: "enum", Values: cannedACLs, Default: defaultCannedACL, Label: "Object Canned ACL",
@@ -114,9 +114,6 @@ func (c *config) validate() utils.ValidationErrors {
 		errs.Add("bucket", "invalid bucket name")
 	}
 	c.Prefix = strings.Trim(c.Prefix, "/")
-	if c.Prefix == "" {
-		c.Prefix = defaultPrefix
-	}
 	if c.ObjectCannedACL == "" {
 		c.ObjectCannedACL = defaultCannedACL
 	} else if !slices.Contains(cannedACLs, c.ObjectCannedACL) {
@@ -195,7 +192,11 @@ func (d *driver) objectKey(evt *event.Event, ext string) string {
 	if id == "" {
 		id = uuid.NewString()
 	}
-	return fmt.Sprintf("%s/%s/%s_%s%s", d.cfg.Prefix, t.Format(time.DateOnly), t.Format(time.RFC3339Nano), id, ext)
+	key := fmt.Sprintf("%s/%s_%s%s", t.Format(time.DateOnly), t.Format(time.RFC3339Nano), id, ext)
+	if d.cfg.Prefix == "" {
+		return key
+	}
+	return d.cfg.Prefix + "/" + key
 }
 
 // HealthCheck sends HeadBucket, which needs s3:ListBucket on the bucket.

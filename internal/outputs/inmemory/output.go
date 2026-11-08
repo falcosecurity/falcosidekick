@@ -59,7 +59,7 @@ var OutputType = output.Type{
 			},
 			{
 				Name: "gc_interval", Type: "string", Default: "10s", Label: "GC Interval (when TTL > 0)",
-				Description: "Go duration, such as `10s`, between removals of expired events. Used only when `ttl` is set; `0` uses the default.",
+				Description: "Go duration, such as `10s`, between removals of expired events; refused without `ttl`. `0` uses the default.",
 			},
 		}, shared.RuntimeConfigSchemaFields()...),
 	},
@@ -104,11 +104,13 @@ func (c *config) validate() utils.ValidationErrors {
 	if c.TTL < 0 {
 		errs.Add("ttl", "must be >= 0 (0 = no expiry)")
 	}
-	if c.TTL > 0 && c.GCInterval == 0 {
-		c.GCInterval = defaultGCInterval
-	}
-	if c.GCInterval < 0 {
+	switch {
+	case c.GCInterval < 0:
 		errs.Add("gc_interval", "must be >= 0")
+	case c.GCInterval > 0 && c.TTL == 0:
+		errs.Add("gc_interval", "needs ttl: without it no event expires")
+	case c.TTL > 0 && c.GCInterval == 0:
+		c.GCInterval = defaultGCInterval
 	}
 	if len(errs) > 0 {
 		return errs

@@ -25,6 +25,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"text/template"
 
@@ -218,7 +219,7 @@ func TestSlackSendSafeDiagnostics(t *testing.T) {
 }
 
 func TestBuildPayloadMrkdwnIn(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatText, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatText, Footer: suggestedFooter}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 
 	payload := o.buildPayload(evt)
@@ -230,7 +231,7 @@ func TestBuildPayloadMrkdwnIn(t *testing.T) {
 func TestBuildPayloadIconEmoji(t *testing.T) {
 	o := &driver{cfg: config{
 		OutputFormat: formatText,
-		Footer:       defaultFooter,
+		Footer:       suggestedFooter,
 		IconEmoji:    ":ghost:",
 	}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
@@ -240,7 +241,7 @@ func TestBuildPayloadIconEmoji(t *testing.T) {
 }
 
 func TestBuildPayloadFieldsOnlyFormat(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatFields, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatFields, Footer: suggestedFooter}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 
 	payload := o.buildPayload(evt)
@@ -252,7 +253,7 @@ func TestBuildPayloadFieldsOnlyFormat(t *testing.T) {
 }
 
 func TestBuildPayloadAllFormat(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 
 	payload := o.buildPayload(evt)
@@ -262,7 +263,7 @@ func TestBuildPayloadAllFormat(t *testing.T) {
 }
 
 func TestBuildPayloadEveryPriorityHasColor(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatText, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatText, Footer: suggestedFooter}, logger: slog.Default()}
 
 	priorities := []event.Priority{
 		event.PriorityDebug, event.PriorityInformational, event.PriorityNotice,
@@ -282,7 +283,7 @@ func TestBuildPayloadEveryPriorityHasColor(t *testing.T) {
 }
 
 func TestBuildPayloadNoHostname(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 	evt.Hostname = ""
 
@@ -293,7 +294,7 @@ func TestBuildPayloadNoHostname(t *testing.T) {
 }
 
 func TestBuildPayloadNoTags(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 	evt.Tags = nil
 
@@ -304,7 +305,7 @@ func TestBuildPayloadNoTags(t *testing.T) {
 }
 
 func TestBuildPayloadTagsSorted(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 	evt.Tags = []string{"z", "a", "m"}
 
@@ -320,7 +321,7 @@ func TestBuildPayloadTagsSorted(t *testing.T) {
 }
 
 func TestBuildPayloadOutputFieldsOrder(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 	evt.OutputFields = map[string]interface{}{
 		"z.field": "zz",
@@ -344,7 +345,7 @@ func TestBuildPayloadMessageTemplateExec(t *testing.T) {
 	require.NoError(t, err)
 
 	o := &driver{
-		cfg:         config{OutputFormat: formatText, Footer: defaultFooter},
+		cfg:         config{OutputFormat: formatText, Footer: suggestedFooter},
 		messageTmpl: tmpl,
 		logger:      slog.Default(),
 	}
@@ -358,7 +359,7 @@ func TestBuildPayloadMessageTemplateBadField(t *testing.T) {
 	require.NoError(t, err)
 
 	o := &driver{
-		cfg:         config{OutputFormat: formatText, Footer: defaultFooter},
+		cfg:         config{OutputFormat: formatText, Footer: suggestedFooter},
 		messageTmpl: tmpl,
 		logger:      slog.Default(),
 	}
@@ -404,14 +405,14 @@ func TestSlackTemplateSafeDiagnostic(t *testing.T) {
 }
 
 func TestBuildPayloadChannel(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatText, Footer: defaultFooter, Channel: "#security"}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatText, Footer: suggestedFooter, Channel: "#security"}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 	payload := o.buildPayload(evt)
 	assert.Equal(t, "#security", payload.Channel)
 }
 
 func TestBuildPayloadNoChannel(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatText, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatText, Footer: suggestedFooter}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 	payload := o.buildPayload(evt)
 	assert.Empty(t, payload.Channel)
@@ -435,7 +436,18 @@ func TestCreateRuntimeDefaults(t *testing.T) {
 	o, ok := d.(*driver)
 	require.True(t, ok)
 	assert.Equal(t, formatAll, o.cfg.OutputFormat)
-	assert.Equal(t, defaultFooter, o.cfg.Footer)
+	assert.Empty(t, o.cfg.Footer, "the footer is only suggested")
+	assert.Empty(t, o.buildPayload(testutil.CreateValidEvent()).Attachments[0].Footer, "no footer unless set")
+}
+
+func TestFooterAndIconAreSuggested(t *testing.T) {
+	for _, name := range []string{"footer", "icon_url"} {
+		i := slices.IndexFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == name })
+		require.GreaterOrEqual(t, i, 0, name)
+		f := &OutputType.Schema.Fields[i]
+		assert.Nil(t, f.Default, name)
+		assert.NotEmpty(t, f.Suggested, name)
+	}
 }
 
 func TestSlackHealthCheckSendsNoRequest(t *testing.T) {
@@ -466,7 +478,7 @@ func TestSlackClose(t *testing.T) {
 }
 
 func TestBuildPayloadFieldShortDetection(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: defaultFooter}, logger: slog.Default()}
+	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
 	evt := testutil.CreateValidEvent()
 	evt.OutputFields = map[string]interface{}{
 		"short": "x",

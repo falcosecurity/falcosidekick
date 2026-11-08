@@ -49,12 +49,11 @@ type bulkItemResult struct {
 }
 
 // buildBulkBody uses create, required by data streams, and the event UUID as _id so a retry cannot index twice.
+// Each item names its own index, so a batch across midnight splits by event day.
 func (d *driver) buildBulkBody(events []*event.Event) ([]byte, error) {
 	var body []byte
-	index := d.resolveIndex()
-
 	for _, evt := range events {
-		action, err := bulkAction(index, evt.UUID)
+		action, err := bulkAction(d.resolveIndex(evt), evt.UUID)
 		if err != nil {
 			return nil, shared.WrapDeliveryError(name, shared.OpMarshal, err)
 		}

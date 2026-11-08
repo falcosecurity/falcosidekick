@@ -80,7 +80,7 @@ outputs:
   # inmemory:
   #   capacity: 10000                    # max events in ring buffer
   #   ttl: 0                             # event TTL (0 = no expiry)
-  #   gc_interval: 10s                   # garbage collection interval
+  #   # gc_interval: 10s                 # with ttl only: interval between removals of expired events
 
   # ===========================================================================
   # Webhook
@@ -310,7 +310,7 @@ outputs:
   # awss3:
   #   region: "eu-west-1"
   #   bucket: "falco-events"
-  #   prefix: falco                      # default
+  #   prefix: falco                      # empty writes the keys at the bucket root
   #   object_canned_acl: bucket-owner-full-control  # default; private, public-read, ...
   #   # use_path_style: true             # path-style URLs, for most S3-compatible stores
   #   # One object per event: <prefix>/<YYYY-MM-DD>/<event time>_<uuid>.json, in UTC.

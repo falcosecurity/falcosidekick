@@ -97,7 +97,7 @@ func TestDefaults(t *testing.T) {
 	require.NoError(t, err)
 	o := d.(*driver)
 	assert.Equal(t, "https://discord.com", o.cfg.Host)
-	assert.Equal(t, defaultIcon, o.cfg.Icon)
+	assert.Empty(t, o.cfg.Icon, "the avatar is only suggested")
 	assert.Equal(t, output.RuntimeConfig{}, o.RuntimeConfig())
 	assert.NoError(t, o.Init(context.Background()))
 	assert.NoError(t, o.Close())
@@ -115,7 +115,8 @@ func TestSchema(t *testing.T) {
 	assert.Equal(t, "https://discord.com", fields["host"].Default)
 	assert.False(t, fields["host"].Required)
 	assert.NotContains(t, fields, "endpoint")
-	assert.Equal(t, defaultIcon, fields["icon"].Default)
+	assert.Nil(t, fields["icon"].Default)
+	assert.Equal(t, shared.FalcosidekickIconURL, fields["icon"].Suggested)
 	assert.Contains(t, fields, "runtime.minimum_priority")
 	assert.Equal(t, output.CategoryChat, OutputType.Category)
 }
@@ -259,7 +260,8 @@ func TestSendDelivers(t *testing.T) {
 			var p payload
 			require.NoError(t, json.Unmarshal(req.Body, &p))
 			require.Len(t, p.Embeds, 1)
-			assert.Equal(t, defaultIcon, p.AvatarURL)
+			assert.Empty(t, p.AvatarURL, "the webhook's own avatar")
+			assert.NotContains(t, string(req.Body), "avatar_url")
 		})
 	}
 }

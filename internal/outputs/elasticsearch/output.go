@@ -230,9 +230,10 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 	}
 
-	method, route := http.MethodPost, "/"+d.resolveIndex()+"/_doc"
+	index := d.resolveIndex(evt)
+	method, route := http.MethodPost, "/"+index+"/_doc"
 	if evt.UUID != "" {
-		method, route = http.MethodPut, "/"+d.resolveIndex()+"/_create/"+url.PathEscape(evt.UUID)
+		method, route = http.MethodPut, "/"+index+"/_create/"+url.PathEscape(evt.UUID)
 	}
 	target, err := d.cfg.URL(d.cfg.Host, route, d.pipelineQuery())
 	if err != nil {
@@ -316,16 +317,22 @@ func (d *driver) marshalEvent(evt *event.Event) ([]byte, error) {
 	return json.Marshal(tmp)
 }
 
-func (d *driver) resolveIndex() string {
-	now := time.Now().UTC()
+// resolveIndex dates the index from the event time, in UTC, so a retry or a queued event lands in the
+// index of the day it happened, like its @timestamp.
+func (d *driver) resolveIndex(evt *event.Event) string {
+	t := evt.Time
+	if t.IsZero() {
+		t = time.Now()
+	}
+	t = t.UTC()
 	switch d.cfg.Suffix {
 	case "monthly":
-		return fmt.Sprintf("%s-%s", d.cfg.Index, now.Format("2006.01"))
+		return fmt.Sprintf("%s-%s", d.cfg.Index, t.Format("2006.01"))
 	case "annually":
-		return fmt.Sprintf("%s-%s", d.cfg.Index, now.Format("2006"))
+		return fmt.Sprintf("%s-%s", d.cfg.Index, t.Format("2006"))
 	case suffixNone:
 		return d.cfg.Index
 	default:
-		return fmt.Sprintf("%s-%s", d.cfg.Index, now.Format("2006.01.02"))
+		return fmt.Sprintf("%s-%s", d.cfg.Index, t.Format("2006.01.02"))
 	}
 }

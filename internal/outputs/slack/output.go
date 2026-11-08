@@ -31,11 +31,11 @@ import (
 )
 
 const (
-	name          = "slack"
-	defaultFooter = "https://github.com/falcosecurity/falcosidekick"
-	formatAll     = "all"
-	formatFields  = "fields"
-	formatText    = "text"
+	name            = "slack"
+	suggestedFooter = "https://github.com/falcosecurity/falcosidekick"
+	formatAll       = "all"
+	formatFields    = "fields"
+	formatText      = "text"
 )
 
 // webhookErrors are the codes Slack documents for incoming webhooks, mapped to whether a retry can succeed.
@@ -78,7 +78,7 @@ var OutputType = output.Type{
 				Description: "Name shown as the sender of the messages, when the webhook allows it. Empty uses the webhook's name.",
 			},
 			{
-				Name: "icon_url", Type: "string", Label: "Icon URL",
+				Name: "icon_url", Type: "string", Label: "Icon URL", Suggested: shared.FalcosidekickIconURL,
 				Description: "URL of the image shown as the sender icon. Empty uses the webhook's icon.",
 			},
 			{
@@ -94,8 +94,8 @@ var OutputType = output.Type{
 				Description: "Go template for a message text shown above the attachment, applied to the event, such as `Rule {{ .Rule }} on {{ .Hostname }}`. Empty sends no message text.",
 			},
 			{
-				Name: "footer", Type: "string", Label: "Footer",
-				Description: "Text shown under the attachment, cut to 300 characters. Empty uses the default.",
+				Name: "footer", Type: "string", Label: "Footer", Suggested: suggestedFooter,
+				Description: "Text shown under the attachment, cut to 300 characters. Empty shows no footer.",
 			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
@@ -125,9 +125,6 @@ func (c *config) validate() utils.ValidationErrors {
 		if _, err := template.New("").Parse(c.MessageFormat); err != nil {
 			errs.Add("message_format", "invalid Go template")
 		}
-	}
-	if c.Footer == "" {
-		c.Footer = defaultFooter
 	}
 	if len(errs) > 0 {
 		return errs

@@ -312,11 +312,11 @@
             "type": "string"
           },
           {
-            "default": "falco",
-            "description": "Start of every object key, followed by `/YYYY-MM-DD/\u003cevent time\u003e_\u003cevent id\u003e.json`, or `.ndjson` for a batch. Leading and trailing `/` are removed; empty uses the default.",
+            "description": "Start of every object key, followed by `/YYYY-MM-DD/\u003cevent time\u003e_\u003cevent id\u003e.json`, or `.ndjson` for a batch. Leading and trailing `/` are removed; empty writes the keys from the date, at the root of the bucket.",
             "label": "Key Prefix",
             "name": "prefix",
             "required": false,
+            "suggested": "falco",
             "type": "string"
           },
           {
@@ -1633,11 +1633,11 @@
             "type": "map"
           },
           {
-            "default": "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
-            "description": "Absolute http or https URL of the image shown as the avatar of every message. Empty uses the default.",
+            "description": "Absolute http or https URL of the image shown as the avatar of every message. Empty uses the webhook's avatar.",
             "label": "Avatar URL",
             "name": "icon",
             "required": false,
+            "suggested": "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
             "type": "string"
           },
           {
@@ -2624,7 +2624,7 @@
           },
           {
             "default": "10s",
-            "description": "Go duration, such as `10s`, between removals of expired events. Used only when `ttl` is set; `0` uses the default.",
+            "description": "Go duration, such as `10s`, between removals of expired events; refused without `ttl`. `0` uses the default.",
             "label": "GC Interval (when TTL \u003e 0)",
             "name": "gc_interval",
             "required": false,
@@ -2758,7 +2758,7 @@
             "type": "string"
           },
           {
-            "description": "Record key used when `message_key_field` gives no value. Empty sends records without a key. Only the default balancer places records by key.",
+            "description": "Record key used when `message_key_field` gives no value; records with the same key go to the same partition. Empty sends records without a key, spread across partitions.",
             "label": "Static message key (for partition affinity)",
             "name": "message_key",
             "required": false,
@@ -2820,20 +2820,6 @@
               "snappy",
               "lz4",
               "zstd"
-            ]
-          },
-          {
-            "default": "",
-            "description": "How records are spread across partitions. Empty hashes the key like the Java client and moves keyless records between partitions in batches; `round_robin`, `least_backup` and `sticky` ignore the key.",
-            "label": "Partition Balancer",
-            "name": "producer.balancer",
-            "required": false,
-            "type": "enum",
-            "values": [
-              "",
-              "round_robin",
-              "least_backup",
-              "sticky"
             ]
           },
           {
@@ -4815,6 +4801,7 @@
             "label": "Icon URL",
             "name": "icon_url",
             "required": false,
+            "suggested": "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
             "type": "string"
           },
           {
@@ -4845,10 +4832,11 @@
             "type": "string"
           },
           {
-            "description": "Text shown under the attachment, cut to 300 characters. Empty uses the default.",
+            "description": "Text shown under the attachment, cut to 300 characters. Empty shows no footer.",
             "label": "Footer",
             "name": "footer",
             "required": false,
+            "suggested": "https://github.com/falcosecurity/falcosidekick",
             "type": "string"
           },
           {
@@ -5817,11 +5805,11 @@
             "type": "map"
           },
           {
-            "default": "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
-            "description": "Absolute http or https URL of the image shown in the card header. Empty uses the default.",
+            "description": "Absolute http or https URL of the image shown in the card header. Empty shows no image.",
             "label": "Activity Image URL",
             "name": "activity_image",
             "required": false,
+            "suggested": "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
             "type": "string"
           },
           {

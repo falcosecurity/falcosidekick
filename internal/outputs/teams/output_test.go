@@ -137,7 +137,7 @@ func TestDefaults(t *testing.T) {
 	require.NoError(t, err)
 	o := d.(*driver)
 	assert.Equal(t, formatAll, o.cfg.OutputFormat)
-	assert.Equal(t, defaultActivityImage, o.cfg.ActivityImage)
+	assert.Empty(t, o.cfg.ActivityImage, "the image is only suggested")
 	assert.Equal(t, output.RuntimeConfig{}, o.RuntimeConfig())
 	assert.NoError(t, o.Init(context.Background()))
 	assert.NoError(t, o.Close())
@@ -156,14 +156,25 @@ func TestSchema(t *testing.T) {
 	assert.Nil(t, fields["host"].Default)
 	assert.NotContains(t, fields, "endpoint")
 	assert.Equal(t, []string{"all", "text", "fields"}, fields["output_format"].Values)
-	assert.Equal(t, defaultActivityImage, fields["activity_image"].Default)
+	assert.Nil(t, fields["activity_image"].Default)
+	assert.Equal(t, shared.FalcosidekickIconURL, fields["activity_image"].Suggested)
 	assert.Contains(t, fields, "runtime.minimum_priority")
 	assert.True(t, fields["bearer_token"].Secret)
 	assert.Equal(t, output.CategoryChat, OutputType.Category)
 }
 
-func TestPayloadAllFormat(t *testing.T) {
+func TestPayloadWithoutImage(t *testing.T) {
 	d := newDriver(t, &config{})
+	body, err := d.buildPayload(testutil.CreateValidEvent())
+	require.NoError(t, err)
+	header := decodeCard(t, body).Body[0]
+	require.Len(t, header.Items, 3, "the heading alone, no image column")
+	assert.Equal(t, cardTitle, header.Items[0].Text)
+	assert.NotContains(t, string(body), `"Image"`)
+}
+
+func TestPayloadAllFormat(t *testing.T) {
+	d := newDriver(t, &config{ActivityImage: shared.FalcosidekickIconURL})
 	evt := testutil.CreateValidEvent()
 	body, err := d.buildPayload(evt)
 	require.NoError(t, err)
@@ -182,7 +193,7 @@ func TestPayloadAllFormat(t *testing.T) {
 	columns := header.Items[0].Columns
 	require.Len(t, columns, 2)
 	assert.Equal(t, "Image", columns[0].Items[0].Type)
-	assert.Equal(t, defaultActivityImage, columns[0].Items[0].URL)
+	assert.Equal(t, shared.FalcosidekickIconURL, columns[0].Items[0].URL)
 	heading := columns[1].Items
 	require.Len(t, heading, 3)
 	assert.Equal(t, cardTitle, heading[0].Text)
@@ -256,7 +267,7 @@ func TestPayloadPriorityStyles(t *testing.T) {
 			require.NoError(t, err)
 			header := decodeCard(t, body).Body[0]
 			assert.Equal(t, style, header.Style)
-			assert.Equal(t, style, header.Items[0].Columns[1].Items[2].Color)
+			assert.Equal(t, style, header.Items[2].Color)
 		})
 	}
 }

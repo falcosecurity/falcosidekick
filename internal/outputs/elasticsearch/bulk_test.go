@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -171,6 +172,19 @@ func TestBuildBulkBodyIsExactNDJSON(t *testing.T) {
 	empty, err := d.buildBulkBody(nil)
 	require.NoError(t, err)
 	assert.Empty(t, empty)
+}
+
+func TestBulkAcrossMidnightSplitsByEventDay(t *testing.T) {
+	d := &driver{cfg: config{Index: "falco", Suffix: "daily"}}
+	before, after := testutil.CreateValidEvent(), testutil.CreateValidEvent()
+	before.Time = time.Date(2026, 3, 1, 23, 59, 59, 0, time.UTC)
+	after.Time, after.UUID = time.Date(2026, 3, 2, 0, 0, 1, 0, time.UTC), "test-uuid-002"
+
+	body, err := d.buildBulkBody([]*event.Event{before, after})
+	require.NoError(t, err)
+	lines := strings.Split(string(body), "\n")
+	assert.JSONEq(t, `{"create":{"_index":"falco-2026.03.01","_id":"test-uuid-001"}}`, lines[0])
+	assert.JSONEq(t, `{"create":{"_index":"falco-2026.03.02","_id":"test-uuid-002"}}`, lines[2])
 }
 
 func TestSendBatchIncludesFilterPath(t *testing.T) {

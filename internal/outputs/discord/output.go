@@ -30,9 +30,8 @@ import (
 )
 
 const (
-	name        = "discord"
-	defaultIcon = shared.FalcosidekickIconURL
-	waitParam   = "wait"
+	name      = "discord"
+	waitParam = "wait"
 )
 
 var targetOptions = shared.HTTPTargetOptions{DefaultHost: "https://discord.com", SecretEndpointRequired: true}
@@ -51,8 +50,8 @@ var OutputType = output.Type{
 	Category: output.CategoryChat,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), output.SchemaField{
-			Name: "icon", Type: "string", Default: defaultIcon, Label: "Avatar URL",
-			Description: "Absolute http or https URL of the image shown as the avatar of every message. Empty uses the default.",
+			Name: "icon", Type: "string", Suggested: shared.FalcosidekickIconURL, Label: "Avatar URL",
+			Description: "Absolute http or https URL of the image shown as the avatar of every message. Empty uses the webhook's avatar.",
 		}), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }
@@ -67,9 +66,7 @@ func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	errs.Merge("", c.HTTPConfig.Validate())
 	errs.Merge("", c.HTTPTargetConfig.Validate(&targetOptions))
-	if c.Icon == "" {
-		c.Icon = defaultIcon
-	} else if !shared.IsAbsoluteHTTPURL(c.Icon) {
+	if c.Icon != "" && !shared.IsAbsoluteHTTPURL(c.Icon) {
 		errs.Add("icon", "must be an absolute http or https URL")
 	}
 	if _, ok := c.QueryParams[waitParam]; ok {
