@@ -1,270 +1,219 @@
-import {
-  Activity,
-  Check,
-  Copy,
-  Database,
-  KeyRound,
-  Monitor,
-  Network,
-  RefreshCw,
-  type LucideIcon,
-} from "lucide-react"
-import { Fragment, useState, type ReactNode } from "react"
-import { toast } from "sonner"
+import { Activity, Database, KeyRound, Monitor, Network, RefreshCw } from "lucide-react"
 
 import { EmptyState } from "@/components/common/empty-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { PageHeader } from "@/components/common/page-header"
+import {
+  CodeBadge,
+  CopyValue,
+  NoValue,
+  SettingRow,
+  SettingsNav,
+  SettingsSection,
+  StateBadge,
+  ValueList,
+  type SettingsNavItem,
+} from "@/components/common/settings"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemSeparator, ItemTitle } from "@/components/ui/item"
+import { Card, CardContent } from "@/components/ui/card"
 import { useConfig, useVersion } from "@/hooks/use-config"
 import { errorMessage } from "@/lib/api-error"
 import { AUTH_UNAVAILABLE_MESSAGE } from "@/lib/auth"
 import { formatAbsoluteTime, formatGoDuration } from "@/lib/format"
 import type { CoreConfig, VersionInfo } from "@/lib/types"
-import { cn } from "@/lib/utils"
 
-/** One setting: what it is, what it does, its value. */
-interface Row {
-  label: string
-  hint?: string
-  value: ReactNode
-}
-
-interface Section {
-  id: string
-  title: string
-  description: string
-  icon: LucideIcon
-  rows: Row[]
-}
-
-function CopyValue({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false)
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      toast.error("The browser did not allow copying")
-    }
-  }
-  return (
-    <span className="inline-flex min-w-0 items-center gap-1">
-      <span className="font-mono text-xs [overflow-wrap:anywhere]">{value}</span>
-      <Button type="button" variant="ghost" size="icon" className="size-6 shrink-0" onClick={copy} aria-label={`Copy ${value}`}>
-        {copied ? <Check className="size-3.5" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
-      </Button>
-    </span>
-  )
-}
-
-function State({ on, labels = ["Enabled", "Disabled"] }: { on: boolean; labels?: [string, string] }) {
-  return (
-    <Badge variant="outline" className={cn("font-normal", on ? "border-status-ok/30 text-status-ok-foreground" : "text-muted-foreground")}>
-      <span className={cn("size-1.5 rounded-full", on ? "bg-status-ok" : "bg-muted-foreground")} aria-hidden />
-      {on ? labels[0] : labels[1]}
-    </Badge>
-  )
-}
-
-function Muted({ children }: { children: ReactNode }) {
-  return <span className="text-sm text-muted-foreground">{children}</span>
-}
-
-function Plain({ children }: { children: ReactNode }) {
-  return <span className="text-sm">{children}</span>
-}
-
-function Code({ children }: { children: ReactNode }) {
-  return <span className="font-mono text-xs">{children}</span>
-}
-
-function List({ items, empty }: { items: string[]; empty: string }) {
-  if (items.length === 0) return <Muted>{empty}</Muted>
-  return (
-    <span className="flex flex-col items-end gap-1">
-      {items.map((item) => (
-        <CopyValue key={item} value={item} />
-      ))}
-    </span>
-  )
-}
+const SECTIONS = {
+  listeners: { id: "listeners", title: "Listeners", icon: Network },
+  database: { id: "database", title: "Database", icon: Database },
+  api: { id: "api", title: "API and access", icon: KeyRound },
+  reload: { id: "reload", title: "Reload", icon: RefreshCw },
+  observability: { id: "observability", title: "Logs and metrics", icon: Activity },
+  ui: { id: "ui", title: "UI", icon: Monitor },
+} satisfies Record<string, SettingsNavItem>
 
 function address(host: string, port: number): string {
   return host ? `${host}:${port}` : `:${port}`
 }
 
-function sections(cfg: CoreConfig): Section[] {
-  const tls = cfg.tls
-  const db = cfg.database
-  const pg = db.postgres
-  const listeners: Row[] = [
-    { label: "Ingestion", hint: "Where Falco posts events, with the health, version and metrics endpoints.", value: <CopyValue value={address(cfg.listen_address, cfg.listen_port)} /> },
-    {
-      label: "Ingestion TLS",
-      hint: tls?.enabled && tls.mutual_tls ? "Clients must present a certificate signed by the client CA." : undefined,
-      value: <State on={tls?.enabled === true} labels={[tls?.mutual_tls ? "Mutual TLS" : "Enabled", "Disabled"]} />,
-    },
-  ]
-  if (tls?.enabled) {
-    listeners.push({ label: "Certificate", value: tls.cert_file ? <CopyValue value={tls.cert_file} /> : <Muted>Not set</Muted> })
-    listeners.push({ label: "Key", value: tls.key_file ? <CopyValue value={tls.key_file} /> : <Muted>Not set</Muted> })
-    if (tls.mutual_tls) listeners.push({ label: "Client CA", value: tls.ca_file ? <CopyValue value={tls.ca_file} /> : <Muted>Not set</Muted> })
-  }
-  listeners.push({ label: "Management", hint: "The API and this UI.", value: <CopyValue value={address(cfg.management.listen_address, cfg.management.listen_port)} /> })
-
-  const database: Row[] = [
-    {
-      label: "Backend",
-      hint:
-        db.backend === "inmemory"
-          ? "Outputs created from the UI or the API and the pipeline layout are lost on restart."
-          : "Outputs and the pipeline layout are stored here; output files are provisioned into it.",
-      value: <Badge variant="secondary" className="font-mono font-normal">{db.backend}</Badge>,
-    },
-  ]
-  if (db.backend === "sqlite") database.push({ label: "File", value: db.sqlite.path ? <CopyValue value={db.sqlite.path} /> : <Muted>Not set</Muted> })
-  if (db.backend === "postgres") {
-    database.push(
-      { label: "Server", value: <CopyValue value={address(pg.host, pg.port)} /> },
-      { label: "Database and user", value: <Code>{`${pg.database} · ${pg.user}`}</Code> },
-      {
-        label: "Password",
-        value: pg.password_file ? (
-          <CopyValue value={pg.password_file} />
-        ) : pg.password ? (
-          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-            <KeyRound className="size-3.5" aria-hidden /> Set inline, hidden
-          </span>
-        ) : (
-          <Muted>Not set</Muted>
-        ),
-      },
-      { label: "SSL mode", value: <Badge variant="outline" className="font-mono font-normal">{pg.sslmode}</Badge> },
-      { label: "CA file", value: pg.tls.ca_file ? <CopyValue value={pg.tls.ca_file} /> : <Muted>System CAs</Muted> },
-      { label: "Connections", value: <Plain>up to {pg.max_connections}</Plain> },
-      { label: "Instance sync", hint: "How often this instance checks for changes made by other instances.", value: <Plain>every {formatGoDuration(pg.poll_interval)}</Plain> },
-    )
-  }
-  if (db.backend !== "inmemory") database.push({ label: "Connect timeout", value: <Plain>{formatGoDuration(db.connect_timeout)}</Plain> })
-
-  return [
-    { id: "listeners", title: "Listeners", description: "Where Sidekick accepts connections.", icon: Network, rows: listeners },
-    { id: "database", title: "Database", description: "Where outputs and the pipeline layout are kept.", icon: Database, rows: database },
-    {
-      id: "api",
-      title: "API and access",
-      description: "What the API and the UI may change.",
-      icon: KeyRound,
-      rows: [
-        { label: "Writes", hint: "Outputs and the layout can be changed from the UI and the API.", value: <State on={cfg.api.allow_writes} labels={["Allowed", "Read-only"]} /> },
-        {
-          label: "File outputs",
-          hint: "Outputs defined in the output files, changed from the UI and the API.",
-          value: <State on={cfg.provisioning.allow_ui_updates} labels={["Editable", "Read-only"]} />,
-        },
-        { label: "Secret directories", hint: "Where secret files named through the API must be.", value: <List items={cfg.api.secret_dirs} empty="None" /> },
-        { label: "Authentication", hint: AUTH_UNAVAILABLE_MESSAGE, value: <State on={false} labels={["Enabled", "Not available"]} /> },
-      ],
-    },
-    {
-      id: "reload",
-      title: "Reload",
-      description: "How output files and secret files are followed.",
-      icon: RefreshCw,
-      rows: [
-        {
-          label: "File change poll",
-          hint: "Catches changes the file watcher misses, such as Kubernetes volume swaps.",
-          value: cfg.reload.poll_interval > 0 ? <Plain>every {formatGoDuration(cfg.reload.poll_interval)}</Plain> : <Muted>Off</Muted>,
-        },
-        { label: "Drain on reload", hint: "Longest wait for replaced and removed outputs to deliver what they hold.", value: <Plain>{formatGoDuration(cfg.reload.retire_timeout)}</Plain> },
-      ],
-    },
-    {
-      id: "observability",
-      title: "Logs and metrics",
-      description: "What Sidekick reports about itself.",
-      icon: Activity,
-      rows: [
-        { label: "Log level", value: <Badge variant="outline" className="font-mono font-normal">{cfg.log_level}</Badge> },
-        { label: "Log format", value: <Badge variant="outline" className="font-mono font-normal">{cfg.log_format}</Badge> },
-        { label: "Extra metric labels", value: <List items={cfg.metrics.extra_labels} empty="None" /> },
-        { label: "Label values", hint: "Distinct values kept per label before they are grouped.", value: <Plain>up to {cfg.metrics.max_label_values}</Plain> },
-      ],
-    },
-    {
-      id: "ui",
-      title: "UI",
-      description: "This interface and where it reads events.",
-      icon: Monitor,
-      rows: [
-        { label: "UI", value: <State on={cfg.ui.enabled} /> },
-        { label: "Event source", hint: "The output whose stored events the Events page and the dashboard read.", value: <Badge variant="secondary" className="font-mono font-normal">{cfg.ui.event_source}</Badge> },
-      ],
-    },
-  ]
+function PathOrNone({ path, none = "Not set" }: { path: string | undefined; none?: string }) {
+  return path ? <CopyValue value={path} /> : <NoValue>{none}</NoValue>
 }
 
-function BuildLine({ version }: { version: VersionInfo }) {
+function BuildCard({ version }: { version: VersionInfo }) {
   return (
     <Card className="gap-0 py-0 shadow-xs">
       <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 text-sm">
         <span className="flex items-center gap-2">
-          <span className="text-muted-foreground">Version</span>
+          <NoValue>Version</NoValue>
           <Badge className="font-mono">{version.version}</Badge>
         </span>
         <span className="flex min-w-0 items-center gap-2">
-          <span className="text-muted-foreground">Commit</span>
+          <NoValue>Commit</NoValue>
           <CopyValue value={version.commit} />
         </span>
         <span className="flex items-center gap-2">
-          <span className="text-muted-foreground">Built</span>
+          <NoValue>Built</NoValue>
           {formatAbsoluteTime(version.build_date)}
         </span>
         <span className="flex items-center gap-2">
-          <span className="text-muted-foreground">Go</span>
-          <Code>{version.go_version}</Code>
+          <NoValue>Go</NoValue>
+          <code className="font-mono text-xs">{version.go_version}</code>
         </span>
       </CardContent>
     </Card>
   )
 }
 
-function SectionCard({ section }: { section: Section }) {
-  const Icon = section.icon
+function ListenersSection({ cfg }: { cfg: CoreConfig }) {
+  const tls = cfg.tls
   return (
-    <Card id={section.id} className="scroll-mt-4 gap-2 py-5 shadow-xs">
-      <CardHeader className="px-5">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Icon className="size-4 text-muted-foreground" aria-hidden />
-          <h2>{section.title}</h2>
-        </CardTitle>
-        <CardDescription>{section.description}</CardDescription>
-      </CardHeader>
-      <CardContent className="px-2">
-        <ItemGroup>
-          {section.rows.map((row, i) => (
-            <Fragment key={row.label}>
-              {i > 0 && <ItemSeparator />}
-              <Item size="sm" role="group" aria-label={row.label} className="flex-nowrap items-start py-3">
-                <ItemContent className="min-w-0">
-                  <ItemTitle>{row.label}</ItemTitle>
-                  {row.hint && <ItemDescription>{row.hint}</ItemDescription>}
-                </ItemContent>
-                <ItemActions className="max-w-[60%] justify-end text-right" data-value>
-                  {row.value}
-                </ItemActions>
-              </Item>
-            </Fragment>
-          ))}
-        </ItemGroup>
-      </CardContent>
-    </Card>
+    <SettingsSection {...SECTIONS.listeners} description="Where Sidekick accepts connections.">
+      <SettingRow label="Ingestion" hint="Where Falco posts events, with the health, version and metrics endpoints.">
+        <CopyValue value={address(cfg.listen_address, cfg.listen_port)} />
+      </SettingRow>
+      <SettingRow label="Ingestion TLS" hint={tls?.enabled && tls.mutual_tls ? "Clients must present a certificate signed by the client CA." : undefined}>
+        <StateBadge on={tls?.enabled === true} labels={[tls?.mutual_tls ? "Mutual TLS" : "Enabled", "Disabled"]} />
+      </SettingRow>
+      {tls?.enabled && (
+        <SettingRow label="Certificate">
+          <PathOrNone path={tls.cert_file} />
+        </SettingRow>
+      )}
+      {tls?.enabled && (
+        <SettingRow label="Key">
+          <PathOrNone path={tls.key_file} />
+        </SettingRow>
+      )}
+      {tls?.enabled && tls.mutual_tls && (
+        <SettingRow label="Client CA">
+          <PathOrNone path={tls.ca_file} />
+        </SettingRow>
+      )}
+      <SettingRow label="Management" hint="The API and this UI.">
+        <CopyValue value={address(cfg.management.listen_address, cfg.management.listen_port)} />
+      </SettingRow>
+    </SettingsSection>
+  )
+}
+
+function DatabaseSection({ cfg }: { cfg: CoreConfig }) {
+  const db = cfg.database
+  const pg = db.postgres
+  return (
+    <SettingsSection {...SECTIONS.database} description="Where outputs and the pipeline layout are kept.">
+      <SettingRow
+        label="Backend"
+        hint={
+          db.backend === "inmemory"
+            ? "Outputs created from the UI or the API and the pipeline layout are lost on restart."
+            : "Outputs and the pipeline layout are stored here; output files are provisioned into it."
+        }
+      >
+        <CodeBadge variant="secondary">{db.backend}</CodeBadge>
+      </SettingRow>
+      {db.backend === "sqlite" && (
+        <SettingRow label="File">
+          <PathOrNone path={db.sqlite.path} />
+        </SettingRow>
+      )}
+      {db.backend === "postgres" && [
+        <SettingRow key="server" label="Server">
+          <CopyValue value={address(pg.host, pg.port)} />
+        </SettingRow>,
+        <SettingRow key="db" label="Database and user">
+          <code className="font-mono text-xs">{`${pg.database} · ${pg.user}`}</code>
+        </SettingRow>,
+        <SettingRow key="password" label="Password">
+          {pg.password_file ? (
+            <CopyValue value={pg.password_file} />
+          ) : pg.password ? (
+            <NoValue>
+              <KeyRound className="mr-1 inline size-3.5" aria-hidden />
+              Set inline, hidden
+            </NoValue>
+          ) : (
+            <NoValue>Not set</NoValue>
+          )}
+        </SettingRow>,
+        <SettingRow key="ssl" label="SSL mode">
+          <CodeBadge>{pg.sslmode}</CodeBadge>
+        </SettingRow>,
+        <SettingRow key="ca" label="CA file">
+          <PathOrNone path={pg.tls.ca_file} none="System CAs" />
+        </SettingRow>,
+        <SettingRow key="conns" label="Connections">
+          up to {pg.max_connections}
+        </SettingRow>,
+        <SettingRow key="sync" label="Instance sync" hint="How often this instance checks for changes made by other instances.">
+          every {formatGoDuration(pg.poll_interval)}
+        </SettingRow>,
+      ]}
+      {db.backend !== "inmemory" && <SettingRow label="Connect timeout">{formatGoDuration(db.connect_timeout)}</SettingRow>}
+    </SettingsSection>
+  )
+}
+
+function ApiSection({ cfg }: { cfg: CoreConfig }) {
+  return (
+    <SettingsSection {...SECTIONS.api} description="What the API and the UI may change.">
+      <SettingRow label="Writes" hint="Outputs and the layout can be changed from the UI and the API.">
+        <StateBadge on={cfg.api.allow_writes} labels={["Allowed", "Read-only"]} />
+      </SettingRow>
+      <SettingRow label="File outputs" hint="Outputs defined in the output files, changed from the UI and the API.">
+        <StateBadge on={cfg.provisioning.allow_ui_updates} labels={["Editable", "Read-only"]} />
+      </SettingRow>
+      <SettingRow label="Secret directories" hint="Where secret files named through the API must be.">
+        <ValueList items={cfg.api.secret_dirs} empty="None" />
+      </SettingRow>
+      <SettingRow label="Authentication" hint={AUTH_UNAVAILABLE_MESSAGE}>
+        <StateBadge on={false} labels={["Enabled", "Not available"]} />
+      </SettingRow>
+    </SettingsSection>
+  )
+}
+
+function ReloadSection({ cfg }: { cfg: CoreConfig }) {
+  return (
+    <SettingsSection {...SECTIONS.reload} description="How output files and secret files are followed.">
+      <SettingRow label="File change poll" hint="Catches changes the file watcher misses, such as Kubernetes volume swaps.">
+        {cfg.reload.poll_interval > 0 ? `every ${formatGoDuration(cfg.reload.poll_interval)}` : <NoValue>Off</NoValue>}
+      </SettingRow>
+      <SettingRow label="Drain on reload" hint="Longest wait for replaced and removed outputs to deliver what they hold.">
+        {formatGoDuration(cfg.reload.retire_timeout)}
+      </SettingRow>
+    </SettingsSection>
+  )
+}
+
+function ObservabilitySection({ cfg }: { cfg: CoreConfig }) {
+  return (
+    <SettingsSection {...SECTIONS.observability} description="What Sidekick reports about itself.">
+      <SettingRow label="Log level">
+        <CodeBadge>{cfg.log_level}</CodeBadge>
+      </SettingRow>
+      <SettingRow label="Log format">
+        <CodeBadge>{cfg.log_format}</CodeBadge>
+      </SettingRow>
+      <SettingRow label="Extra metric labels">
+        <ValueList items={cfg.metrics.extra_labels} empty="None" />
+      </SettingRow>
+      <SettingRow label="Label values" hint="Distinct values kept per label before they are grouped.">
+        up to {cfg.metrics.max_label_values}
+      </SettingRow>
+    </SettingsSection>
+  )
+}
+
+function UiSection({ cfg }: { cfg: CoreConfig }) {
+  return (
+    <SettingsSection {...SECTIONS.ui} description="This interface and where it reads events.">
+      <SettingRow label="UI">
+        <StateBadge on={cfg.ui.enabled} />
+      </SettingRow>
+      <SettingRow label="Event source" hint="The output whose stored events the Events page and the dashboard read.">
+        <CodeBadge variant="secondary">{cfg.ui.event_source}</CodeBadge>
+      </SettingRow>
+    </SettingsSection>
   )
 }
 
@@ -274,7 +223,6 @@ export function ConfigurationPage() {
   const failure = [versionQuery, configQuery].find((q) => q.isError)
   const version = versionQuery.data
   const cfg = configQuery.data?.config
-  const all = cfg ? sections(cfg) : []
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -286,27 +234,16 @@ export function ConfigurationPage() {
           <LoadingSkeleton lines={8} />
         ) : (
           <div className="flex flex-col gap-4">
-            <BuildLine version={version} />
+            <BuildCard version={version} />
             <div className="grid gap-6 lg:grid-cols-[11rem_minmax(0,1fr)]">
-              <nav aria-label="Sections" className="hidden lg:block">
-                <ul className="sticky top-0 flex flex-col gap-0.5 text-sm">
-                  {all.map((s) => {
-                    const Icon = s.icon
-                    return (
-                      <li key={s.id}>
-                        <a href={`#${s.id}`} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
-                          <Icon className="size-4" aria-hidden />
-                          {s.title}
-                        </a>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </nav>
+              <SettingsNav items={Object.values(SECTIONS)} />
               <div className="flex min-w-0 flex-col gap-4">
-                {all.map((s) => (
-                  <SectionCard key={s.id} section={s} />
-                ))}
+                <ListenersSection cfg={cfg} />
+                <DatabaseSection cfg={cfg} />
+                <ApiSection cfg={cfg} />
+                <ReloadSection cfg={cfg} />
+                <ObservabilitySection cfg={cfg} />
+                <UiSection cfg={cfg} />
               </div>
             </div>
           </div>
