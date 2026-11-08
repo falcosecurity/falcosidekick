@@ -1,6 +1,22 @@
 import { describe, expect, test } from "bun:test"
 
-import { formatAbsoluteTime, formatNumber, formatTimeAgo, truncate } from "./format"
+import { formatAbsoluteTime, formatGoDuration, formatNumber, formatTimeAgo, truncate } from "./format"
+
+describe("formatGoDuration", () => {
+  test.each([
+    [0, "0s"],
+    [30_000_000_000, "30s"],
+    [90_000_000_000, "1m30s"],
+    [3_600_000_000_000, "1h"],
+    [5_400_000_000_000, "1h30m"],
+    [1_500_000_000, "1s500ms"],
+    [250_000, "250µs"],
+    [-2_000_000_000, "-2s"],
+    [Number.NaN, "-"],
+  ])("%d ns is %s", (ns, text) => {
+    expect(formatGoDuration(ns)).toBe(text)
+  })
+})
 
 describe("formatNumber", () => {
   test("formats thousands using locale grouping", () => {

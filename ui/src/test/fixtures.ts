@@ -22,6 +22,7 @@ import type {
 } from "@/lib/types"
 
 import configJson from "./fixtures/config.json"
+import configPostgresJson from "./fixtures/config-postgres.json"
 import errorsJson from "./fixtures/errors.json"
 import eventJson from "./fixtures/event.json"
 import eventsCountByPriorityJson from "./fixtures/events-count-by-priority.json"
@@ -44,7 +45,8 @@ type ErrorCase = { status: number; body: { error: string } }
 // TestUIContractFixtures -update`). JSON imports widen string unions, so each is cast to its wire type.
 export const fixtures = {
   version: versionJson as VersionInfo,
-  config: configJson as MaskedConfig,
+  config: configJson as unknown as MaskedConfig,
+  configPostgres: configPostgresJson as unknown as MaskedConfig,
   pipeline: pipelineJson as unknown as PipelineWire,
   pipelineStatus: pipelineStatusJson as unknown as StatusListWire,
   outputs: outputsJson as unknown as OutputsWire,

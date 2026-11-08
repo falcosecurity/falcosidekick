@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react"
-import { createBrowserRouter, RouterProvider } from "react-router"
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router"
 
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { NotFoundPage } from "@/pages/not-found"
@@ -9,7 +9,7 @@ import { AppLayout } from "./layout"
 const DashboardPage = lazy(() => import("@/pages/dashboard"))
 const EventsPage = lazy(() => import("@/pages/events"))
 const PipelinePage = lazy(() => import("@/pages/pipeline"))
-const SettingsPage = lazy(() => import("@/pages/settings"))
+const ConfigurationPage = lazy(() => import("@/pages/configuration"))
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<LoadingSkeleton lines={6} />}>{children}</Suspense>
@@ -44,13 +44,14 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "settings",
+        path: "configuration",
         element: (
           <Lazy>
-            <SettingsPage />
+            <ConfigurationPage />
           </Lazy>
         ),
       },
+      { path: "settings", element: <Navigate to="/configuration" replace /> },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

@@ -19,7 +19,7 @@ function Probe() {
   if (!config.data || !version.data) return <p>loading</p>
   return (
     <p>
-      {String(config.data.config["listen_port"])} {version.data.version} {version.data.build_date} {version.data.go_version}
+      {`${config.data.config.listen_port} ${version.data.version} ${version.data.build_date} ${version.data.go_version}`}
     </p>
   )
 }

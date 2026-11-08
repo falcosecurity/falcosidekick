@@ -212,8 +212,53 @@ export interface VersionInfo {
   go_version: string
 }
 
+// Durations are Go time.Duration values: integer nanoseconds.
+export type GoDuration = number
+
+export interface ListenerTLSConfig {
+  enabled: boolean
+  mutual_tls: boolean
+  cert_file: string
+  key_file: string
+  ca_file: string
+}
+
+export interface PostgresConfig {
+  host: string
+  port: number
+  database: string
+  user: string
+  // "****" when an inline password is set; absent otherwise.
+  password?: string
+  password_file?: string
+  sslmode: "disable" | "require" | "verify-ca" | "verify-full"
+  tls: { ca_file?: string }
+  max_connections: number
+  poll_interval: GoDuration
+}
+
+export interface CoreConfig {
+  log_format: string
+  log_level: string
+  listen_address: string
+  listen_port: number
+  tls?: ListenerTLSConfig
+  management: { listen_address: string; listen_port: number }
+  ui: { enabled: boolean; event_source: string }
+  api: { allow_writes: boolean; secret_dirs: string[] }
+  metrics: { extra_labels: string[]; max_label_values: number }
+  database: {
+    backend: "inmemory" | "sqlite" | "postgres"
+    connect_timeout: GoDuration
+    sqlite: { path: string }
+    postgres: PostgresConfig
+  }
+  reload: { poll_interval: GoDuration; retire_timeout: GoDuration }
+  provisioning: { allow_ui_updates: boolean }
+}
+
 export interface MaskedConfig {
-  config: Record<string, unknown>
+  config: CoreConfig
 }
 
 export interface AuthLoginResponse {
