@@ -77,15 +77,40 @@ var OutputType = output.Type{
 	Category: output.CategoryLogs,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
-			{Name: "index", Type: "string", Default: "falco", Label: "Index"},
-			{Name: "index_suffix", Type: "enum", Values: []string{"daily", "monthly", "annually", suffixNone}, Default: "daily", Label: "Index Suffix"},
-			{Name: "pipeline", Type: "string", Label: "Ingest Pipeline"},
-			{Name: "api_key", Type: "string", Secret: true, Label: "API Key"},
-			{Name: "flatten_fields", Type: "bool", Default: false, Label: "Flatten Fields"},
-			{Name: "create_index_template", Type: "bool", Default: false, Label: "Create Index Template"},
-			{Name: "number_of_shards", Type: "int", Default: defaultShards, Label: "Number of Shards"},
-			{Name: "number_of_replicas", Type: "int", Default: defaultReplicas, Label: "Number of Replicas"},
-		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
+			{
+				Name: "index", Type: "string", Default: "falco", Label: "Index",
+				Description: "Index the events are written to, before the date suffix: lowercase letters, digits, `.`, `-` and `_`, starting with a letter or digit.",
+			},
+			{
+				Name: "index_suffix", Type: "enum", Values: []string{"daily", "monthly", "annually", suffixNone}, Default: "daily", Label: "Index Suffix",
+				Description: "Date added to the index at delivery time, in UTC: `-YYYY.MM.DD`, `-YYYY.MM` or `-YYYY`. `none` writes to the index itself.",
+			},
+			{
+				Name: "pipeline", Type: "string", Label: "Ingest Pipeline",
+				Description: "Ingest pipeline every document goes through, sent as the `pipeline` query parameter. Empty uses the index default.",
+			},
+			{
+				Name: "api_key", Type: "string", Secret: true, Label: "API Key",
+				Description: "Elasticsearch API key in its encoded form, sent as `Authorization: ApiKey <key>`.",
+			},
+			{
+				Name: "flatten_fields", Type: "bool", Default: false, Label: "Flatten Fields",
+				Description: "Replaces `.` with `_` in output field names, such as `proc_name`, so they are stored as flat fields instead of nested objects.",
+			},
+			{
+				Name: "create_index_template", Type: "bool", Default: false, Label: "Create Index Template",
+				Description: "Creates an index template named after the index, with the shard and replica counts and the event mappings, before the first delivery. " +
+					"An existing template is left unchanged.",
+			},
+			{
+				Name: "number_of_shards", Type: "int", Default: defaultShards, Label: "Number of Shards",
+				Description: "Primary shards of each new index, set in the created template; must be greater than `0`. Used only when the template is created.",
+			},
+			{
+				Name: "number_of_replicas", Type: "int", Default: defaultReplicas, Label: "Number of Replicas",
+				Description: "Replicas of each primary shard, set in the created template; `0` keeps no replica. Used only when the template is created.",
+			},
+		}...), append(shared.HTTPConfigSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
 	},
 }
 

@@ -221,23 +221,44 @@ func schemaFields() []output.SchemaField {
 	var fields []output.SchemaField
 	for _, signal := range []string{signalTraces, signalLogs, signalMetrics} {
 		fields = append(fields,
-			output.SchemaField{Name: signal + ".endpoint", Type: "string", Label: "Endpoint URL (enables " + signal + ")"},
-			output.SchemaField{Name: signal + ".protocol", Type: "enum", Values: []string{protocolHTTP, protocolGRPC}, Default: protocolHTTP, Label: "Protocol"},
-			output.SchemaField{Name: signal + ".compression", Type: "enum", Values: []string{compressionNone, compressionGzip}, Default: compressionNone, Label: "Compression"},
-			output.SchemaField{Name: signal + ".timeout", Type: "string", Default: defaultTimeout.String(), Label: "Export Timeout"},
+			output.SchemaField{
+				Name: signal + ".endpoint", Type: "string", Label: "Endpoint URL (enables " + signal + ")",
+				Description: "Collector URL, `http://` or `https://`, without credentials, query or fragment. " +
+					"With `http/protobuf` an empty path becomes `/v1/" + signal + "`; with `grpc` no path is allowed.",
+			},
+			output.SchemaField{
+				Name: signal + ".protocol", Type: "enum", Values: []string{protocolHTTP, protocolGRPC}, Default: protocolHTTP, Label: "Protocol",
+				Description: "OTLP transport: protobuf over HTTP or gRPC.",
+			},
+			output.SchemaField{
+				Name: signal + ".compression", Type: "enum", Values: []string{compressionNone, compressionGzip}, Default: compressionNone, Label: "Compression",
+				Description: "Compression of export requests.",
+			},
+			output.SchemaField{
+				Name: signal + ".timeout", Type: "string", Default: defaultTimeout.String(), Label: "Export Timeout",
+				Description: "Go duration, such as `10s`, bounding each export request and the shutdown of this signal. `0` uses the default.",
+			},
 		)
-		for _, f := range shared.HTTPConfigSchemaFields() {
-			if f.Name == "headers" || strings.HasPrefix(f.Name, "tls.") {
+		httpFields := shared.HTTPConfigSchemaFields()
+		for i := range httpFields {
+			if f := httpFields[i]; f.Name == "headers" || strings.HasPrefix(f.Name, "tls.") {
 				f.Name = signal + "." + f.Name
 				fields = append(fields, f)
 			}
 		}
 		switch signal {
 		case signalTraces:
-			fields = append(fields, output.SchemaField{Name: signal + ".duration", Type: "string", Default: "0s", Label: "Span Duration"})
+			fields = append(fields, output.SchemaField{
+				Name: signal + ".duration", Type: "string", Default: "0s", Label: "Span Duration",
+				Description: "Go duration, such as `1s`, added to the event time to end each span. `0s` gives zero-length spans.",
+			})
 		case signalMetrics:
-			fields = append(fields, output.SchemaField{Name: signal + ".extra_attributes", Type: "string[]", Label: "Output Fields as Metric Attributes"})
+			fields = append(fields, output.SchemaField{
+				Name: signal + ".extra_attributes", Type: "string[]", Label: "Output Fields as Metric Attributes",
+				Description: "Output field names, such as `k8s.ns.name`, added to the counter attributes when the event has them; " +
+					"each distinct value adds a series. Keys the output sets itself, such as `falco.rule` or `host.name`, are refused.",
+			})
 		}
 	}
-	return append(fields, shared.RuntimeConfigSchemaFields()...)
+	return append(fields, shared.BatchRuntimeConfigSchemaFields()...)
 }

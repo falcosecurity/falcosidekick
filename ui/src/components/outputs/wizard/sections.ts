@@ -155,9 +155,13 @@ export function categoryOrder(a: string, b: string): number {
   return rank(a) - rank(b) || a.localeCompare(b)
 }
 
-/** A short hint under the field: the default, or what a file field expects. */
+/** The hint under a field: what it does, from the schema, then its default or what a file field expects. */
 export function fieldHint(field: SchemaField): string | undefined {
-  if (field.file) return "Absolute path of a file"
-  if (field.default === undefined || field.default === null || field.default === "") return undefined
-  return `Default ${Array.isArray(field.default) ? field.default.join(", ") : String(field.default)}`
+  const parts = [field.description]
+  if (field.file) parts.push("Absolute path of a file.")
+  else if (field.default !== undefined && field.default !== null && field.default !== "") {
+    parts.push(`Default ${Array.isArray(field.default) ? field.default.join(", ") : String(field.default)}.`)
+  }
+  const hint = parts.filter(Boolean).join(" ")
+  return hint === "" ? undefined : hint
 }

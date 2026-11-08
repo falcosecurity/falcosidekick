@@ -118,6 +118,8 @@ export interface SchemaField {
   name: string
   type: SchemaFieldType
   label: string
+  /** What the value does, its format and units; one or two sentences. */
+  description?: string
   required: boolean
   default?: unknown
   values?: string[]

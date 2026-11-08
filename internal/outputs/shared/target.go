@@ -172,29 +172,58 @@ func (c *HTTPTargetConfig) URL(host, route string, query url.Values) (string, er
 func HTTPTargetSchemaFields(opts *HTTPTargetOptions) []output.SchemaField {
 	var fields []output.SchemaField
 	if !opts.ExternalHosts {
-		host := output.SchemaField{Name: fieldHost, Type: "string", Required: opts.DefaultHost == "", Label: "Host (scheme, host and port)"}
+		host := output.SchemaField{
+			Name: fieldHost, Type: "string", Required: opts.DefaultHost == "", Label: "Host (scheme, host and port)",
+			Description: "Address of the destination as scheme, host and optional port, such as `https://example.com:8443`; the path goes in the base path and endpoint.",
+		}
 		if opts.DefaultHost != "" {
 			host.Default = opts.DefaultHost
 		}
 		fields = append(fields, host)
 	}
-	fields = append(fields, output.SchemaField{Name: "base_path", Type: "string", Label: "Base Path"})
+	fields = append(fields, output.SchemaField{
+		Name: "base_path", Type: "string", Label: "Base Path",
+		Description: "Path prefix of every request, such as `/proxy/v2` when the destination sits behind a reverse proxy.",
+	})
 	if !opts.DriverRoutes && !opts.SecretEndpointRequired {
-		endpoint := output.SchemaField{Name: "endpoint", Type: "string", Label: "Endpoint"}
+		endpoint := output.SchemaField{
+			Name: "endpoint", Type: "string", Label: "Endpoint",
+			Description: "Path the events are sent to, after the base path.",
+		}
 		if opts.DefaultEndpoint != "" {
 			endpoint.Default = opts.DefaultEndpoint
 		}
 		fields = append(fields, endpoint)
 	}
 	if !opts.DriverRoutes {
-		fields = append(fields, output.SchemaField{
+		secretEndpoint := output.SchemaField{
 			Name: "secret_endpoint", Type: "string", Secret: true,
 			Required: opts.SecretEndpointRequired, Label: "Secret Endpoint",
-		})
+			Description: "Path the events are sent to, used instead of the endpoint when the path itself is a credential, as in a webhook URL; the API never returns it.",
+		}
+		fields = append(fields, secretEndpoint)
 	}
-	return append(fields, output.SchemaField{Name: "query_params", Type: "map", Label: "Query Parameters", EntryFields: []output.SchemaField{
-		{Name: "values", Type: "string[]", Label: "Public Values"},
-		{Name: "secrets", Type: "string[]", Secret: true, Label: "Secret Values"},
-		{Name: "files", Type: "string[]", File: true, Label: "Secret File Paths"},
-	}})
+	return append(fields, output.SchemaField{
+		Name: "query_params", Type: "map", Label: "Query Parameters", EntryFields: ValueSourceEntryFields("query parameter"),
+		Description: "Query parameters added to every request, by parameter name.",
+	})
+}
+
+// ValueSourceEntryFields describes the values, secrets and files of one header or query parameter.
+// Files are read at every request, so a rotated secret file applies without a reload.
+func ValueSourceEntryFields(kind string) []output.SchemaField {
+	return []output.SchemaField{
+		{
+			Name: "values", Type: "string[]", Label: "Public Values",
+			Description: "Values of the " + kind + ", sent as written; the API returns them.",
+		},
+		{
+			Name: "secrets", Type: "string[]", Secret: true, Label: "Secret Values",
+			Description: "Values of the " + kind + " the API never returns.",
+		},
+		{
+			Name: "files", Type: "string[]", File: true, Label: "Secret File Paths",
+			Description: "Files whose content, without surrounding whitespace, is a value of the " + kind + "; read at every request.",
+		},
+	}
 }

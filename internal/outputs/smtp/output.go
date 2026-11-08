@@ -88,19 +88,49 @@ var OutputType = output.Type{
 	Category: output.CategoryEmail,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
-			{Name: "host", Type: "string", Required: true, Label: "Host"},
-			{Name: "port", Type: "int", Label: "Port (587, 465 with implicit TLS, 25 without TLS)"},
+			{
+				Name: "host", Type: "string", Required: true, Label: "Host",
+				Description: "SMTP server host name or IP address, without scheme or port. Also the name verified in the server certificate.",
+			},
+			{
+				Name: "port", Type: "int", Label: "Port (587, 465 with implicit TLS, 25 without TLS)",
+				Description: "SMTP server port. Empty or `0` uses `587` with `starttls` and `opportunistic`, `465` with `implicit`, `25` with `none`.",
+			},
 			{
 				Name: "tls_mode", Type: "enum", Values: []string{tlsModeStartTLS, tlsModeImplicit, tlsModeOpportunistic, tlsModeNone},
 				Default: tlsModeStartTLS, Label: "TLS Mode",
+				Description: "`starttls` requires STARTTLS, `implicit` connects over TLS, `opportunistic` uses STARTTLS when offered, " +
+					"`none` sends in clear and refuses `tls` settings.",
 			},
-			{Name: "auth_mechanism", Type: "enum", Values: []string{authPlain, authXOAuth2, authNone}, Default: authPlain, Label: "SASL Mechanism"},
-			{Name: "user", Type: "string", Label: "User"},
-			{Name: "password", Type: "string", Secret: true, Label: "Password"},
-			{Name: "token", Type: "string", Secret: true, Label: "OAuth 2.0 Access Token"},
-			{Name: "from", Type: "string", Required: true, Label: "Sender Address"},
-			{Name: "to", Type: "string[]", Required: true, Label: "Recipient Addresses"},
-			{Name: "output_format", Type: "enum", Values: []string{formatHTML, formatText}, Default: formatHTML, Label: "Output Format"},
+			{
+				Name: "auth_mechanism", Type: "enum", Values: []string{authPlain, authXOAuth2, authNone}, Default: authPlain, Label: "SASL Mechanism",
+				Description: "`plain` needs user and password, `xoauth2` needs user and token with `starttls` or `implicit`, `none` sends no credentials. " +
+					"Credentials go only over TLS, except to localhost.",
+			},
+			{
+				Name: "user", Type: "string", Label: "User",
+				Description: "Account name for `plain` or `xoauth2` authentication.",
+			},
+			{
+				Name: "password", Type: "string", Secret: true, Label: "Password",
+				Description: "Password for `plain` authentication.",
+			},
+			{
+				Name: "token", Type: "string", Secret: true, Label: "OAuth 2.0 Access Token",
+				Description: "OAuth 2.0 access token for `xoauth2` authentication.",
+			},
+			{
+				Name: "from", Type: "string", Required: true, Label: "Sender Address",
+				Description: "One RFC 5322 address for the `From` header and envelope sender, such as `Falco <falco@example.com>`.",
+			},
+			{
+				Name: "to", Type: "string[]", Required: true, Label: "Recipient Addresses",
+				Description: "Recipients, one RFC 5322 address per entry. All receive the same message.",
+			},
+			{
+				Name: "output_format", Type: "enum", Values: []string{formatHTML, formatText}, Default: formatHTML, Label: "Output Format",
+				Description: "`html` sends a multipart message with text and HTML parts; `text` sends plain text only.",
+			},
 		}, append(shared.TLSClientSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }

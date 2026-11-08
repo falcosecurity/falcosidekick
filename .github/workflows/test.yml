@@ -62,7 +62,7 @@ jobs:
         run: bun run build
 
       - name: Run Go tests (default build)
-        run: go test -race -count=1 ./internal/... ./cmd/... ./ui ./hack
+        run: go test -race -count=1 ./internal/... ./cmd/... ./ui ./hack/...
 
       - name: Run Go tests (-tags=builtinui)
         run: go test -race -count=1 -tags=builtinui ./internal/... ./cmd/... ./ui

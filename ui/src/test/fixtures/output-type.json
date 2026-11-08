@@ -5,12 +5,14 @@
   "schema": {
     "fields": [
       {
+        "description": "Address of the destination as scheme, host and optional port, such as `https://example.com:8443`; the path goes in the base path and endpoint.",
         "label": "Host (scheme, host and port)",
         "name": "host",
         "required": true,
         "type": "string"
       },
       {
+        "description": "Path prefix of every request, such as `/proxy/v2` when the destination sits behind a reverse proxy.",
         "label": "Base Path",
         "name": "base_path",
         "required": false,
@@ -18,12 +20,14 @@
       },
       {
         "default": "/",
+        "description": "Path the events are sent to, after the base path.",
         "label": "Endpoint",
         "name": "endpoint",
         "required": false,
         "type": "string"
       },
       {
+        "description": "Path the events are sent to, used instead of the endpoint when the path itself is a credential, as in a webhook URL; the API never returns it.",
         "label": "Secret Endpoint",
         "name": "secret_endpoint",
         "required": false,
@@ -31,14 +35,17 @@
         "type": "string"
       },
       {
+        "description": "Query parameters added to every request, by parameter name.",
         "entry_fields": [
           {
+            "description": "Values of the query parameter, sent as written; the API returns them.",
             "label": "Public Values",
             "name": "values",
             "required": false,
             "type": "string[]"
           },
           {
+            "description": "Values of the query parameter the API never returns.",
             "label": "Secret Values",
             "name": "secrets",
             "required": false,
@@ -46,6 +53,7 @@
             "type": "string[]"
           },
           {
+            "description": "Files whose content, without surrounding whitespace, is a value of the query parameter; read at every request.",
             "file": true,
             "label": "Secret File Paths",
             "name": "files",
@@ -60,6 +68,7 @@
       },
       {
         "default": "POST",
+        "description": "HTTP method of the request that carries each event as a JSON body, in uppercase.",
         "label": "HTTP Method",
         "name": "method",
         "required": false,
@@ -70,12 +79,14 @@
         ]
       },
       {
+        "description": "User for HTTP basic authentication, sent with the password.",
         "label": "Username (Basic Auth)",
         "name": "username",
         "required": false,
         "type": "string"
       },
       {
+        "description": "Password for HTTP basic authentication.",
         "label": "Password (Basic Auth)",
         "name": "password",
         "required": false,
@@ -83,6 +94,7 @@
         "type": "string"
       },
       {
+        "description": "Token sent as `Authorization: Bearer \u003ctoken\u003e`.",
         "label": "Bearer Token",
         "name": "bearer_token",
         "required": false,
@@ -90,14 +102,17 @@
         "type": "string"
       },
       {
+        "description": "Extra headers sent with every request, by header name. Names are case-insensitive; headers the HTTP transport owns, such as `Host` or `Content-Length`, are refused.",
         "entry_fields": [
           {
+            "description": "Values of the header, sent as written; the API returns them.",
             "label": "Public Values",
             "name": "values",
             "required": false,
             "type": "string[]"
           },
           {
+            "description": "Values of the header the API never returns.",
             "label": "Secret Values",
             "name": "secrets",
             "required": false,
@@ -105,6 +120,7 @@
             "type": "string[]"
           },
           {
+            "description": "Files whose content, without surrounding whitespace, is a value of the header; read at every request.",
             "file": true,
             "label": "Secret File Paths",
             "name": "files",
@@ -119,12 +135,14 @@
       },
       {
         "default": false,
+        "description": "Accepts any server certificate. The connection can then be intercepted: use it only for tests.",
         "label": "Skip TLS Certificate Verification",
         "name": "tls.insecure_skip_verify",
         "required": false,
         "type": "bool"
       },
       {
+        "description": "PEM file with the certificate authorities that sign the server certificate. Empty uses the system trust store.",
         "file": true,
         "label": "CA Certificate File",
         "name": "tls.ca_file",
@@ -132,6 +150,7 @@
         "type": "string"
       },
       {
+        "description": "PEM client certificate for mutual TLS, set together with the key file.",
         "file": true,
         "label": "Client Certificate File (mTLS)",
         "name": "tls.cert_file",
@@ -139,6 +158,7 @@
         "type": "string"
       },
       {
+        "description": "PEM private key of the client certificate.",
         "file": true,
         "label": "Client Key File (mTLS)",
         "name": "tls.key_file",
@@ -146,12 +166,14 @@
         "type": "string"
       },
       {
+        "description": "Name checked against the server certificate when it differs from the host the output connects to.",
         "label": "Server Name Override",
         "name": "tls.server_name",
         "required": false,
         "type": "string"
       },
       {
+        "description": "Events below this priority are not sent to this output. Empty sends every priority.",
         "label": "Minimum Priority",
         "name": "runtime.minimum_priority",
         "required": false,
@@ -169,6 +191,7 @@
       },
       {
         "default": 1000,
+        "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
         "label": "Queue Size",
         "name": "runtime.queue_size",
         "required": false,
@@ -176,6 +199,7 @@
       },
       {
         "default": 2,
+        "description": "Deliveries this output runs at the same time.",
         "label": "Worker Count",
         "name": "runtime.workers",
         "required": false,
@@ -183,6 +207,7 @@
       },
       {
         "default": 3,
+        "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
         "label": "Max Retry Attempts",
         "name": "runtime.retry.max_attempts",
         "required": false,
@@ -190,6 +215,7 @@
       },
       {
         "default": "1s",
+        "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
         "label": "Retry Initial Interval",
         "name": "runtime.retry.initial_interval",
         "required": false,
@@ -197,6 +223,7 @@
       },
       {
         "default": "30s",
+        "description": "Longest wait between two attempts, as a duration.",
         "label": "Retry Max Interval",
         "name": "runtime.retry.max_interval",
         "required": false,
@@ -204,6 +231,7 @@
       },
       {
         "default": 2,
+        "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
         "label": "Retry Backoff Multiplier",
         "name": "runtime.retry.multiplier",
         "required": false,
@@ -211,6 +239,7 @@
       },
       {
         "default": 5,
+        "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
         "label": "Circuit Breaker Failure Threshold",
         "name": "runtime.circuit_breaker.failure_threshold",
         "required": false,
@@ -218,6 +247,7 @@
       },
       {
         "default": 2,
+        "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
         "label": "Circuit Breaker Success Threshold",
         "name": "runtime.circuit_breaker.success_threshold",
         "required": false,
@@ -225,34 +255,15 @@
       },
       {
         "default": "30s",
+        "description": "Time the circuit stays open before a trial delivery, as a duration.",
         "label": "Circuit Breaker Reset Timeout",
         "name": "runtime.circuit_breaker.reset_timeout",
         "required": false,
         "type": "string"
       },
       {
-        "default": false,
-        "label": "Enable Batching",
-        "name": "runtime.batching.enabled",
-        "required": false,
-        "type": "bool"
-      },
-      {
-        "default": 500,
-        "label": "Batch Size",
-        "name": "runtime.batching.batch_size",
-        "required": false,
-        "type": "int"
-      },
-      {
-        "default": "1s",
-        "label": "Batch Flush Interval",
-        "name": "runtime.batching.flush_interval",
-        "required": false,
-        "type": "string"
-      },
-      {
         "default": true,
+        "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
         "label": "Probe the destination before starting",
         "name": "runtime.health_check",
         "required": false,

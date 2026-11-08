@@ -62,14 +62,23 @@ func (c *HTTPConfig) Validate() utils.ValidationErrors {
 // HTTPConfigSchemaFields returns schema fields common to all HTTP outputs.
 func HTTPConfigSchemaFields() []output.SchemaField {
 	return append([]output.SchemaField{
-		{Name: "username", Type: "string", Label: "Username (Basic Auth)"},
-		{Name: "password", Type: "string", Secret: true, Label: "Password (Basic Auth)"},
-		{Name: "bearer_token", Type: "string", Secret: true, Label: "Bearer Token"},
-		{Name: "headers", Type: "map", Label: "Custom HTTP Headers", EntryFields: []output.SchemaField{
-			{Name: "values", Type: "string[]", Label: "Public Values"},
-			{Name: "secrets", Type: "string[]", Secret: true, Label: "Secret Values"},
-			{Name: "files", Type: "string[]", File: true, Label: "Secret File Paths"},
-		}},
+		{
+			Name: "username", Type: "string", Label: "Username (Basic Auth)",
+			Description: "User for HTTP basic authentication, sent with the password.",
+		},
+		{
+			Name: "password", Type: "string", Secret: true, Label: "Password (Basic Auth)",
+			Description: "Password for HTTP basic authentication.",
+		},
+		{
+			Name: "bearer_token", Type: "string", Secret: true, Label: "Bearer Token",
+			Description: "Token sent as `Authorization: Bearer <token>`.",
+		},
+		{
+			Name: "headers", Type: "map", Label: "Custom HTTP Headers", EntryFields: ValueSourceEntryFields("header"),
+			Description: "Extra headers sent with every request, by header name. Names are case-insensitive; " +
+				"headers the HTTP transport owns, such as `Host` or `Content-Length`, are refused.",
+		},
 	}, TLSClientSchemaFields()...)
 }
 

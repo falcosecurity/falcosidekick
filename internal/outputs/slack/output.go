@@ -69,13 +69,34 @@ var OutputType = output.Type{
 	Category: output.CategoryChat,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
-			{Name: "channel", Type: "string", Label: "Channel"},
-			{Name: "bot_username", Type: "string", Label: "Bot Username"},
-			{Name: "icon_url", Type: "string", Label: "Icon URL"},
-			{Name: "icon_emoji", Type: "string", Label: "Icon Emoji (e.g., :ghost:)"},
-			{Name: "output_format", Type: "enum", Values: []string{"all", "fields", "text"}, Default: "all", Label: "Output Format"},
-			{Name: "message_format", Type: "string", Label: "Message Template"},
-			{Name: "footer", Type: "string", Label: "Footer"},
+			{
+				Name: "channel", Type: "string", Label: "Channel",
+				Description: "Channel the messages are posted to, such as `#falco`, when the webhook allows it. Empty uses the webhook's channel.",
+			},
+			{
+				Name: "bot_username", Type: "string", Label: "Bot Username",
+				Description: "Name shown as the sender of the messages, when the webhook allows it. Empty uses the webhook's name.",
+			},
+			{
+				Name: "icon_url", Type: "string", Label: "Icon URL",
+				Description: "URL of the image shown as the sender icon. Empty uses the webhook's icon.",
+			},
+			{
+				Name: "icon_emoji", Type: "string", Label: "Icon Emoji (e.g., :ghost:)",
+				Description: "Emoji shown as the sender icon, written as `:name:`. Empty uses the webhook's icon.",
+			},
+			{
+				Name: "output_format", Type: "enum", Values: []string{"all", "fields", "text"}, Default: "all", Label: "Output Format",
+				Description: "Content of the attachment: `text` is the event output text, `fields` lists rule, priority, source, hostname, tags, output fields and time, `all` shows both.",
+			},
+			{
+				Name: "message_format", Type: "string", Label: "Message Template",
+				Description: "Go template for a message text shown above the attachment, applied to the event, such as `Rule {{ .Rule }} on {{ .Hostname }}`. Empty sends no message text.",
+			},
+			{
+				Name: "footer", Type: "string", Label: "Footer",
+				Description: "Text shown under the attachment, cut to 300 characters. Empty uses the default.",
+			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }

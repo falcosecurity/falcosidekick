@@ -62,7 +62,10 @@ var OutputType = output.Type{
 	Category: output.CategoryAlerting,
 	Schema: output.Schema{
 		Fields: append(append(shared.RegionTargetSchemaFields(&targetOptions), []output.SchemaField{
-			{Name: "routing_key", Type: "string", Required: true, Secret: true, Label: "Routing Key (Integration Key)"},
+			{
+				Name: "routing_key", Type: "string", Required: true, Secret: true, Label: "Routing Key (Integration Key)",
+				Description: "Integration key of an Events API v2 integration on the service or ruleset, sent as `routing_key` in every event.",
+			},
 			regions.SchemaField("Service Region"),
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},

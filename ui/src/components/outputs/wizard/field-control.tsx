@@ -56,7 +56,8 @@ export function FieldControl({ field, value, onChange, error, filesOnly }: Field
         <FieldContent>
           {label}
           <FieldDescription id={`${id}-hint`}>
-            {value.value === null ? `Default: ${fallback ? "on" : "off"}` : value.value === fallback ? "Same as the default" : "Changed from the default"}
+            {field.description && <>{field.description} </>}
+            {value.value === null ? `Default: ${fallback ? "on" : "off"}.` : value.value === fallback ? "Same as the default." : "Changed from the default."}
           </FieldDescription>
         </FieldContent>
         {value.value !== null && (

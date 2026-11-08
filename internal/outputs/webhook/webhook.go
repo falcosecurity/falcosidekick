@@ -48,6 +48,7 @@ var OutputType = output.Type{
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), output.SchemaField{
 			Name: "method", Type: "enum", Values: []string{"POST", "PUT"}, Default: "POST", Label: "HTTP Method",
+			Description: "HTTP method of the request that carries each event as a JSON body, in uppercase.",
 		}), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }
@@ -108,7 +109,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	return d.sender.SendJSON(ctx, d.cfg.Method, target, evt)
 }
 
-// HealthCheck is a no-op: the endpoint only accepts POST, which delivers a message.
+// HealthCheck is a no-op: any request to the endpoint would deliver a message.
 func (d *driver) HealthCheck(context.Context) error { return nil }
 
 func (d *driver) Close() error {

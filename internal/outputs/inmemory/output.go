@@ -49,9 +49,18 @@ var OutputType = output.Type{
 	EventSource: true,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
-			{Name: "capacity", Type: "int", Default: 10000, Required: true, Label: "Max Events"},
-			{Name: "ttl", Type: "string", Default: "0", Label: "Event TTL (0 = no expiry)"},
-			{Name: "gc_interval", Type: "string", Default: "10s", Label: "GC Interval (when TTL > 0)"},
+			{
+				Name: "capacity", Type: "int", Default: 10000, Required: true, Label: "Max Events",
+				Description: "Number of events kept in memory; once full, each new event replaces the oldest. `0` uses the default.",
+			},
+			{
+				Name: "ttl", Type: "string", Default: "0", Label: "Event TTL (0 = no expiry)",
+				Description: "Go duration, such as `24h`, after which an event is removed, measured from the event time. `0` keeps events until replaced.",
+			},
+			{
+				Name: "gc_interval", Type: "string", Default: "10s", Label: "GC Interval (when TTL > 0)",
+				Description: "Go duration, such as `10s`, between removals of expired events. Used only when `ttl` is set; `0` uses the default.",
+			},
 		}, shared.RuntimeConfigSchemaFields()...),
 	},
 }

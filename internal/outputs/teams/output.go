@@ -56,8 +56,14 @@ var OutputType = output.Type{
 	Category: output.CategoryChat,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
-			{Name: "activity_image", Type: "string", Default: defaultActivityImage, Label: "Activity Image URL"},
-			{Name: "output_format", Type: "enum", Values: []string{formatAll, formatText, formatFields}, Default: formatAll, Label: "Output Format"},
+			{
+				Name: "activity_image", Type: "string", Default: defaultActivityImage, Label: "Activity Image URL",
+				Description: "Absolute http or https URL of the image shown in the card header. Empty uses the default.",
+			},
+			{
+				Name: "output_format", Type: "enum", Values: []string{formatAll, formatText, formatFields}, Default: formatAll, Label: "Output Format",
+				Description: "Content of the card: `text` is the event output text, `fields` lists rule, priority, source, hostname, output fields and tags, `all` shows both.",
+			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }

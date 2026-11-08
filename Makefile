@@ -110,15 +110,19 @@ test-ui-tag: ui-build ## Run Go vet and tests with -tags=builtinui
 
 .PHONY: test-hack
 test-hack: ## Run release and helper script tests
-	$(GO) test $(TEST_FLAGS) ./hack
+	$(GO) test $(TEST_FLAGS) ./hack/...
+
+.PHONY: docs
+docs: ## Write docs/outputs from the output schema (hand-written text outside the generated blocks is kept)
+	$(GO) run ./hack/outputdocs
 
 .PHONY: lint
 lint: ## Run golangci-lint on every Go package
-	golangci-lint run $(PACKAGES) ./ui ./hack
+	golangci-lint run $(PACKAGES) ./ui ./hack/...
 
 .PHONY: lint-fix
 lint-fix: ## Run golangci-lint with auto-fix
-	golangci-lint run --fix $(PACKAGES) ./ui ./hack
+	golangci-lint run --fix $(PACKAGES) ./ui ./hack/...
 	fieldalignment -fix ./internal/...
 
 .PHONY: coverage

@@ -61,8 +61,15 @@ var OutputType = output.Type{
 	Category: output.CategoryWebhook,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
-			{Name: "source", Type: "string", Default: defaultSource, Label: "Event Source (URI reference)"},
-			{Name: "extensions", Type: "map", Label: "Extension Attributes"},
+			{
+				Name: "source", Type: "string", Default: defaultSource, Label: "Event Source (URI reference)",
+				Description: "Value of the `source` attribute of every event, a URI reference such as `https://falco.org` or `/cluster/prod`. Empty uses the default.",
+			},
+			{
+				Name: "extensions", Type: "map", Label: "Extension Attributes",
+				Description: "Extension attributes sent as `ce-` headers with every event, by name of lowercase letters and digits. " +
+					"They replace the built-in `priority`, `rule`, `eventsource` and `hostname`; spec attributes such as `id` are refused.",
+			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }

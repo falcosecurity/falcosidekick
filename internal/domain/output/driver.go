@@ -172,9 +172,11 @@ type SchemaField struct {
 	Name        string        `json:"name"`
 	Type        string        `json:"type"`
 	Label       string        `json:"label"`
-	Values      []string      `json:"values,omitempty"`
-	Required    bool          `json:"required"`
-	Secret      bool          `json:"secret,omitempty"`
+	// Description says what the value does, its format and units; shown in the UI and the docs.
+	Description string   `json:"description,omitempty"`
+	Values      []string `json:"values,omitempty"`
+	Required    bool     `json:"required"`
+	Secret      bool     `json:"secret,omitempty"`
 	// File marks a path, or a list of paths, the output reads; secret strings take theirs as <name>_file.
 	File bool `json:"file,omitempty"`
 }

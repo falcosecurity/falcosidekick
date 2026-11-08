@@ -1,4 +1,4 @@
-import { ChevronsDownUp, ChevronsUpDown, FileKey2, KeyRound } from "lucide-react"
+import { ChevronsDownUp, ChevronsUpDown, FileKey2, Info, KeyRound } from "lucide-react"
 import { useMemo, useState, type ReactNode } from "react"
 
 import { SectionHeading } from "@/components/common/section-heading"
@@ -6,6 +6,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { OutputConfigEntry, SchemaField } from "@/lib/types"
 
 import { getPath, isSecretString } from "./wizard/form-model"
@@ -168,7 +169,19 @@ export function OutputConfigView({ entry, fields }: { entry: OutputConfigEntry; 
                 <dl className="@container flex flex-col divide-y">
                   {section.views.map(({ field, set, value }) => (
                     <div key={field.name} className="grid gap-1 py-2 text-sm @sm:grid-cols-[minmax(0,9rem)_1fr] @sm:gap-3">
-                      <dt className="text-muted-foreground [overflow-wrap:anywhere]">{field.label}</dt>
+                      <dt className="flex items-start gap-1 text-muted-foreground [overflow-wrap:anywhere]">
+                        {field.label}
+                        {field.description && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon" className="size-5 shrink-0" aria-label={`About ${field.label}`}>
+                                <Info className="size-3.5" aria-hidden />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">{field.description}</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </dt>
                       <dd className={set ? "min-w-0" : "flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground"}>
                         {value ?? <span aria-label="not set">—</span>}
                         {!set && value !== null && (

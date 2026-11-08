@@ -59,12 +59,34 @@ var OutputType = output.Type{
 	Category: output.CategoryAlerting,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
-			{Name: "hosts", Type: "string[]", Required: true, Label: "Hosts (scheme, host and port)"},
-			{Name: "generator_url", Type: "string", Label: "Generator URL (link back to source in AM UI)"},
-			{Name: "expires_after", Type: "int", Default: 0, Label: "Alert Expires After (seconds; 0 leaves it to Alertmanager's resolve_timeout, 5m by default)"},
-			{Name: "extra_labels", Type: "map", Label: "Extra Labels"},
-			{Name: "extra_annotations", Type: "map", Label: "Extra Annotations"},
-			{Name: "custom_severity_map", Type: "map", Label: "Custom Severity Map"},
+			{
+				Name: "hosts", Type: "string[]", Required: true, Label: "Hosts (scheme, host and port)",
+				Description: "Alertmanager instances, each as scheme, host and optional port such as `http://alertmanager:9093`. " +
+					"Every alert goes to all of them and counts as delivered when at least one accepts it.",
+			},
+			{
+				Name: "generator_url", Type: "string", Label: "Generator URL (link back to source in AM UI)",
+				Description: "Link sent as the `generatorURL` of every alert; Alertmanager shows it as the alert source.",
+			},
+			{
+				Name: "expires_after", Type: "int", Default: 0, Label: "Alert Expires After (seconds; 0 leaves it to Alertmanager's resolve_timeout, 5m by default)",
+				Description: "Seconds after the event time at which the alert ends, sent as `endsAt`. " +
+					"`0` sends no end time, so Alertmanager resolves the alert after its `resolve_timeout`.",
+			},
+			{
+				Name: "extra_labels", Type: "map", Label: "Extra Labels",
+				Description: "Labels added to every alert, by label name; they replace built-in labels of the same name. " +
+					"Characters other than letters, digits and `_` in names become `_`.",
+			},
+			{
+				Name: "extra_annotations", Type: "map", Label: "Extra Annotations",
+				Description: "Annotations added to every alert, by name; they replace the built-in `info`, `description` and `summary` of the same name.",
+			},
+			{
+				Name: "custom_severity_map", Type: "map", Label: "Custom Severity Map",
+				Description: "Value of the `severity` label by lowercase Falco priority, such as `critical: P1`. " +
+					"Priorities not listed get `critical`, `warning` or `information`.",
+			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }

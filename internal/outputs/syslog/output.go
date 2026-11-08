@@ -73,11 +73,27 @@ var OutputType = output.Type{
 	Category: output.CategoryLogs,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
-			{Name: "host", Type: "string", Required: true, Label: "Host"},
-			{Name: "port", Type: "int", Label: "Port (514, or 6514 with tls)"},
-			{Name: "protocol", Type: "enum", Values: []string{protocolTCP, protocolUDP, protocolTLS}, Default: protocolTCP, Label: "Protocol"},
-			{Name: "format", Type: "enum", Values: []string{formatJSON, formatCEF}, Default: formatJSON, Label: "Message Format"},
-			{Name: "facility", Type: "enum", Values: shared.SortMapKeys(facilities), Default: defaultFacility, Label: "Facility"},
+			{
+				Name: "host", Type: "string", Required: true, Label: "Host",
+				Description: "Syslog receiver host name or IP address, without scheme, port or path.",
+			},
+			{
+				Name: "port", Type: "int", Label: "Port (514, or 6514 with tls)",
+				Description: "Receiver port. Empty or `0` uses `514`, or `6514` with protocol `tls`.",
+			},
+			{
+				Name: "protocol", Type: "enum", Values: []string{protocolTCP, protocolUDP, protocolTLS}, Default: protocolTCP, Label: "Protocol",
+				Description: "Transport for RFC 5424 messages. `tcp` and `tls` keep one connection with octet-counting framing; " +
+					"`tls` is required for `tls` settings.",
+			},
+			{
+				Name: "format", Type: "enum", Values: []string{formatJSON, formatCEF}, Default: formatJSON, Label: "Message Format",
+				Description: "Message body: the event JSON, or ArcSight CEF.",
+			},
+			{
+				Name: "facility", Type: "enum", Values: shared.SortMapKeys(facilities), Default: defaultFacility, Label: "Facility",
+				Description: "Syslog facility of every message; the severity follows the Falco priority.",
+			},
 		}, append(shared.TLSClientSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }

@@ -52,6 +52,7 @@ var OutputType = output.Type{
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), output.SchemaField{
 			Name: "icon", Type: "string", Default: defaultIcon, Label: "Avatar URL",
+			Description: "Absolute http or https URL of the image shown as the avatar of every message. Empty uses the default.",
 		}), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }
