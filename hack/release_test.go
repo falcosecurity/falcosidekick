@@ -35,6 +35,7 @@ type releaseWorkflow struct {
 		Tags []string `yaml:"tags"`
 	} `yaml:"on"`
 	Jobs map[string]struct {
+		Name        string            `yaml:"name"`
 		Uses        string            `yaml:"uses"`
 		Needs       []string          `yaml:"needs"`
 		If          string            `yaml:"if"`
@@ -129,7 +130,7 @@ func TestReleaseArtifacts(t *testing.T) {
 				require.Equal(t, "Dockerfile", docker.Dockerfile)
 				require.Equal(t, build.Binary, docker.BuildArgs["BINARY"])
 				require.Nil(t, docker.LegacyBuildArgs)
-				require.Equal(t, []string{"falcosecurity/falcosidekick", "public.ecr.aws/falcosecurity/falcosidekick"}, docker.Images)
+				require.Equal(t, []string{"falcosecurity/falcosidekick"}, docker.Images)
 				require.ElementsMatch(t, []string{"linux/amd64", "linux/arm64"}, docker.Platforms)
 				suffix := ""
 				if ui {
@@ -275,6 +276,20 @@ func TestReleaseChecksIncludeUITestsAndLint(t *testing.T) {
 	require.Equal(t, "check", check.With["args"], "goreleaser reads the default .goreleaser.yml")
 }
 
+// Pull requests build the release images, as v2 did with its build-image check, without publishing.
+func TestPullRequestsBuildTheImages(t *testing.T) {
+	var build releaseWorkflow
+	readReleaseYAML(t, ".github/workflows/build-image.yml", &build)
+	require.Contains(t, build.On, "pull_request")
+	require.Equal(t, "build-image", build.Jobs["build-image"].Name, "the required check context")
+	snapshot := releaseWorkflowStep(t, "build-image.yml", "build-image", "snapshot")
+	require.Equal(t, "release --snapshot --clean --skip=publish,sign,sbom", snapshot.With["args"])
+	raw, err := os.ReadFile(filepath.Join("..", ".github", "workflows", "build-image.yml"))
+	require.NoError(t, err)
+	require.NotContains(t, string(raw), "secrets.", "pull requests from forks get no secrets")
+	require.NotContains(t, string(raw), "login-action")
+}
+
 func runReleaseScript(t *testing.T, script, tool, shim string, env ...string) (output, dir string, err error) {
 	t.Helper()
 	dir = t.TempDir()
@@ -373,7 +388,8 @@ esac
 				return
 			}
 			require.NoError(t, err, output)
-			for _, image := range []string{"falcosecurity/falcosidekick", "public.ecr.aws/falcosecurity/falcosidekick"} {
+			require.NotContains(t, log, "public.ecr.aws", "images are published to Docker Hub only")
+			for _, image := range []string{"falcosecurity/falcosidekick"} {
 				for _, suffix := range []string{"", "-slim"} {
 					for _, arch := range []string{"amd64", "arm64"} {
 						local := image + ":v3-main" + suffix + "-" + arch

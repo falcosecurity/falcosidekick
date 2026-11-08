@@ -64,17 +64,6 @@ jobs:
         with:
           username: falcosecurity
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
-        with:
-          role-to-assume: arn:aws:iam::292999226676:role/github_actions-falcosidekick-ecr
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
-        with:
-          registry-type: public
-
       - name: Decide the image aliases
         id: aliases
         shell: bash
