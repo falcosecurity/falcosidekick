@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
+	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -72,6 +73,8 @@ func TestPost(t *testing.T) {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 		case "/429":
 			w.WriteHeader(http.StatusTooManyRequests)
+		case "/500":
+			w.WriteHeader(http.StatusInternalServerError)
 		case "/502":
 			w.WriteHeader(http.StatusBadGateway)
 		}
@@ -84,6 +87,7 @@ func TestPost(t *testing.T) {
 		"/404": ErrNotFound,
 		"/422": ErrUnprocessableEntityError,
 		"/429": ErrTooManyRequest,
+		"/500": ErrInternalServer,
 		"/502": ErrBadGateway,
 	} {
 		initClientArgs := &types.InitClientArgs{
@@ -97,6 +101,42 @@ func TestPost(t *testing.T) {
 
 		errPost := nc.Post("")
 		require.Equal(t, errPost, j)
+	}
+}
+
+func TestPostServerErrorLogs(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.EscapedPath() {
+		case "/internal-error":
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("backend exploded"))
+		case "/bad-gateway":
+			w.WriteHeader(http.StatusBadGateway)
+			_, _ = w.Write([]byte("upstream unavailable"))
+		}
+	}))
+	defer ts.Close()
+
+	var logs bytes.Buffer
+	log.SetOutput(&logs)
+	defer log.SetOutput(os.Stderr)
+
+	for path, expected := range map[string]string{
+		"/internal-error": "internal server error (500): backend exploded",
+		"/bad-gateway":    "bad gateway (502): upstream unavailable",
+	} {
+		logs.Reset()
+		initClientArgs := &types.InitClientArgs{
+			Config:    &types.Configuration{},
+			Stats:     &types.Statistics{},
+			PromStats: &types.PromStatistics{},
+		}
+		nc, err := NewClient("test", ts.URL+path, types.CommonConfig{CheckCert: true}, *initClientArgs)
+		require.Nil(t, err)
+
+		require.Error(t, nc.Post(""))
+		require.Contains(t, logs.String(), expected)
+		require.NotContains(t, logs.String(), ErrTooManyRequest.Error())
 	}
 }
 
