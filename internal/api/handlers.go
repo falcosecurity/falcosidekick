@@ -21,7 +21,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
+	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/version"
 )
 
@@ -57,7 +59,17 @@ func (s *Server) handleGetVersion(c fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(version.GetInfo())
 }
 
+// configResponse is the core configuration with the runtime defaults each output's runtime settings
+// are merged over.
+type configResponse struct {
+	*core.Config
+	RuntimeDefaults output.RuntimeConfig `json:"runtime_defaults"`
+}
+
 // handleGetConfig serves the configuration this replica runs with, read from its files.
 func (s *Server) handleGetConfig(c fiber.Ctx) error {
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"config": maskCoreConfig(s.coreConfig)})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"config": configResponse{
+		Config:          maskCoreConfig(s.coreConfig),
+		RuntimeDefaults: s.runtimeDefaults.DeepCopy(),
+	}})
 }

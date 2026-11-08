@@ -51,6 +51,11 @@ type ReloaderConfig struct {
 	FileOutputs map[string]map[string]any
 	// APIOutputs are the stored API outputs running at startup, built from resolved secret files.
 	APIOutputs map[string]map[string]any
+	// InitialDigests and APIDigests are the FileDigests of InitialOutputs and APIOutputs, read before
+	// they were built so they describe the files the running drivers read. An output without one is
+	// rebuilt once by the next reload.
+	InitialDigests map[string]string
+	APIDigests     map[string]string
 	// APIVersions are the stored versions of APIOutputs; FailedAPIVersions those that did not build at startup.
 	APIVersions       map[string]int64
 	FailedAPIVersions map[string]int64
@@ -106,8 +111,8 @@ type Reloader struct {
 	closed          bool
 }
 
-// NewReloader returns a Reloader with its own deep copies of InitialOutputs and FileOutputs. It reads
-// the File fields of the running outputs once, as the base the next reload compares with.
+// NewReloader returns a Reloader with its own deep copies of InitialOutputs and FileOutputs. The
+// digests in cfg are the base the next reload compares the File field files with.
 func NewReloader(cfg *ReloaderConfig) *Reloader {
 	r := &Reloader{
 		outputPaths:     cfg.OutputPaths,
@@ -128,24 +133,40 @@ func NewReloader(cfg *ReloaderConfig) *Reloader {
 		fileDigests:     make(map[string]string),
 		apiDigests:      make(map[string]string),
 	}
-	r.recordStartDigests(r.fileState, r.fileDigests)
-	r.recordStartDigests(r.apiState, r.apiDigests)
+	copyDigests(r.fileDigests, cfg.InitialDigests, r.fileState)
+	copyDigests(r.apiDigests, cfg.APIDigests, r.apiState)
 	return r
 }
 
-// recordStartDigests records the digest of each of configs; a file that cannot be read now records
-// none, so the next reload that reads it rebuilds the output once.
-func (r *Reloader) recordStartDigests(configs map[string]map[string]any, digests map[string]string) {
-	for name, cfg := range configs {
-		if digest, err := r.digest(name, cfg); err == nil {
-			digests[name] = digest
+// copyDigests copies the digests of the outputs in running from src into dst.
+func copyDigests(dst, src map[string]string, running map[string]map[string]any) {
+	for name, digest := range src {
+		if _, ok := running[name]; ok {
+			dst[name] = digest
 		}
 	}
 }
 
+// FileDigests returns the digest of the File field files of each of configs, to be read before the
+// outputs are built and passed to NewReloader. A config whose files cannot be read gets none, so the
+// first reload that reads them rebuilds the output once.
+func FileDigests(cat *catalog.Catalog, configs map[string]map[string]any) map[string]string {
+	digests := make(map[string]string, len(configs))
+	for name, cfg := range configs {
+		if digest, err := digestOf(cat, name, cfg); err == nil {
+			digests[name] = digest
+		}
+	}
+	return digests
+}
+
 // digest returns the fileFieldsDigest of cfg for the schema of name; an unknown type has none.
 func (r *Reloader) digest(name string, cfg map[string]any) (string, error) {
-	outputType, ok := r.catalog.Get(name)
+	return digestOf(r.catalog, name, cfg)
+}
+
+func digestOf(cat *catalog.Catalog, name string, cfg map[string]any) (string, error) {
+	outputType, ok := cat.Get(name)
 	if !ok {
 		return "", nil
 	}

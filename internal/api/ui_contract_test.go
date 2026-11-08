@@ -114,7 +114,7 @@ func TestUIContractFixtures(t *testing.T) {
 
 	cfg := testConfig(t)
 	cfg.UI.EventSource = "inmemory"
-	srv, err := NewServer(&ServerConfig{Pipeline: p, Database: db, Catalog: cat, Config: cfg})
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Database: db, Catalog: cat, Config: cfg, RuntimeDefaults: uiFixtureRuntimeDefaults()})
 	require.NoError(t, err)
 
 	layoutEmpty := uiFixtureRequest(t, srv.app, http.MethodGet, "/api/v1/pipeline/layout", "", http.StatusOK)
@@ -126,7 +126,8 @@ func TestUIContractFixtures(t *testing.T) {
 		{ID: "sink:alertmanager", X: 640, Y: 240},
 	}}))
 
-	for _, evt := range uiFixtureEvents(time.Now()) {
+	now := time.Now()
+	for _, evt := range uiFixtureEvents(now) {
 		body, err := json.Marshal(evt)
 		require.NoError(t, err)
 		req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/", bytes.NewReader(body))
@@ -181,7 +182,7 @@ func TestUIContractFixtures(t *testing.T) {
 	fixtures["errors"] = uiErrorFixtures(t, srv, cat)
 	fixtures["config-postgres"] = uiPostgresConfigFixture(t, p, db, cat, cfg)
 
-	canonicalizeUIFixtures(fixtures)
+	canonicalizeUIFixtures(fixtures, now)
 	for name, body := range fixtures {
 		t.Run(name, func(t *testing.T) {
 			compareUIFixture(t, name, body)
@@ -230,6 +231,16 @@ func uiFixtureEvents(now time.Time) []map[string]any {
 	}
 }
 
+// uiFixtureRuntimeDefaults sets every runtime default, so the UI sees each field GET /api/v1/config serves.
+func uiFixtureRuntimeDefaults() output.RuntimeConfig {
+	defaults := testutil.DefaultRuntimeConfig()
+	defaults.MinPriority = event.PriorityWarning
+	defaults.Batching = &output.BatchingConfig{Enabled: true, BatchSize: 50, FlushInterval: time.Second}
+	healthCheck := true
+	defaults.HealthCheck = &healthCheck
+	return defaults
+}
+
 // uiErrorFixtures collects the error envelopes the UI maps to messages, keyed by case.
 // uiPostgresConfigFixture serves a postgres configuration with an inline password and TLS files, so
 // the UI sees the masked password and every database field the Configuration page shows.
@@ -252,7 +263,7 @@ func uiPostgresConfigFixture(
 		CertFile: "/etc/falcosidekick/certs/tls.crt",
 		KeyFile:  "/etc/falcosidekick/certs/tls.key",
 	}
-	srv, err := NewServer(&ServerConfig{Pipeline: p, Database: db, Catalog: cat, Config: cfg})
+	srv, err := NewServer(&ServerConfig{Pipeline: p, Database: db, Catalog: cat, Config: cfg, RuntimeDefaults: uiFixtureRuntimeDefaults()})
 	require.NoError(t, err)
 	body := uiFixtureRequest(t, srv.app, http.MethodGet, "/api/v1/config", "", http.StatusOK)
 	encoded, err := json.Marshal(body)
@@ -323,20 +334,16 @@ func uiFixtureRequest(t *testing.T, app *fiber.App, method, path, body string, w
 }
 
 // canonicalizeUIFixtures replaces what changes between runs while keeping every shape and relation:
-// times keep their order, histogram instants keep their spacing, UUIDs stay distinct and lists of
-// named entries are sorted by name.
-func canonicalizeUIFixtures(fixtures map[string]any) {
-	var instants []time.Time
+// times move to the fixture clock at their offset from now, to the minute (events keep their spacing,
+// times taken during the run land on the clock itself), histogram instants keep their spacing, UUIDs
+// stay distinct and lists of named entries are sorted by name. Nothing depends on how many distinct
+// instants a run happened to produce.
+func canonicalizeUIFixtures(fixtures map[string]any, now time.Time) {
 	var epochs []float64
 	uuids := map[string]string{}
 	walkUIFixture(fixtures, "", func(key string, value any) any {
 		switch v := value.(type) {
 		case string:
-			if isUITimeKey(key) {
-				if ts, err := time.Parse(time.RFC3339Nano, v); err == nil && !ts.IsZero() {
-					instants = append(instants, ts)
-				}
-			}
 			if key == uiUUIDKey {
 				if _, seen := uuids[v]; !seen {
 					uuids[v] = fmt.Sprintf("00000000-0000-4000-8000-%012d", len(uuids)+1)
@@ -349,8 +356,6 @@ func canonicalizeUIFixtures(fixtures map[string]any) {
 		}
 		return value
 	})
-	slices.SortFunc(instants, func(a, b time.Time) int { return a.Compare(b) })
-	instants = slices.CompactFunc(instants, func(a, b time.Time) bool { return a.Equal(b) })
 	epochBase := float64(uiFixtureClock.Add(-6 * time.Hour).UnixMilli())
 	epochMin := epochBase
 	if len(epochs) > 0 {
@@ -367,8 +372,7 @@ func canonicalizeUIFixtures(fixtures map[string]any) {
 			case string:
 				if isUITimeKey(key) {
 					if ts, err := time.Parse(time.RFC3339Nano, v); err == nil && !ts.IsZero() {
-						rank, _ := slices.BinarySearchFunc(instants, ts, func(a, b time.Time) int { return a.Compare(b) })
-						return uiFixtureClock.Add(time.Duration(rank-len(instants)+1) * 15 * time.Minute).Format(time.RFC3339Nano)
+						return uiFixtureClock.Add(ts.Sub(now).Round(time.Minute)).Format(time.RFC3339Nano)
 					}
 				}
 				if key == uiUUIDKey {

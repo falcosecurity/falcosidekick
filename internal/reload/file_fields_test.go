@@ -177,7 +177,7 @@ func TestReloadComparesWithTheFilesReadAtStartup(t *testing.T) {
 	r := NewReloader(&ReloaderConfig{
 		OutputPaths: []string{path}, Catalog: cat, Dispatcher: env.d,
 		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
-		InitialOutputs: running, FileOutputs: running,
+		InitialOutputs: running, FileOutputs: running, InitialDigests: FileDigests(cat, running),
 	})
 	ctx := t.Context()
 
@@ -188,6 +188,75 @@ func TestReloadComparesWithTheFilesReadAtStartup(t *testing.T) {
 	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
 	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
 	assert.Equal(t, []string{"renewed"}, rec.builds("webhook"))
+}
+
+// A file renewed after the startup digests were read but before the Reloader starts is a change: the
+// running output was built with the old file, so the first reload rebuilds it once. A file that could
+// not be read at startup records no digest and is rebuilt once too.
+func TestReloadRebuildsAFileRenewedBetweenStartupBuildAndReloader(t *testing.T) {
+	tests := []struct {
+		name string
+		api  bool
+	}{
+		{name: "file output"},
+		{name: "API output", api: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			ca := filepath.Join(dir, "ca.pem")
+			writeFile(t, ca, "first")
+			path := filepath.Join(t.TempDir(), "outputs.yaml")
+			running := map[string]map[string]any{"webhook": {"tls": map[string]any{"ca_file": ca}}}
+			rec := &caRecorder{}
+			cat, err := catalog.New([]output.Type{rec.outputType("webhook")})
+			require.NoError(t, err)
+			env := newReloaderTestEnv(t, nil)
+			defer env.shutdown(t)
+			db := database.NewMemory()
+			ctx := t.Context()
+
+			digests := FileDigests(cat, running)
+			require.NotEmpty(t, digests["webhook"])
+			writeFile(t, ca, "renewed")
+
+			reloaderCfg := &ReloaderConfig{
+				OutputPaths: []string{path}, Catalog: cat, Dispatcher: env.d, Database: db,
+				RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+			}
+			if tt.api {
+				writeOutputsYAML(t, path, "outputs: {}\n")
+				version, err := db.SaveOutputConfig(ctx, "webhook", 0, running["webhook"])
+				require.NoError(t, err)
+				reloaderCfg.APIOutputs = running
+				reloaderCfg.APIDigests = digests
+				reloaderCfg.APIVersions = map[string]int64{"webhook": version}
+			} else {
+				writeOutputsYAML(t, path, fmt.Sprintf("outputs:\n  webhook:\n    tls:\n      ca_file: %s\n", ca))
+				reloaderCfg.InitialOutputs = running
+				reloaderCfg.FileOutputs = running
+				reloaderCfg.InitialDigests = digests
+			}
+			r := NewReloader(reloaderCfg)
+
+			require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+			require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+			assert.Equal(t, []string{"renewed"}, rec.builds("webhook"), "rebuilt once with the renewed file")
+		})
+	}
+}
+
+// FileDigests leaves out a config whose File field file cannot be read, and gives "" to one without
+// File field files.
+func TestFileDigestsLeavesOutUnreadableFiles(t *testing.T) {
+	rec := &caRecorder{}
+	cat, err := catalog.New([]output.Type{rec.outputType("webhook"), rec.outputType("other")})
+	require.NoError(t, err)
+	digests := FileDigests(cat, map[string]map[string]any{
+		"webhook": {"tls": map[string]any{"ca_file": filepath.Join(t.TempDir(), "missing")}},
+		"other":   {},
+	})
+	assert.Equal(t, map[string]string{"other": ""}, digests)
 }
 
 // A reload rereads the File field files of API outputs: a renewed one rebuilds the output and leaves

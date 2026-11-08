@@ -52,6 +52,8 @@ type ServerConfig struct {
 	UIAssets fs.FS            // optional; serves under GET / when non-nil
 	Config   *core.Config
 	Logger   *slog.Logger
+	// RuntimeDefaults are the runtime settings each output's own are merged over, served by GET /api/v1/config.
+	RuntimeDefaults output.RuntimeConfig
 }
 
 // Server serves two listeners: ingestion (Falco events, health, version, metrics), reachable by every
@@ -78,6 +80,7 @@ type Server struct {
 	managementAddress string
 	eventSource       string
 	secretDirs        []string
+	runtimeDefaults   output.RuntimeConfig
 	provisioning      core.ProvisioningConfig
 	allowWrites       bool
 	// rejectInlineSecrets refuses API writes with an inline secret, for a persistent database.
@@ -117,6 +120,7 @@ func NewServer(cfg *ServerConfig) (*Server, error) {
 		secretDirs:          slices.Clone(cfg.Config.API.SecretDirs),
 		tls:                 cfg.Config.TLS,
 		coreConfig:          cfg.Config.DeepCopy(),
+		runtimeDefaults:     cfg.RuntimeDefaults.DeepCopy(),
 		rejectInlineSecrets: cfg.Config.Database.Backend.Persistent(),
 	}
 	s.operations, s.cancelOperations = context.WithCancel(context.Background())
@@ -198,7 +202,8 @@ func (s *Server) mountManagement() *fiber.App {
 	outputs.Delete("/:name", s.requireWrites, s.handlePipelineOutputDelete)
 
 	v1.Get("/config", s.handleGetConfig)
-	v1.Get("/secrets", s.handleGetSecrets)
+	// The secret listing serves only API writes, so it is off with them.
+	v1.Get("/secrets", s.requireWrites, s.handleGetSecrets)
 	v1.Get("/version", s.handleGetVersion)
 
 	registerStaticUI(app, s.uiAssets)

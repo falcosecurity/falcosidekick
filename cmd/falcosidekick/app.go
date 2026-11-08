@@ -97,6 +97,8 @@ func NewApp(
 		return nil, fmt.Errorf("enricher: %w", err)
 	}
 
+	// Read before the build, so a file renewed during it is seen by the first reload.
+	digests := reload.FileDigests(cat, resolved)
 	outputs, err := createOutputs(ctx, cfg, resolved, cat, collector)
 	if err != nil {
 		return nil, fmt.Errorf("outputs: %w", err)
@@ -157,23 +159,26 @@ func NewApp(
 		Registry:            collector.Registry(),
 		Logger:              logger,
 		InitialOutputs:      resolved,
+		InitialDigests:      digests,
 		FileOutputs:         outsCfg.Outputs,
 		APIOutputs:          restored.resolved,
+		APIDigests:          restored.digests,
 		APIVersions:         restored.builtVersions(),
 		FailedAPIVersions:   restored.failedVersions(),
 		RejectInlineSecrets: persistent,
 	})
 
 	srv, err := api.NewServer(&api.ServerConfig{
-		Pipeline: pipe,
-		Database: db,
-		Catalog:  cat,
-		Metrics:  collector,
-		Registry: collector.Registry(),
-		Config:   &cfg.Config,
-		Reloader: reloader,
-		UIAssets: uiAssets,
-		Logger:   logger,
+		Pipeline:        pipe,
+		Database:        db,
+		Catalog:         cat,
+		Metrics:         collector,
+		Registry:        collector.Registry(),
+		Config:          &cfg.Config,
+		RuntimeDefaults: cfg.RuntimeDefaults,
+		Reloader:        reloader,
+		UIAssets:        uiAssets,
+		Logger:          logger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("server: %w", err)
@@ -385,6 +390,8 @@ func createOutputs(
 type restoredOutputs struct {
 	// resolved holds the configs of the outputs that built, with secret files read.
 	resolved map[string]map[string]any
+	// digests holds the File field digests of resolved, read before the build.
+	digests  map[string]string
 	failures map[string]error
 	// versions holds the stored version of every restored output, built or failed.
 	versions map[string]int64
@@ -442,12 +449,21 @@ func restoreFromDB(
 		resolved[name] = cfgCopy
 	}
 
+	digests := reload.FileDigests(cat, resolved)
 	built, buildFailures := pipeline.BuildEach(ctx, cat, resolved, cfg.RuntimeDefaults, output.Deps{Logger: slog.Default(), Metrics: mc})
 	maps.Copy(failures, buildFailures)
-	restored := &restoredOutputs{resolved: make(map[string]map[string]any, len(built)), failures: failures, versions: versions}
+	restored := &restoredOutputs{
+		resolved: make(map[string]map[string]any, len(built)),
+		digests:  make(map[string]string, len(built)),
+		failures: failures,
+		versions: versions,
+	}
 	for _, name := range slices.Sorted(maps.Keys(built)) {
 		restored.outputs = append(restored.outputs, built[name])
 		restored.resolved[name] = resolved[name]
+		if digest, ok := digests[name]; ok {
+			restored.digests[name] = digest
+		}
 		slog.Info("output enabled", "output", name)
 	}
 	for _, name := range slices.Sorted(maps.Keys(failures)) {
