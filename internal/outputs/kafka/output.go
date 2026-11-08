@@ -20,9 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kerr"
@@ -37,16 +35,15 @@ import (
 )
 
 type config struct {
-	Auth            kafkaAuth              `mapstructure:"auth"`
-	Topic           string                 `mapstructure:"topic"`
-	TopicField      string                 `mapstructure:"topic_field"`
-	MessageKey      string                 `mapstructure:"message_key"`
-	MessageKeyField string                 `mapstructure:"message_key_field"`
-	TLS             shared.TLSClientConfig `mapstructure:"tls"`
-	Producer        kafkaProducer          `mapstructure:"producer"`
-	Brokers         []string               `mapstructure:"brokers"`
-	Runtime         output.RuntimeConfig   `mapstructure:"runtime"`
-	TLSEnabled      bool                   `mapstructure:"tls_enabled"`
+	Auth            kafkaAuth                `mapstructure:"auth"`
+	Topic           string                   `mapstructure:"topic"`
+	TopicField      string                   `mapstructure:"topic_field"`
+	MessageKey      string                   `mapstructure:"message_key"`
+	MessageKeyField string                   `mapstructure:"message_key_field"`
+	TLS             shared.OptionalTLSConfig `mapstructure:"tls"`
+	Producer        kafkaProducer            `mapstructure:"producer"`
+	Brokers         []string                 `mapstructure:"brokers"`
+	Runtime         output.RuntimeConfig     `mapstructure:"runtime"`
 }
 
 type kafkaAuth struct {
@@ -60,7 +57,6 @@ type kafkaProducer struct {
 	RequiredACKs    string        `mapstructure:"required_acks"`
 	ClientID        string        `mapstructure:"client_id"`
 	DeliveryTimeout time.Duration `mapstructure:"delivery_timeout"`
-	Async           bool          `mapstructure:"async"`
 	TopicCreation   bool          `mapstructure:"auto_create_topic"`
 }
 
@@ -94,12 +90,8 @@ var OutputType = output.Type{
 				Description: "Output field whose non-empty string value is the record key. Otherwise `message_key` applies.",
 			},
 			{
-				Name: "tls_enabled", Type: "bool", Default: false, Label: "Enable TLS",
-				Description: "Connects to the brokers over TLS. `tls` settings are refused unless this is set.",
-			},
-			{
-				Name: "auth.sasl", Type: "enum", Values: []string{"", "plain", "scram_sha256", "scram_sha512"}, Label: "SASL Mechanism",
-				Description: "SASL mechanism for broker authentication: `plain`, `scram_sha256` or `scram_sha512`. " +
+				Name: "auth.sasl", Type: "enum", Values: []string{"", saslPlain, saslSCRAMSHA256, saslSCRAMSHA512}, Label: "SASL Mechanism",
+				Description: "SASL mechanism for broker authentication, spelled as Kafka does: `PLAIN`, `SCRAM-SHA-256` or `SCRAM-SHA-512`. " +
 					"Empty disables SASL; any mechanism requires username and password.",
 			},
 			{
@@ -111,8 +103,9 @@ var OutputType = output.Type{
 				Description: "Password for SASL authentication.",
 			},
 			{
-				Name: "producer.compression", Type: "enum", Values: []string{"none", "gzip", "snappy", "lz4", "zstd"}, Default: "none", Label: "Compression",
-				Description: "Codec for record batches sent to the brokers.",
+				Name: "producer.compression", Type: "enum", Values: []string{"none", "gzip", "snappy", "lz4", "zstd"}, Label: "Compression",
+				Description: "Codec for record batches sent to the brokers. Empty keeps the client default: `snappy`, " +
+					"or no compression for brokers that do not support it.",
 			},
 			{
 				Name: "producer.required_acks", Type: "enum", Values: []string{"all", "one", "none"}, Default: "all", Label: "Required ACKs",
@@ -120,13 +113,8 @@ var OutputType = output.Type{
 					"Idempotent writes are enabled only with `all`.",
 			},
 			{
-				Name: "producer.client_id", Type: "string", Label: "Client ID",
-				Description: "Client ID sent to the brokers, visible in their logs and quotas. Empty uses `kgo`.",
-			},
-			{
-				Name: "producer.async", Type: "bool", Default: false, Label: "Async Produce (counted as sent once buffered; broker errors also count as failed)",
-				Description: "Returns once the record is buffered, without waiting for the brokers. A later broker failure is counted as failed, " +
-					"so counters are exact only in sync mode.",
+				Name: "producer.client_id", Type: "string", Default: defaultClientID, Label: "Client ID",
+				Description: "Client ID sent to the brokers, visible in their logs and quotas.",
 			},
 			{
 				Name: "producer.auto_create_topic", Type: "bool", Default: false, Label: "Allow Auto Topic Creation",
@@ -137,39 +125,37 @@ var OutputType = output.Type{
 				Description: "Go duration, such as `10s`, bounding the delivery of each record, client retries included, and the flush on shutdown. " +
 					"At least `1s`.",
 			},
-		}, append(shared.TLSClientSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
+		}, append(shared.OptionalTLSSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
 	},
 }
 
 type driver struct {
-	client      *kgo.Client
-	logger      *slog.Logger
-	lateFailure atomic.Pointer[func(error)]
+	client *kgo.Client
 	// purged holds when each recreated topic was last purged, guarded by purgeMu.
-	purged   map[string]time.Time
-	opts     []kgo.Opt
-	cfg      config
-	inflight sync.WaitGroup
-	purgeMu  sync.Mutex
-}
-
-func (d *driver) SetLateFailureHandler(handler func(err error)) {
-	d.lateFailure.Store(&handler)
+	purged  map[string]time.Time
+	opts    []kgo.Opt
+	cfg     config
+	purgeMu sync.Mutex
 }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 
 var (
-	validSASL         = map[string]bool{"": true, "plain": true, "scram_sha256": true, "scram_sha512": true}
+	validSASL         = map[string]bool{"": true, saslPlain: true, saslSCRAMSHA256: true, saslSCRAMSHA512: true}
 	validCompression  = map[string]bool{"": true, "none": true, "gzip": true, "snappy": true, "lz4": true, "zstd": true}
 	validRequiredACKs = map[string]bool{"": true, "all": true, "one": true, "none": true}
 )
 
 const (
-	name           = "kafka"
-	opAsyncProduce = "async produce"
-	opClient       = "client"
+	name     = "kafka"
+	opClient = "client"
 
+	// SASL mechanism names as Kafka spells them in sasl.enabled.mechanisms.
+	saslPlain       = "PLAIN"
+	saslSCRAMSHA256 = "SCRAM-SHA-256"
+	saslSCRAMSHA512 = "SCRAM-SHA-512"
+
+	defaultClientID        = "falcosidekick"
 	defaultDeliveryTimeout = 10 * time.Second
 	// minDeliveryTimeout is the lowest record timeout franz-go accepts.
 	minDeliveryTimeout = time.Second
@@ -178,7 +164,7 @@ const (
 func (a *kafkaAuth) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if !validSASL[a.SASL] {
-		errs.Add("sasl", "must be plain/scram_sha256/scram_sha512")
+		errs.Add("sasl", "must be PLAIN/SCRAM-SHA-256/SCRAM-SHA-512")
 	}
 	if a.SASL != "" && (a.Username == "" || a.Password == "") {
 		errs.Add("username", "username and password are required when sasl is set")
@@ -203,9 +189,6 @@ func (p *kafkaProducer) validate() utils.ValidationErrors {
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	errs.Merge("tls", c.TLS.Validate())
-	if !c.TLSEnabled && c.TLS != (shared.TLSClientConfig{}) {
-		errs.Add("tls", "is set but tls_enabled is false")
-	}
 	errs.Merge("brokers", shared.ValidateBrokers(c.Brokers))
 	if c.Topic == "" {
 		errs.Add("topic", "is required")
@@ -226,12 +209,14 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	if !hasKey(raw, "producer", "delivery_timeout") {
 		cfg.Producer.DeliveryTimeout = defaultDeliveryTimeout
 	}
+	if cfg.Producer.ClientID == "" {
+		cfg.Producer.ClientID = defaultClientID
+	}
 	if errs := cfg.validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("%s: %s", name, errs.Error())
 	}
 
-	logger := shared.ResolveLogger(deps.Logger, name)
-	opts, err := buildClientOpts(&cfg, logger)
+	opts, err := buildClientOpts(&cfg, shared.ResolveLogger(deps.Logger, name))
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +224,6 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	return &driver{
 		cfg:    cfg,
 		opts:   opts,
-		logger: logger,
 		purged: make(map[string]time.Time),
 	}, nil
 }
@@ -263,13 +247,6 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	if err != nil {
 		return err
 	}
-
-	if d.cfg.Producer.Async {
-		d.inflight.Add(1)
-		d.client.Produce(ctx, record, d.asyncCallback)
-		return nil
-	}
-
 	return d.produced(ctx, d.client.ProduceSync(ctx, record))
 }
 
@@ -285,15 +262,6 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		}
 		records = append(records, record)
 	}
-
-	if d.cfg.Producer.Async {
-		d.inflight.Add(len(records))
-		for _, r := range records {
-			d.client.Produce(ctx, r, d.asyncCallback)
-		}
-		return nil
-	}
-
 	return d.produced(ctx, d.client.ProduceSync(ctx, records...))
 }
 
@@ -391,7 +359,7 @@ func isMisconfiguration(err error) bool {
 		shared.IsTLSVerificationError(err)
 }
 
-// Close flushes for at most the delivery timeout; records still pending fail through their callbacks.
+// Close flushes for at most the delivery timeout; records still pending fail their ProduceSync call.
 func (d *driver) Close() error {
 	if d.client == nil {
 		return nil
@@ -400,8 +368,6 @@ func (d *driver) Close() error {
 	defer cancel()
 	err := d.client.Flush(ctx)
 	d.client.Close()
-	// Close fails every record still buffered, so each callback runs.
-	d.inflight.Wait()
 	return shared.WrapDeliveryError(name, shared.OpClose, err)
 }
 
@@ -412,18 +378,4 @@ func hasKey(raw map[string]any, section, key string) bool {
 	}
 	_, ok = nested[key]
 	return ok
-}
-
-// asyncCallback counts a failure as late: the event was already counted as sent.
-func (d *driver) asyncCallback(record *kgo.Record, err error) {
-	defer d.inflight.Done()
-	if err == nil {
-		return
-	}
-	d.forgetRecreatedTopic(record, err)
-	diagnostic := newDeliveryError(opAsyncProduce, err)
-	d.logger.Error("async produce failed", "error", diagnostic)
-	if handler := d.lateFailure.Load(); handler != nil {
-		(*handler)(diagnostic)
-	}
 }

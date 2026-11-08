@@ -37,15 +37,18 @@ const (
 	name                 = "awssns"
 	opPublish            = "Publish"
 	opGetTopicAttributes = "GetTopicAttributes"
+
+	formatJSON = "json"
+	formatText = "text"
 )
 
 type config struct {
 	TopicARN         string `mapstructure:"topic_arn"`
+	Format           string `mapstructure:"format"`
 	sharedaws.Config `mapstructure:",squash"`
 	// MessageAttributes is nil when the key is absent, which means defaultMessageAttributes.
 	MessageAttributes []string             `mapstructure:"message_attributes"`
 	Runtime           output.RuntimeConfig `mapstructure:"runtime"`
-	RawJSON           bool                 `mapstructure:"raw_json"`
 }
 
 // OutputType describes the AWS SNS output for the catalog.
@@ -61,8 +64,9 @@ var OutputType = output.Type{
 					"Its region applies when neither the region field nor the environment sets one.",
 			},
 			{
-				Name: "raw_json", Type: "bool", Default: false, Label: "Publish the event JSON instead of the output text and attributes",
-				Description: "Publishes the whole event as JSON with no message attributes. Otherwise the message is the event output text, or the rule name when it is empty.",
+				Name: "format", Type: "enum", Values: []string{formatJSON, formatText}, Default: formatJSON, Label: "Message Format",
+				Description: "Message body: `json` publishes the event JSON, `text` the event output text, or the rule name when it is empty. " +
+					"Message attributes are sent with both.",
 			},
 			{
 				Name: "message_attributes", Type: "string[]", Default: defaultMessageAttributes, Label: "Message attributes: priority, rule, source, tags, hostname or output field names (at most 10)",
@@ -90,6 +94,13 @@ func (c *config) validate() (topic arn.ARN, errs utils.ValidationErrors) {
 	} else if strings.HasSuffix(topic.Resource, ".fifo") {
 		// A FIFO topic rejects every message without a MessageGroupId.
 		errs.Add("topic_arn", "FIFO topics are not supported")
+	}
+	switch c.Format {
+	case "":
+		c.Format = formatJSON
+	case formatJSON, formatText:
+	default:
+		errs.Add("format", "must be json/text")
 	}
 	if c.MessageAttributes == nil {
 		c.MessageAttributes = defaultMessageAttributes
@@ -131,21 +142,23 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 }
 
 func (d *driver) publishInput(evt *event.Event) (*sns.PublishInput, error) {
-	input := &sns.PublishInput{TopicArn: sdkaws.String(d.cfg.TopicARN)}
-	if d.cfg.RawJSON {
-		body, err := json.Marshal(evt)
-		if err != nil {
-			return nil, err
+	input := &sns.PublishInput{
+		TopicArn:          sdkaws.String(d.cfg.TopicARN),
+		MessageAttributes: messageAttributes(evt, d.cfg.MessageAttributes),
+	}
+	if d.cfg.Format == formatText {
+		message := evt.Output
+		if message == "" {
+			message = evt.Rule
 		}
-		input.Message = sdkaws.String(string(body))
+		input.Message = sdkaws.String(message)
 		return input, nil
 	}
-	message := evt.Output
-	if message == "" {
-		message = evt.Rule
+	body, err := json.Marshal(evt)
+	if err != nil {
+		return nil, err
 	}
-	input.Message = sdkaws.String(message)
-	input.MessageAttributes = messageAttributes(evt, d.cfg.MessageAttributes)
+	input.Message = sdkaws.String(string(body))
 	return input, nil
 }
 

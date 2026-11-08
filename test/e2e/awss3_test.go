@@ -149,18 +149,19 @@ func assertAWSEvent(t *testing.T, body, marker string) {
 	var got map[string]any
 	require.NoError(t, json.Unmarshal([]byte(body), &got), body)
 	assert.Equal(t, "E2E "+marker, got["rule"])
-	assert.Equal(t, "warning", got["priority"])
+	assert.Equal(t, "Warning", got["priority"])
 	assert.NotEmpty(t, got["uuid"])
 	assert.Equal(t, marker, got["output_fields"].(map[string]any)["e2e.marker"])
 }
 
-var s3KeyPattern = regexp.MustCompile(`^falco/\d{4}-\d{2}-\d{2}/\d{4}-\d{2}-\d{2}T[0-9:.]+Z_[0-9a-f-]{36}\.(json|ndjson)$`)
+// s3KeyPattern has the basic ISO 8601 time: no ':' in keys.
+var s3KeyPattern = regexp.MustCompile(`^falco/\d{4}-\d{2}-\d{2}/\d{8}T\d{6}\.\d{9}Z_[0-9a-f-]{36}\.(json|ndjson)$`)
 
 func TestAWSS3DeliversEvent(t *testing.T) {
 	target := localstack(t)
 	marker := newMarker(t)
 	bucket := target.createBucket(t, marker)
-	sk := startSidekick(t, target.output("awss3", "bucket: "+bucket+"\nuse_path_style: true\n"))
+	sk := startSidekick(t, target.output("awss3", "bucket: "+bucket+"\nprefix: falco\nuse_path_style: true\n"))
 
 	sk.postEvent(t, marker)
 	objects := target.waitObjects(t, bucket, 1)
@@ -180,7 +181,7 @@ func TestAWSS3DeliversBatchAsNDJSON(t *testing.T) {
 	target := localstack(t)
 	marker := newMarker(t)
 	bucket := target.createBucket(t, marker)
-	sk := startSidekick(t, target.output("awss3", "bucket: "+bucket+"\nuse_path_style: true\n"+
+	sk := startSidekick(t, target.output("awss3", "bucket: "+bucket+"\nprefix: falco\nuse_path_style: true\n"+
 		"runtime:\n  batching:\n    enabled: true\n    batch_size: 3\n    flush_interval: 10s\n"))
 
 	markers := []string{marker + "a", marker + "b", marker + "c"}

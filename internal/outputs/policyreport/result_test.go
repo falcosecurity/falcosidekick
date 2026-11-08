@@ -34,9 +34,9 @@ func TestPriorityMapping(t *testing.T) {
 		result   string
 		severity string
 	}{
-		{event.PriorityDebug, resultSkip, severityInfo},
-		{event.PriorityInformational, resultSkip, severityInfo},
-		{event.PriorityNotice, resultSkip, severityLow},
+		{event.PriorityDebug, resultWarn, severityInfo},
+		{event.PriorityInformational, resultWarn, severityInfo},
+		{event.PriorityNotice, resultWarn, severityLow},
 		{event.PriorityWarning, resultWarn, severityMedium},
 		{event.PriorityError, resultFail, severityHigh},
 		{event.PriorityCritical, resultFail, severityCritical},
@@ -47,6 +47,12 @@ func TestPriorityMapping(t *testing.T) {
 		t.Run(string(tt.priority), func(t *testing.T) {
 			assert.Equal(t, tt.result, mapResult(tt.priority))
 			assert.Equal(t, tt.severity, mapSeverity(tt.priority))
+			evt := testutil.CreateValidEvent()
+			evt.Priority = tt.priority
+			got, err := buildResult(evt)
+			require.NoError(t, err)
+			assert.Contains(t, []string{"warn", "fail"}, got["result"], "skip means the policy was not selected")
+			assert.Equal(t, tt.result, got["result"])
 		})
 	}
 }
@@ -76,7 +82,7 @@ func TestBuildResult(t *testing.T) {
 	assert.Equal(t, "42", props["proc.pid"])
 	assert.Equal(t, "/bin/hack", props["fd.name"])
 	assert.NotContains(t, props, "container.name", "null fields are left out")
-	assert.Equal(t, "error", props["priority"])
+	assert.Equal(t, "Error", props["priority"])
 	assert.Equal(t, "node-1", props["hostname"])
 	assert.Equal(t, "filesystem,mitre_persistence", props["tags"])
 	assert.Equal(t, "test-uuid-001", props["uuid"])

@@ -99,9 +99,9 @@ outputs:
   #   # host: "https://hooks.slack.com"  # default
   #   secret_endpoint: /services/XXX/YYY/ZZZ
   #   # secret_endpoint_file: /run/secrets/slack-endpoint
-  #   channel: "#security-alerts"
-  #   bot_username: "Falcosidekick"
   #   output_format: all                 # all, fields, text
+  #   # footer: "prod cluster"
+  #   # message_template: "{{ .Rule }} on {{ .Hostname }}"
   #   runtime:
   #     minimum_priority: warning
 
@@ -112,13 +112,16 @@ outputs:
   # elasticsearch:
   #   host: "https://elasticsearch:9200"
   #   # base_path: /es                   # routes are set by the output
-  #   # filter_path and pipeline are not allowed in query_params
+  #   # filter_path, pipeline and op_type are not allowed in query_params
   #   # Use either username/password_file or api_key_file, not both.
   #   # password_file: /run/secrets/es-password
   #   # api_key_file: /run/secrets/es-api-key
   #   # Documents use the event UUID as _id: retries never index an event twice.
   #   index: falco
-  #   index_suffix: daily                # daily, monthly, annually, none; dates in UTC
+  #   index_suffix: daily                # daily, monthly, annually, none; dates in UTC; none with data_stream
+  #   # data_stream: true                # write to index as a data stream (create only, no date suffix)
+  #   # number_of_shards: 1              # unset leaves the cluster default
+  #   # number_of_replicas: 1            # unset leaves the cluster default
   #   runtime:
   #     queue_size: 5000
   #     workers: 3
@@ -135,6 +138,7 @@ outputs:
   #   host: "http://loki:3100"
   #   # endpoint: /loki/api/v1/push      # default
   #   tenant: "security"
+  #   # label_fields: [container.name]   # output fields as stream labels (. and [ become _)
   #   runtime:
   #     minimum_priority: notice
 
@@ -147,6 +151,7 @@ outputs:
   #     - "http://alertmanager:9093"     # scheme, host and port only
   #   # base_path: /alertmanager         # same for every host
   #   # endpoint: /api/v2/alerts         # default
+  #   # expires_after: 30m               # Go duration; 0 leaves it to resolve_timeout
   #   runtime:
   #     minimum_priority: warning
 
@@ -159,15 +164,16 @@ outputs:
   #     - "kafka:9092"
   #   topic: "falco-events"
   #   auth:
-  #     sasl: plain
+  #     sasl: PLAIN                      # PLAIN, SCRAM-SHA-256, SCRAM-SHA-512
   #     username: falcosidekick
   #     password_file: /run/secrets/kafka-password
   #   producer:
   #     required_acks: all               # all, one, none
   #     delivery_timeout: 10s            # max wait per record, also bounds the flush on shutdown
-  #     # async: true does not wait for the broker: events count as sent once
-  #     # buffered, and a later broker error also counts as failed. Keep it false
-  #     # for exact metrics.
+  #     # compression: zstd              # unset keeps the client default (snappy)
+  #     # client_id: falcosidekick       # default
+  #   # tls:
+  #   #   enabled: true
 
   # ===========================================================================
   # Microsoft Teams (Workflows webhook, Adaptive Card)
@@ -182,6 +188,7 @@ outputs:
   #     sig:                             # a credential: secrets or files, never values
   #       secrets: ["SIGNATURE"]         # or files: [/run/secrets/teams-sig]
   #   output_format: all                 # all, fields, text
+  #   # icon_url: "https://example.com/falco.png"
 
   # ===========================================================================
   # Discord
@@ -190,7 +197,7 @@ outputs:
   # discord:
   #   # host: "https://discord.com"      # default
   #   secret_endpoint: /api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
-  #   # icon: "https://example.com/falco.png"
+  #   # avatar_url: "https://example.com/falco.png"
 
   # ===========================================================================
   # Grafana OnCall / Grafana Cloud IRM (formatted webhook)
@@ -217,15 +224,13 @@ outputs:
   #   api_key_file: /run/secrets/opsgenie-api-key
 
   # ===========================================================================
-  # Datadog (Events API)
+  # Datadog (Events API v2)
   # ===========================================================================
 
   # datadog:
   #   site: datadoghq.com                # datadoghq.eu, us3.datadoghq.com, ...; selects the hosts
   #   api_key_file: /run/secrets/datadog-api-key
-  #   # Without app_key events go to Events API v1, deprecated and kept for
-  #   # organizations that already use it. With app_key they go to v2.
-  #   # app_key_file: /run/secrets/datadog-app-key
+  #   app_key_file: /run/secrets/datadog-app-key  # required
 
   # ===========================================================================
   # Falco Talon
@@ -242,7 +247,7 @@ outputs:
   # cloudevents:
   #   host: "http://broker-ingress.knative-eventing.svc"
   #   endpoint: /default/default
-  #   # source: "https://falco.org"      # default
+  #   source: /falcosidekick             # required; names the producing context
   #   extensions:
   #     cluster: prod
 
@@ -255,9 +260,10 @@ outputs:
   #   topic: "falco-events"              # topic ID; the topic must exist
   #   # Without credentials the output uses Application Default Credentials:
   #   # GOOGLE_APPLICATION_CREDENTIALS, GKE Workload Identity or the metadata server.
-  #   # credentials_file: /run/secrets/gcp-credentials.json  # JSON key, raw or base64
-  #   custom_attributes:                 # added to every message
+  #   # credentials_file: /run/secrets/gcp-credentials.json  # JSON key
+  #   attributes:                        # static, added to every message
   #     cluster: prod
+  #   message_attributes: [priority, rule, source, tags, hostname]
   #   # endpoint: "europe-west1-pubsub.googleapis.com:443"   # gRPC host:port, TLS
   #   # emulator_host: "localhost:8085"  # plaintext, no authentication; not with endpoint or credentials
   #   # The health check reads the topic: it needs pubsub.topics.get (for example
@@ -270,12 +276,13 @@ outputs:
 
   # policyreport:
   #   # kubeconfig: /etc/falcosidekick/kubeconfig  # in-cluster configuration when empty
-  #   # falco_namespace: falco             # default: the pod namespace, else "default"
-  #   max_events: 1000                   # results per report, also set as configuration.limits.maxResults
+  #   # fallback_namespace: falco        # default: the pod namespace, else "default"
+  #   max_results: 1000                  # results per report, also set as configuration.limits.maxResults
   #   prune_by_priority: false           # true removes the oldest lowest-severity result first
   #   # Events with k8s.ns.name (or ka.target.namespace) go to the Report
   #   # "falcosidekick" of that namespace, others to the ClusterReport
-  #   # "falcosidekick". A namespace that does not exist uses falco_namespace.
+  #   # "falcosidekick". A namespace that does not exist uses fallback_namespace.
+  #   # Results are fail from Error up, warn below.
   #   # The openreports.io CRDs must be installed. RBAC: get, create and update
   #   # on reports and clusterreports.openreports.io. The health check stops
   #   # startup when the API is not served or access is rejected.
@@ -311,9 +318,10 @@ outputs:
   #   region: "eu-west-1"
   #   bucket: "falco-events"
   #   prefix: falco                      # empty writes the keys at the bucket root
-  #   object_canned_acl: bucket-owner-full-control  # default; private, public-read, ...
+  #   # object_canned_acl: bucket-owner-full-control  # unset sends no ACL
   #   # use_path_style: true             # path-style URLs, for most S3-compatible stores
-  #   # One object per event: <prefix>/<YYYY-MM-DD>/<event time>_<uuid>.json, in UTC.
+  #   # One object per event: <prefix>/<YYYY-MM-DD>/<event time>_<uuid>.json, in UTC,
+  #   # the time in basic ISO 8601 (20260102T150405.000000000Z).
   #   # With runtime.batching one object per batch, one JSON event per line:
   #   # <prefix>/<YYYY-MM-DD>/<first event time>_<first uuid>.ndjson.
   #   # A retry writes the same key. The health check (HeadBucket) needs s3:ListBucket.
@@ -340,9 +348,9 @@ outputs:
 
   # awssns:
   #   topic_arn: "arn:aws:sns:eu-west-1:123456789012:falco"
-  #   raw_json: false                    # true: the message is the event JSON, no attributes
+  #   format: json                       # json (default) or text
   #   message_attributes: [priority, rule, source, tags, hostname]
-  #   # With raw_json false the message is the event output text, with the
+  #   # json sends the event JSON, text the event output text; both carry the
   #   # listed attributes: the five above or output field names with a string or
   #   # number value (proc.aname[2] becomes proc.aname.2). At most 10, since raw
   #   # delivery to SQS drops messages with more. Empty values are left out;
@@ -355,11 +363,12 @@ outputs:
 
   # syslog:
   #   host: "syslog.example.com"
-  #   # port: 514                        # default 514, 6514 with protocol tls
-  #   protocol: tcp                      # tcp (default), udp, tls
+  #   # port: 514                        # default 514, 6514 with tls.enabled
+  #   protocol: tcp                      # tcp or udp
   #   format: json                       # json (default) or cef
   #   facility: local0                   # kern, user, ..., local0 (default) to local7
-  #   # tls:                             # only with protocol tls
+  #   # tls:                             # tcp only
+  #   #   enabled: true
   #   #   ca_file: /etc/ssl/syslog-ca.pem
   #   # Each event is one RFC 5424 message: PRI from facility and Falco priority,
   #   # HOSTNAME from the event (else this host), APP-NAME "falco". TCP and TLS
@@ -377,7 +386,7 @@ outputs:
   #   tls_mode: starttls                 # starttls (default, required), implicit,
   #                                      # opportunistic (STARTTLS when offered), none
   #   auth_mechanism: plain              # plain (default), xoauth2, none
-  #   user: falcosidekick
+  #   username: falcosidekick
   #   password_file: /run/secrets/smtp-password
   #   # token_file: /run/secrets/smtp-token  # OAuth 2.0 access token for xoauth2
   #   from: "Falco <falco@example.com>"
@@ -399,45 +408,41 @@ outputs:
   #   # username: falcosidekick          # ACL user; default user when empty
   #   password_file: /run/secrets/redis-password
   #   database: 0
-  #   storage_type: list                 # list (RPUSH, default), hashmap (HSET field = event UUID),
-  #                                      # stream (XADD, field "event")
-  #   key: falco                         # default
-  #   # max_len: 100000                  # stream only: approximate cap (MAXLEN ~), 0 = unbounded
-  #   # tls_enabled: true
+  #   storage_type: stream               # stream (XADD, field "event", default), list (RPUSH),
+  #                                      # hash (HSET field = event UUID)
+  #   key: falco                         # required
+  #   # max_len: 100000                  # stream only: default 100000, approximate (MAXLEN ~), 0 = unbounded
   #   # tls:
+  #   #   enabled: true
   #   #   ca_file: /etc/ssl/redis-ca.pem
   #   # Values are the event JSON. Batches are sent in one pipeline. The health
   #   # check sends PING: rejected credentials (WRONGPASS, NOAUTH), missing ACL
   #   # permissions, an unknown database or an untrusted certificate stop startup.
 
   # ===========================================================================
-  # OpenTelemetry (OTLP traces, logs and metrics)
+  # OpenTelemetry (OTLP logs and metrics)
   # ===========================================================================
 
   # otlp:
-  #   traces:                            # each section present enables its signal
-  #     endpoint: "http://otel-collector:4318"  # http/protobuf: path defaults to /v1/traces
+  #   logs:                              # each section present enables its signal
+  #     endpoint: "http://otel-collector:4318"  # http/protobuf: path defaults to /v1/logs
   #     protocol: http/protobuf          # http/protobuf (default) or grpc (no path)
   #     # timeout: 10s                   # per export, also bounds shutdown
   #     # compression: none              # none (default) or gzip
-  #     # duration: 0s                   # span length; spans start at the event time
   #     headers:
   #       Authorization:
   #         secrets: ["Bearer TOKEN"]    # or files: [/run/secrets/otlp-auth]
-  #   logs:
+  #   metrics:
   #     endpoint: "https://otel-collector:4317"
   #     protocol: grpc
   #     # tls:                           # https endpoints only
   #     #   ca_file: /etc/ssl/otel-ca.pem
-  #   metrics:
-  #     endpoint: "http://otel-collector:4318"
   #     extra_attributes:                # output fields added to every data point
   #       - k8s.ns.name
-  #   # One span (name = rule, kind internal), one log record (event name
-  #   # falco.alert, severity from priority, body = output) and one count on the
-  #   # falcosecurity.falco.rules.matches counter per event, with falco.* and
-  #   # output field attributes. Each delivery exports synchronously; OTEL_*
-  #   # environment variables are ignored. Events of one pod, container or host
-  #   # share a trace ID. Metrics are cumulative and exported on every delivery;
+  #   # One log record (event name falco.alert, severity from priority,
+  #   # body = output) and one count on the falcosecurity.falco.rules.matches
+  #   # counter per event, with falco.* and output field attributes. Each
+  #   # delivery exports synchronously; OTEL_* environment variables are
+  #   # ignored. Metrics are cumulative and exported on every delivery;
   #   # enable runtime.batching to reduce requests. No health check: OTLP has no
   #   # request that exports nothing. Header files are read at startup.

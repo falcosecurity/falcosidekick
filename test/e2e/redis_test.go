@@ -19,6 +19,7 @@
 package e2e
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -80,7 +81,7 @@ func assertRedisEvent(t *testing.T, payload, marker string) string {
 	var got map[string]any
 	require.NoError(t, json.Unmarshal([]byte(payload), &got))
 	assert.Equal(t, "E2E "+marker, got["rule"])
-	assert.Equal(t, "warning", got["priority"])
+	assert.Equal(t, "Warning", got["priority"])
 	assert.Equal(t, marker, got["output_fields"].(map[string]any)["e2e.marker"])
 	uuid, _ := got["uuid"].(string)
 	assert.NotEmpty(t, uuid)
@@ -93,11 +94,16 @@ func TestRedisDeliversEvent(t *testing.T) {
 		require.NoError(t, err)
 		t.Logf("%s: %s", target.addr, firstLine(version, "redis_version:"))
 
-		for _, storage := range []string{"list", "hashmap", "stream"} {
-			t.Run(target.addr+"/"+storage, func(t *testing.T) {
+		// "" leaves storage_type unset: the default is a stream.
+		for _, storage := range []string{"list", "hash", "stream", ""} {
+			t.Run(target.addr+"/"+cmp.Or(storage, "default"), func(t *testing.T) {
 				marker := newMarker(t)
 				key := redisKey(t, target, marker)
-				sk := startSidekick(t, target.output(target.password, "storage_type: "+storage+"\nkey: "+key+"\n"))
+				extra := "key: " + key + "\n"
+				if storage != "" {
+					extra += "storage_type: " + storage + "\n"
+				}
+				sk := startSidekick(t, target.output(target.password, extra))
 				sk.postEvent(t, marker)
 				sk.waitStatus(t, "redis", func(st outputStatus) bool { return st.SentTotal == 1 })
 
@@ -108,14 +114,14 @@ func TestRedisDeliversEvent(t *testing.T) {
 					require.NoError(t, err)
 					require.Len(t, values, 1)
 					assertRedisEvent(t, values[0], marker)
-				case "hashmap":
+				case "hash":
 					values, err := target.client.HGetAll(ctx, key).Result()
 					require.NoError(t, err)
 					require.Len(t, values, 1)
 					for field, value := range values {
 						assert.Equal(t, field, assertRedisEvent(t, value, marker), "field is the event UUID")
 					}
-				case "stream":
+				case "stream", "":
 					entries, err := target.client.XRange(ctx, key, "-", "+").Result()
 					require.NoError(t, err)
 					require.Len(t, entries, 1)
@@ -141,9 +147,22 @@ func TestRedisBatchUsesOnePipeline(t *testing.T) {
 			sk.postEvent(t, marker)
 			sk.postEvent(t, marker)
 			sk.waitStatus(t, "redis", func(st outputStatus) bool { return st.SentTotal == 2 })
-			n, err := target.client.LLen(context.Background(), key).Result()
+			n, err := target.client.XLen(context.Background(), key).Result()
 			require.NoError(t, err)
 			assert.Equal(t, int64(2), n)
+		})
+	}
+}
+
+func TestRedisRefusesRemovedSettings(t *testing.T) {
+	target := redisTarget{addr: "127.0.0.1:1", password: "unused"}
+	for _, tc := range []struct{ name, extra, want string }{
+		{name: "no key", extra: "", want: "key: is required"},
+		{name: "hashmap", extra: "key: falco\nstorage_type: hashmap\n", want: "storage_type: must be stream/list/hash"},
+		{name: "tls_enabled", extra: "key: falco\ntls_enabled: true\n", want: "unknown keys: tls_enabled"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Contains(t, startSidekickFails(t, target.output(target.password, tc.extra)), tc.want)
 		})
 	}
 }
@@ -152,7 +171,7 @@ func TestRedisWrongPasswordStopsStartup(t *testing.T) {
 	for _, target := range redisTargets(t) {
 		t.Run(target.addr, func(t *testing.T) {
 			wrong := "wrong-" + newMarker(t)
-			logs := startSidekickFails(t, target.output(wrong, ""))
+			logs := startSidekickFails(t, target.output(wrong, "key: falco\n"))
 			assert.Contains(t, logs, "health check")
 			assert.Contains(t, logs, "WRONGPASS")
 			assert.NotContains(t, logs, wrong)
@@ -162,7 +181,7 @@ func TestRedisWrongPasswordStopsStartup(t *testing.T) {
 
 func TestRedisReportsUnreachableServer(t *testing.T) {
 	target := redisTarget{addr: fmt.Sprintf("127.0.0.1:%d", freePort(t)), password: "unused-" + newMarker(t)}
-	sk := startSidekick(t, target.output(target.password, ""))
+	sk := startSidekick(t, target.output(target.password, "key: falco\n"))
 	st := sk.status(t, "redis")
 	assert.Equal(t, "degraded", st.Status, "an unreachable server at startup is transient")
 	assert.Contains(t, st.LastWarning, "connection refused")

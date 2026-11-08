@@ -5,6 +5,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -95,23 +96,39 @@ func TestGCPPubSubDelivers(t *testing.T) {
 	topic := "fsk-e2e-" + marker
 	sub := createPubSubTopic(t, client, topic)
 
-	sk := startSidekick(t, pubsubOutput(host, topic, "  custom_attributes:\n    cluster: e2e\n    team: security\n"))
+	sk := startSidekick(t, pubsubOutput(host, topic, "  attributes:\n    cluster: e2e\n    team: security\n"+
+		"  message_attributes: [priority, rule, source, tags, hostname, e2e.marker]\n"))
 	sk.postEvent(t, marker)
 
 	msg := receiveMarker(t, client, sub, marker)
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(msg.Data, &got))
 	assert.Equal(t, "E2E "+marker, got["rule"])
-	assert.Equal(t, "warning", got["priority"])
+	assert.Equal(t, "Warning", got["priority"])
 	assert.Equal(t, "e2e event "+marker, got["output"])
 	fields, ok := got["output_fields"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, marker, fields["e2e.marker"])
-	assert.Equal(t, map[string]string{"cluster": "e2e", "team": "security"}, msg.Attributes)
+	assert.Equal(t, map[string]string{
+		"cluster": "e2e", "team": "security",
+		"priority": "Warning", "rule": "E2E " + marker, "source": "syscall", "tags": "e2e", "hostname": "e2e-host",
+		"e2e.marker": marker,
+	}, msg.Attributes)
 
 	st := sk.waitStatus(t, "gcppubsub", func(s outputStatus) bool { return s.SentTotal >= 1 })
 	assert.Equal(t, 0, st.FailedTotal)
 	assert.Empty(t, st.LastError)
+}
+
+func TestGCPPubSubRefusesRemovedSettings(t *testing.T) {
+	host := requireEnv(t, envPubSubEmulator)
+	logs := startSidekickFails(t, pubsubOutput(host, "falco", "  custom_attributes:\n    cluster: e2e\n"))
+	assert.Contains(t, logs, "unknown keys: custom_attributes")
+
+	encoded := base64.StdEncoding.EncodeToString([]byte(`{"type":"service_account","private_key":"` + pubsubSentinel + `"}`))
+	logs = startSidekickFails(t, fmt.Sprintf("gcppubsub:\n  project_id: %q\n  topic: falco\n  credentials: %q\n", pubsubProject, encoded))
+	assert.Contains(t, logs, "credentials: must be a credentials JSON document")
+	assert.NotContains(t, logs, encoded)
 }
 
 func TestGCPPubSubMissingTopicFailsStartup(t *testing.T) {

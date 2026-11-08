@@ -48,15 +48,16 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 		pattern = d.cfg.Index
 	}
 
+	template := map[string]any{"mappings": buildMappings()}
+	if settings := d.templateSettings(); len(settings) > 0 {
+		template["settings"] = settings
+	}
 	tmpl := map[string]any{
 		"index_patterns": []string{pattern},
-		"template": map[string]any{
-			"settings": map[string]any{
-				"number_of_shards":   d.cfg.NumberOfShards,
-				"number_of_replicas": d.cfg.NumberOfReplicas,
-			},
-			"mappings": buildMappings(),
-		},
+		"template":       template,
+	}
+	if d.cfg.DataStream {
+		tmpl["data_stream"] = map[string]any{}
 	}
 
 	if err := d.sender.SendJSON(ctx, http.MethodPut, templateURL, tmpl); err != nil {
@@ -65,6 +66,18 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 
 	d.logger.Info("index template created", "index", d.cfg.Index)
 	return nil
+}
+
+// templateSettings holds only the counts the user set, so the cluster default applies to the others.
+func (d *driver) templateSettings() map[string]any {
+	settings := map[string]any{}
+	if d.cfg.NumberOfShards != nil {
+		settings["number_of_shards"] = *d.cfg.NumberOfShards
+	}
+	if d.cfg.NumberOfReplicas != nil {
+		settings["number_of_replicas"] = *d.cfg.NumberOfReplicas
+	}
+	return settings
 }
 
 // buildMappings matches output_fields strings only: dotted names such as proc.name expand into objects.
@@ -86,7 +99,7 @@ func buildMappings() map[string]any {
 			"output":     textWithKeyword(2048),
 			"priority":   map[string]any{"type": "keyword"},
 			"source":     map[string]any{"type": "keyword"},
-			"hostname":   textWithKeyword(256),
+			"hostname":   map[string]any{"type": "keyword"},
 			"tags":       map[string]any{"type": "keyword"},
 		},
 	}

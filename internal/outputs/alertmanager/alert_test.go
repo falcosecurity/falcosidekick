@@ -18,13 +18,13 @@ package alertmanager
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
-	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
@@ -44,7 +44,25 @@ func TestBuildAlertKeepsRuleVerbatim(t *testing.T) {
 	alert := o.buildAlert(evt)
 
 	assert.Equal(t, evt.Rule, alert.Labels["alertname"], "label values are free text in Alertmanager")
-	assert.Equal(t, evt.Rule, alert.Labels["rule"])
+}
+
+func TestBuildAlertLabelsAndAnnotations(t *testing.T) {
+	o := &driver{cfg: config{}}
+	evt := testutil.CreateValidEvent()
+	alert := o.buildAlert(evt)
+
+	assert.Equal(t, map[string]string{
+		"alertname": "Write below binary dir",
+		"source":    "syscall",
+		"priority":  "Error",
+		"severity":  "warning",
+		"hostname":  "node-1",
+		"tags":      "filesystem,mitre_persistence",
+	}, alert.Labels, "no rule label: alertname carries the rule")
+	assert.Equal(t, map[string]string{
+		"summary":     evt.Rule,
+		"description": evt.Output,
+	}, alert.Annotations, "no info annotation")
 }
 
 func TestBuildAlertIncludesStartsAt(t *testing.T) {
@@ -94,7 +112,7 @@ func TestBuildAlertExtraAnnotations(t *testing.T) {
 
 	assert.Equal(t, "https://example.com/runbook", alert.Annotations["runbook"])
 	assert.Equal(t, "security", alert.Annotations["team"])
-	assert.NotEmpty(t, alert.Annotations["info"])
+	assert.Equal(t, evt.Output, alert.Annotations["description"])
 }
 
 func TestBuildAlertNoExpiresAfter(t *testing.T) {
@@ -104,9 +122,9 @@ func TestBuildAlertNoExpiresAfter(t *testing.T) {
 }
 
 func TestBuildAlertExpiresAfter(t *testing.T) {
-	o := &driver{cfg: config{ExpiresAfter: 300}}
+	o := &driver{cfg: config{ExpiresAfter: 30 * time.Minute}}
 	alert := o.buildAlert(testutil.CreateValidEvent())
-	assert.NotEmpty(t, alert.EndsAt)
+	assert.Equal(t, "2026-04-01T11:00:00Z", alert.EndsAt)
 }
 
 func TestBuildAlertTagsSorted(t *testing.T) {
@@ -130,17 +148,18 @@ func TestBuildAlertNoTags(t *testing.T) {
 
 func TestBuildAlertExtraLabels(t *testing.T) {
 	o := &driver{cfg: config{
-		ExtraLabels: map[string]string{"env": "production", "k8s.ns": "default"},
+		ExtraLabels: map[string]string{"env": "production", "k8s_ns": "default", "severity": "page"},
 	}}
 	alert := o.buildAlert(testutil.CreateValidEvent())
 
 	assert.Equal(t, "production", alert.Labels["env"])
 	assert.Equal(t, "default", alert.Labels["k8s_ns"])
+	assert.Equal(t, "page", alert.Labels["severity"], "extra labels replace built-in labels")
 }
 
 func TestBuildAlertKeepsLabelValues(t *testing.T) {
 	o := &driver{cfg: config{
-		ExtraLabels: map[string]string{"region": "eu-west-1", "url": "https://x.example/a b", "team.name": "sec/ops"},
+		ExtraLabels: map[string]string{"region": "eu-west-1", "url": "https://x.example/a b", "team_name": "sec/ops"},
 	}}
 	evt := testutil.CreateValidEvent()
 	evt.Hostname = "node-1.eu-west-1.internal"
@@ -149,21 +168,26 @@ func TestBuildAlertKeepsLabelValues(t *testing.T) {
 
 	assert.Equal(t, "eu-west-1", alert.Labels["region"])
 	assert.Equal(t, "https://x.example/a b", alert.Labels["url"])
-	assert.Equal(t, "sec/ops", alert.Labels["team_name"], "names are sanitized, values are not")
+	assert.Equal(t, "sec/ops", alert.Labels["team_name"])
 	assert.Equal(t, "node-1.eu-west-1.internal", alert.Labels["hostname"])
 	assert.Equal(t, "T1059,mitre-execution", alert.Labels["tags"])
 }
 
-func TestResolveSeverityUsesSharedDefault(t *testing.T) {
+func TestResolveSeverityDefault(t *testing.T) {
 	o := &driver{cfg: config{}}
-	priorities := []event.Priority{
-		event.PriorityDebug, event.PriorityInformational, event.PriorityNotice,
-		event.PriorityWarning, event.PriorityError, event.PriorityCritical,
-		event.PriorityAlert, event.PriorityEmergency,
+	tests := map[event.Priority]string{
+		event.PriorityEmergency:     "critical",
+		event.PriorityAlert:         "critical",
+		event.PriorityCritical:      "critical",
+		event.PriorityError:         "warning",
+		event.PriorityWarning:       "warning",
+		event.PriorityNotice:        "info",
+		event.PriorityInformational: "info",
+		event.PriorityDebug:         "info",
 	}
-	for _, p := range priorities {
+	for p, want := range tests {
 		t.Run(string(p), func(t *testing.T) {
-			assert.Equal(t, shared.PrioritySeverity(p), o.resolveSeverity(p))
+			assert.Equal(t, want, o.resolveSeverity(p))
 		})
 	}
 }
@@ -174,7 +198,37 @@ func TestResolveSeverityCustomMapOverride(t *testing.T) {
 	}}
 	assert.Equal(t, "P1", o.resolveSeverity(event.PriorityCritical))
 	assert.Equal(t, "P3", o.resolveSeverity(event.PriorityWarning))
-	assert.Equal(t, shared.PrioritySeverity(event.PriorityDebug), o.resolveSeverity(event.PriorityDebug))
+	assert.Equal(t, "info", o.resolveSeverity(event.PriorityDebug))
+}
+
+func TestConfigValidation(t *testing.T) {
+	tests := []struct {
+		cfg     map[string]any
+		name    string
+		wantErr string
+	}{
+		{name: "duration", cfg: map[string]any{"expires_after": "30m"}},
+		{name: "zero", cfg: map[string]any{"expires_after": "0"}},
+		{name: "integer seconds", cfg: map[string]any{"expires_after": 300}, wantErr: "expires_after: must be 0 or a Go duration of at least 1s"},
+		{name: "number without unit", cfg: map[string]any{"expires_after": "300"}, wantErr: "expires_after"},
+		{name: "negative", cfg: map[string]any{"expires_after": "-1m"}, wantErr: "expires_after: must be 0 or a Go duration"},
+		{name: "valid label names", cfg: map[string]any{"extra_labels": map[string]any{"_team": "a", "env2": "b"}}},
+		{name: "dotted label name", cfg: map[string]any{"extra_labels": map[string]any{"k8s.ns": "a"}}, wantErr: `extra_labels["k8s.ns"]: name must match`},
+		{name: "label name with digit first", cfg: map[string]any{"extra_labels": map[string]any{"1env": "a"}}, wantErr: `extra_labels["1env"]: name must match`},
+		{name: "label name with dash", cfg: map[string]any{"extra_labels": map[string]any{"team-name": "a"}}, wantErr: `extra_labels["team-name"]: name must match`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.cfg["hosts"] = []string{"http://am:9093"}
+			_, err := createOutput(tt.cfg, output.Deps{})
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
 }
 
 func TestAlertmanagerMultiHost(t *testing.T) {

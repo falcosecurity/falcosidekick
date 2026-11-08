@@ -2,6 +2,7 @@
 
 Creates an alert per event with `/v2/alerts` on the `us` or `eu` host. Atlassian ends Opsgenie on 2027-04-05 (sales stopped on 2025-06-04).
 
+- `message` is the rule (130 characters at most), `description` the output (15000) and `entity` the hostname (512), left out when the event has none.
 - The event UUID is the `alias`, so a retried event updates the same alert.
 - Startup calls `GET /v2/heartbeats`: 401 or 404 stops startup; 403, the answer for an alert-only key, is accepted.
 

@@ -17,7 +17,6 @@
 package datadog
 
 import (
-	"fmt"
 	"sort"
 	"time"
 
@@ -25,110 +24,89 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
-const (
-	sourceTypeName = "falco"
-	// The Events API v1 limits text to 4000 characters.
-	maxTextRunes = 4000
-
-	alertError   = "error"
-	alertWarning = "warning"
-	alertInfo    = "info"
-)
-
-// payload is the Events API v1 request body.
-type payload struct {
-	Title      string   `json:"title"`
-	Text       string   `json:"text"`
-	AlertType  string   `json:"alert_type"`
-	SourceType string   `json:"source_type_name"`
-	Tags       []string `json:"tags"`
-}
-
-func newPayload(evt *event.Event) payload {
-	tags := make([]string, 0, len(evt.OutputFields)+len(evt.Tags)+3)
-	for _, key := range shared.SortMapKeys(evt.OutputFields) {
-		tags = append(tags, fmt.Sprintf("%v:%v", key, evt.OutputFields[key]))
-	}
-	tags = append(tags, "source:"+evt.Source, "source:falco")
-	if evt.Hostname != "" {
-		tags = append(tags, "hostname:"+evt.Hostname)
-	}
-	falcoTags := append([]string(nil), evt.Tags...)
-	sort.Strings(falcoTags)
-	tags = append(tags, falcoTags...)
-
-	return payload{
-		Title:      evt.Rule,
-		Text:       shared.TruncateRunes(evt.Output, maxTextRunes),
-		AlertType:  alertType(evt.Priority),
-		SourceType: sourceTypeName,
-		Tags:       tags,
-	}
-}
-
 // Events API v2 limits, from the EventPayload schema.
 const (
-	maxTitleRunes = 500
-	maxTags       = 100
-	maxTagRunes   = 200
-	maxKeyRunes   = 100
+	maxTitleRunes   = 500
+	maxMessageRunes = 4000
+	maxTags         = 100
+	maxTagRunes     = 200
+	maxKeyRunes     = 100
+
+	// source is a reserved tag in Datadog, so the Falco source gets its own key.
+	sourceTag = "falco_source:"
 )
 
-// v2Request is the Events API v2 request body for an alert event.
-type v2Request struct {
-	Data v2Data `json:"data"`
+// request is the Events API v2 request body for an alert event.
+type request struct {
+	Data data `json:"data"`
 }
 
-type v2Data struct {
-	Type       string      `json:"type"`
-	Attributes v2Attribute `json:"attributes"`
+type data struct {
+	Type       string     `json:"type"`
+	Attributes attributes `json:"attributes"`
 }
 
-type v2Attribute struct {
-	Attributes     v2Alert  `json:"attributes"`
+type attributes struct {
+	Attributes     alert    `json:"attributes"`
 	Title          string   `json:"title"`
 	Message        string   `json:"message,omitempty"`
 	Category       string   `json:"category"`
 	AggregationKey string   `json:"aggregation_key,omitempty"`
+	Host           string   `json:"host,omitempty"`
 	Timestamp      string   `json:"timestamp"`
 	Tags           []string `json:"tags"`
 }
 
-type v2Alert struct {
-	Status   string `json:"status"`
-	Priority string `json:"priority"`
+// alert holds the AlertEventCustomAttributes; custom carries the output fields, which would be high-cardinality tags.
+type alert struct {
+	Custom   map[string]any `json:"custom,omitempty"`
+	Status   string         `json:"status"`
+	Priority string         `json:"priority"`
 }
 
-// newV2Payload uses the event UUID as aggregation key so a retried event is deduplicated.
-func newV2Payload(evt *event.Event) v2Request {
-	v1 := newPayload(evt)
-	tags := v1.Tags
+// newPayload uses the event UUID as aggregation key so a retried event is deduplicated.
+func newPayload(evt *event.Event) request {
+	var custom map[string]any
+	if len(evt.OutputFields) > 0 {
+		custom = map[string]any{"output_fields": evt.OutputFields}
+	}
+	return request{Data: data{
+		Type: "event",
+		Attributes: attributes{
+			Title:          shared.TruncateRunes(evt.Rule, maxTitleRunes),
+			Message:        shared.TruncateRunes(evt.Output, maxMessageRunes),
+			Category:       "alert",
+			AggregationKey: shared.TruncateRunes(evt.UUID, maxKeyRunes),
+			Host:           evt.Hostname,
+			Timestamp:      evt.Time.UTC().Format(time.RFC3339Nano),
+			Tags:           eventTags(evt),
+			Attributes:     alert{Status: alertStatus(evt.Priority), Priority: alertPriority(evt.Priority), Custom: custom},
+		},
+	}}
+}
+
+// eventTags returns falco_source and the sorted rule tags within the per-event and per-tag limits.
+func eventTags(evt *event.Event) []string {
+	tags := make([]string, 0, len(evt.Tags)+1)
+	tags = append(tags, sourceTag+evt.Source)
+	falcoTags := append([]string(nil), evt.Tags...)
+	sort.Strings(falcoTags)
+	tags = append(tags, falcoTags...)
 	if len(tags) > maxTags {
 		tags = tags[:maxTags]
 	}
 	for i := range tags {
 		tags[i] = shared.TruncateRunes(tags[i], maxTagRunes)
 	}
-	return v2Request{Data: v2Data{
-		Type: "event",
-		Attributes: v2Attribute{
-			Title:          shared.TruncateRunes(evt.Rule, maxTitleRunes),
-			Message:        v1.Text,
-			Category:       "alert",
-			AggregationKey: shared.TruncateRunes(evt.UUID, maxKeyRunes),
-			Timestamp:      evt.Time.UTC().Format(time.RFC3339Nano),
-			Tags:           tags,
-			Attributes:     v2Alert{Status: alertStatus(evt.Priority), Priority: alertPriority(evt.Priority)},
-		},
-	}}
+	return tags
 }
 
 // alertStatus maps a priority to warn, error or ok, the only Events API v2 statuses.
 func alertStatus(p event.Priority) string {
-	switch alertType(p) {
-	case alertError:
+	switch p {
+	case event.PriorityEmergency, event.PriorityAlert, event.PriorityCritical, event.PriorityError:
 		return "error"
-	case alertWarning:
+	case event.PriorityWarning:
 		return "warn"
 	default:
 		return "ok"
@@ -148,16 +126,5 @@ func alertPriority(p event.Priority) string {
 		return "4"
 	default:
 		return "5"
-	}
-}
-
-func alertType(p event.Priority) string {
-	switch p {
-	case event.PriorityEmergency, event.PriorityAlert, event.PriorityCritical, event.PriorityError:
-		return alertError
-	case event.PriorityWarning:
-		return alertWarning
-	default:
-		return alertInfo
 	}
 }

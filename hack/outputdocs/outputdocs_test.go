@@ -187,7 +187,7 @@ func TestExampleOutputsFileNamesKnownSettings(t *testing.T) {
 
 func TestUnknownSettingsAreFound(t *testing.T) {
 	text := "core: x\noutputs:\n\n  # ===\n  # Slack\n  # ===\n\n  # slack:\n" +
-		"  #   channel: \"#falco\"\n  #   chanel: typo\n  #   # icon_url: commented twice\n" +
+		"  #   footer: x\n  #   chanel: typo\n  #   # icon_url: commented twice\n" +
 		"  #   secret_endpoint_file: /p\n  #   runtime:\n  #     batching:\n  #       enabled: true\n" +
 		"  #   headers:\n  #     X-Any:\n  #       values: [a]\n" +
 		"\n  # ===\n  # Shared\n  # ===\n  #   region: eu-west-1\n"

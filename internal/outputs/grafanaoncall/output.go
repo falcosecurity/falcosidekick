@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -53,11 +54,18 @@ var OutputType = output.Type{
 }
 
 // https://grafana.com/docs/grafana-cloud/alerting-and-irm/irm/configure/integrations/webhooks/incoming-webhooks/oncall-webhooks
+// The keys after message are not part of the format; routing and grouping templates read them.
 type payload struct {
-	AlertUID string `json:"alert_uid"`
-	State    string `json:"state"`
-	Title    string `json:"title"`
-	Message  string `json:"message"`
+	OutputFields map[string]any `json:"output_fields,omitempty"`
+	AlertUID     string         `json:"alert_uid"`
+	State        string         `json:"state"`
+	Title        string         `json:"title"`
+	Message      string         `json:"message"`
+	Priority     string         `json:"priority"`
+	Rule         string         `json:"rule"`
+	Source       string         `json:"source"`
+	Hostname     string         `json:"hostname,omitempty"`
+	Tags         []string       `json:"tags,omitempty"`
 }
 
 type driver struct {
@@ -114,10 +122,19 @@ func (d *driver) Close() error {
 }
 
 func buildPayload(evt *event.Event) payload {
-	return payload{
-		AlertUID: evt.UUID,
-		State:    stateAlerting,
-		Title:    fmt.Sprintf("[%s] %s", evt.Priority.String(), evt.Rule),
-		Message:  evt.Output,
+	p := payload{
+		AlertUID:     evt.UUID,
+		State:        stateAlerting,
+		Title:        fmt.Sprintf("[%s] %s", evt.Priority.String(), evt.Rule),
+		Message:      evt.Output,
+		Priority:     evt.Priority.String(),
+		Rule:         evt.Rule,
+		Source:       evt.Source,
+		Hostname:     evt.Hostname,
+		OutputFields: evt.OutputFields,
 	}
+	if len(evt.Tags) > 0 {
+		p.Tags = slices.Sorted(slices.Values(evt.Tags))
+	}
+	return p
 }

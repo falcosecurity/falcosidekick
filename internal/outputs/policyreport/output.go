@@ -47,8 +47,8 @@ import (
 const (
 	name = "policyreport"
 
-	defaultMaxEvents = 1000
-	defaultNamespace = "default"
+	defaultMaxResults = 1000
+	defaultNamespace  = "default"
 
 	// maxAttempts bounds read-modify-write retries against concurrent writers.
 	maxAttempts = 5
@@ -68,11 +68,11 @@ var (
 )
 
 type config struct {
-	Kubeconfig      string               `mapstructure:"kubeconfig"`
-	FalcoNamespace  string               `mapstructure:"falco_namespace"`
-	Runtime         output.RuntimeConfig `mapstructure:"runtime"`
-	MaxEvents       int                  `mapstructure:"max_events"`
-	PruneByPriority bool                 `mapstructure:"prune_by_priority"`
+	Kubeconfig        string               `mapstructure:"kubeconfig"`
+	FallbackNamespace string               `mapstructure:"fallback_namespace"`
+	Runtime           output.RuntimeConfig `mapstructure:"runtime"`
+	MaxResults        int                  `mapstructure:"max_results"`
+	PruneByPriority   bool                 `mapstructure:"prune_by_priority"`
 }
 
 // OutputType describes the PolicyReport output for the catalog.
@@ -87,12 +87,12 @@ var OutputType = output.Type{
 				Description: "Path to a kubeconfig file; its current context is used. Empty uses the pod service account.",
 			},
 			{
-				Name: "falco_namespace", Type: "string", Label: "Namespace for events whose namespace does not exist",
+				Name: "fallback_namespace", Type: "string", Label: "Namespace for events whose namespace does not exist",
 				Description: "Namespace whose `Report` receives events naming a namespace that does not exist. " +
 					"Empty uses the pod namespace, else `default`.",
 			},
 			{
-				Name: "max_events", Type: "int", Default: defaultMaxEvents, Label: "Max results per report",
+				Name: "max_results", Type: "int", Default: defaultMaxResults, Label: "Max results per report",
 				Description: "Results kept in each report, at least `1`, also set as `configuration.limits.maxResults`. " +
 					"Beyond it the oldest result is removed.",
 			},
@@ -118,11 +118,11 @@ func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
-	if c.MaxEvents < 1 {
-		errs.Add("max_events", "must be at least 1")
+	if c.MaxResults < 1 {
+		errs.Add("max_results", "must be at least 1")
 	}
-	if c.FalcoNamespace != "" && len(validation.IsDNS1123Label(c.FalcoNamespace)) > 0 {
-		errs.Add("falco_namespace", "must be a valid namespace name")
+	if c.FallbackNamespace != "" && len(validation.IsDNS1123Label(c.FallbackNamespace)) > 0 {
+		errs.Add("fallback_namespace", "must be a valid namespace name")
 	}
 	if len(errs) > 0 {
 		return errs
@@ -135,8 +135,8 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
 		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
-	if _, ok := raw["max_events"]; !ok {
-		cfg.MaxEvents = defaultMaxEvents
+	if _, ok := raw["max_results"]; !ok {
+		cfg.MaxResults = defaultMaxResults
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("%s: %s", name, errs.Error())
@@ -150,7 +150,7 @@ func newDriver(cfg *config, client dynamic.Interface, disc rest.Interface, logge
 		client:    client,
 		discovery: disc,
 		logger:    shared.ResolveLogger(logger, name),
-		fallback:  fallbackNamespace(cfg.FalcoNamespace),
+		fallback:  fallbackNamespace(cfg.FallbackNamespace),
 	}
 	for i := range d.stripes {
 		d.stripes[i] = semaphore.NewWeighted(1)
@@ -210,7 +210,7 @@ func restConfigFromFile(path string) (*rest.Config, error) {
 	return cfg, nil
 }
 
-// fallbackNamespace is falco_namespace, else the namespace of the pod, else "default".
+// fallbackNamespace is fallback_namespace, else the namespace of the pod, else "default".
 func fallbackNamespace(configured string) string {
 	if configured != "" {
 		return configured
@@ -288,7 +288,7 @@ func (d *driver) apply(ctx context.Context, t target, result map[string]any) err
 		case err != nil:
 			return err
 		}
-		addResult(obj, result, d.cfg.MaxEvents, d.cfg.PruneByPriority)
+		addResult(obj, result, d.cfg.MaxResults, d.cfg.PruneByPriority)
 		if create {
 			_, err = resource.Create(ctx, obj, metav1.CreateOptions{})
 		} else {

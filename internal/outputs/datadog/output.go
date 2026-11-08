@@ -35,16 +35,13 @@ const (
 	apiKeyName  = "DD-API-KEY"         //nolint:gosec // header name, not a credential
 	appKeyName  = "DD-APPLICATION-KEY" //nolint:gosec // header name, not a credential
 
-	// v1 needs the API key, v2 also the application key: https://docs.datadoghq.com/api/latest/events/#post-an-event
-	eventsV1Route = "/api/v1/events"
-	eventsV2Route = "/api/v2/events"
-	// https://docs.datadoghq.com/api/latest/authentication/#validate-api-key
+	// Events API v2 needs both keys: https://docs.datadoghq.com/api/latest/events/#post-an-event
+	eventsRoute = "/api/v2/events"
 	// https://docs.datadoghq.com/api/latest/key-management/#validate-api-and-application-keys
-	validateRoute     = "/api/v1/validate"
 	validateKeysRoute = "/api/v2/validate_keys"
 )
 
-// v1 events and key validation use api.<site>; v2 events use event-management-intake.<site>.
+// Key validation uses api.<site>; events use event-management-intake.<site>.
 var sites = []string{
 	"datadoghq.com", "us3.datadoghq.com", "us5.datadoghq.com", "datadoghq.eu",
 	"ap1.datadoghq.com", "ap2.datadoghq.com", "uk1.datadoghq.com", "ddog-gov.com", "us2.ddog-gov.com",
@@ -61,7 +58,7 @@ type config struct {
 	APIKey string `mapstructure:"api_key"`
 	AppKey string `mapstructure:"app_key"`
 	Site   string `mapstructure:"site"`
-	// intakeHost receives v2 events; it equals Host when host is set.
+	// intakeHost receives events; it equals Host when host is set.
 	intakeHost              string
 	shared.HTTPTargetConfig `mapstructure:",squash"`
 	shared.HTTPConfig       `mapstructure:",squash"`
@@ -80,9 +77,8 @@ var OutputType = output.Type{
 				Description: "Datadog API key, sent in the `DD-API-KEY` header.",
 			},
 			{
-				Name: "app_key", Type: "string", Secret: true, Label: "Application Key (selects Events API v2)",
-				Description: "Datadog application key, sent in the `DD-APPLICATION-KEY` header. " +
-					"When set, events go to Events API v2 on `event-management-intake.<site>`; empty uses v1 on `api.<site>`.",
+				Name: "app_key", Type: "string", Required: true, Secret: true, Label: "Application Key",
+				Description: "Datadog application key, sent in the `DD-APPLICATION-KEY` header; Events API v2 requires it with the API key.",
 			},
 			{
 				Name: "site", Type: "enum", Values: sites, Default: defaultSite, Label: "Datadog Site",
@@ -133,7 +129,7 @@ func (c *config) validate() utils.ValidationErrors {
 	}
 	errs.Merge("", c.HTTPTargetConfig.Validate(&targetOptions))
 	errs.Merge("", c.ValidateCredential(shared.CredentialHeader{Field: "api_key", Header: apiKeyName, Required: true}, c.APIKey))
-	errs.Merge("", c.ValidateCredential(shared.CredentialHeader{Field: "app_key", Header: appKeyName}, c.AppKey))
+	errs.Merge("", c.ValidateCredential(shared.CredentialHeader{Field: "app_key", Header: appKeyName, Required: true}, c.AppKey))
 	if len(errs) > 0 {
 		return errs
 	}
@@ -153,9 +149,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 		return nil, err
 	}
 	sender.SetHeader(apiKeyName, cfg.APIKey)
-	if cfg.AppKey != "" {
-		sender.SetHeader(appKeyName, cfg.AppKey)
-	}
+	sender.SetHeader(appKeyName, cfg.AppKey)
 	return &driver{sender: sender, cfg: cfg}, nil
 }
 
@@ -163,36 +157,21 @@ func (d *driver) Name() string { return name }
 
 func (d *driver) Init(context.Context) error { return nil }
 
-func (d *driver) v2() bool { return d.cfg.AppKey != "" }
-
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
-	host, route, body := d.cfg.Host, eventsV1Route, any(newPayload(evt))
-	if d.v2() {
-		host, route, body = d.cfg.intakeHost, eventsV2Route, newV2Payload(evt)
-	}
-	target, err := d.cfg.URL(host, route, nil)
+	target, err := d.cfg.URL(d.cfg.intakeHost, eventsRoute, nil)
 	if err != nil {
 		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
-	return d.sender.SendJSON(ctx, http.MethodPost, target, body)
+	return d.sender.SendJSON(ctx, http.MethodPost, target, newPayload(evt))
 }
 
-// HealthCheck validates the keys without posting an event.
+// HealthCheck validates both keys without posting an event.
 func (d *driver) HealthCheck(ctx context.Context) error {
-	routes := []string{validateRoute}
-	if d.v2() {
-		routes = append(routes, validateKeysRoute)
+	target, err := d.cfg.URL(d.cfg.Host, validateKeysRoute, nil)
+	if err != nil {
+		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
-	for _, route := range routes {
-		target, err := d.cfg.URL(d.cfg.Host, route, nil)
-		if err != nil {
-			return shared.WrapDeliveryError(name, shared.OpTarget, err)
-		}
-		if err := d.sender.HealthCheck(ctx, target); err != nil {
-			return err
-		}
-	}
-	return nil
+	return d.sender.HealthCheck(ctx, target)
 }
 
 func (d *driver) Close() error {

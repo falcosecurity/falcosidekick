@@ -23,8 +23,6 @@ import (
 	"strings"
 
 	"github.com/twmb/franz-go/pkg/kgo"
-
-	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
 const configNone = "none"
@@ -34,14 +32,12 @@ func buildClientOpts(cfg *config, logger *slog.Logger) ([]kgo.Opt, error) {
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.DefaultProduceTopic(cfg.Topic),
 		kgo.RecordDeliveryTimeout(cfg.Producer.DeliveryTimeout),
+		kgo.ClientID(cfg.Producer.ClientID),
 		kgo.WithLogger(clientLogger{logger: logger}),
 	}
 
 	if cfg.Producer.TopicCreation {
 		opts = append(opts, kgo.AllowAutoTopicCreation())
-	}
-	if cfg.Producer.ClientID != "" {
-		opts = append(opts, kgo.ClientID(cfg.Producer.ClientID))
 	}
 
 	acks := resolveACKs(cfg.Producer.RequiredACKs)
@@ -50,11 +46,11 @@ func buildClientOpts(cfg *config, logger *slog.Logger) ([]kgo.Opt, error) {
 	// The default partitioner hashes keyed records with murmur2, as the Java client does, and spreads
 	// keyless ones by batch size (KIP-794), so a key always picks the partition.
 
-	if cfg.TLSEnabled {
-		tlsCfg, err := shared.BuildTLSConfig(&cfg.TLS)
-		if err != nil {
-			return nil, fmt.Errorf("%s tls: %w", name, err)
-		}
+	tlsCfg, err := cfg.TLS.Build()
+	if err != nil {
+		return nil, fmt.Errorf("%s tls: %w", name, err)
+	}
+	if tlsCfg != nil {
 		opts = append(opts, kgo.DialTLSConfig(tlsCfg))
 	}
 
@@ -86,8 +82,11 @@ func resolveACKs(acks string) kgo.Acks {
 	}
 }
 
+// resolveCompression returns no option when c is empty, which keeps the franz-go default.
 func resolveCompression(c string) []kgo.Opt {
 	switch strings.ToLower(c) {
+	case "":
+		return nil
 	case "gzip":
 		return []kgo.Opt{kgo.ProducerBatchCompression(kgo.GzipCompression())}
 	case "snappy":

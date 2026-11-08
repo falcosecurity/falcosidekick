@@ -37,26 +37,27 @@ import (
 const (
 	name = "redis"
 
-	storageList    = "list"
-	storageHashmap = "hashmap"
-	storageStream  = "stream"
+	storageList   = "list"
+	storageHash   = "hash"
+	storageStream = "stream"
 
-	defaultKey = "falco"
+	suggestedKey = "falco"
+	// defaultMaxLen bounds the default stream, which would otherwise grow until Redis runs out of memory.
+	defaultMaxLen = 100000
 	// streamField is the stream entry field holding the event JSON.
 	streamField = "event"
 )
 
 type config struct {
-	TLS         shared.TLSClientConfig `mapstructure:"tls"`
-	Address     string                 `mapstructure:"address"`
-	Username    string                 `mapstructure:"username"`
-	Password    string                 `mapstructure:"password"`
-	StorageType string                 `mapstructure:"storage_type"`
-	Key         string                 `mapstructure:"key"`
-	Runtime     output.RuntimeConfig   `mapstructure:"runtime"`
-	Database    int                    `mapstructure:"database"`
-	MaxLen      int64                  `mapstructure:"max_len"`
-	TLSEnabled  bool                   `mapstructure:"tls_enabled"`
+	TLS         shared.OptionalTLSConfig `mapstructure:"tls"`
+	Address     string                   `mapstructure:"address"`
+	Username    string                   `mapstructure:"username"`
+	Password    string                   `mapstructure:"password"`
+	StorageType string                   `mapstructure:"storage_type"`
+	Key         string                   `mapstructure:"key"`
+	Runtime     output.RuntimeConfig     `mapstructure:"runtime"`
+	Database    int                      `mapstructure:"database"`
+	MaxLen      int64                    `mapstructure:"max_len"`
 }
 
 // OutputType describes the Redis output for the catalog.
@@ -83,23 +84,20 @@ var OutputType = output.Type{
 				Description: "Database number selected on each connection, `0` or greater.",
 			},
 			{
-				Name: "storage_type", Type: "enum", Values: []string{storageList, storageHashmap, storageStream}, Default: storageList, Label: "Storage Type",
-				Description: "How the event JSON is stored under `key`: `list` appends with `RPUSH`, `hashmap` sets the event UUID field with `HSET`, " +
-					"`stream` adds an entry with field `event` with `XADD`.",
+				Name: "storage_type", Type: "enum", Values: []string{storageStream, storageList, storageHash}, Default: storageStream, Label: "Storage Type",
+				Description: "How the event JSON is stored under `key`: `stream` adds an entry with field `event` with `XADD`, " +
+					"`list` appends with `RPUSH`, `hash` sets the event UUID field with `HSET`.",
 			},
 			{
-				Name: "key", Type: "string", Default: defaultKey, Label: "Key",
-				Description: "Name of the list, hash or stream that receives the events.",
+				Name: "key", Type: "string", Required: true, Suggested: suggestedKey, Label: "Key",
+				Description: "Name of the stream, list or hash that receives the events.",
 			},
 			{
-				Name: "max_len", Type: "int", Default: 0, Label: "Approximate Stream Length Cap (0 = unbounded)",
-				Description: "Approximate stream length kept by `XADD MAXLEN ~`, trimming the oldest entries. Only with `storage_type` `stream`.",
+				Name: "max_len", Type: "int", Default: defaultMaxLen, Label: "Approximate Stream Length Cap (0 = unbounded)",
+				Description: "Approximate stream length kept by `XADD MAXLEN ~`, trimming the oldest entries; `0` keeps every entry. " +
+					"Only with `storage_type` `stream`.",
 			},
-			{
-				Name: "tls_enabled", Type: "bool", Default: false, Label: "Enable TLS",
-				Description: "Connects to Redis over TLS. `tls` settings are refused unless this is set.",
-			},
-		}, append(shared.TLSClientSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
+		}, append(shared.OptionalTLSSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
 	},
 }
 
@@ -120,9 +118,9 @@ func (c *config) validate() utils.ValidationErrors {
 		errs.Add("database", "must be 0 or greater")
 	}
 	switch c.StorageType {
-	case storageList, storageHashmap, storageStream:
+	case storageStream, storageList, storageHash:
 	default:
-		errs.Add("storage_type", "must be list/hashmap/stream")
+		errs.Add("storage_type", "must be stream/list/hash")
 	}
 	if c.MaxLen < 0 {
 		errs.Add("max_len", "must be 0 or greater")
@@ -137,9 +135,6 @@ func (c *config) validate() utils.ValidationErrors {
 		errs.Add("password", "is required when username is set")
 	}
 	errs.Merge("tls", c.TLS.Validate())
-	if !c.TLSEnabled && c.TLS != (shared.TLSClientConfig{}) {
-		errs.Add("tls", "is set but tls_enabled is false")
-	}
 	if len(errs) > 0 {
 		return errs
 	}
@@ -147,9 +142,12 @@ func (c *config) validate() utils.ValidationErrors {
 }
 
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
-	cfg := config{StorageType: storageList, Key: defaultKey}
+	cfg := config{StorageType: storageStream}
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
 		return nil, fmt.Errorf("%s config: %w", name, err)
+	}
+	if _, set := raw["max_len"]; !set && cfg.StorageType == storageStream {
+		cfg.MaxLen = defaultMaxLen
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
 		return nil, fmt.Errorf("%s: %s", name, errs.Error())
@@ -164,13 +162,11 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 		DialerRetries:         1,
 		ContextTimeoutEnabled: true,
 	}
-	if cfg.TLSEnabled {
-		tlsCfg, err := shared.BuildTLSConfig(&cfg.TLS)
-		if err != nil {
-			return nil, fmt.Errorf("%s tls: %w", name, err)
-		}
-		opts.TLSConfig = tlsCfg
+	tlsCfg, err := cfg.TLS.Build()
+	if err != nil {
+		return nil, fmt.Errorf("%s tls: %w", name, err)
 	}
+	opts.TLSConfig = tlsCfg
 	return &driver{cfg: cfg, opts: opts}, nil
 }
 
@@ -241,15 +237,15 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 
 func (d *driver) store(ctx context.Context, c goredis.Cmdable, evt *event.Event, payload []byte) goredis.Cmder {
 	switch d.cfg.StorageType {
-	case storageHashmap:
+	case storageHash:
 		return c.HSet(ctx, d.cfg.Key, evt.UUID, payload)
-	case storageStream:
+	case storageList:
+		return c.RPush(ctx, d.cfg.Key, payload)
+	default:
 		return c.XAdd(ctx, &goredis.XAddArgs{
 			Stream: d.cfg.Key, MaxLen: d.cfg.MaxLen, Approx: d.cfg.MaxLen > 0,
 			Values: []any{streamField, payload},
 		})
-	default:
-		return c.RPush(ctx, d.cfg.Key, payload)
 	}
 }
 

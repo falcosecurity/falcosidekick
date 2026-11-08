@@ -221,6 +221,20 @@ func TestLiveElasticsearch(t *testing.T) {
 		assert.Equal(t, 3.0, liveCount(t, base, "fsk-live-ds"))
 	})
 
+	t.Run("data stream option creates its template and the stream", func(t *testing.T) {
+		liveRequest(t, base, http.MethodDelete, "/_data_stream/fsk-live-dso", "")
+		liveRequest(t, base, http.MethodDelete, "/_index_template/fsk-live-dso", "")
+		d := liveDriver(t, map[string]any{"host": base, "index": "fsk-live-dso", "data_stream": true, "create_index_template": true})
+		require.NoError(t, d.Init(ctx))
+		require.NoError(t, d.(output.BatchSender).SendBatch(ctx, []*event.Event{liveEvent("dso-1", 1)}))
+		require.NoError(t, d.Send(ctx, liveEvent("dso-2", 2)))
+		noID := liveEvent("", 3)
+		require.NoError(t, d.Send(ctx, noID))
+		status, body := liveRequest(t, base, http.MethodGet, "/_data_stream/fsk-live-dso", "")
+		require.Equal(t, http.StatusOK, status, body)
+		assert.Equal(t, 3.0, liveCount(t, base, "fsk-live-dso"))
+	})
+
 	t.Run("ingest pipeline is applied", func(t *testing.T) {
 		status, body := liveRequest(t, base, http.MethodPut, "/_ingest/pipeline/fsk-live-pipe",
 			`{"processors":[{"set":{"field":"pipeline_mark","value":"seen"}}]}`)

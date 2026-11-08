@@ -217,15 +217,7 @@ func NewOutput(driver output.Driver, cfg *output.RuntimeConfig, metrics core.Met
 	if reporter, ok := driver.(output.WarningReporter); ok {
 		reporter.SetWarningHandler(func(warning string) { o.driverWarning.Store(warning) })
 	}
-	if reporter, ok := driver.(output.LateFailureReporter); ok {
-		reporter.SetLateFailureHandler(o.recordLateFailure)
-	}
 	return o
-}
-
-// recordLateFailure counts an event that Send accepted but the destination later rejected.
-func (o *Output) recordLateFailure(err error) {
-	o.recordFailure(context.Background(), 1, err)
 }
 
 // Name returns the output driver name.

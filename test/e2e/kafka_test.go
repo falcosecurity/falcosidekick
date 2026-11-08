@@ -253,7 +253,7 @@ func assertFalcoRecord(t *testing.T, r *kgo.Record, marker string) {
 	assert.Equal(t, map[string]string{
 		"content-type":   "application/json",
 		"falco.rule":     "E2E " + marker,
-		"falco.priority": "warning",
+		"falco.priority": "Warning",
 		"falco.source":   "syscall",
 	}, recordHeaders(r))
 }
@@ -288,12 +288,6 @@ func TestKafkaDeliversEvent(t *testing.T) {
 			topic:   func(created string) string { return created },
 			wantKey: func(string) string { return "" },
 		},
-		{
-			name:    "async",
-			topic:   func(created string) string { return created },
-			extra:   "message_key: " + staticKey + "\nproducer:\n  async: true\n",
-			wantKey: func(string) string { return staticKey },
-		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -322,21 +316,25 @@ func TestKafkaDeliversEvent(t *testing.T) {
 func TestKafkaRequiredAcks(t *testing.T) {
 	target := plaintextKafka(t)
 	for _, acks := range []string{"all", "one", "none"} {
-		for _, async := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%s async=%t", acks, async), func(t *testing.T) {
-				marker := newMarker(t)
-				topic := kafkaTopic(marker)
-				createTopic(t, target, topic)
-				sk := startSidekick(t, kafkaOutput(target, topic,
-					fmt.Sprintf("producer:\n  required_acks: %s\n  async: %t\n", acks, async)))
+		t.Run(acks, func(t *testing.T) {
+			marker := newMarker(t)
+			topic := kafkaTopic(marker)
+			createTopic(t, target, topic)
+			sk := startSidekick(t, kafkaOutput(target, topic, "producer:\n  required_acks: "+acks+"\n"))
 
-				sk.postEvent(t, marker)
-				assertFalcoRecord(t, consumeMarker(t, target, topic, marker), marker)
-				st := sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.SentTotal == 1 })
-				assert.Zero(t, st.FailedTotal)
-			})
-		}
+			sk.postEvent(t, marker)
+			assertFalcoRecord(t, consumeMarker(t, target, topic, marker), marker)
+			st := sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.SentTotal == 1 })
+			assert.Zero(t, st.FailedTotal)
+		})
 	}
+}
+
+// producer.async is gone: the pipeline already queues, and a record is counted once the brokers answer.
+func TestKafkaAsyncIsRefused(t *testing.T) {
+	target := plaintextKafka(t)
+	logs := startSidekickFails(t, kafkaOutput(target, kafkaTopic(newMarker(t)), "producer:\n  async: true\n"))
+	assert.Contains(t, logs, "unknown keys: async")
 }
 
 func TestKafkaCompression(t *testing.T) {
@@ -346,17 +344,23 @@ func TestKafkaCompression(t *testing.T) {
 		codec string
 		id    uint8
 	}{
+		{codec: "", id: 2}, // unset keeps the franz-go default, snappy
+		{codec: "none", id: 0},
 		{codec: "gzip", id: 1},
 		{codec: "snappy", id: 2},
 		{codec: "lz4", id: 3},
 		{codec: "zstd", id: 4},
 	}
 	for _, tc := range cases {
-		t.Run(tc.codec, func(t *testing.T) {
+		name, extra := tc.codec, "producer:\n  compression: "+tc.codec+"\n"
+		if tc.codec == "" {
+			name, extra = "unset", ""
+		}
+		t.Run(name, func(t *testing.T) {
 			marker := newMarker(t)
 			topic := kafkaTopic(marker)
 			createTopic(t, target, topic)
-			sk := startSidekick(t, kafkaOutput(target, topic, "producer:\n  compression: "+tc.codec+"\n"))
+			sk := startSidekick(t, kafkaOutput(target, topic, extra))
 
 			sk.postEvent(t, marker)
 			record := consumeMarker(t, target, topic, marker)
@@ -396,16 +400,6 @@ func TestKafkaReportsMissingTopic(t *testing.T) {
 		assert.NotEmpty(t, st.LastError)
 		assert.Less(t, elapsed, kafkaShortTimeout+kafkaFailMargin, "delivery_timeout bounds the record")
 	})
-	t.Run("async counts sent then failed", func(t *testing.T) {
-		marker := newMarker(t)
-		sk := missingEventTopic(t, marker, "  async: true\n  delivery_timeout: 2s\n")
-
-		sk.postEvent(t, marker)
-		st := sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.FailedTotal == 1 })
-		assert.Equal(t, 1, st.SentTotal, "async counts the buffered event as sent")
-		t.Logf("last_error: %s", st.LastError)
-		assert.Contains(t, st.LastError, "kafka async produce")
-	})
 }
 
 func TestKafkaReportsUnreachableBroker(t *testing.T) {
@@ -437,17 +431,17 @@ func TestKafkaSASL(t *testing.T) {
 	password := requireEnv(t, envKafkaSASLPassword)
 	mechanisms := os.Getenv(envKafkaSASLMechanisms)
 	if mechanisms == "" {
-		mechanisms = "plain,scram_sha256,scram_sha512"
+		mechanisms = "PLAIN,SCRAM-SHA-256,SCRAM-SHA-512"
 	}
 
 	target := func(mechanism, pass string) kafkaTarget {
 		var opt kgo.Opt
 		switch mechanism {
-		case "plain":
+		case "PLAIN":
 			opt = kgo.SASL(plain.Auth{User: user, Pass: pass}.AsMechanism())
-		case "scram_sha256":
+		case "SCRAM-SHA-256":
 			opt = kgo.SASL(scram.Auth{User: user, Pass: pass}.AsSha256Mechanism())
-		case "scram_sha512":
+		case "SCRAM-SHA-512":
 			opt = kgo.SASL(scram.Auth{User: user, Pass: pass}.AsSha512Mechanism())
 		default:
 			t.Fatalf("unknown SASL mechanism %q in %s", mechanism, envKafkaSASLMechanisms)
@@ -501,7 +495,7 @@ func TestKafkaTLS(t *testing.T) {
 				kgo.SeedBrokers(brokers...),
 				kgo.DialTLSConfig(&tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}),
 			},
-			yaml: fmt.Sprintf("tls_enabled: true\ntls:\n  ca_file: %q\n", ca),
+			yaml: fmt.Sprintf("tls:\n  enabled: true\n  ca_file: %q\n", ca),
 		}
 	}
 	good := target(caFile)

@@ -30,9 +30,9 @@ const (
 func authOptions(cfg *config) []mail.Option {
 	switch cfg.AuthMechanism {
 	case authPlain:
-		return []mail.Option{mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(cfg.User), mail.WithPassword(cfg.Password)}
+		return []mail.Option{mail.WithSMTPAuth(mail.SMTPAuthPlain), mail.WithUsername(cfg.Username), mail.WithPassword(cfg.Password)}
 	case authXOAuth2:
-		return []mail.Option{mail.WithSMTPAuth(mail.SMTPAuthXOAUTH2), mail.WithUsername(cfg.User), mail.WithPassword(cfg.Token)}
+		return []mail.Option{mail.WithSMTPAuth(mail.SMTPAuthXOAUTH2), mail.WithUsername(cfg.Username), mail.WithPassword(cfg.Token)}
 	default:
 		return nil
 	}

@@ -24,47 +24,50 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 )
 
-func TestPriorityColorCoversAllPriorities(t *testing.T) {
-	priorities := []event.Priority{
-		event.PriorityDebug, event.PriorityInformational, event.PriorityNotice,
-		event.PriorityWarning, event.PriorityError, event.PriorityCritical,
-		event.PriorityAlert, event.PriorityEmergency,
+// ascending lists the priorities from the lowest severity to the highest.
+var ascending = []event.Priority{
+	event.PriorityDebug, event.PriorityInformational, event.PriorityNotice,
+	event.PriorityWarning, event.PriorityError, event.PriorityCritical,
+	event.PriorityAlert, event.PriorityEmergency,
+}
+
+func TestPalette(t *testing.T) {
+	tests := []struct {
+		priority event.Priority
+		hex      string
+		rgb      int
+		tone     Tone
+	}{
+		{event.PriorityDebug, "#9e9e9e", 0x9e9e9e, ToneNeutral},
+		{event.PriorityInformational, "#68c2ff", 0x68c2ff, ToneInfo},
+		{event.PriorityNotice, "#1e88e5", 0x1e88e5, ToneInfo},
+		{event.PriorityWarning, "#ffc700", 0xffc700, ToneWarning},
+		{event.PriorityError, "#ff8c00", 0xff8c00, ToneWarning},
+		{event.PriorityCritical, "#f4511e", 0xf4511e, ToneDanger},
+		{event.PriorityAlert, "#d50000", 0xd50000, ToneDanger},
+		{event.PriorityEmergency, "#8b0000", 0x8b0000, ToneDanger},
+		{"Warning", "#ffc700", 0xffc700, ToneWarning},
+		{"unknown", "#9e9e9e", 0x9e9e9e, ToneNeutral},
 	}
-	for _, p := range priorities {
-		t.Run(string(p), func(t *testing.T) {
-			color := PriorityColor(p)
-			assert.NotEmpty(t, color, "priority %s must produce a color", p)
-			assert.Regexp(t, `^#[0-9a-f]{6}$`, color, "color must be a valid hex code")
+	for _, tc := range tests {
+		t.Run(string(tc.priority), func(t *testing.T) {
+			assert.Equal(t, tc.hex, PriorityColor(tc.priority))
+			assert.Equal(t, tc.rgb, PriorityRGB(tc.priority))
+			assert.Equal(t, tc.tone, PriorityTone(tc.priority))
 		})
 	}
 }
 
-func TestPriorityColorUnknownFallback(t *testing.T) {
-	color := PriorityColor(event.Priority("nonexistent"))
-	assert.Equal(t, "#cccccc", color)
-}
-
-func TestPrioritySeverityCoversAllPriorities(t *testing.T) {
-	priorities := []event.Priority{
-		event.PriorityDebug, event.PriorityInformational, event.PriorityNotice,
-		event.PriorityWarning, event.PriorityError, event.PriorityCritical,
-		event.PriorityAlert, event.PriorityEmergency,
+func TestPaletteRisesWithSeverity(t *testing.T) {
+	seen := map[int]event.Priority{}
+	for i, p := range ascending {
+		if other, dup := seen[PriorityRGB(p)]; dup {
+			t.Errorf("%s and %s share a color", p, other)
+		}
+		seen[PriorityRGB(p)] = p
+		if i > 0 {
+			assert.GreaterOrEqual(t, PriorityTone(p), PriorityTone(ascending[i-1]), "%s is below %s", p, ascending[i-1])
+		}
 	}
-	for _, p := range priorities {
-		t.Run(string(p), func(t *testing.T) {
-			sev := PrioritySeverity(p)
-			assert.NotEmpty(t, sev, "priority %s must produce a severity", p)
-			assert.Contains(t, []string{"critical", "warning", "information"}, sev)
-		})
-	}
-}
-
-func TestPrioritySeverityUnknownFallback(t *testing.T) {
-	sev := PrioritySeverity(event.Priority("nonexistent"))
-	assert.Equal(t, "information", sev)
-}
-
-func TestPrioritySeverityCaseInsensitive(t *testing.T) {
-	assert.Equal(t, PrioritySeverity("Warning"), PrioritySeverity("warning"))
-	assert.Equal(t, PrioritySeverity("CRITICAL"), PrioritySeverity("critical"))
+	assert.Less(t, PriorityTone(event.PriorityError), PriorityTone(event.PriorityEmergency), "error is not as red as emergency")
 }

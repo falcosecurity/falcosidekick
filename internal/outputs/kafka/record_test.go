@@ -90,14 +90,16 @@ func TestBuildHeadersIncludesExpectedKeys(t *testing.T) {
 	headers := buildHeaders(event)
 
 	require.Len(t, headers, 4)
-	keys := make([]string, len(headers))
-	for i, h := range headers {
-		keys[i] = h.Key
+	values := make(map[string]string, len(headers))
+	for _, h := range headers {
+		values[h.Key] = string(h.Value)
 	}
-	assert.Contains(t, keys, "content-type")
-	assert.Contains(t, keys, "falco.rule")
-	assert.Contains(t, keys, "falco.priority")
-	assert.Contains(t, keys, "falco.source")
+	assert.Equal(t, map[string]string{
+		"content-type":   "application/json",
+		"falco.rule":     event.Rule,
+		"falco.priority": "Error",
+		"falco.source":   event.Source,
+	}, values)
 }
 
 func TestBuildRecordCombinesAllFields(t *testing.T) {

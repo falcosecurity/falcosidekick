@@ -17,7 +17,10 @@
 package pagerduty
 
 import (
+	"cmp"
+	"fmt"
 	"maps"
+	"slices"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -43,6 +46,9 @@ type eventPayload struct {
 	Source        string         `json:"source"`
 	Severity      string         `json:"severity"`
 	Timestamp     string         `json:"timestamp"`
+	Component     string         `json:"component,omitempty"`
+	Group         string         `json:"group,omitempty"`
+	Class         string         `json:"class,omitempty"`
 }
 
 // severity maps Falco priorities to the four Events API v2 severities.
@@ -69,7 +75,7 @@ func buildEvent(evt *event.Event, routingKey string) eventRequest {
 		details["hostname"] = evt.Hostname
 	}
 	if len(evt.Tags) != 0 {
-		details["tags"] = shared.FormatTags(evt.Tags, ", ")
+		details["tags"] = slices.Sorted(slices.Values(evt.Tags))
 	}
 
 	summary := evt.Output
@@ -89,6 +95,9 @@ func buildEvent(evt *event.Event, routingKey string) eventRequest {
 			Severity:      severity(evt.Priority),
 			Timestamp:     evt.Time.Format(time.RFC3339),
 			CustomDetails: details,
+			Class:         evt.Rule,
+			Group:         fieldString(evt, "k8s.ns.name"),
+			Component:     cmp.Or(fieldString(evt, "container.name"), fieldString(evt, "proc.name")),
 		},
 	}
 	// Retries reuse the event UUID, so PagerDuty groups them into one alert.
@@ -96,4 +105,13 @@ func buildEvent(evt *event.Event, routingKey string) eventRequest {
 		req.DedupKey = evt.UUID
 	}
 	return req
+}
+
+// fieldString returns an output field as a string, or "" when it is absent or null.
+func fieldString(evt *event.Event, key string) string {
+	v, ok := evt.OutputFields[key]
+	if !ok || v == nil {
+		return ""
+	}
+	return fmt.Sprint(v)
 }

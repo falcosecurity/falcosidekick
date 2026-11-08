@@ -303,35 +303,33 @@ func TestBuildMappingsDynamicTemplate(t *testing.T) {
 func TestInitTemplateShardSettings(t *testing.T) {
 	for _, tc := range []struct {
 		config       map[string]any
+		wantSettings map[string]any
 		name         string
 		wantErr      string
-		wantShards   int
-		wantReplicas int
 	}{
-		{name: "absent", config: map[string]any{}, wantShards: 3, wantReplicas: 3},
-		{name: "null", config: map[string]any{"number_of_shards": nil, "number_of_replicas": nil}, wantShards: 3, wantReplicas: 3},
-		{name: "explicit shards", config: map[string]any{"number_of_shards": 1}, wantShards: 1, wantReplicas: 3},
-		{name: "explicit replicas", config: map[string]any{"number_of_replicas": 2}, wantShards: 3, wantReplicas: 2},
-		{name: "explicit zero replicas", config: map[string]any{"number_of_replicas": 0}, wantShards: 3, wantReplicas: 0},
-		{name: "string values", config: map[string]any{"number_of_shards": "2", "number_of_replicas": "0"}, wantShards: 2, wantReplicas: 0},
+		{name: "absent leaves the cluster default", config: map[string]any{}},
+		{name: "null leaves the cluster default", config: map[string]any{"number_of_shards": nil, "number_of_replicas": nil}},
+		{name: "explicit shards", config: map[string]any{"number_of_shards": 1}, wantSettings: map[string]any{"number_of_shards": 1.0}},
+		{name: "explicit replicas", config: map[string]any{"number_of_replicas": 2}, wantSettings: map[string]any{"number_of_replicas": 2.0}},
+		{name: "explicit zero replicas", config: map[string]any{"number_of_replicas": 0}, wantSettings: map[string]any{"number_of_replicas": 0.0}},
+		{name: "string values", config: map[string]any{"number_of_shards": "2", "number_of_replicas": "0"},
+			wantSettings: map[string]any{"number_of_shards": 2.0, "number_of_replicas": 0.0}},
 		{name: "explicit zero shards", config: map[string]any{"number_of_shards": 0}, wantErr: "number_of_shards: must be > 0 when create_index_template is true"},
 		{name: "negative shards", config: map[string]any{"number_of_shards": -1}, wantErr: "number_of_shards: must be > 0 when create_index_template is true"},
 		{name: "negative replicas", config: map[string]any{"number_of_replicas": -1}, wantErr: "number_of_replicas: must be >= 0 when create_index_template is true"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var settings map[string]any
+			var template map[string]any
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method == http.MethodHead {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
 				var tmpl struct {
-					Template struct {
-						Settings map[string]any `json:"settings"`
-					} `json:"template"`
+					Template map[string]any `json:"template"`
 				}
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&tmpl))
-				settings = tmpl.Template.Settings
+				template = tmpl.Template
 			}))
 			t.Cleanup(server.Close)
 			tc.config["host"] = server.URL
@@ -345,10 +343,60 @@ func TestInitTemplateShardSettings(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.NoError(t, d.Init(context.Background()))
-			assert.EqualValues(t, tc.wantShards, settings["number_of_shards"])
-			assert.EqualValues(t, tc.wantReplicas, settings["number_of_replicas"])
+			require.Contains(t, template, "mappings")
+			if tc.wantSettings == nil {
+				assert.NotContains(t, template, "settings", "no settings: the cluster default applies")
+				return
+			}
+			assert.Equal(t, tc.wantSettings, template["settings"])
 		})
 	}
+}
+
+func TestInitTemplateDataStream(t *testing.T) {
+	for _, tc := range []struct {
+		config       map[string]any
+		name         string
+		wantPattern  string
+		wantTemplate string
+		wantStream   bool
+	}{
+		{name: "dated index", config: map[string]any{"index": "falco"}, wantPattern: "falco-*", wantTemplate: "/_index_template/falco"},
+		{name: "data stream", config: map[string]any{"index": "logs-falco-default", "data_stream": true},
+			wantPattern: "logs-falco-default", wantStream: true, wantTemplate: "/_index_template/logs-falco-default"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var tmpl map[string]any
+			var path string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodHead {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				path = r.URL.Path
+				assert.NoError(t, json.NewDecoder(r.Body).Decode(&tmpl))
+			}))
+			t.Cleanup(server.Close)
+			tc.config["host"] = server.URL
+			tc.config["create_index_template"] = true
+			d, err := createOutput(tc.config, output.Deps{})
+			require.NoError(t, err)
+			require.NoError(t, d.Init(context.Background()))
+
+			assert.Equal(t, tc.wantTemplate, path)
+			assert.Equal(t, []any{tc.wantPattern}, tmpl["index_patterns"])
+			stream, has := tmpl["data_stream"]
+			assert.Equal(t, tc.wantStream, has)
+			if tc.wantStream {
+				assert.Equal(t, map[string]any{}, stream)
+			}
+		})
+	}
+}
+
+func TestBuildMappingsHostnameIsKeyword(t *testing.T) {
+	props := buildMappings()["properties"].(map[string]any)
+	assert.Equal(t, map[string]any{"type": "keyword"}, props["hostname"])
 }
 
 func TestShardSettingsIgnoredWithoutTemplate(t *testing.T) {

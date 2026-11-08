@@ -52,12 +52,6 @@ type otlpResource struct {
 	Attributes []otlpAttribute `json:"attributes"`
 }
 
-type otlpSpan struct {
-	Name       string          `json:"name"`
-	Attributes []otlpAttribute `json:"attributes"`
-	Kind       int             `json:"kind"`
-}
-
 type otlpLogRecord struct {
 	Body           map[string]any  `json:"body"`
 	EventName      string          `json:"eventName"`
@@ -81,13 +75,6 @@ type otlpMetric struct {
 }
 
 type otlpFileLine struct {
-	ResourceSpans []struct {
-		Resource   otlpResource `json:"resource"`
-		ScopeSpans []struct {
-			Scope otlpScope  `json:"scope"`
-			Spans []otlpSpan `json:"spans"`
-		} `json:"scopeSpans"`
-	} `json:"resourceSpans"`
 	ResourceLogs []struct {
 		Resource  otlpResource `json:"resource"`
 		ScopeLogs []struct {
@@ -139,7 +126,7 @@ func waitOTLPLine(t *testing.T, dir, file, marker string) otlpFileLine {
 
 func otlpOutput(endpoint, protocol, token string) string {
 	out := "otlp:\n"
-	for _, signal := range []string{"traces", "logs", "metrics"} {
+	for _, signal := range []string{"logs", "metrics"} {
 		out += fmt.Sprintf("  %s:\n    endpoint: %q\n    protocol: %s\n    timeout: 2s\n", signal, endpoint, protocol)
 		out += fmt.Sprintf("    headers:\n      Authorization:\n        secrets: [%q]\n", "Bearer "+token)
 		if signal == "metrics" {
@@ -162,29 +149,21 @@ func TestOTLPDeliversSignals(t *testing.T) {
 			marker := newMarker(t)
 			sk.postEvent(t, marker)
 
-			traces := waitOTLPLine(t, dir, "traces.json", marker)
-			require.NotEmpty(t, traces.ResourceSpans)
-			rs := traces.ResourceSpans[len(traces.ResourceSpans)-1]
-			assert.Equal(t, "falcosidekick", attrs(rs.Resource.Attributes)["service.name"])
-			assert.Equal(t, "github.com/falcosecurity/falcosidekick", rs.ScopeSpans[0].Scope.Name)
-			span := rs.ScopeSpans[0].Spans[0]
-			assert.Equal(t, "E2E "+marker, span.Name)
-			assert.Equal(t, 1, span.Kind, "SPAN_KIND_INTERNAL")
-			spanAttrs := attrs(span.Attributes)
-			assert.Equal(t, "warning", spanAttrs["falco.priority"])
-			assert.Equal(t, "e2e-host", spanAttrs["host.name"])
-			assert.Equal(t, marker, spanAttrs["e2e.marker"])
-			assert.Equal(t, "e2e event "+marker, spanAttrs["falco.output"])
-
 			logs := waitOTLPLine(t, dir, "logs.json", marker)
 			require.NotEmpty(t, logs.ResourceLogs)
 			rl := logs.ResourceLogs[len(logs.ResourceLogs)-1]
+			assert.Equal(t, "falcosidekick", attrs(rl.Resource.Attributes)["service.name"])
+			assert.Equal(t, "github.com/falcosecurity/falcosidekick", rl.ScopeLogs[0].Scope.Name)
 			record := rl.ScopeLogs[0].LogRecords[0]
 			assert.Equal(t, "falco.alert", record.EventName)
 			assert.Equal(t, 13, record.SeverityNumber, "WARN")
 			assert.Equal(t, "Warning", record.SeverityText)
 			assert.Equal(t, "e2e event "+marker, record.Body["stringValue"])
-			assert.Equal(t, "E2E "+marker, attrs(record.Attributes)["falco.rule"])
+			recordAttrs := attrs(record.Attributes)
+			assert.Equal(t, "E2E "+marker, recordAttrs["falco.rule"])
+			assert.Equal(t, "Warning", recordAttrs["falco.priority"])
+			assert.Equal(t, "e2e-host", recordAttrs["host.name"])
+			assert.Equal(t, marker, recordAttrs["e2e.marker"])
 
 			metrics := waitOTLPLine(t, dir, "metrics.json", marker)
 			var point *otlpDataPoint
@@ -207,6 +186,7 @@ func TestOTLPDeliversSignals(t *testing.T) {
 			require.NotNil(t, point, "data point for %s", marker)
 			assert.Equal(t, "1", point.AsInt)
 			assert.Equal(t, "E2E "+marker, attrs(point.Attributes)["falco.rule"])
+			assert.Equal(t, "Warning", attrs(point.Attributes)["falco.priority"])
 
 			st := sk.waitStatus(t, "otlp", func(st outputStatus) bool { return st.SentTotal == 1 })
 			assert.Zero(t, st.FailedTotal)
@@ -227,6 +207,12 @@ func TestOTLPReportsUnreachableCollector(t *testing.T) {
 	st = sk.waitStatus(t, "otlp", func(st outputStatus) bool { return st.FailedTotal == 1 })
 	assert.Zero(t, st.SentTotal)
 	t.Logf("last_error: %s", st.LastError)
-	assert.Equal(t, "otlp send: traces: Unavailable; logs: Unavailable; metrics: Unavailable", st.LastError)
+	assert.Equal(t, "otlp send: logs: Unavailable; metrics: Unavailable", st.LastError)
 	assert.NotContains(t, sk.logs.String(), token)
+}
+
+// The traces signal was removed: a configuration that still has it does not start.
+func TestOTLPRefusesTraces(t *testing.T) {
+	logs := startSidekickFails(t, "otlp:\n  traces:\n    endpoint: http://127.0.0.1:4318\n")
+	assert.Contains(t, logs, "unknown keys: traces")
 }

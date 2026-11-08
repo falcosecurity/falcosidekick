@@ -97,8 +97,12 @@ func TestDefaults(t *testing.T) {
 	awstest.Isolate(t)
 	d := newDriver(t, "http://127.0.0.1:1", map[string]any{"prefix": "/", "runtime": map[string]any{"minimum_priority": "error"}}).(*driver)
 	assert.Empty(t, d.cfg.Prefix, "the prefix is only suggested")
-	assert.Equal(t, "bucket-owner-full-control", d.cfg.ObjectCannedACL)
+	assert.Empty(t, d.cfg.ObjectCannedACL, "no ACL unless set")
 	assert.Equal(t, event.PriorityError, d.RuntimeConfig().MinPriority)
+
+	i := slices.IndexFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "object_canned_acl" })
+	require.GreaterOrEqual(t, i, 0)
+	assert.Nil(t, OutputType.Schema.Fields[i].Default)
 }
 
 func TestSchemaSecrets(t *testing.T) {
@@ -125,7 +129,7 @@ func TestSendPutsOneObject(t *testing.T) {
 	require.Len(t, reqs, 1)
 	req := reqs[0]
 	assert.Equal(t, http.MethodPut, req.Method)
-	assert.Equal(t, "/"+bucket+"/alerts/2026-04-01/2026-04-01T10:30:00Z_test-uuid-001.json", req.URL.Path)
+	assert.Equal(t, "/"+bucket+"/alerts/2026-04-01/20260401T103000.000000000Z_test-uuid-001.json", req.URL.Path)
 	assert.Equal(t, "private", req.Header.Get("X-Amz-Acl"))
 	assert.Equal(t, contentTypeJSON, req.Header.Get("Content-Type"))
 	assert.Contains(t, req.Header.Get("Authorization"), "Credential="+awstest.AccessKeyID+"/")
@@ -148,9 +152,9 @@ func TestSendBatchPutsOneNDJSONObject(t *testing.T) {
 
 	reqs := rec.Received()
 	require.Len(t, reqs, 1)
-	assert.Equal(t, "/"+bucket+"/2026-04-01/2026-04-01T10:30:00Z_test-uuid-001.ndjson", reqs[0].URL.Path, "no prefix: keys start at the root")
+	assert.Equal(t, "/"+bucket+"/2026-04-01/20260401T103000.000000000Z_test-uuid-001.ndjson", reqs[0].URL.Path, "no prefix: keys start at the root")
 	assert.Equal(t, contentTypeNDJSON, reqs[0].Header.Get("Content-Type"))
-	assert.Equal(t, "bucket-owner-full-control", reqs[0].Header.Get("X-Amz-Acl"))
+	assert.NotContains(t, reqs[0].Header, "X-Amz-Acl", "no ACL header unless object_canned_acl is set")
 	lines := strings.Split(strings.TrimSuffix(string(objectBody(t, reqs[0])), "\n"), "\n")
 	require.Len(t, lines, 2)
 	for i, evt := range []*event.Event{first, second} {
@@ -164,13 +168,17 @@ func TestObjectKey(t *testing.T) {
 	d := &driver{cfg: config{Prefix: "p"}}
 	local := time.FixedZone("CET", 3600)
 	evt := &event.Event{Time: time.Date(2026, 1, 1, 0, 30, 0, 123, local), UUID: "u"}
-	assert.Equal(t, "p/2025-12-31/2025-12-31T23:30:00.000000123Z_u.json", d.objectKey(evt, ".json"), "date and time are UTC")
+	assert.Equal(t, "p/2025-12-31/20251231T233000.000000123Z_u.json", d.objectKey(evt, ".json"), "date and time are UTC")
 
 	generated := d.objectKey(&event.Event{}, ".json")
-	assert.Regexp(t, `^p/\d{4}-\d{2}-\d{2}/[^_]+_[0-9a-f-]{36}\.json$`, generated)
+	assert.Regexp(t, `^p/\d{4}-\d{2}-\d{2}/\d{8}T\d{6}\.\d{9}Z_[0-9a-f-]{36}\.json$`, generated)
+	assert.NotContains(t, generated, ":")
 
 	root := &driver{}
-	assert.Equal(t, "2025-12-31/2025-12-31T23:30:00.000000123Z_u.json", root.objectKey(evt, ".json"), "no leading /")
+	assert.Equal(t, "2025-12-31/20251231T233000.000000123Z_u.json", root.objectKey(evt, ".json"), "no leading /")
+
+	whole := &event.Event{Time: time.Date(2026, 4, 1, 10, 30, 0, 0, time.UTC), UUID: "u"}
+	assert.Equal(t, "2026-04-01/20260401T103000.000000000Z_u.json", root.objectKey(whole, ".json"), "fixed width, so keys sort by time")
 }
 
 func TestPrefixIsSuggested(t *testing.T) {

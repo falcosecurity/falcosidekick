@@ -33,7 +33,6 @@ import (
 const (
 	name = "otlp"
 
-	signalTraces  = "traces"
 	signalLogs    = "logs"
 	signalMetrics = "metrics"
 )
@@ -88,20 +87,6 @@ func (d *driver) Init(ctx context.Context) error {
 }
 
 func (d *driver) init(ctx context.Context, res *sdkresource.Resource) error {
-	if c := d.cfg.Traces; c != nil {
-		settings, err := newExporterSettings(&c.signalConfig, "/v1/traces")
-		if err != nil {
-			return fmt.Errorf("%s %s: %w", name, signalTraces, err)
-		}
-		exporter, err := newSpanExporter(ctx, settings)
-		if err != nil {
-			return fmt.Errorf("%s %s: %w", name, signalTraces, err)
-		}
-		s := newTracesSignal(exporter, res, c)
-		d.signals = append(d.signals, signal{
-			name: signalTraces, export: s.export, shutdown: s.shutdown, closeIdle: settings.closeIdleConnections, timeout: c.Timeout,
-		})
-	}
 	if c := d.cfg.Logs; c != nil {
 		settings, err := newExporterSettings(c, "/v1/logs")
 		if err != nil {

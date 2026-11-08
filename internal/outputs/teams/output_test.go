@@ -27,6 +27,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
@@ -105,8 +106,10 @@ func TestValidation(t *testing.T) {
 		{name: "fields format", config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "output_format": "fields"}},
 		{name: "text format", config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "output_format": "text"}},
 		{name: "v2 facts format renamed", config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "output_format": "facts"}, want: "output_format: must be all/text/fields"},
-		{name: "invalid image", config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "activity_image": "file:///etc/x"}, want: "activity_image: must be an absolute http or https URL"},
-		{name: "relative image", config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "activity_image": "/img.png"}, want: "activity_image"},
+		{name: "icon", config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "icon_url": "https://img.example/i.png"}},
+		{name: "invalid icon", config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "icon_url": "file:///etc/x"}, want: "icon_url: must be an absolute http or https URL"},
+		{name: "relative icon", config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "icon_url": "/img.png"}, want: "icon_url"},
+		{name: "activity_image renamed to icon_url", config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "activity_image": "https://img.example/i.png"}, want: "unknown keys: activity_image"},
 		{
 			name: "public signature rejected",
 			config: map[string]any{"host": "https://h.example", "secret_endpoint": testPath, "query_params": map[string]any{
@@ -137,7 +140,7 @@ func TestDefaults(t *testing.T) {
 	require.NoError(t, err)
 	o := d.(*driver)
 	assert.Equal(t, formatAll, o.cfg.OutputFormat)
-	assert.Empty(t, o.cfg.ActivityImage, "the image is only suggested")
+	assert.Empty(t, o.cfg.IconURL, "the image is only suggested")
 	assert.Equal(t, output.RuntimeConfig{}, o.RuntimeConfig())
 	assert.NoError(t, o.Init(context.Background()))
 	assert.NoError(t, o.Close())
@@ -156,8 +159,9 @@ func TestSchema(t *testing.T) {
 	assert.Nil(t, fields["host"].Default)
 	assert.NotContains(t, fields, "endpoint")
 	assert.Equal(t, []string{"all", "text", "fields"}, fields["output_format"].Values)
-	assert.Nil(t, fields["activity_image"].Default)
-	assert.Equal(t, shared.FalcosidekickIconURL, fields["activity_image"].Suggested)
+	assert.NotContains(t, fields, "activity_image")
+	assert.Nil(t, fields["icon_url"].Default)
+	assert.Equal(t, shared.FalcosidekickIconURL, fields["icon_url"].Suggested)
 	assert.Contains(t, fields, "runtime.minimum_priority")
 	assert.True(t, fields["bearer_token"].Secret)
 	assert.Equal(t, output.CategoryChat, OutputType.Category)
@@ -169,12 +173,13 @@ func TestPayloadWithoutImage(t *testing.T) {
 	require.NoError(t, err)
 	header := decodeCard(t, body).Body[0]
 	require.Len(t, header.Items, 3, "the heading alone, no image column")
-	assert.Equal(t, cardTitle, header.Items[0].Text)
+	assert.Equal(t, "Write below binary dir", header.Items[0].Text, "the heading is the rule")
+	assert.NotContains(t, string(body), "Falcosidekick")
 	assert.NotContains(t, string(body), `"Image"`)
 }
 
 func TestPayloadAllFormat(t *testing.T) {
-	d := newDriver(t, &config{ActivityImage: shared.FalcosidekickIconURL})
+	d := newDriver(t, &config{IconURL: shared.FalcosidekickIconURL})
 	evt := testutil.CreateValidEvent()
 	body, err := d.buildPayload(evt)
 	require.NoError(t, err)
@@ -196,15 +201,15 @@ func TestPayloadAllFormat(t *testing.T) {
 	assert.Equal(t, shared.FalcosidekickIconURL, columns[0].Items[0].URL)
 	heading := columns[1].Items
 	require.Len(t, heading, 3)
-	assert.Equal(t, cardTitle, heading[0].Text)
-	assert.Equal(t, evt.Time.String(), heading[1].Text)
-	assert.Equal(t, "error", heading[2].Text)
+	assert.Equal(t, evt.Rule, heading[0].Text)
+	assert.Equal(t, "{{DATE(2026-04-01T10:30:00Z)}} {{TIME(2026-04-01T10:30:00Z)}}", heading[1].Text)
+	assert.Equal(t, "Error", heading[2].Text)
 	assert.Equal(t, "warning", heading[2].Color)
 
 	assert.Equal(t, evt.Output, findText(card))
 	assert.Equal(t, []fact{
 		{Title: "rule", Value: "Write below binary dir"},
-		{Title: "priority", Value: "error"},
+		{Title: "priority", Value: "Error"},
 		{Title: "source", Value: "syscall"},
 		{Title: "hostname", Value: "node-1"},
 		{Title: "fd.name", Value: "/bin/hack"},
@@ -245,7 +250,7 @@ func TestPayloadOptionalFacts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []fact{
 		{Title: "rule", Value: evt.Rule},
-		{Title: "priority", Value: "error"},
+		{Title: "priority", Value: "Error"},
 		{Title: "source", Value: "syscall"},
 		{Title: "n", Value: "42"},
 	}, findFacts(decodeCard(t, body)))
@@ -255,7 +260,7 @@ func TestPayloadPriorityStyles(t *testing.T) {
 	want := map[event.Priority]string{
 		event.PriorityEmergency: "attention", event.PriorityAlert: "attention", event.PriorityCritical: "attention",
 		event.PriorityError: "warning", event.PriorityWarning: "warning",
-		event.PriorityNotice: "good", event.PriorityInformational: "accent", event.PriorityDebug: "default",
+		event.PriorityNotice: "accent", event.PriorityInformational: "accent", event.PriorityDebug: "default",
 		event.Priority("unknown"): "default",
 	}
 	d := newDriver(t, &config{})
@@ -270,6 +275,33 @@ func TestPayloadPriorityStyles(t *testing.T) {
 			assert.Equal(t, style, header.Items[2].Color)
 		})
 	}
+}
+
+func TestCardTime(t *testing.T) {
+	for _, tc := range []struct {
+		time time.Time
+		name string
+		want string
+	}{
+		{name: "UTC", time: time.Date(2026, 4, 1, 10, 30, 0, 0, time.UTC), want: "2026-04-01T10:30:00Z"},
+		{name: "offset converted to Z", time: time.Date(2026, 4, 1, 12, 30, 0, 0, time.FixedZone("CEST", 2*3600)), want: "2026-04-01T10:30:00Z"},
+		{name: "fraction dropped", time: time.Date(2026, 4, 1, 10, 30, 0, 123456789, time.UTC), want: "2026-04-01T10:30:00Z"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, "{{DATE("+tc.want+")}} {{TIME("+tc.want+")}}", cardTime(tc.time))
+		})
+	}
+}
+
+func TestPayloadHeadingIsTheRule(t *testing.T) {
+	d := newDriver(t, &config{})
+	evt := testutil.CreateValidEvent()
+	evt.Rule = strings.Repeat("r", 2000)
+	body, err := d.buildPayload(evt)
+	require.NoError(t, err)
+	heading := decodeCard(t, body).Body[0].Items[0]
+	assert.Equal(t, "bolder", heading.Weight)
+	assert.Equal(t, maxFactRunes, utf8.RuneCountInString(heading.Text))
 }
 
 func TestPayloadSizeLimit(t *testing.T) {
@@ -335,7 +367,7 @@ func TestPayloadSizeLimit(t *testing.T) {
 		evt.OutputFields = nil
 		evt.Rule = strings.Repeat("r", 900)
 		evt.Tags = []string{strings.Repeat("t", 900)}
-		d.cfg.ActivityImage = "https://img.example/" + strings.Repeat("i", maxPayloadBytes-2000)
+		d.cfg.IconURL = "https://img.example/" + strings.Repeat("i", maxPayloadBytes-2000)
 		body, err := d.buildPayload(evt)
 		require.NoError(t, err)
 		assert.LessOrEqual(t, len(body), maxPayloadBytes)
@@ -343,7 +375,7 @@ func TestPayloadSizeLimit(t *testing.T) {
 	})
 	t.Run("header alone too large", func(t *testing.T) {
 		d := newDriver(t, &config{OutputFormat: formatFields})
-		d.cfg.ActivityImage = "https://img.example/" + strings.Repeat("i", maxPayloadBytes)
+		d.cfg.IconURL = "https://img.example/" + strings.Repeat("i", maxPayloadBytes)
 		_, err := d.buildPayload(testutil.CreateValidEvent())
 		require.Error(t, err)
 	})
@@ -421,7 +453,7 @@ func TestSendQueryFileError(t *testing.T) {
 
 func TestSendMarshalFailure(t *testing.T) {
 	d := newDriver(t, &config{OutputFormat: formatFields})
-	d.cfg.ActivityImage = "https://img.example/" + strings.Repeat("i", maxPayloadBytes)
+	d.cfg.IconURL = "https://img.example/" + strings.Repeat("i", maxPayloadBytes)
 	err := d.Send(context.Background(), testutil.CreateValidEvent())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "teams marshal")

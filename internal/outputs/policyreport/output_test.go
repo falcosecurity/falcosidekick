@@ -55,7 +55,7 @@ func newFakeClient() *fake.FakeDynamicClient {
 
 func newFakeDriver(t *testing.T, mutate func(*config)) (*driver, *fake.FakeDynamicClient) {
 	t.Helper()
-	cfg := config{MaxEvents: defaultMaxEvents, FalcoNamespace: "falco"}
+	cfg := config{MaxResults: defaultMaxResults, FallbackNamespace: "falco"}
 	if mutate != nil {
 		mutate(&cfg)
 	}
@@ -165,7 +165,7 @@ func TestOutputFieldNamedUUIDDoesNotMergeEvents(t *testing.T) {
 func TestSendRotatesAtMaxEvents(t *testing.T) {
 	for _, prune := range []bool{false, true} {
 		t.Run(fmt.Sprintf("prune_by_priority=%t", prune), func(t *testing.T) {
-			d, client := newFakeDriver(t, func(c *config) { c.MaxEvents = 2; c.PruneByPriority = prune })
+			d, client := newFakeDriver(t, func(c *config) { c.MaxResults = 2; c.PruneByPriority = prune })
 			ctx := context.Background()
 			require.NoError(t, d.Send(ctx, eventIn("", "critical", event.PriorityCritical)))
 			require.NoError(t, d.Send(ctx, eventIn("", "notice", event.PriorityNotice)))
@@ -348,7 +348,7 @@ func TestRequestTimeoutBoundsAnUnansweredRequest(t *testing.T) {
 	cfg.Timeout = testutil.CancelAfter
 	client, err := dynamic.NewForConfig(cfg)
 	require.NoError(t, err)
-	d := newDriver(&config{MaxEvents: defaultMaxEvents}, client, nil, nil)
+	d := newDriver(&config{MaxResults: defaultMaxResults}, client, nil, nil)
 	start := time.Now()
 	err = d.Send(context.Background(), testutil.CreateValidEvent())
 	require.Error(t, err)
@@ -368,16 +368,16 @@ func TestCreateOutputConfig(t *testing.T) {
 			name: "defaults",
 			raw:  map[string]any{"kubeconfig": kubeconfig},
 			check: func(t *testing.T, d *driver) {
-				assert.Equal(t, defaultMaxEvents, d.cfg.MaxEvents)
+				assert.Equal(t, defaultMaxResults, d.cfg.MaxResults)
 				assert.False(t, d.cfg.PruneByPriority)
 				assert.Equal(t, "default", d.fallback)
 			},
 		},
 		{
 			name: "explicit values",
-			raw:  map[string]any{"kubeconfig": kubeconfig, "max_events": 5, "prune_by_priority": true, "falco_namespace": "falco"},
+			raw:  map[string]any{"kubeconfig": kubeconfig, "max_results": 5, "prune_by_priority": true, "fallback_namespace": "falco"},
 			check: func(t *testing.T, d *driver) {
-				assert.Equal(t, 5, d.cfg.MaxEvents)
+				assert.Equal(t, 5, d.cfg.MaxResults)
 				assert.True(t, d.cfg.PruneByPriority)
 				assert.Equal(t, "falco", d.fallback)
 			},
@@ -389,9 +389,11 @@ func TestCreateOutputConfig(t *testing.T) {
 				assert.Equal(t, event.PriorityWarning, d.RuntimeConfig().MinPriority)
 			},
 		},
-		{name: "zero max_events", raw: map[string]any{"kubeconfig": kubeconfig, "max_events": 0}, wantErr: "max_events: must be at least 1"},
-		{name: "negative max_events", raw: map[string]any{"kubeconfig": kubeconfig, "max_events": -1}, wantErr: "max_events"},
-		{name: "invalid falco_namespace", raw: map[string]any{"kubeconfig": kubeconfig, "falco_namespace": "Not_Valid"}, wantErr: "falco_namespace: must be a valid namespace name"},
+		{name: "zero max_results", raw: map[string]any{"kubeconfig": kubeconfig, "max_results": 0}, wantErr: "max_results: must be at least 1"},
+		{name: "negative max_results", raw: map[string]any{"kubeconfig": kubeconfig, "max_results": -1}, wantErr: "max_results"},
+		{name: "invalid fallback_namespace", raw: map[string]any{"kubeconfig": kubeconfig, "fallback_namespace": "Not_Valid"}, wantErr: "fallback_namespace: must be a valid namespace name"},
+		{name: "max_events is refused", raw: map[string]any{"kubeconfig": kubeconfig, "max_events": 5}, wantErr: "unknown keys: max_events"},
+		{name: "falco_namespace is refused", raw: map[string]any{"kubeconfig": kubeconfig, "falco_namespace": "falco"}, wantErr: "unknown keys: falco_namespace"},
 		{name: "unknown key", raw: map[string]any{"kubeconfig": kubeconfig, "maxevents": 1}, wantErr: "unknown keys"},
 	}
 	for _, tt := range tests {
@@ -499,7 +501,7 @@ func TestOutputTypeSchema(t *testing.T) {
 		names[f.Name] = true
 		assert.False(t, f.Secret, f.Name)
 	}
-	for _, want := range []string{"kubeconfig", "falco_namespace", "max_events", "prune_by_priority", "runtime.minimum_priority"} {
+	for _, want := range []string{"kubeconfig", "fallback_namespace", "max_results", "prune_by_priority", "runtime.minimum_priority"} {
 		assert.True(t, names[want], want)
 	}
 	assert.Equal(t, "policyreport", OutputType.Name)

@@ -139,9 +139,47 @@ func TestBuildEvent(t *testing.T) {
 	assert.Equal(t, "Error", details["priority"])
 	assert.Equal(t, "syscall", details["source"])
 	assert.Equal(t, "node-1", details["hostname"])
-	assert.Equal(t, "filesystem, mitre_persistence", details["tags"])
+	assert.Equal(t, []string{"filesystem", "mitre_persistence"}, details["tags"])
+	assert.Equal(t, evt.Rule, got.Payload.Class)
 	_, mutated := evt.OutputFields["hostname"]
 	assert.False(t, mutated, "the event must not be modified")
+}
+
+func TestBuildEventSortsTagsWithoutReorderingTheEvent(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	evt.Tags = []string{"z", "a"}
+	got := buildEvent(evt, testKey)
+	assert.Equal(t, []string{"a", "z"}, got.Payload.CustomDetails["tags"])
+	assert.Equal(t, []string{"z", "a"}, evt.Tags)
+}
+
+func TestBuildEventGroupAndComponent(t *testing.T) {
+	tests := []struct {
+		fields        map[string]any
+		name          string
+		wantGroup     string
+		wantComponent string
+	}{
+		{name: "no fields", fields: map[string]any{}},
+		{name: "null fields", fields: map[string]any{"k8s.ns.name": nil, "container.name": nil, "proc.name": nil}},
+		{name: "process only", fields: map[string]any{"proc.name": "bash"}, wantComponent: "bash"},
+		{
+			name:      "container over process",
+			fields:    map[string]any{"k8s.ns.name": "prod", "container.name": "nginx", "proc.name": "bash"},
+			wantGroup: "prod", wantComponent: "nginx",
+		},
+		{name: "empty container falls back to process", fields: map[string]any{"container.name": "", "proc.name": "bash"}, wantComponent: "bash"},
+		{name: "non-string values become strings", fields: map[string]any{"k8s.ns.name": float64(7), "proc.name": true}, wantGroup: "7", wantComponent: "true"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			evt := testutil.CreateValidEvent()
+			evt.OutputFields = tt.fields
+			got := buildEvent(evt, testKey).Payload
+			assert.Equal(t, tt.wantGroup, got.Group)
+			assert.Equal(t, tt.wantComponent, got.Component)
+		})
+	}
 }
 
 func TestBuildEventFallbacksAndLimits(t *testing.T) {
@@ -185,7 +223,11 @@ func TestSendDelivers(t *testing.T) {
 	payload := body["payload"].(map[string]any)
 	assert.Equal(t, "error", payload["severity"])
 	assert.Equal(t, "node-1", payload["source"])
-	assert.Contains(t, payload, "custom_details")
+	assert.Equal(t, "Write below binary dir", payload["class"])
+	assert.NotContains(t, payload, "group", "no k8s.ns.name sends no group")
+	assert.NotContains(t, payload, "component", "no container.name or proc.name sends no component")
+	details := payload["custom_details"].(map[string]any)
+	assert.Equal(t, []any{"filesystem", "mitre_persistence"}, details["tags"])
 	assert.NoError(t, d.Close())
 }
 

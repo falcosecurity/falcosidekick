@@ -36,7 +36,7 @@ import (
 // https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/bindings/http-protocol-binding.md#31-binary-content-mode
 const (
 	specVersion = "1.0"
-	eventType   = "falco.rule.output.v1"
+	eventType   = "org.falco.rule.output.v1"
 	contentType = "application/json"
 	headerAttr  = "Ce-"
 )

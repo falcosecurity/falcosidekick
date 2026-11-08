@@ -44,30 +44,31 @@ const (
 	defaultIndex     = "falco"
 	defaultSuffix    = "daily"
 	suffixNone       = "none"
-	defaultShards    = 3
-	defaultReplicas  = 3
 
 	queryFilterPath = "filter_path"
 	queryPipeline   = "pipeline"
+	queryOpType     = "op_type"
 )
 
 var targetOptions = shared.HTTPTargetOptions{
 	DriverRoutes:        true,
-	ReservedQueryParams: []string{queryFilterPath, queryPipeline},
+	ReservedQueryParams: []string{queryFilterPath, queryPipeline, queryOpType},
 }
 
 type config struct {
-	Index                   string `mapstructure:"index"`
-	Suffix                  string `mapstructure:"index_suffix"`
-	Pipeline                string `mapstructure:"pipeline"`
-	APIKey                  string `mapstructure:"api_key"`
+	Index    string `mapstructure:"index"`
+	Suffix   string `mapstructure:"index_suffix"`
+	Pipeline string `mapstructure:"pipeline"`
+	APIKey   string `mapstructure:"api_key"`
+	// NumberOfShards and NumberOfReplicas are nil when unset: the template leaves the cluster default.
+	NumberOfShards          *int `mapstructure:"number_of_shards"`
+	NumberOfReplicas        *int `mapstructure:"number_of_replicas"`
 	shared.HTTPTargetConfig `mapstructure:",squash"`
 	shared.HTTPConfig       `mapstructure:",squash"`
 	Runtime                 output.RuntimeConfig `mapstructure:"runtime"`
-	NumberOfShards          int                  `mapstructure:"number_of_shards"`
-	NumberOfReplicas        int                  `mapstructure:"number_of_replicas"`
 	FlattenFields           bool                 `mapstructure:"flatten_fields"`
 	CreateIndexTemplate     bool                 `mapstructure:"create_index_template"`
+	DataStream              bool                 `mapstructure:"data_stream"`
 }
 
 // OutputType describes the Elasticsearch output for the catalog.
@@ -79,11 +80,18 @@ var OutputType = output.Type{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{
 				Name: "index", Type: "string", Default: "falco", Label: "Index",
-				Description: "Index the events are written to, before the date suffix: lowercase letters, digits, `.`, `-` and `_`, starting with a letter or digit.",
+				Description: "Index the events are written to, before the date suffix, or the data stream name with `data_stream`: " +
+					"lowercase letters, digits, `.`, `-` and `_`, starting with a letter or digit.",
 			},
 			{
 				Name: "index_suffix", Type: "enum", Values: []string{"daily", "monthly", "annually", suffixNone}, Default: "daily", Label: "Index Suffix",
-				Description: "Date added to the index at delivery time, in UTC: `-YYYY.MM.DD`, `-YYYY.MM` or `-YYYY`. `none` writes to the index itself.",
+				Description: "Date of the event, in UTC, added to the index: `-YYYY.MM.DD`, `-YYYY.MM` or `-YYYY`. `none` writes to the index itself. " +
+					"With `data_stream`, only `none` is accepted and it is the default.",
+			},
+			{
+				Name: "data_stream", Type: "bool", Default: false, Label: "Data Stream",
+				Description: "Writes to `index` as a data stream: every document is created, never overwritten, and carries `@timestamp`; no date suffix applies. " +
+					"Elasticsearch creates the data stream on the first document when an index template with `data_stream` matches its name.",
 			},
 			{
 				Name: "pipeline", Type: "string", Label: "Ingest Pipeline",
@@ -99,16 +107,18 @@ var OutputType = output.Type{
 			},
 			{
 				Name: "create_index_template", Type: "bool", Default: false, Label: "Create Index Template",
-				Description: "Creates an index template named after the index, with the shard and replica counts and the event mappings, before the first delivery. " +
-					"An existing template is left unchanged.",
+				Description: "Creates an index template named after the index, with the event mappings and the shard and replica counts when set, before the first delivery. " +
+					"With `data_stream`, the template creates a data stream. An existing template is left unchanged.",
 			},
 			{
-				Name: "number_of_shards", Type: "int", Default: defaultShards, Label: "Number of Shards",
-				Description: "Primary shards of each new index, set in the created template; must be greater than `0`. Used only when the template is created.",
+				Name: "number_of_shards", Type: "int", Label: "Number of Shards",
+				Description: "Primary shards of each new index, set in the created template; must be greater than `0`. " +
+					"Unset leaves the cluster default, `1`. Used only when the template is created.",
 			},
 			{
-				Name: "number_of_replicas", Type: "int", Default: defaultReplicas, Label: "Number of Replicas",
-				Description: "Replicas of each primary shard, set in the created template; `0` keeps no replica. Used only when the template is created.",
+				Name: "number_of_replicas", Type: "int", Label: "Number of Replicas",
+				Description: "Replicas of each primary shard, set in the created template; `0` keeps no replica. " +
+					"Unset leaves the cluster default, `1`. Used only when the template is created.",
 			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
 	},
@@ -139,16 +149,21 @@ func (c *config) validate() utils.ValidationErrors {
 	} else if !indexRegex.MatchString(c.Index) {
 		errs.Add("index", "must be lowercase alphanumeric (a-z, 0-9, ., -, _), cannot start with -, _, +")
 	}
-	if c.Suffix == "" {
+	switch {
+	case c.DataStream && c.Suffix == "":
+		c.Suffix = suffixNone
+	case c.DataStream && c.Suffix != suffixNone:
+		errs.Add("index_suffix", "must be none with data_stream: a data stream is not dated")
+	case c.Suffix == "":
 		c.Suffix = defaultSuffix
-	} else if !validSuffixes[c.Suffix] {
+	case !validSuffixes[c.Suffix]:
 		errs.Add("index_suffix", "must be daily/monthly/annually/none")
 	}
 	if c.CreateIndexTemplate {
-		if c.NumberOfShards <= 0 {
+		if c.NumberOfShards != nil && *c.NumberOfShards <= 0 {
 			errs.Add("number_of_shards", "must be > 0 when create_index_template is true")
 		}
-		if c.NumberOfReplicas < 0 {
+		if c.NumberOfReplicas != nil && *c.NumberOfReplicas < 0 {
 			errs.Add("number_of_replicas", "must be >= 0 when create_index_template is true")
 		}
 	}
@@ -160,8 +175,7 @@ func (c *config) validate() utils.ValidationErrors {
 }
 
 func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
-	// Absent keys keep these defaults; explicit values, including 0, replace them.
-	cfg := config{NumberOfShards: defaultShards, NumberOfReplicas: defaultReplicas}
+	var cfg config
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
 		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
@@ -231,11 +245,15 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	}
 
 	index := d.resolveIndex(evt)
+	query := d.pipelineQuery()
 	method, route := http.MethodPost, "/"+index+"/_doc"
 	if evt.UUID != "" {
 		method, route = http.MethodPut, "/"+index+"/_create/"+url.PathEscape(evt.UUID)
+	} else {
+		// A data stream accepts only create; without an id the document is created with a generated one.
+		query.Set(queryOpType, "create")
 	}
-	target, err := d.cfg.URL(d.cfg.Host, route, d.pipelineQuery())
+	target, err := d.cfg.URL(d.cfg.Host, route, query)
 	if err != nil {
 		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}

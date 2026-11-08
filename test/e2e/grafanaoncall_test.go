@@ -40,13 +40,20 @@ const (
 
 // onCallAlert mirrors the documented formatted webhook payload:
 // https://grafana.com/docs/grafana-cloud/alerting-and-irm/irm/configure/integrations/webhooks/incoming-webhooks/oncall-webhooks
+// plus the structured keys Falcosidekick adds for routing templates.
 type onCallAlert struct {
-	AlertUID              string `json:"alert_uid"`
-	Title                 string `json:"title"`
-	ImageURL              string `json:"image_url"`
-	State                 string `json:"state"`
-	LinkToUpstreamDetails string `json:"link_to_upstream_details"`
-	Message               string `json:"message"`
+	OutputFields          map[string]any `json:"output_fields"`
+	AlertUID              string         `json:"alert_uid"`
+	Title                 string         `json:"title"`
+	ImageURL              string         `json:"image_url"`
+	State                 string         `json:"state"`
+	LinkToUpstreamDetails string         `json:"link_to_upstream_details"`
+	Message               string         `json:"message"`
+	Priority              string         `json:"priority"`
+	Rule                  string         `json:"rule"`
+	Source                string         `json:"source"`
+	Hostname              string         `json:"hostname"`
+	Tags                  []string       `json:"tags"`
 }
 
 // onCallIntegration is a strict fake; with bearer set it answers 403 without that token, as OnCall does.
@@ -133,6 +140,12 @@ func TestGrafanaOnCallDeliversEvent(t *testing.T) {
 	assert.Equal(t, "alerting", alert.State)
 	assert.Equal(t, "[Warning] E2E "+marker, alert.Title)
 	assert.Equal(t, "e2e event "+marker, alert.Message)
+	assert.Equal(t, "Warning", alert.Priority)
+	assert.Equal(t, "E2E "+marker, alert.Rule)
+	assert.Equal(t, "syscall", alert.Source)
+	assert.Equal(t, "e2e-host", alert.Hostname)
+	assert.Equal(t, []string{"e2e"}, alert.Tags)
+	assert.Equal(t, map[string]any{"e2e.marker": marker, "proc.name": "e2e"}, alert.OutputFields)
 	assert.NotContains(t, sk.logs.String(), onCallToken)
 	assert.NotContains(t, sk.logs.String(), onCallBearerToken)
 }

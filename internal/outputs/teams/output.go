@@ -41,7 +41,7 @@ const (
 var targetOptions = shared.HTTPTargetOptions{SecretEndpointRequired: true}
 
 type config struct {
-	ActivityImage           string `mapstructure:"activity_image"`
+	IconURL                 string `mapstructure:"icon_url"`
 	OutputFormat            string `mapstructure:"output_format"`
 	shared.HTTPTargetConfig `mapstructure:",squash"`
 	shared.HTTPConfig       `mapstructure:",squash"`
@@ -56,8 +56,8 @@ var OutputType = output.Type{
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{
-				Name: "activity_image", Type: "string", Suggested: shared.FalcosidekickIconURL, Label: "Activity Image URL",
-				Description: "Absolute http or https URL of the image shown in the card header. Empty shows no image.",
+				Name: "icon_url", Type: "string", Suggested: shared.FalcosidekickIconURL, Label: "Icon URL",
+				Description: "Absolute http or https URL of the image shown beside the card heading. Empty shows no image.",
 			},
 			{
 				Name: "output_format", Type: "enum", Values: []string{formatAll, formatText, formatFields}, Default: formatAll, Label: "Output Format",
@@ -87,8 +87,8 @@ func (c *config) validate() utils.ValidationErrors {
 	} else if !validOutputFormats[c.OutputFormat] {
 		errs.Add("output_format", "must be all/text/fields")
 	}
-	if c.ActivityImage != "" && !shared.IsAbsoluteHTTPURL(c.ActivityImage) {
-		errs.Add("activity_image", "must be an absolute http or https URL")
+	if c.IconURL != "" && !shared.IsAbsoluteHTTPURL(c.IconURL) {
+		errs.Add("icon_url", "must be an absolute http or https URL")
 	}
 	if len(errs) > 0 {
 		return errs

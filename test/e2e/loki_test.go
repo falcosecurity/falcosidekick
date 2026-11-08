@@ -84,7 +84,7 @@ func waitLokiStream(t *testing.T, base, tenant, logQL string) lokiStream {
 }
 
 func lokiSelector(marker string) string {
-	return fmt.Sprintf(`{rule="E2E %s", source="syscall", hostname="e2e-host"} |= %q`, marker, marker)
+	return fmt.Sprintf(`{source="syscall", hostname="e2e-host", level="warning"} |= %q`, marker)
 }
 
 // lokiEnforcesTenants is true only when Loki runs with auth_enabled.
@@ -106,11 +106,12 @@ func TestLokiDeliversEvent(t *testing.T) {
 	assert.Zero(t, st.FailedTotal)
 
 	stream := waitLokiStream(t, base, tenant, lokiSelector(marker))
-	assert.Equal(t, "E2E "+marker, stream.Stream["rule"])
-	assert.Equal(t, "warning", stream.Stream["priority"])
+	assert.Equal(t, "Warning", stream.Stream["priority"])
+	assert.Equal(t, "warning", stream.Stream["level"])
 	assert.Equal(t, "syscall", stream.Stream["source"])
 	assert.Equal(t, "e2e-host", stream.Stream["hostname"])
-	assert.Equal(t, "e2e", stream.Stream["tags"])
+	assert.NotContains(t, stream.Stream, "rule", "the rule stays in the log line")
+	assert.NotContains(t, stream.Stream, "tags", "the tags stay in the log line")
 
 	entry := stream.Values[0]
 	ts, err := strconv.ParseInt(entry[0], 10, 64)
@@ -119,6 +120,7 @@ func TestLokiDeliversEvent(t *testing.T) {
 	var line map[string]any
 	require.NoError(t, json.Unmarshal([]byte(entry[1]), &line), entry[1])
 	assert.Equal(t, "E2E "+marker, line["rule"])
+	assert.Equal(t, []any{"e2e"}, line["tags"])
 	assert.Equal(t, "e2e event "+marker, line["output"])
 	assert.NotEmpty(t, line["uuid"])
 	fields, ok := line["output_fields"].(map[string]any)
@@ -126,7 +128,7 @@ func TestLokiDeliversEvent(t *testing.T) {
 	assert.Equal(t, marker, fields["e2e.marker"])
 }
 
-func TestLokiTextFormatWithExtraLabels(t *testing.T) {
+func TestLokiTextFormatWithLabelFields(t *testing.T) {
 	base := requireEnv(t, lokiURLEnv)
 	const tenant = "e2e-falco"
 	sk := startSidekick(t, fmt.Sprintf(`loki:
@@ -134,7 +136,7 @@ func TestLokiTextFormatWithExtraLabels(t *testing.T) {
   endpoint: /loki/api/v1/push
   tenant: %s
   log_format: text
-  extra_labels: "e2e.marker, proc.name"
+  label_fields: [e2e.marker, proc.name]
 `, base, tenant))
 
 	marker := newMarker(t)
@@ -143,8 +145,17 @@ func TestLokiTextFormatWithExtraLabels(t *testing.T) {
 
 	stream := waitLokiStream(t, base, tenant, fmt.Sprintf(`{e2e_marker=%q}`, marker))
 	assert.Equal(t, "e2e", stream.Stream["proc_name"])
-	assert.Equal(t, "E2E "+marker, stream.Stream["rule"])
+	assert.Equal(t, "warning", stream.Stream["level"])
 	assert.Equal(t, "e2e event "+marker, stream.Values[0][1])
+}
+
+// extra_labels was renamed to label_fields, and a field that does not make a label name is refused.
+func TestLokiRefusesOldAndInvalidLabels(t *testing.T) {
+	base := requireEnv(t, lokiURLEnv)
+	logs := startSidekickFails(t, fmt.Sprintf("loki:\n  host: %q\n  extra_labels: proc.name\n", base))
+	assert.Contains(t, logs, "unknown keys")
+	logs = startSidekickFails(t, fmt.Sprintf("loki:\n  host: %q\n  label_fields: [proc-name]\n", base))
+	assert.Contains(t, logs, "does not make a valid label name")
 }
 
 func TestLokiTenantIsolation(t *testing.T) {

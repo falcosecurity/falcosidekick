@@ -311,7 +311,7 @@ func uiErrorFixtures(t *testing.T, srv *Server, cat *catalog.Catalog) map[string
 	cases["validation"] = uiErrorFixture{
 		Status: http.StatusBadRequest,
 		Body: uiFixtureRequest(t, writable.app, http.MethodPut, "/api/v1/pipeline/outputs/slack",
-			`{"config":{"channel":"#alerts"},"version":0}`, http.StatusBadRequest),
+			`{"config":{"footer":"prod"},"version":0}`, http.StatusBadRequest),
 	}
 	return cases
 }

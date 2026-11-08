@@ -43,14 +43,14 @@ type alertmanagerAlert struct {
 	EndsAt      time.Time         `json:"endsAt"`
 }
 
-// alertmanagerRule is the rule label of the marker event; label values arrive verbatim.
+// alertmanagerRule is the alertname label of the marker event; label values arrive verbatim.
 func alertmanagerRule(marker string) string {
 	return "E2E " + marker
 }
 
 func alertmanagerAlerts(t *testing.T, baseURL, marker string) []alertmanagerAlert {
 	t.Helper()
-	query := url.Values{"filter": {fmt.Sprintf("rule=%q", alertmanagerRule(marker))}}
+	query := url.Values{"filter": {fmt.Sprintf("alertname=%q", alertmanagerRule(marker))}}
 	resp, err := httpDo(http.MethodGet, baseURL+"/api/v2/alerts?"+query.Encode(), nil)
 	require.NoError(t, err)
 	defer func() { _ = resp.Body.Close() }()
@@ -76,7 +76,7 @@ func TestAlertmanagerDeliversAlert(t *testing.T) {
 	sk := startSidekick(t, fmt.Sprintf(`alertmanager:
   hosts:
     - %q
-  expires_after: 600
+  expires_after: 10m
   extra_labels:
     e2e_suite: alertmanager
     region: eu-west-1
@@ -94,9 +94,8 @@ func TestAlertmanagerDeliversAlert(t *testing.T) {
 	alert := waitAlertmanagerAlert(t, amURL, marker)
 	assert.Equal(t, map[string]string{
 		"alertname": alertmanagerRule(marker),
-		"rule":      alertmanagerRule(marker),
 		"source":    "syscall",
-		"priority":  "warning",
+		"priority":  "Warning",
 		"severity":  "warning",
 		"hostname":  "e2e-host",
 		"tags":      "e2e",
@@ -105,7 +104,6 @@ func TestAlertmanagerDeliversAlert(t *testing.T) {
 	}, alert.Labels, "label values arrive unchanged")
 	assert.Equal(t, map[string]string{
 		"summary":     "E2E " + marker,
-		"info":        "e2e event " + marker,
 		"description": "e2e event " + marker,
 		"runbook":     "https://example.com/runbook",
 	}, alert.Annotations)
@@ -137,7 +135,7 @@ func TestAlertmanagerFanOutToleratesUnreachableHost(t *testing.T) {
 	assert.Contains(t, st.LastWarning, "1 of 2 hosts failed")
 
 	alert := waitAlertmanagerAlert(t, amURL, marker)
-	assert.Equal(t, alertmanagerRule(marker), alert.Labels["rule"])
+	assert.Equal(t, alertmanagerRule(marker), alert.Labels["alertname"])
 }
 
 func TestAlertmanagerFanOutFailsWhenAllHostsFail(t *testing.T) {

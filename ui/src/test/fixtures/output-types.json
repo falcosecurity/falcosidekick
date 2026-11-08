@@ -76,29 +76,29 @@
             "type": "string"
           },
           {
-            "default": 0,
-            "description": "Seconds after the event time at which the alert ends, sent as `endsAt`. `0` sends no end time, so Alertmanager resolves the alert after its `resolve_timeout`.",
-            "label": "Alert Expires After (seconds; 0 leaves it to Alertmanager's resolve_timeout, 5m by default)",
+            "default": "0",
+            "description": "Go duration, such as `30m`, after the event time at which the alert ends, sent as `endsAt`. `0` sends no end time, so Alertmanager resolves the alert after its `resolve_timeout`.",
+            "label": "Alert Expires After (0 leaves it to Alertmanager's resolve_timeout, 5m by default)",
             "name": "expires_after",
             "required": false,
-            "type": "int"
+            "type": "string"
           },
           {
-            "description": "Labels added to every alert, by label name; they replace built-in labels of the same name. Characters other than letters, digits and `_` in names become `_`.",
+            "description": "Labels added to every alert, by label name; they replace built-in labels of the same name. Names must match `[a-zA-Z_][a-zA-Z0-9_]*`.",
             "label": "Extra Labels",
             "name": "extra_labels",
             "required": false,
             "type": "map"
           },
           {
-            "description": "Annotations added to every alert, by name; they replace the built-in `info`, `description` and `summary` of the same name.",
+            "description": "Annotations added to every alert, by name; they replace the built-in `summary` and `description` of the same name.",
             "label": "Extra Annotations",
             "name": "extra_annotations",
             "required": false,
             "type": "map"
           },
           {
-            "description": "Value of the `severity` label by lowercase Falco priority, such as `critical: P1`. Priorities not listed get `critical`, `warning` or `information`.",
+            "description": "Value of the `severity` label by lowercase Falco priority, such as `critical: P1`. Priorities not listed get `critical`, `warning` or `info`.",
             "label": "Custom Severity Map",
             "name": "custom_severity_map",
             "required": false,
@@ -312,7 +312,7 @@
             "type": "string"
           },
           {
-            "description": "Start of every object key, followed by `/YYYY-MM-DD/\u003cevent time\u003e_\u003cevent id\u003e.json`, or `.ndjson` for a batch. Leading and trailing `/` are removed; empty writes the keys from the date, at the root of the bucket.",
+            "description": "Start of every object key, followed by `/YYYY-MM-DD/\u003cevent time\u003e_\u003cevent id\u003e.json`, or `.ndjson` for a batch, with the time as `20060102T150405.000000000Z`. Leading and trailing `/` are removed; empty writes the keys from the date, at the root of the bucket.",
             "label": "Key Prefix",
             "name": "prefix",
             "required": false,
@@ -320,8 +320,7 @@
             "type": "string"
           },
           {
-            "default": "bucket-owner-full-control",
-            "description": "Canned ACL set on every object written.",
+            "description": "Canned ACL set on every object written. Empty sends none: buckets created since April 2023 disable ACLs and refuse all but `bucket-owner-full-control`.",
             "label": "Object Canned ACL",
             "name": "object_canned_acl",
             "required": false,
@@ -573,12 +572,16 @@
             "type": "string"
           },
           {
-            "default": false,
-            "description": "Publishes the whole event as JSON with no message attributes. Otherwise the message is the event output text, or the rule name when it is empty.",
-            "label": "Publish the event JSON instead of the output text and attributes",
-            "name": "raw_json",
+            "default": "json",
+            "description": "Message body: `json` publishes the event JSON, `text` the event output text, or the rule name when it is empty. Message attributes are sent with both.",
+            "label": "Message Format",
+            "name": "format",
             "required": false,
-            "type": "bool"
+            "type": "enum",
+            "values": [
+              "json",
+              "text"
+            ]
           },
           {
             "default": [
@@ -1082,11 +1085,11 @@
             "type": "map"
           },
           {
-            "default": "https://falco.org",
-            "description": "Value of the `source` attribute of every event, a URI reference such as `https://falco.org` or `/cluster/prod`. Empty uses the default.",
+            "description": "Value of the `source` attribute of every event, a URI reference naming the context that produced it, such as `/falcosidekick` or `/cluster/prod/falcosidekick`.",
             "label": "Event Source (URI reference)",
             "name": "source",
-            "required": false,
+            "required": true,
+            "suggested": "/falcosidekick",
             "type": "string"
           },
           {
@@ -1351,10 +1354,10 @@
             "type": "string"
           },
           {
-            "description": "Datadog application key, sent in the `DD-APPLICATION-KEY` header. When set, events go to Events API v2 on `event-management-intake.\u003csite\u003e`; empty uses v1 on `api.\u003csite\u003e`.",
-            "label": "Application Key (selects Events API v2)",
+            "description": "Datadog application key, sent in the `DD-APPLICATION-KEY` header; Events API v2 requires it with the API key.",
+            "label": "Application Key",
             "name": "app_key",
-            "required": false,
+            "required": true,
             "secret": true,
             "type": "string"
           },
@@ -1635,7 +1638,7 @@
           {
             "description": "Absolute http or https URL of the image shown as the avatar of every message. Empty uses the webhook's avatar.",
             "label": "Avatar URL",
-            "name": "icon",
+            "name": "avatar_url",
             "required": false,
             "suggested": "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
             "type": "string"
@@ -1888,7 +1891,7 @@
           },
           {
             "default": "falco",
-            "description": "Index the events are written to, before the date suffix: lowercase letters, digits, `.`, `-` and `_`, starting with a letter or digit.",
+            "description": "Index the events are written to, before the date suffix, or the data stream name with `data_stream`: lowercase letters, digits, `.`, `-` and `_`, starting with a letter or digit.",
             "label": "Index",
             "name": "index",
             "required": false,
@@ -1896,7 +1899,7 @@
           },
           {
             "default": "daily",
-            "description": "Date added to the index at delivery time, in UTC: `-YYYY.MM.DD`, `-YYYY.MM` or `-YYYY`. `none` writes to the index itself.",
+            "description": "Date of the event, in UTC, added to the index: `-YYYY.MM.DD`, `-YYYY.MM` or `-YYYY`. `none` writes to the index itself. With `data_stream`, only `none` is accepted and it is the default.",
             "label": "Index Suffix",
             "name": "index_suffix",
             "required": false,
@@ -1907,6 +1910,14 @@
               "annually",
               "none"
             ]
+          },
+          {
+            "default": false,
+            "description": "Writes to `index` as a data stream: every document is created, never overwritten, and carries `@timestamp`; no date suffix applies. Elasticsearch creates the data stream on the first document when an index template with `data_stream` matches its name.",
+            "label": "Data Stream",
+            "name": "data_stream",
+            "required": false,
+            "type": "bool"
           },
           {
             "description": "Ingest pipeline every document goes through, sent as the `pipeline` query parameter. Empty uses the index default.",
@@ -1933,23 +1944,21 @@
           },
           {
             "default": false,
-            "description": "Creates an index template named after the index, with the shard and replica counts and the event mappings, before the first delivery. An existing template is left unchanged.",
+            "description": "Creates an index template named after the index, with the event mappings and the shard and replica counts when set, before the first delivery. With `data_stream`, the template creates a data stream. An existing template is left unchanged.",
             "label": "Create Index Template",
             "name": "create_index_template",
             "required": false,
             "type": "bool"
           },
           {
-            "default": 3,
-            "description": "Primary shards of each new index, set in the created template; must be greater than `0`. Used only when the template is created.",
+            "description": "Primary shards of each new index, set in the created template; must be greater than `0`. Unset leaves the cluster default, `1`. Used only when the template is created.",
             "label": "Number of Shards",
             "name": "number_of_shards",
             "required": false,
             "type": "int"
           },
           {
-            "default": 3,
-            "description": "Replicas of each primary shard, set in the created template; `0` keeps no replica. Used only when the template is created.",
+            "description": "Replicas of each primary shard, set in the created template; `0` keeps no replica. Unset leaves the cluster default, `1`. Used only when the template is created.",
             "label": "Number of Replicas",
             "name": "number_of_replicas",
             "required": false,
@@ -2194,19 +2203,33 @@
             "type": "string"
           },
           {
-            "description": "Google credentials JSON, raw or base64-encoded, of type `service_account`, `authorized_user`, `impersonated_service_account` or `external_account`. Empty uses Application Default Credentials.",
-            "label": "Credentials JSON, raw or base64 (default: Application Default Credentials)",
+            "description": "Google credentials JSON document of type `service_account`, `authorized_user`, `impersonated_service_account` or `external_account`. Empty uses Application Default Credentials.",
+            "label": "Credentials JSON (default: Application Default Credentials)",
             "name": "credentials",
             "required": false,
             "secret": true,
             "type": "string"
           },
           {
-            "description": "Attributes set on every message, by name; at most 100, names up to 256 bytes not starting with `goog`, values up to 1024 bytes.",
-            "label": "Message attributes",
-            "name": "custom_attributes",
+            "description": "Attributes set on every message, by name: names up to 256 bytes not starting with `goog`, values up to 1024 bytes. With `message_attributes`, at most 100 per message.",
+            "label": "Static attributes",
+            "name": "attributes",
             "required": false,
             "type": "map"
+          },
+          {
+            "default": [
+              "priority",
+              "rule",
+              "source",
+              "tags",
+              "hostname"
+            ],
+            "description": "Event values sent as attributes, which subscription filters can select on: `priority`, `rule`, `source`, `tags`, `hostname` or output field names. Missing, empty, non-text, non-number or over 1024-byte values are left out.",
+            "label": "Message attributes: priority, rule, source, tags, hostname or output field names",
+            "name": "message_attributes",
+            "required": false,
+            "type": "string[]"
           },
           {
             "description": "Pub/Sub service address as `host:port` without a scheme, such as a regional or private endpoint, reached over TLS. Empty uses the global Google endpoint.",
@@ -2772,24 +2795,16 @@
             "type": "string"
           },
           {
-            "default": false,
-            "description": "Connects to the brokers over TLS. `tls` settings are refused unless this is set.",
-            "label": "Enable TLS",
-            "name": "tls_enabled",
-            "required": false,
-            "type": "bool"
-          },
-          {
-            "description": "SASL mechanism for broker authentication: `plain`, `scram_sha256` or `scram_sha512`. Empty disables SASL; any mechanism requires username and password.",
+            "description": "SASL mechanism for broker authentication, spelled as Kafka does: `PLAIN`, `SCRAM-SHA-256` or `SCRAM-SHA-512`. Empty disables SASL; any mechanism requires username and password.",
             "label": "SASL Mechanism",
             "name": "auth.sasl",
             "required": false,
             "type": "enum",
             "values": [
               "",
-              "plain",
-              "scram_sha256",
-              "scram_sha512"
+              "PLAIN",
+              "SCRAM-SHA-256",
+              "SCRAM-SHA-512"
             ]
           },
           {
@@ -2808,8 +2823,7 @@
             "type": "string"
           },
           {
-            "default": "none",
-            "description": "Codec for record batches sent to the brokers.",
+            "description": "Codec for record batches sent to the brokers. Empty keeps the client default: `snappy`, or no compression for brokers that do not support it.",
             "label": "Compression",
             "name": "producer.compression",
             "required": false,
@@ -2836,19 +2850,12 @@
             ]
           },
           {
-            "description": "Client ID sent to the brokers, visible in their logs and quotas. Empty uses `kgo`.",
+            "default": "falcosidekick",
+            "description": "Client ID sent to the brokers, visible in their logs and quotas.",
             "label": "Client ID",
             "name": "producer.client_id",
             "required": false,
             "type": "string"
-          },
-          {
-            "default": false,
-            "description": "Returns once the record is buffered, without waiting for the brokers. A later broker failure is counted as failed, so counters are exact only in sync mode.",
-            "label": "Async Produce (counted as sent once buffered; broker errors also count as failed)",
-            "name": "producer.async",
-            "required": false,
-            "type": "bool"
           },
           {
             "default": false,
@@ -2865,6 +2872,14 @@
             "name": "producer.delivery_timeout",
             "required": false,
             "type": "string"
+          },
+          {
+            "default": false,
+            "description": "Connects over TLS. The other `tls` settings are refused unless this is set.",
+            "label": "Enable TLS",
+            "name": "tls.enabled",
+            "required": false,
+            "type": "bool"
           },
           {
             "default": false,
@@ -3117,11 +3132,11 @@
             ]
           },
           {
-            "description": "Output field names, separated by commas, such as `container.id,proc.name`, added as stream labels when the event has them. Characters other than letters, digits and `_` in label names become `_`.",
-            "label": "Extra Labels (comma-separated field names)",
-            "name": "extra_labels",
+            "description": "Output field names, such as `container.name`, added as stream labels when the event has them, named with `.` and `[` as `_`: `container_name`. Every distinct value adds a stream, so list only fields with few values. A name that does not make a valid label name, or makes a built-in label, is refused.",
+            "label": "Output Fields as Stream Labels",
+            "name": "label_fields",
             "required": false,
-            "type": "string"
+            "type": "string[]"
           },
           {
             "description": "User for HTTP basic authentication, sent with the password.",
@@ -3613,124 +3628,6 @@
       "name": "otlp",
       "schema": {
         "fields": [
-          {
-            "description": "Collector URL, `http://` or `https://`, without credentials, query or fragment. With `http/protobuf` an empty path becomes `/v1/traces`; with `grpc` no path is allowed.",
-            "label": "Endpoint URL (enables traces)",
-            "name": "traces.endpoint",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "default": "http/protobuf",
-            "description": "OTLP transport: protobuf over HTTP or gRPC.",
-            "label": "Protocol",
-            "name": "traces.protocol",
-            "required": false,
-            "type": "enum",
-            "values": [
-              "http/protobuf",
-              "grpc"
-            ]
-          },
-          {
-            "default": "none",
-            "description": "Compression of export requests.",
-            "label": "Compression",
-            "name": "traces.compression",
-            "required": false,
-            "type": "enum",
-            "values": [
-              "none",
-              "gzip"
-            ]
-          },
-          {
-            "default": "10s",
-            "description": "Go duration, such as `10s`, bounding each export request and the shutdown of this signal. `0` uses the default.",
-            "label": "Export Timeout",
-            "name": "traces.timeout",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "description": "Extra headers sent with every request, by header name. Names are case-insensitive; headers the HTTP transport owns, such as `Host` or `Content-Length`, are refused.",
-            "entry_fields": [
-              {
-                "description": "Values of the header, sent as written; the API returns them.",
-                "label": "Public Values",
-                "name": "values",
-                "required": false,
-                "type": "string[]"
-              },
-              {
-                "description": "Values of the header the API never returns.",
-                "label": "Secret Values",
-                "name": "secrets",
-                "required": false,
-                "secret": true,
-                "type": "string[]"
-              },
-              {
-                "description": "Files whose content, without surrounding whitespace, is a value of the header; read at every request.",
-                "file": true,
-                "label": "Secret File Paths",
-                "name": "files",
-                "required": false,
-                "type": "string[]"
-              }
-            ],
-            "label": "Custom HTTP Headers",
-            "name": "traces.headers",
-            "required": false,
-            "type": "map"
-          },
-          {
-            "default": false,
-            "description": "Accepts any server certificate. The connection can then be intercepted: use it only for tests.",
-            "label": "Skip TLS Certificate Verification",
-            "name": "traces.tls.insecure_skip_verify",
-            "required": false,
-            "type": "bool"
-          },
-          {
-            "description": "PEM file with the certificate authorities that sign the server certificate. Empty uses the system trust store.",
-            "file": true,
-            "label": "CA Certificate File",
-            "name": "traces.tls.ca_file",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "description": "PEM client certificate for mutual TLS, set together with the key file.",
-            "file": true,
-            "label": "Client Certificate File (mTLS)",
-            "name": "traces.tls.cert_file",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "description": "PEM private key of the client certificate.",
-            "file": true,
-            "label": "Client Key File (mTLS)",
-            "name": "traces.tls.key_file",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "description": "Name checked against the server certificate when it differs from the host the output connects to.",
-            "label": "Server Name Override",
-            "name": "traces.tls.server_name",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "default": "0s",
-            "description": "Go duration, such as `1s`, added to the event time to end each span. `0s` gives zero-length spans.",
-            "label": "Span Duration",
-            "name": "traces.duration",
-            "required": false,
-            "type": "string"
-          },
           {
             "description": "Collector URL, `http://` or `https://`, without credentials, query or fragment. With `http/protobuf` an empty path becomes `/v1/logs`; with `grpc` no path is allowed.",
             "label": "Endpoint URL (enables logs)",
@@ -4365,7 +4262,7 @@
           {
             "description": "Namespace whose `Report` receives events naming a namespace that does not exist. Empty uses the pod namespace, else `default`.",
             "label": "Namespace for events whose namespace does not exist",
-            "name": "falco_namespace",
+            "name": "fallback_namespace",
             "required": false,
             "type": "string"
           },
@@ -4373,7 +4270,7 @@
             "default": 1000,
             "description": "Results kept in each report, at least `1`, also set as `configuration.limits.maxResults`. Beyond it the oldest result is removed.",
             "label": "Max results per report",
-            "name": "max_events",
+            "name": "max_results",
             "required": false,
             "type": "int"
           },
@@ -4522,29 +4419,29 @@
             "type": "int"
           },
           {
-            "default": "list",
-            "description": "How the event JSON is stored under `key`: `list` appends with `RPUSH`, `hashmap` sets the event UUID field with `HSET`, `stream` adds an entry with field `event` with `XADD`.",
+            "default": "stream",
+            "description": "How the event JSON is stored under `key`: `stream` adds an entry with field `event` with `XADD`, `list` appends with `RPUSH`, `hash` sets the event UUID field with `HSET`.",
             "label": "Storage Type",
             "name": "storage_type",
             "required": false,
             "type": "enum",
             "values": [
+              "stream",
               "list",
-              "hashmap",
-              "stream"
+              "hash"
             ]
           },
           {
-            "default": "falco",
-            "description": "Name of the list, hash or stream that receives the events.",
+            "description": "Name of the stream, list or hash that receives the events.",
             "label": "Key",
             "name": "key",
-            "required": false,
+            "required": true,
+            "suggested": "falco",
             "type": "string"
           },
           {
-            "default": 0,
-            "description": "Approximate stream length kept by `XADD MAXLEN ~`, trimming the oldest entries. Only with `storage_type` `stream`.",
+            "default": 100000,
+            "description": "Approximate stream length kept by `XADD MAXLEN ~`, trimming the oldest entries; `0` keeps every entry. Only with `storage_type` `stream`.",
             "label": "Approximate Stream Length Cap (0 = unbounded)",
             "name": "max_len",
             "required": false,
@@ -4552,9 +4449,9 @@
           },
           {
             "default": false,
-            "description": "Connects to Redis over TLS. `tls` settings are refused unless this is set.",
+            "description": "Connects over TLS. The other `tls` settings are refused unless this is set.",
             "label": "Enable TLS",
-            "name": "tls_enabled",
+            "name": "tls.enabled",
             "required": false,
             "type": "bool"
           },
@@ -4783,37 +4680,8 @@
             "type": "map"
           },
           {
-            "description": "Channel the messages are posted to, such as `#falco`, when the webhook allows it. Empty uses the webhook's channel.",
-            "label": "Channel",
-            "name": "channel",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "description": "Name shown as the sender of the messages, when the webhook allows it. Empty uses the webhook's name.",
-            "label": "Bot Username",
-            "name": "bot_username",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "description": "URL of the image shown as the sender icon. Empty uses the webhook's icon.",
-            "label": "Icon URL",
-            "name": "icon_url",
-            "required": false,
-            "suggested": "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
-            "type": "string"
-          },
-          {
-            "description": "Emoji shown as the sender icon, written as `:name:`. Empty uses the webhook's icon.",
-            "label": "Icon Emoji (e.g., :ghost:)",
-            "name": "icon_emoji",
-            "required": false,
-            "type": "string"
-          },
-          {
             "default": "all",
-            "description": "Content of the attachment: `text` is the event output text, `fields` lists rule, priority, source, hostname, tags, output fields and time, `all` shows both.",
+            "description": "Content under the rule heading: `text` is the event output text, `fields` lists rule, priority, source, hostname, tags, time and output fields, `all` shows both.",
             "label": "Output Format",
             "name": "output_format",
             "required": false,
@@ -4825,14 +4693,14 @@
             ]
           },
           {
-            "description": "Go template for a message text shown above the attachment, applied to the event, such as `Rule {{ .Rule }} on {{ .Hostname }}`. Empty sends no message text.",
+            "description": "Go template for the message text, which notifications show, applied to the event, such as `Rule {{ .Rule }} on {{ .Hostname }}`. Empty, or a template that fails, sends `[Priority] rule on hostname`.",
             "label": "Message Template",
-            "name": "message_format",
+            "name": "message_template",
             "required": false,
             "type": "string"
           },
           {
-            "description": "Text shown under the attachment, cut to 300 characters. Empty shows no footer.",
+            "description": "Slack markup shown at the bottom of the attachment, cut to 300 characters. Empty shows no footer.",
             "label": "Footer",
             "name": "footer",
             "required": false,
@@ -5069,7 +4937,7 @@
           },
           {
             "default": "plain",
-            "description": "`plain` needs user and password, `xoauth2` needs user and token with `starttls` or `implicit`, `none` sends no credentials. Credentials go only over TLS, except to localhost.",
+            "description": "`plain` needs username and password, `xoauth2` needs username and token with `starttls` or `implicit`, `none` sends no credentials. Credentials go only over TLS, except to localhost.",
             "label": "SASL Mechanism",
             "name": "auth_mechanism",
             "required": false,
@@ -5082,8 +4950,8 @@
           },
           {
             "description": "Account name for `plain` or `xoauth2` authentication.",
-            "label": "User",
-            "name": "user",
+            "label": "Username",
+            "name": "username",
             "required": false,
             "type": "string"
           },
@@ -5282,28 +5150,27 @@
             "type": "string"
           },
           {
-            "description": "Receiver port. Empty or `0` uses `514`, or `6514` with protocol `tls`.",
-            "label": "Port (514, or 6514 with tls)",
+            "description": "Receiver port. Empty or `0` uses `514`, or `6514` with `tls.enabled`.",
+            "label": "Port (514, or 6514 with TLS)",
             "name": "port",
             "required": false,
             "type": "int"
           },
           {
             "default": "tcp",
-            "description": "Transport for RFC 5424 messages. `tcp` and `tls` keep one connection with octet-counting framing; `tls` is required for `tls` settings.",
+            "description": "Transport for RFC 5424 messages. `tcp` keeps one connection with octet-counting framing, over TLS (RFC 5425) with `tls.enabled`; `udp` sends one datagram per message and cannot use TLS.",
             "label": "Protocol",
             "name": "protocol",
             "required": false,
             "type": "enum",
             "values": [
               "tcp",
-              "udp",
-              "tls"
+              "udp"
             ]
           },
           {
             "default": "json",
-            "description": "Message body: the event JSON, or ArcSight CEF.",
+            "description": "Message body: the event JSON, or ArcSight CEF with the output fields in `cs1` to `cs6` and `FalcoFalcosidekick` keys.",
             "label": "Message Format",
             "name": "format",
             "required": false,
@@ -5342,6 +5209,14 @@
               "user",
               "uucp"
             ]
+          },
+          {
+            "default": false,
+            "description": "Connects over TLS. The other `tls` settings are refused unless this is set.",
+            "label": "Enable TLS",
+            "name": "tls.enabled",
+            "required": false,
+            "type": "bool"
           },
           {
             "default": false,
@@ -5805,9 +5680,9 @@
             "type": "map"
           },
           {
-            "description": "Absolute http or https URL of the image shown in the card header. Empty shows no image.",
-            "label": "Activity Image URL",
-            "name": "activity_image",
+            "description": "Absolute http or https URL of the image shown beside the card heading. Empty shows no image.",
+            "label": "Icon URL",
+            "name": "icon_url",
             "required": false,
             "suggested": "https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png",
             "type": "string"

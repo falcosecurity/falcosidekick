@@ -2,6 +2,9 @@
 
 Posts each event to a formatted webhook integration of Grafana OnCall OSS (archived on 2026-03-24) or Grafana Cloud IRM, which use the same format. The token path goes in `secret_endpoint`; `bearer_token` sends a service account token when the integration requires one. Not probed at startup.
 
+- The payload has the format's `alert_uid` (the event UUID), `state` (`alerting`), `title` (`[Priority] rule`) and `message` (the output).
+- It also carries `priority` (as Falco writes it, such as `Warning`), `rule`, `source`, `hostname`, `tags` and `output_fields`, so routing and grouping templates can match them, for example `{{ payload.priority == "Critical" }}`. `hostname`, `tags` and `output_fields` are left out when the event has none.
+
 ## Example
 
 <!-- example -->

@@ -39,7 +39,6 @@ const (
 
 	protocolUDP = "udp"
 	protocolTCP = "tcp"
-	protocolTLS = "tls"
 
 	formatJSON = "json"
 	formatCEF  = "cef"
@@ -57,13 +56,13 @@ const (
 var errClosed = errors.New("output closed")
 
 type config struct {
-	TLS      shared.TLSClientConfig `mapstructure:"tls"`
-	Host     string                 `mapstructure:"host"`
-	Protocol string                 `mapstructure:"protocol"`
-	Format   string                 `mapstructure:"format"`
-	Facility string                 `mapstructure:"facility"`
-	Runtime  output.RuntimeConfig   `mapstructure:"runtime"`
-	Port     int                    `mapstructure:"port"`
+	TLS      shared.OptionalTLSConfig `mapstructure:"tls"`
+	Host     string                   `mapstructure:"host"`
+	Protocol string                   `mapstructure:"protocol"`
+	Format   string                   `mapstructure:"format"`
+	Facility string                   `mapstructure:"facility"`
+	Runtime  output.RuntimeConfig     `mapstructure:"runtime"`
+	Port     int                      `mapstructure:"port"`
 }
 
 // OutputType describes the Syslog output for the catalog.
@@ -78,23 +77,24 @@ var OutputType = output.Type{
 				Description: "Syslog receiver host name or IP address, without scheme, port or path.",
 			},
 			{
-				Name: "port", Type: "int", Label: "Port (514, or 6514 with tls)",
-				Description: "Receiver port. Empty or `0` uses `514`, or `6514` with protocol `tls`.",
+				Name: "port", Type: "int", Label: "Port (514, or 6514 with TLS)",
+				Description: "Receiver port. Empty or `0` uses `514`, or `6514` with `tls.enabled`.",
 			},
 			{
-				Name: "protocol", Type: "enum", Values: []string{protocolTCP, protocolUDP, protocolTLS}, Default: protocolTCP, Label: "Protocol",
-				Description: "Transport for RFC 5424 messages. `tcp` and `tls` keep one connection with octet-counting framing; " +
-					"`tls` is required for `tls` settings.",
+				Name: "protocol", Type: "enum", Values: []string{protocolTCP, protocolUDP}, Default: protocolTCP, Label: "Protocol",
+				Description: "Transport for RFC 5424 messages. `tcp` keeps one connection with octet-counting framing, " +
+					"over TLS (RFC 5425) with `tls.enabled`; `udp` sends one datagram per message and cannot use TLS.",
 			},
 			{
 				Name: "format", Type: "enum", Values: []string{formatJSON, formatCEF}, Default: formatJSON, Label: "Message Format",
-				Description: "Message body: the event JSON, or ArcSight CEF.",
+				Description: "Message body: the event JSON, or ArcSight CEF with the output fields in `cs1` to `cs6` and " +
+					"`FalcoFalcosidekick` keys.",
 			},
 			{
 				Name: "facility", Type: "enum", Values: shared.SortMapKeys(facilities), Default: defaultFacility, Label: "Facility",
 				Description: "Syslog facility of every message; the severity follows the Falco priority.",
 			},
-		}, append(shared.TLSClientSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
+		}, append(shared.OptionalTLSSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
 }
 
@@ -122,13 +122,13 @@ func (c *config) validate() utils.ValidationErrors {
 		c.Protocol = protocolTCP
 	}
 	switch c.Protocol {
-	case protocolTCP, protocolUDP, protocolTLS:
+	case protocolTCP, protocolUDP:
 	default:
-		errs.Add("protocol", "must be tcp/udp/tls")
+		errs.Add("protocol", "must be tcp/udp")
 	}
 	if c.Port == 0 {
 		c.Port = defaultPort
-		if c.Protocol == protocolTLS {
+		if c.TLS.Enabled {
 			c.Port = defaultTLSPort
 		}
 	} else if c.Port < 1 || c.Port > 65535 {
@@ -144,8 +144,8 @@ func (c *config) validate() utils.ValidationErrors {
 	} else if _, ok := facilities[c.Facility]; !ok {
 		errs.Add("facility", "must be one of "+strings.Join(shared.SortMapKeys(facilities), "/"))
 	}
-	if c.Protocol != protocolTLS && c.TLS != (shared.TLSClientConfig{}) {
-		errs.Add("tls", "requires protocol tls")
+	if c.Protocol == protocolUDP && c.TLS.Enabled {
+		errs.Add("tls.enabled", "requires protocol tcp")
 	}
 	errs.Merge("tls", c.TLS.Validate())
 	if len(errs) > 0 {
@@ -176,15 +176,14 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	}
 
 	netDialer := &net.Dialer{Timeout: ioTimeout}
-	switch cfg.Protocol {
-	case protocolTLS:
-		tlsCfg, err := shared.BuildTLSConfig(&cfg.TLS)
-		if err != nil {
-			return nil, fmt.Errorf("%s tls: %w", name, err)
-		}
+	tlsCfg, err := cfg.TLS.Build()
+	if err != nil {
+		return nil, fmt.Errorf("%s tls: %w", name, err)
+	}
+	if tlsCfg != nil {
 		tlsDialer := &tls.Dialer{NetDialer: netDialer, Config: tlsCfg}
-		d.dial = func(ctx context.Context) (net.Conn, error) { return tlsDialer.DialContext(ctx, "tcp", address) }
-	default:
+		d.dial = func(ctx context.Context) (net.Conn, error) { return tlsDialer.DialContext(ctx, protocolTCP, address) }
+	} else {
 		network := cfg.Protocol
 		d.dial = func(ctx context.Context) (net.Conn, error) { return netDialer.DialContext(ctx, network, address) }
 	}

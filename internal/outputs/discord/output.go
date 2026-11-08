@@ -37,7 +37,7 @@ const (
 var targetOptions = shared.HTTPTargetOptions{DefaultHost: "https://discord.com", SecretEndpointRequired: true}
 
 type config struct {
-	Icon                    string `mapstructure:"icon"`
+	AvatarURL               string `mapstructure:"avatar_url"`
 	shared.HTTPTargetConfig `mapstructure:",squash"`
 	shared.HTTPConfig       `mapstructure:",squash"`
 	Runtime                 output.RuntimeConfig `mapstructure:"runtime"`
@@ -50,7 +50,7 @@ var OutputType = output.Type{
 	Category: output.CategoryChat,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), output.SchemaField{
-			Name: "icon", Type: "string", Suggested: shared.FalcosidekickIconURL, Label: "Avatar URL",
+			Name: "avatar_url", Type: "string", Suggested: shared.FalcosidekickIconURL, Label: "Avatar URL",
 			Description: "Absolute http or https URL of the image shown as the avatar of every message. Empty uses the webhook's avatar.",
 		}), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
@@ -66,8 +66,8 @@ func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	errs.Merge("", c.HTTPConfig.Validate())
 	errs.Merge("", c.HTTPTargetConfig.Validate(&targetOptions))
-	if c.Icon != "" && !shared.IsAbsoluteHTTPURL(c.Icon) {
-		errs.Add("icon", "must be an absolute http or https URL")
+	if c.AvatarURL != "" && !shared.IsAbsoluteHTTPURL(c.AvatarURL) {
+		errs.Add("avatar_url", "must be an absolute http or https URL")
 	}
 	if _, ok := c.QueryParams[waitParam]; ok {
 		errs.Add(fmt.Sprintf("query_params[%q]", waitParam), "is set by the output")

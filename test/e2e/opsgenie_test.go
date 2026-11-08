@@ -148,9 +148,9 @@ func TestOpsgenieDeliversAlert(t *testing.T) {
 	assert.Equal(t, 1, probes, "startup probes the key once")
 	require.Len(t, alerts, 1)
 	a := alerts[0]
-	assert.Equal(t, "e2e event "+marker, a.Message)
-	assert.Equal(t, "E2E "+marker, a.Description)
-	assert.Equal(t, "Falcosidekick", a.Entity)
+	assert.Equal(t, "E2E "+marker, a.Message)
+	assert.Equal(t, "e2e event "+marker, a.Description)
+	assert.Equal(t, "e2e-host", a.Entity)
 	assert.Equal(t, "P4", a.Priority)
 	assert.NotEmpty(t, a.Alias)
 	assert.Equal(t, []string{"e2e"}, a.Tags)

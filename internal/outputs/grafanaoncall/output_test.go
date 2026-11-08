@@ -125,21 +125,43 @@ func TestSchema(t *testing.T) {
 func TestBuildPayload(t *testing.T) {
 	evt := testutil.CreateValidEvent()
 	got := buildPayload(evt)
-	assert.Equal(t, payload{
-		AlertUID: "test-uuid-001",
-		State:    "alerting",
-		Title:    "[Error] Write below binary dir",
-		Message:  "File below a known binary directory opened for writing",
-	}, got)
-
 	raw, err := json.Marshal(got)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{
 		"alert_uid": "test-uuid-001",
 		"state": "alerting",
 		"title": "[Error] Write below binary dir",
-		"message": "File below a known binary directory opened for writing"
+		"message": "File below a known binary directory opened for writing",
+		"priority": "Error",
+		"rule": "Write below binary dir",
+		"source": "syscall",
+		"hostname": "node-1",
+		"tags": ["filesystem", "mitre_persistence"],
+		"output_fields": {"fd.name": "/bin/hack", "proc.cmdline": "touch /bin/hack", "user.name": "root"}
 	}`, string(raw))
+}
+
+func TestBuildPayloadOmitsAbsentKeys(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	evt.Hostname, evt.Tags, evt.OutputFields = "", nil, map[string]any{}
+	raw, err := json.Marshal(buildPayload(evt))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+		"alert_uid": "test-uuid-001",
+		"state": "alerting",
+		"title": "[Error] Write below binary dir",
+		"message": "File below a known binary directory opened for writing",
+		"priority": "Error",
+		"rule": "Write below binary dir",
+		"source": "syscall"
+	}`, string(raw))
+}
+
+func TestBuildPayloadSortsTagsWithoutReorderingTheEvent(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	evt.Tags = []string{"z", "a"}
+	assert.Equal(t, []string{"a", "z"}, buildPayload(evt).Tags)
+	assert.Equal(t, []string{"z", "a"}, evt.Tags)
 }
 
 func TestBuildPayloadTitlePerPriority(t *testing.T) {
@@ -179,10 +201,16 @@ func TestSendDelivers(t *testing.T) {
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(req.Body, &got))
 	assert.Equal(t, map[string]any{
-		"alert_uid": "test-uuid-001",
-		"state":     "alerting",
-		"title":     "[Error] Write below binary dir",
-		"message":   "File below a known binary directory opened for writing",
+		"alert_uid":     "test-uuid-001",
+		"state":         "alerting",
+		"title":         "[Error] Write below binary dir",
+		"message":       "File below a known binary directory opened for writing",
+		"priority":      "Error",
+		"rule":          "Write below binary dir",
+		"source":        "syscall",
+		"hostname":      "node-1",
+		"tags":          []any{"filesystem", "mitre_persistence"},
+		"output_fields": map[string]any{"fd.name": "/bin/hack", "proc.cmdline": "touch /bin/hack", "user.name": "root"},
 	}, got)
 }
 

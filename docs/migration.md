@@ -43,17 +43,22 @@ v3 splits every address into public and secret parts, so tokens in a URL never a
 | CloudEvents | `address: http://broker/path` | `host: http://broker`, `endpoint: /path` |
 | PagerDuty | `routingkey`, `region` | `routing_key` (secret), `region` |
 | Opsgenie | `apikey`, `region` | `api_key` (secret), `region` |
-| Datadog | `apikey`, `host` | `api_key` (secret), `site` or `host`; optional `app_key` for Events API v2 |
+| Datadog | `apikey`, `host` | `api_key` and `app_key` (secrets, both required: Events API v2), `site` or `host` |
 | AWS | `aws.accesskeyid`, `aws.secretaccesskey`, `aws.region`, `aws.rolearn`, `aws.externalid` | the same fields on each output, snake_case: `access_key_id`, `secret_access_key`, `region`, `role_arn`, `external_id` |
 | S3 | `aws.s3.bucket`, `aws.s3.prefix`, `aws.s3.objectcannedacl` | `awss3.bucket`, `prefix`, `object_canned_acl` |
 | SQS | `aws.sqs.url` | `awssqs.queue_url` |
-| SNS | `aws.sns.topicarn`, `aws.sns.rawjson` | `awssns.topic_arn`, `raw_json` |
-| Pub/Sub | `gcp.credentials`, `gcp.pubsub.projectid`, `gcp.pubsub.topic`, `gcp.pubsub.customattributes` | `gcppubsub.credentials` (secret, raw or base64 JSON), `project_id`, `topic`, `custom_attributes` |
-| Syslog | `syslog.host`, `port`, `protocol`, `format` | `host`, `port`, `protocol` (`tcp`, `udp`, `tls`), `format`, `facility` |
-| SMTP | `smtp.hostport`, `tls`, `authmechanism`, `to: "a@x,b@x"` | `host`, `port`, `tls_mode`, `auth_mechanism`, `to: [a@x, b@x]` |
-| Redis | `redis.address`, `storagetype` | `address`, `storage_type` |
-| OTLP | `otlp.traces.endpoint`, `extraenvvars` | `otlp.traces.endpoint`, `protocol`, `timeout`, `compression`; the same for `logs` and `metrics` |
-| PolicyReport | `falconamespace`, `maxevents`, `prunebypriority` | `falco_namespace`, `max_events`, `prune_by_priority` |
+| SNS | `aws.sns.topicarn`, `aws.sns.rawjson` | `awssns.topic_arn`, `format` (`json`, the default, or `text`) |
+| Pub/Sub | `gcp.credentials`, `gcp.pubsub.projectid`, `gcp.pubsub.topic`, `gcp.pubsub.customattributes` | `gcppubsub.credentials` (secret, JSON key), `project_id`, `topic`, `attributes`, plus `message_attributes` |
+| Syslog | `syslog.host`, `port`, `protocol`, `format` | `host`, `port`, `protocol` (`tcp`, `udp`), `tls.enabled`, `format`, `facility` |
+| SMTP | `smtp.hostport`, `tls`, `user`, `authmechanism`, `to: "a@x,b@x"` | `host`, `port`, `tls_mode`, `username`, `auth_mechanism`, `to: [a@x, b@x]` |
+| Redis | `redis.address`, `storagetype`, `key` | `address`, `storage_type` (`stream` by default, `list`, `hash`), `key` (required) |
+| Kafka | `kafka.sasl`, `kafka.async` | `auth.sasl` (`PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`), `tls.enabled`; `async` is removed |
+| Loki | `loki.extralabels` | `label_fields`, a list |
+| Slack | `channel`, `username`, `icon`, `messageformat` | `message_template`; Slack-app webhooks ignore the sender overrides, so they are gone |
+| Discord | `icon` | `avatar_url` |
+| Teams | `activityimage` | `icon_url` |
+| OTLP | `otlp.traces.endpoint`, `extraenvvars` | `otlp.logs.endpoint`, `protocol`, `timeout`, `compression`; the same for `metrics`. Traces are removed |
+| PolicyReport | `falconamespace`, `maxevents`, `prunebypriority` | `fallback_namespace`, `max_results`, `prune_by_priority` |
 
 `customheaders` becomes `headers` with `values`, `secrets` or `files`; `checkcert: false` becomes `tls.insecure_skip_verify: true`; `minimumpriority` becomes `runtime.minimum_priority`.
 
@@ -73,7 +78,7 @@ v2 also added hostname, Kubernetes namespace and pod, custom fields and template
 
 - Startup now fails when a destination rejects credentials, answers 404 on its probe or presents an untrusted certificate. v2 started anyway.
 - Delivery retries only failures that a later attempt can fix; a rejected event (for example HTTP 400 or 401) fails at once. See [configuration](configuration.md).
-- Alertmanager label values, including `alertname` and `rule`, are sent unchanged, as in v2.
+- Alertmanager label values, including `alertname`, are sent unchanged, as in v2. The `rule` label, a copy of `alertname`, is gone, and invalid `extra_labels` names are refused instead of rewritten.
 - Elasticsearch documents use the event UUID as id.
 - Teams sends Adaptive Cards to Workflows webhooks; the retired MessageCard format is gone. `output_format: facts` is now `fields`.
 - PagerDuty: severity follows the Falco priority (v2 always sent `critical`), `source` is the hostname, the event details are sent (v2 built them but dropped them), and `region: eu` now reaches the EU host (v2 always used the US host).

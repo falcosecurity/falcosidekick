@@ -123,7 +123,7 @@ func TestPriorityMapping(t *testing.T) {
 	}
 }
 
-func TestBuildAlertV2Parity(t *testing.T) {
+func TestBuildAlert(t *testing.T) {
 	evt := &event.Event{
 		Time:         time.Date(2001, 1, 1, 1, 10, 0, 0, time.UTC),
 		Output:       "This is a test from falcosidekick",
@@ -136,9 +136,9 @@ func TestBuildAlertV2Parity(t *testing.T) {
 	}
 	got := buildAlert(evt)
 	assert.Equal(t, alert{
-		Message:     "This is a test from falcosidekick",
-		Entity:      "Falcosidekick",
-		Description: "Test rule",
+		Message:     "Test rule",
+		Entity:      "test-host",
+		Description: "This is a test from falcosidekick",
 		Details: map[string]string{
 			"hostname":  "test-host",
 			"priority":  "Debug",
@@ -155,7 +155,9 @@ func TestBuildAlertV2Parity(t *testing.T) {
 
 func TestBuildAlertLimits(t *testing.T) {
 	evt := testutil.CreateValidEvent()
-	evt.Output = strings.Repeat("ö", 200)
+	evt.Rule = strings.Repeat("r", maxMessageRunes+1)
+	evt.Output = strings.Repeat("ö", maxDescriptionRunes+1)
+	evt.Hostname = strings.Repeat("h", maxEntityRunes+1)
 	evt.Tags = []string{""}
 	for range 25 {
 		evt.Tags = append(evt.Tags, strings.Repeat("t", 60))
@@ -163,6 +165,9 @@ func TestBuildAlertLimits(t *testing.T) {
 	got := buildAlert(evt)
 	assert.Len(t, []rune(got.Message), maxMessageRunes)
 	assert.True(t, strings.HasSuffix(got.Message, "..."))
+	assert.Len(t, []rune(got.Description), maxDescriptionRunes)
+	assert.True(t, strings.HasSuffix(got.Description, "..."))
+	assert.Len(t, []rune(got.Entity), maxEntityRunes)
 	assert.Equal(t, "test-uuid-001", got.Alias)
 	require.Len(t, got.Tags, maxTags)
 	for _, tag := range got.Tags {
@@ -170,10 +175,14 @@ func TestBuildAlertLimits(t *testing.T) {
 	}
 
 	evt.Output = ""
+	evt.Hostname = ""
 	evt.UUID = strings.Repeat("u", maxAliasLen+1)
 	evt.Tags = nil
 	got = buildAlert(evt)
-	assert.Equal(t, evt.Rule, got.Message)
+	body, err := json.Marshal(got)
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), `"entity"`, "no hostname sends no entity")
+	assert.NotContains(t, string(body), `"description"`)
 	assert.Empty(t, got.Alias)
 	assert.Nil(t, got.Tags)
 }
@@ -221,9 +230,10 @@ func TestSendDelivers(t *testing.T) {
 	var body map[string]any
 	require.NoError(t, json.Unmarshal(c.Body, &body))
 	assert.Equal(t, "P3", body["priority"])
-	assert.Equal(t, "Falcosidekick", body["entity"])
+	assert.Equal(t, "Write below binary dir", body["message"])
+	assert.Equal(t, "node-1", body["entity"])
 	assert.Equal(t, "test-uuid-001", body["alias"])
-	assert.Equal(t, "Write below binary dir", body["description"])
+	assert.Equal(t, "File below a known binary directory opened for writing", body["description"])
 	assert.NotContains(t, string(c.Body), testKey)
 	assert.NoError(t, d.Close())
 }

@@ -17,45 +17,53 @@
 package shared
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 )
 
-var priorityColors = map[event.Priority]string{
-	event.PriorityEmergency:     "#e20b0b",
-	event.PriorityAlert:         "#ff5400",
-	event.PriorityCritical:      "#ff5400",
-	event.PriorityError:         "#e20b0b",
-	event.PriorityWarning:       "#ffc700",
-	event.PriorityNotice:        "#68c2ff",
-	event.PriorityInformational: "#68c2ff",
-	event.PriorityDebug:         "#ccfff2",
+// Tone is the band of a priority color, for clients that offer named styles instead of colors.
+type Tone int
+
+// Tones in rising severity.
+const (
+	ToneNeutral Tone = iota
+	ToneInfo
+	ToneWarning
+	ToneDanger
+)
+
+type paletteEntry struct {
+	rgb  int
+	tone Tone
 }
 
-var prioritySeverity = map[string]string{
-	"emergency":     "critical",
-	"alert":         "critical",
-	"critical":      "critical",
-	"error":         "warning",
-	"warning":       "warning",
-	"notice":        "information",
-	"informational": "information",
-	"debug":         "information",
+// palette rises with severity: grey, blues, yellow, orange, then reds that darken up to emergency.
+var palette = map[event.Priority]paletteEntry{
+	event.PriorityDebug:         {rgb: 0x9e9e9e, tone: ToneNeutral},
+	event.PriorityInformational: {rgb: 0x68c2ff, tone: ToneInfo},
+	event.PriorityNotice:        {rgb: 0x1e88e5, tone: ToneInfo},
+	event.PriorityWarning:       {rgb: 0xffc700, tone: ToneWarning},
+	event.PriorityError:         {rgb: 0xff8c00, tone: ToneWarning},
+	event.PriorityCritical:      {rgb: 0xf4511e, tone: ToneDanger},
+	event.PriorityAlert:         {rgb: 0xd50000, tone: ToneDanger},
+	event.PriorityEmergency:     {rgb: 0x8b0000, tone: ToneDanger},
 }
 
-// PriorityColor returns the hex color code for a priority level.
-func PriorityColor(p event.Priority) string {
-	if c, ok := priorityColors[p]; ok {
-		return c
+// paletteFor returns the entry of p in any casing; an unknown priority gets the debug entry.
+func paletteFor(p event.Priority) paletteEntry {
+	if e, ok := palette[event.Priority(strings.ToLower(string(p)))]; ok {
+		return e
 	}
-	return "#cccccc"
+	return palette[event.PriorityDebug]
 }
 
-// PrioritySeverity returns the collapsed severity label for a priority.
-func PrioritySeverity(p event.Priority) string {
-	if s, ok := prioritySeverity[strings.ToLower(string(p))]; ok {
-		return s
-	}
-	return "information"
-}
+// PriorityRGB returns the color of a priority as a 0xRRGGBB integer.
+func PriorityRGB(p event.Priority) int { return paletteFor(p).rgb }
+
+// PriorityColor returns the color of a priority as a "#rrggbb" hex code.
+func PriorityColor(p event.Priority) string { return fmt.Sprintf("#%06x", paletteFor(p).rgb) }
+
+// PriorityTone returns the band of the color of a priority.
+func PriorityTone(p event.Priority) Tone { return paletteFor(p).tone }

@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -100,7 +102,10 @@ func TestSchema(t *testing.T) {
 	assert.True(t, fields["topic"].Required)
 	assert.True(t, fields["credentials"].Secret)
 	assert.False(t, fields["credentials"].Required)
-	assert.Equal(t, "map", fields["custom_attributes"].Type)
+	assert.Equal(t, "map", fields["attributes"].Type)
+	assert.NotContains(t, fields, "custom_attributes")
+	assert.Equal(t, "string[]", fields["message_attributes"].Type)
+	assert.Equal(t, []string{"priority", "rule", "source", "tags", "hostname"}, fields["message_attributes"].Default)
 	assert.Contains(t, fields, "endpoint")
 	assert.Contains(t, fields, "emulator_host")
 	assert.Contains(t, fields, "runtime.minimum_priority")
@@ -120,7 +125,8 @@ func TestConfigValidation(t *testing.T) {
 		{name: "minimal", cfg: map[string]any{"project_id": "p", "topic": "falco"}},
 		{name: "all fields", cfg: map[string]any{
 			"project_id": "p", "topic": "falco.events_1", "endpoint": "europe-west1-pubsub.googleapis.com:443",
-			"custom_attributes": map[string]any{"env": "prod", "n": 1}, "credentials": serviceAccountJSON,
+			"attributes": map[string]any{"env": "prod", "n": 1}, "credentials": serviceAccountJSON,
+			"message_attributes": []any{"priority", "k8s.ns.name"},
 		}},
 		{name: "emulator", cfg: map[string]any{"project_id": "p", "topic": "falco", "emulator_host": "localhost:8085"}},
 		{name: "missing project", cfg: map[string]any{"topic": "falco"}, wantErr: "project_id: is required"},
@@ -135,13 +141,27 @@ func TestConfigValidation(t *testing.T) {
 		{name: "emulator without port", cfg: map[string]any{"project_id": "p", "topic": "falco", "emulator_host": "localhost"}, wantErr: "emulator_host:"},
 		{name: "emulator with endpoint", cfg: map[string]any{"project_id": "p", "topic": "falco", "emulator_host": "localhost:8085", "endpoint": "pubsub.googleapis.com:443"}, wantErr: "emulator_host: cannot be combined with endpoint"},
 		{name: "emulator with credentials", cfg: map[string]any{"project_id": "p", "topic": "falco", "emulator_host": "localhost:8085", "credentials": serviceAccountJSON}, wantErr: "emulator_host: cannot be combined with credentials"},
-		{name: "empty attribute name", cfg: map[string]any{"project_id": "p", "topic": "falco", "custom_attributes": map[string]any{"": "v"}}, wantErr: "attribute names must not be empty"},
-		{name: "reserved attribute", cfg: map[string]any{"project_id": "p", "topic": "falco", "custom_attributes": map[string]any{"googkey": "v"}}, wantErr: "reserved"},
-		{name: "long attribute name", cfg: map[string]any{"project_id": "p", "topic": "falco", "custom_attributes": map[string]any{longKey: "v"}}, wantErr: "name exceeds 256 bytes"},
-		{name: "long attribute value", cfg: map[string]any{"project_id": "p", "topic": "falco", "custom_attributes": map[string]any{"k": strings.Repeat("v", maxAttributeValBytes+1)}}, wantErr: "value exceeds 1024 bytes"},
-		{name: "too many attributes", cfg: map[string]any{"project_id": "p", "topic": "falco", "custom_attributes": tooMany}, wantErr: "at most 100 attributes"},
+		{name: "empty attribute name", cfg: map[string]any{"project_id": "p", "topic": "falco", "attributes": map[string]any{"": "v"}}, wantErr: "attributes: attribute names must not be empty"},
+		{name: "reserved attribute", cfg: map[string]any{"project_id": "p", "topic": "falco", "attributes": map[string]any{"googkey": "v"}}, wantErr: "reserved"},
+		{name: "long attribute name", cfg: map[string]any{"project_id": "p", "topic": "falco", "attributes": map[string]any{longKey: "v"}}, wantErr: "name exceeds 256 bytes"},
+		{name: "long attribute value", cfg: map[string]any{"project_id": "p", "topic": "falco", "attributes": map[string]any{"k": strings.Repeat("v", maxAttributeValBytes+1)}}, wantErr: "value exceeds 1024 bytes"},
+		{name: "too many attributes", cfg: map[string]any{"project_id": "p", "topic": "falco", "attributes": tooMany}, wantErr: "at most 100 attributes"},
 		{name: "unknown key", cfg: map[string]any{"project_id": "p", "topic": "falco", "projectid": "p"}, wantErr: "unknown keys"},
-		{name: "attributes not a map", cfg: map[string]any{"project_id": "p", "topic": "falco", "custom_attributes": "a=b"}, wantErr: "custom_attributes"},
+		{name: "attributes not a map", cfg: map[string]any{"project_id": "p", "topic": "falco", "attributes": "a=b"}, wantErr: "attributes"},
+		{name: "custom_attributes is refused", cfg: map[string]any{"project_id": "p", "topic": "falco", "custom_attributes": map[string]any{"env": "prod"}}, wantErr: "unknown keys: custom_attributes"},
+		{name: "reserved message attribute", cfg: map[string]any{"project_id": "p", "topic": "falco", "message_attributes": []any{"goog.x"}},
+			wantErr: `message_attributes: "goog.x": names starting with goog are reserved`},
+		{name: "empty message attribute", cfg: map[string]any{"project_id": "p", "topic": "falco", "message_attributes": []any{""}},
+			wantErr: `message_attributes: "": attribute names must not be empty`},
+		{name: "long message attribute", cfg: map[string]any{"project_id": "p", "topic": "falco", "message_attributes": []any{longKey}},
+			wantErr: "message_attributes: \"" + longKey + "\": name exceeds 256 bytes"},
+		{name: "repeated message attribute", cfg: map[string]any{"project_id": "p", "topic": "falco", "message_attributes": []any{"rule", "rule"}},
+			wantErr: `message_attributes: "rule" is listed twice`},
+		{name: "message attribute also static", cfg: map[string]any{"project_id": "p", "topic": "falco", "attributes": map[string]any{"rule": "x"}},
+			wantErr: `message_attributes: "rule" is also a static attribute`},
+		{name: "too many with message attributes", cfg: map[string]any{"project_id": "p", "topic": "falco", "attributes": dropLast(tooMany, 5)},
+			wantErr: "message_attributes: at most 100 attributes together with attributes"},
+		{name: "100 attributes", cfg: map[string]any{"project_id": "p", "topic": "falco", "attributes": dropLast(tooMany, 6)}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -157,6 +177,17 @@ func TestConfigValidation(t *testing.T) {
 	}
 }
 
+// dropLast returns m without its last n entries in key order.
+func dropLast(m map[string]any, n int) map[string]any {
+	out := map[string]any{}
+	for i, k := range slices.Sorted(maps.Keys(m)) {
+		if i < len(m)-n {
+			out[k] = m[k]
+		}
+	}
+	return out
+}
+
 func TestCredentials(t *testing.T) {
 	encoded := base64.StdEncoding.EncodeToString([]byte(serviceAccountJSON))
 	tests := []struct {
@@ -166,8 +197,8 @@ func TestCredentials(t *testing.T) {
 		want    string
 	}{
 		{name: "raw JSON", value: serviceAccountJSON, want: "service_account"},
-		{name: "base64", value: encoded, want: "service_account"},
-		{name: "base64 with newline", value: encoded + "\n", want: "service_account"},
+		{name: "raw JSON with newline", value: serviceAccountJSON + "\n", want: "service_account"},
+		{name: "base64 is refused", value: encoded, wantErr: "must be a credentials JSON document"},
 		{name: "external account", value: `{"type":"external_account","audience":"a"}`, want: "external_account"},
 		{name: "authorized user", value: `{"type":"authorized_user"}`, want: "authorized_user"},
 		{name: "impersonated", value: `{"type":"impersonated_service_account"}`, want: "impersonated_service_account"},
@@ -225,7 +256,7 @@ func TestNotReadyBeforeInit(t *testing.T) {
 func TestSendPublishesEventWithAttributes(t *testing.T) {
 	srv := fakeServer(t)
 	cfg := emulatorConfig(srv)
-	cfg["custom_attributes"] = map[string]any{"env": "prod", "cluster": "eu-1"}
+	cfg["attributes"] = map[string]any{"env": "prod", "cluster": "eu-1"}
 	d := initDriver(t, cfg)
 
 	evt := testutil.CreateValidEvent()
@@ -238,16 +269,43 @@ func TestSendPublishesEventWithAttributes(t *testing.T) {
 	assert.Equal(t, evt.Rule, got.Rule)
 	assert.Equal(t, evt.Priority, got.Priority)
 	assert.Equal(t, evt.Output, got.Output)
-	assert.Equal(t, map[string]string{"env": "prod", "cluster": "eu-1"}, msgs[0].Attributes)
+	assert.Equal(t, map[string]string{
+		"env": "prod", "cluster": "eu-1",
+		"priority": "Error", "rule": evt.Rule, "source": "syscall", "tags": "filesystem,mitre_persistence", "hostname": "node-1",
+	}, msgs[0].Attributes, "static attributes and, by default, the five event attributes")
+}
+
+func TestSendMessageAttributes(t *testing.T) {
+	srv := fakeServer(t)
+	cfg := emulatorConfig(srv)
+	cfg["message_attributes"] = []any{"priority", "proc.name", "evt.num", "fd.num", "proc.pid", "thread.tid",
+		"empty", "list", "missing", "big", "hostname"}
+	d := initDriver(t, cfg)
+
+	evt := testutil.CreateValidEvent()
+	evt.Hostname = ""
+	evt.OutputFields = map[string]any{
+		"proc.name": "bash", "evt.num": json.Number("42"), "fd.num": float64(3.5), "proc.pid": int64(7), "thread.tid": 8,
+		"empty": "", "list": []any{"x"}, "big": strings.Repeat("v", maxAttributeValBytes+1),
+		"priority": "an output field does not replace the event priority",
+	}
+	require.NoError(t, d.Send(context.Background(), evt))
+	msgs := srv.Messages()
+	require.Len(t, msgs, 1)
+	assert.Equal(t, map[string]string{
+		"priority": "Error", "proc.name": "bash", "evt.num": "42", "fd.num": "3.5", "proc.pid": "7", "thread.tid": "8",
+	}, msgs[0].Attributes)
 }
 
 func TestSendWithoutAttributes(t *testing.T) {
 	srv := fakeServer(t)
-	d := initDriver(t, emulatorConfig(srv))
+	cfg := emulatorConfig(srv)
+	cfg["message_attributes"] = []any{}
+	d := initDriver(t, cfg)
 	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
 	msgs := srv.Messages()
 	require.Len(t, msgs, 1)
-	assert.Empty(t, msgs[0].Attributes)
+	assert.Empty(t, msgs[0].Attributes, "an empty list sends none")
 }
 
 func TestSendBatchPublishesEveryEvent(t *testing.T) {
@@ -502,7 +560,7 @@ func TestCheckAPIWriteRefusesCredentialSource(t *testing.T) {
 		{name: "file source", credentials: external(`{"file":"/var/run/secrets/kubernetes.io/serviceaccount/token"}`), refused: true},
 		{name: "url source", credentials: external(`{"url":"http://169.254.169.254/latest/meta-data"}`), refused: true},
 		{name: "aws source", credentials: external(`{"environment_id":"aws1","region_url":"http://169.254.169.254"}`), refused: true},
-		{name: "base64", credentials: base64.StdEncoding.EncodeToString([]byte(external(`{"file":"/etc/passwd"}`))), refused: true},
+		{name: "base64 is left to the decoder", credentials: base64.StdEncoding.EncodeToString([]byte(external(`{"file":"/etc/passwd"}`)))},
 		{name: "nested in impersonation", credentials: `{"type":"impersonated_service_account","source_credentials":` + external(`{"file":"/x"}`) + `}`, refused: true},
 		{name: "invalid document", credentials: "not json"},
 	} {

@@ -18,7 +18,6 @@ package gcppubsub
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -101,15 +100,17 @@ var misconfiguredProbeCodes = map[codes.Code]bool{
 var noRetry = gax.WithRetry(func() gax.Retryer { return nil })
 
 type config struct {
-	CustomAttributes map[string]string `mapstructure:"custom_attributes"`
-	ProjectID        string            `mapstructure:"project_id"`
-	Topic            string            `mapstructure:"topic"`
-	Credentials      string            `mapstructure:"credentials"`
-	Endpoint         string            `mapstructure:"endpoint"`
-	EmulatorHost     string            `mapstructure:"emulator_host"`
-	credentialsType  option.CredentialsType
-	credentialsJSON  []byte
-	Runtime          output.RuntimeConfig `mapstructure:"runtime"`
+	Attributes   map[string]string `mapstructure:"attributes"`
+	ProjectID    string            `mapstructure:"project_id"`
+	Topic        string            `mapstructure:"topic"`
+	Credentials  string            `mapstructure:"credentials"`
+	Endpoint     string            `mapstructure:"endpoint"`
+	EmulatorHost string            `mapstructure:"emulator_host"`
+	// MessageAttributes is nil when the key is absent, which means defaultMessageAttributes.
+	MessageAttributes []string `mapstructure:"message_attributes"`
+	credentialsType   option.CredentialsType
+	credentialsJSON   []byte
+	Runtime           output.RuntimeConfig `mapstructure:"runtime"`
 }
 
 // OutputType describes the Google Cloud Pub/Sub output for the catalog.
@@ -129,13 +130,20 @@ var OutputType = output.Type{
 				Description: "ID of the topic within the project, not its full `projects/.../topics/...` name: 3 to 255 characters starting with a letter, not with `goog`.",
 			},
 			{
-				Name: "credentials", Type: "string", Secret: true, Label: "Credentials JSON, raw or base64 (default: Application Default Credentials)",
-				Description: "Google credentials JSON, raw or base64-encoded, of type `service_account`, `authorized_user`, `impersonated_service_account` or `external_account`. " +
+				Name: "credentials", Type: "string", Secret: true, Label: "Credentials JSON (default: Application Default Credentials)",
+				Description: "Google credentials JSON document of type `service_account`, `authorized_user`, `impersonated_service_account` or `external_account`. " +
 					"Empty uses Application Default Credentials.",
 			},
 			{
-				Name: "custom_attributes", Type: "map", Label: "Message attributes",
-				Description: "Attributes set on every message, by name; at most 100, names up to 256 bytes not starting with `goog`, values up to 1024 bytes.",
+				Name: "attributes", Type: "map", Label: "Static attributes",
+				Description: "Attributes set on every message, by name: names up to 256 bytes not starting with `goog`, values up to 1024 bytes. " +
+					"With `message_attributes`, at most 100 per message.",
+			},
+			{
+				Name: "message_attributes", Type: "string[]", Default: defaultMessageAttributes,
+				Label: "Message attributes: priority, rule, source, tags, hostname or output field names",
+				Description: "Event values sent as attributes, which subscription filters can select on: `priority`, `rule`, `source`, `tags`, " +
+					"`hostname` or output field names. Missing, empty, non-text, non-number or over 1024-byte values are left out.",
 			},
 			{
 				Name: "endpoint", Type: "string", Label: "gRPC endpoint host:port (TLS)",
@@ -178,7 +186,11 @@ func (c *config) validate() utils.ValidationErrors {
 	case !topicID.MatchString(c.Topic) || strings.HasPrefix(strings.ToLower(c.Topic), reservedPrefix):
 		errs.Add("topic", "must be a topic ID: 3 to 255 letters, digits or -._~%+, starting with a letter, not with goog")
 	}
-	errs.Merge("custom_attributes", validateAttributes(c.CustomAttributes))
+	errs.Merge("attributes", validateAttributes(c.Attributes))
+	if c.MessageAttributes == nil {
+		c.MessageAttributes = defaultMessageAttributes
+	}
+	errs.Merge("message_attributes", validateMessageAttributes(c.MessageAttributes, c.Attributes))
 	if c.Endpoint != "" {
 		errs.Merge("endpoint", shared.ValidateBrokers([]string{c.Endpoint}))
 	}
@@ -210,13 +222,8 @@ func validateAttributes(attrs map[string]string) utils.ValidationErrors {
 		errs.Add("", fmt.Sprintf("at most %d attributes", maxAttributes))
 	}
 	for _, key := range shared.SortMapKeys(attrs) {
-		switch {
-		case key == "":
-			errs.Add("", "attribute names must not be empty")
-		case len(key) > maxAttributeKeyBytes:
-			errs.Add(key, fmt.Sprintf("name exceeds %d bytes", maxAttributeKeyBytes))
-		case strings.HasPrefix(strings.ToLower(key), reservedPrefix):
-			errs.Add(key, "names starting with goog are reserved")
+		if err := checkAttributeName(key); err != "" {
+			errs.Add(key, err)
 		}
 		if len(attrs[key]) > maxAttributeValBytes {
 			errs.Add(key, fmt.Sprintf("value exceeds %d bytes", maxAttributeValBytes))
@@ -225,17 +232,23 @@ func validateAttributes(attrs map[string]string) utils.ValidationErrors {
 	return errs
 }
 
-// parseCredentials accepts raw or base64 JSON; errors never include the value.
-func parseCredentials(value string) (data []byte, typ option.CredentialsType, err error) {
-	invalid := errors.New("must be a credentials JSON document, raw or base64-encoded")
-	data = []byte(strings.TrimSpace(value))
-	if len(data) > 0 && data[0] != '{' {
-		decoded, decodeErr := base64.StdEncoding.DecodeString(string(data))
-		if decodeErr != nil {
-			return nil, "", invalid
-		}
-		data = []byte(strings.TrimSpace(string(decoded)))
+// checkAttributeName returns why Pub/Sub refuses name, or "".
+func checkAttributeName(name string) string {
+	switch {
+	case name == "":
+		return "attribute names must not be empty"
+	case len(name) > maxAttributeKeyBytes:
+		return fmt.Sprintf("name exceeds %d bytes", maxAttributeKeyBytes)
+	case strings.HasPrefix(strings.ToLower(name), reservedPrefix):
+		return "names starting with goog are reserved"
 	}
+	return ""
+}
+
+// parseCredentials accepts a JSON document only; errors never include the value.
+func parseCredentials(value string) (data []byte, typ option.CredentialsType, err error) {
+	invalid := errors.New("must be a credentials JSON document")
+	data = []byte(strings.TrimSpace(value))
 	var header struct {
 		Type string `json:"type"`
 	}
@@ -353,7 +366,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		if err != nil {
 			return shared.WrapDeliveryError(name, shared.OpMarshal, err)
 		}
-		messages = append(messages, &pubsubpb.PubsubMessage{Data: data, Attributes: d.cfg.CustomAttributes})
+		messages = append(messages, &pubsubpb.PubsubMessage{Data: data, Attributes: messageAttributes(evt, d.cfg.Attributes, d.cfg.MessageAttributes)})
 	}
 	chunks := splitRequests(d.topic, messages)
 	var failures []*shared.DeliveryError

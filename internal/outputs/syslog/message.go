@@ -21,10 +21,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
+	"unicode/utf8"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
+	"github.com/falcosecurity/falcosidekick/internal/version"
 )
 
 const (
@@ -34,6 +35,14 @@ const (
 	rfc5424Time = "2006-01-02T15:04:05.000000Z07:00"
 	// maxHostname is the HOSTNAME length limit of RFC 5424 section 6.2.4.
 	maxHostname = 255
+
+	// cefMaxMessage is the length of the CEF msg key.
+	cefMaxMessage = 1023
+	// cefCustomStrings is the number of CEF custom string keys, cs1 to cs6.
+	cefCustomStrings = 6
+	// cefVendorPrefix starts vendor keys, which CEF names after the vendor and the product.
+	cefVendorPrefix = "FalcoFalcosidekick"
+	cefTagsKey      = cefVendorPrefix + "Tags"
 )
 
 // RFC 5424 section 6.2.1 numerical codes.
@@ -123,26 +132,78 @@ func (d *driver) body(evt *event.Event) ([]byte, error) {
 	return json.Marshal(evt)
 }
 
-// cefBody renders the event in ArcSight CEF.
+// cefBody renders the event in ArcSight CEF: the rule is the event class ID and name, the output fields
+// fill the custom strings cs1 to cs6 in key order and the rest go in vendor keys, which receivers keep
+// but cannot search.
 func cefBody(evt *event.Event) string {
-	extension := []string{
-		"uuid=" + cefExtensionEscaper.Replace(evt.UUID),
-		"start=" + evt.Time.Format(time.RFC3339),
-		"msg=" + cefExtensionEscaper.Replace(evt.Output),
-		"source=" + cefExtensionEscaper.Replace(evt.Source),
+	extension := make([]string, 0, 6+2*len(evt.OutputFields))
+	add := func(key, value string) {
+		extension = append(extension, key+"="+cefExtensionEscaper.Replace(value))
 	}
+	add("rt", strconv.FormatInt(evt.Time.UnixMilli(), 10))
 	if evt.Hostname != "" {
-		extension = append(extension, "hostname="+cefExtensionEscaper.Replace(evt.Hostname))
+		add("dvchost", evt.Hostname)
 	}
-	keys := shared.SortMapKeys(evt.OutputFields)
-	fields := make([]string, 0, len(keys))
-	for _, key := range keys {
-		fields = append(fields, cefExtensionEscaper.Replace(fmt.Sprintf("%s:%v", key, evt.OutputFields[key])))
+	add("msg", truncateRunes(evt.Output, cefMaxMessage))
+	if evt.UUID != "" {
+		add("externalId", evt.UUID)
 	}
-	extension = append(extension, "outputfields="+strings.Join(fields, " "))
+	if evt.Source != "" {
+		add("cat", evt.Source)
+	}
+	used := map[string]bool{cefTagsKey: true}
 	if len(evt.Tags) > 0 {
-		extension = append(extension, "tags="+cefExtensionEscaper.Replace(strings.Join(evt.Tags, ",")))
+		add(cefTagsKey, strings.Join(evt.Tags, ","))
 	}
-	return "CEF:0|Falcosecurity|Falco|1.0|Falco Event|" + cefHeaderEscaper.Replace(evt.Rule) + "|" +
+	for i, key := range shared.SortMapKeys(evt.OutputFields) {
+		value := fmt.Sprint(evt.OutputFields[key])
+		if i < cefCustomStrings {
+			n := strconv.Itoa(i + 1)
+			add("cs"+n+"Label", key)
+			add("cs"+n, value)
+			continue
+		}
+		add(cefVendorKey(key, used), value)
+	}
+	rule := cefHeaderEscaper.Replace(evt.Rule)
+	return "CEF:0|Falcosecurity|Falcosidekick|" + cefHeaderEscaper.Replace(version.Version) + "|" + rule + "|" + rule + "|" +
 		cefSeverities[evt.Priority] + "|" + strings.Join(extension, " ")
+}
+
+// cefVendorKey turns an output field name into a CEF key, such as proc.aname[2] into FalcoFalcosidekickProcAname2:
+// letters and digits only, each run capitalized. A key already used gets a numeric suffix.
+func cefVendorKey(field string, used map[string]bool) string {
+	b := []byte(cefVendorPrefix)
+	start := true
+	for i := 0; i < len(field); i++ {
+		c := field[i]
+		switch {
+		case c >= 'a' && c <= 'z':
+			if start {
+				c -= 'a' - 'A'
+			}
+			b = append(b, c)
+			start = false
+		case c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+			b = append(b, c)
+			start = false
+		default:
+			start = true
+		}
+	}
+	base := string(b)
+	key := base
+	for n := 2; used[key]; n++ {
+		key = base + strconv.Itoa(n)
+	}
+	used[key] = true
+	return key
+}
+
+// truncateRunes cuts s to at most n runes.
+func truncateRunes(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	return string([]rune(s)[:n])
 }

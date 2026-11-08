@@ -27,6 +27,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
@@ -50,8 +51,9 @@ func newDriver(t *testing.T, cfg *config) *driver {
 	return &driver{cfg: *cfg, logger: slog.New(slog.DiscardHandler)}
 }
 
-func embedRunes(e embed) int {
-	n := utf8.RuneCountInString(e.Description)
+// embedRunes counts what Discord counts toward the 6000-character embed total.
+func embedRunes(e *embed) int {
+	n := utf8.RuneCountInString(e.Title) + utf8.RuneCountInString(e.Description)
 	for _, f := range e.Fields {
 		n += f.runes()
 	}
@@ -71,8 +73,10 @@ func TestValidation(t *testing.T) {
 		{name: "host with path rejected", config: map[string]any{"host": "https://discord.com" + testPath, "secret_endpoint": testPath}, want: "host"},
 		{name: "unknown key", config: map[string]any{"secret_endpoint": testPath, "webhook_url": "x"}, want: "webhook_url"},
 		{name: "minimum priority is a runtime key", config: map[string]any{"secret_endpoint": testPath, "minimum_priority": "error"}, want: "minimum_priority"},
-		{name: "invalid icon", config: map[string]any{"secret_endpoint": testPath, "icon": "ftp://x/y.png"}, want: "icon: must be an absolute http or https URL"},
-		{name: "relative icon", config: map[string]any{"secret_endpoint": testPath, "icon": "y.png"}, want: "icon"},
+		{name: "avatar", config: map[string]any{"secret_endpoint": testPath, "avatar_url": "https://img.example/a.png"}},
+		{name: "invalid avatar", config: map[string]any{"secret_endpoint": testPath, "avatar_url": "ftp://x/y.png"}, want: "avatar_url: must be an absolute http or https URL"},
+		{name: "relative avatar", config: map[string]any{"secret_endpoint": testPath, "avatar_url": "y.png"}, want: "avatar_url"},
+		{name: "icon renamed to avatar_url", config: map[string]any{"secret_endpoint": testPath, "icon": "https://img.example/a.png"}, want: "unknown keys: icon"},
 		{name: "invalid tls", config: map[string]any{"secret_endpoint": testPath, "tls": map[string]any{"ca_file": "/does/not/exist"}}, want: "tls"},
 		{name: "wait is set by the output", config: map[string]any{"secret_endpoint": testPath,
 			"query_params": map[string]any{"wait": map[string]any{"values": []string{"false"}}}}, want: `query_params["wait"]: is set by the output`},
@@ -97,7 +101,7 @@ func TestDefaults(t *testing.T) {
 	require.NoError(t, err)
 	o := d.(*driver)
 	assert.Equal(t, "https://discord.com", o.cfg.Host)
-	assert.Empty(t, o.cfg.Icon, "the avatar is only suggested")
+	assert.Empty(t, o.cfg.AvatarURL, "the avatar is only suggested")
 	assert.Equal(t, output.RuntimeConfig{}, o.RuntimeConfig())
 	assert.NoError(t, o.Init(context.Background()))
 	assert.NoError(t, o.Close())
@@ -115,36 +119,39 @@ func TestSchema(t *testing.T) {
 	assert.Equal(t, "https://discord.com", fields["host"].Default)
 	assert.False(t, fields["host"].Required)
 	assert.NotContains(t, fields, "endpoint")
-	assert.Nil(t, fields["icon"].Default)
-	assert.Equal(t, shared.FalcosidekickIconURL, fields["icon"].Suggested)
+	assert.NotContains(t, fields, "icon")
+	assert.Nil(t, fields["avatar_url"].Default)
+	assert.Equal(t, shared.FalcosidekickIconURL, fields["avatar_url"].Suggested)
 	assert.Contains(t, fields, "runtime.minimum_priority")
 	assert.Equal(t, output.CategoryChat, OutputType.Category)
 }
 
-func TestPayloadV2Parity(t *testing.T) {
-	d := newDriver(t, &config{Icon: "https://img.example/a.png"})
+func TestPayload(t *testing.T) {
+	d := newDriver(t, &config{AvatarURL: "https://img.example/a.png"})
 	evt := testutil.CreateValidEvent()
+	evt.Time = time.Date(2026, 4, 1, 12, 30, 0, 5e8, time.FixedZone("CEST", 2*3600))
 	p := d.buildPayload(evt)
 
 	body, err := json.Marshal(p)
 	require.NoError(t, err)
 	assert.NotContains(t, string(body), `"content"`)
-	assert.Equal(t, "https://img.example/a.png", p.AvatarURL)
+	assert.Contains(t, string(body), `"avatar_url":"https://img.example/a.png"`)
 	require.Len(t, p.Embeds, 1)
 	e := p.Embeds[0]
+	assert.Equal(t, "Write below binary dir", e.Title)
+	assert.Equal(t, "2026-04-01T10:30:00.5Z", e.Timestamp, "RFC 3339 in UTC")
 	assert.Equal(t, evt.Output, e.Description)
-	assert.Equal(t, 15844367, e.Color)
+	assert.Equal(t, shared.PriorityRGB(event.PriorityError), e.Color)
 	assert.Equal(t, []field{
 		{Name: "rule", Value: "Write below binary dir", Inline: true},
-		{Name: "priority", Value: "error", Inline: true},
+		{Name: "priority", Value: "Error", Inline: true},
 		{Name: "source", Value: "syscall", Inline: true},
 		{Name: "hostname", Value: "node-1", Inline: true},
 		{Name: "fd.name", Value: "```/bin/hack```", Inline: true},
 		{Name: "proc.cmdline", Value: "```touch /bin/hack```", Inline: true},
 		{Name: "user.name", Value: "```root```", Inline: true},
 		{Name: "tags", Value: "filesystem, mitre_persistence", Inline: true},
-		{Name: "time", Value: evt.Time.String(), Inline: true},
-	}, e.Fields)
+	}, e.Fields, "the time is the embed timestamp, not a field")
 }
 
 func TestPayloadOptionalFields(t *testing.T) {
@@ -159,7 +166,7 @@ func TestPayloadOptionalFields(t *testing.T) {
 	for _, f := range p.Embeds[0].Fields {
 		names = append(names, f.Name)
 	}
-	assert.Equal(t, []string{"rule", "priority", "source", "n", "time"}, names)
+	assert.Equal(t, []string{"rule", "priority", "source", "n"}, names)
 	assert.Equal(t, "```42```", p.Embeds[0].Fields[3].Value)
 	body, err := json.Marshal(p)
 	require.NoError(t, err)
@@ -168,9 +175,9 @@ func TestPayloadOptionalFields(t *testing.T) {
 
 func TestPayloadPriorityColors(t *testing.T) {
 	want := map[event.Priority]int{
-		event.PriorityEmergency: 15158332, event.PriorityAlert: 11027200, event.PriorityCritical: 15105570,
-		event.PriorityError: 15844367, event.PriorityWarning: 12745742, event.PriorityNotice: 3066993,
-		event.PriorityInformational: 3447003, event.PriorityDebug: 12370112, event.Priority("unknown"): 12370112,
+		event.PriorityEmergency: 0x8b0000, event.PriorityAlert: 0xd50000, event.PriorityCritical: 0xf4511e,
+		event.PriorityError: 0xff8c00, event.PriorityWarning: 0xffc700, event.PriorityNotice: 0x1e88e5,
+		event.PriorityInformational: 0x68c2ff, event.PriorityDebug: 0x9e9e9e, event.Priority("unknown"): 0x9e9e9e,
 	}
 	d := newDriver(t, &config{})
 	for p, color := range want {
@@ -178,6 +185,7 @@ func TestPayloadPriorityColors(t *testing.T) {
 			evt := testutil.CreateValidEvent()
 			evt.Priority = p
 			assert.Equal(t, color, d.buildPayload(evt).Embeds[0].Color)
+			assert.Equal(t, shared.PriorityRGB(p), d.buildPayload(evt).Embeds[0].Color)
 		})
 	}
 }
@@ -193,9 +201,27 @@ func TestPayloadLimits(t *testing.T) {
 		e := d.buildPayload(evt).Embeds[0]
 		require.Len(t, e.Fields, maxFields)
 		assert.Equal(t, "f00", e.Fields[4].Name)
-		assert.Equal(t, "f18", e.Fields[22].Name)
-		assert.Equal(t, "tags", e.Fields[23].Name)
-		assert.Equal(t, "time", e.Fields[24].Name)
+		assert.Equal(t, "f19", e.Fields[23].Name)
+		assert.Equal(t, "tags", e.Fields[24].Name)
+	})
+	t.Run("title length", func(t *testing.T) {
+		d := newDriver(t, &config{})
+		evt := testutil.CreateValidEvent()
+		evt.Rule = strings.Repeat("é", 300)
+		e := d.buildPayload(evt).Embeds[0]
+		assert.Equal(t, 256, utf8.RuneCountInString(e.Title), "Discord's title limit")
+		assert.True(t, strings.HasSuffix(e.Title, "..."))
+	})
+	t.Run("title counts toward the total", func(t *testing.T) {
+		d := newDriver(t, &config{})
+		evt := testutil.CreateValidEvent()
+		evt.Rule = strings.Repeat("r", 1000)
+		evt.Source = strings.Repeat("s", 1000)
+		evt.Output = strings.Repeat("o", 5000)
+		evt.OutputFields = nil
+		e := d.buildPayload(evt).Embeds[0]
+		assert.Equal(t, maxTitleRunes, utf8.RuneCountInString(e.Title))
+		assert.Equal(t, 6000, embedRunes(&e), "Discord's embed total")
 	})
 	t.Run("field lengths", func(t *testing.T) {
 		d := newDriver(t, &config{})
@@ -227,10 +253,10 @@ func TestPayloadLimits(t *testing.T) {
 			evt.OutputFields[fmt.Sprintf("f%d", i)] = strings.Repeat("v", 500)
 		}
 		e := d.buildPayload(evt).Embeds[0]
-		assert.LessOrEqual(t, embedRunes(e), maxEmbedRunes)
+		assert.LessOrEqual(t, embedRunes(&e), maxEmbedRunes)
 		assert.Equal(t, maxDescriptionRunes, utf8.RuneCountInString(e.Description))
-		assert.Equal(t, "time", e.Fields[len(e.Fields)-1].Name)
-		assert.Less(t, len(e.Fields), 16, "output fields beyond the budget are dropped")
+		assert.Equal(t, "tags", e.Fields[len(e.Fields)-1].Name)
+		assert.Less(t, len(e.Fields), 15, "output fields beyond the budget are dropped")
 	})
 	t.Run("long fixed fields shorten the description", func(t *testing.T) {
 		d := newDriver(t, &config{})
@@ -240,7 +266,7 @@ func TestPayloadLimits(t *testing.T) {
 		evt.Source = strings.Repeat("s", 1500)
 		evt.Tags = []string{strings.Repeat("t", 1500)}
 		e := d.buildPayload(evt).Embeds[0]
-		assert.LessOrEqual(t, embedRunes(e), maxEmbedRunes)
+		assert.LessOrEqual(t, embedRunes(&e), maxEmbedRunes)
 		assert.Less(t, utf8.RuneCountInString(e.Description), maxDescriptionRunes)
 	})
 }

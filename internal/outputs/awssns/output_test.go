@@ -113,7 +113,10 @@ func TestCreateValidation(t *testing.T) {
 		wantErr string
 	}{
 		{name: "minimal, region from the topic arn", cfg: map[string]any{"topic_arn": topicARN}},
-		{name: "raw json", cfg: map[string]any{"topic_arn": topicARN, "raw_json": true}},
+		{name: "text", cfg: map[string]any{"topic_arn": topicARN, "format": "text"}},
+		{name: "json", cfg: map[string]any{"topic_arn": topicARN, "format": "json"}},
+		{name: "unknown format", cfg: map[string]any{"topic_arn": topicARN, "format": "xml"}, wantErr: "format: must be json/text"},
+		{name: "raw_json is refused", cfg: map[string]any{"topic_arn": topicARN, "raw_json": true}, wantErr: "unknown keys: raw_json"},
 		{name: "missing topic", cfg: map[string]any{}, wantErr: "topic_arn: is required"},
 		{name: "not an arn", cfg: map[string]any{"topic_arn": "falco"}, wantErr: "topic_arn: must be an SNS topic ARN"},
 		{name: "arn of another service", cfg: map[string]any{"topic_arn": "arn:aws:sqs:eu-west-1:123456789012:falco"}, wantErr: "topic_arn: must be an SNS topic ARN"},
@@ -141,6 +144,7 @@ func TestPublishAttributes(t *testing.T) {
 	awstest.Isolate(t)
 	fake := &fakeSNS{}
 	d := newDriver(t, fake, map[string]any{
+		"format":  "text",
 		"runtime": map[string]any{"minimum_priority": "error"},
 		"message_attributes": []any{"priority", "rule", "source", "tags", "hostname",
 			"proc.aname[2]", "evt.num", "fd.num", "proc.pid", "thread.tid"},
@@ -212,7 +216,7 @@ func TestMessageAttributesDefaultAndValidation(t *testing.T) {
 }
 
 func TestPublishWithoutOutputUsesRule(t *testing.T) {
-	d := &driver{cfg: config{TopicARN: topicARN}}
+	d := &driver{cfg: config{TopicARN: topicARN, Format: formatText}}
 	evt := testutil.CreateValidEvent()
 	evt.Output, evt.Tags, evt.Hostname = "", nil, ""
 	input, err := d.publishInput(evt)
@@ -222,17 +226,30 @@ func TestPublishWithoutOutputUsesRule(t *testing.T) {
 	assert.NotContains(t, input.MessageAttributes, "hostname")
 }
 
-func TestPublishRawJSON(t *testing.T) {
-	awstest.Isolate(t)
-	fake := &fakeSNS{}
-	d := newDriver(t, fake, map[string]any{"raw_json": true})
-	evt := testutil.CreateValidEvent()
-	require.NoError(t, d.Send(context.Background(), evt))
-	form := fake.received()[0]
-	want, err := json.Marshal(evt)
-	require.NoError(t, err)
-	assert.JSONEq(t, string(want), form.Get("Message"))
-	assert.Empty(t, attributes(form))
+// The event JSON is the default body, and the message attributes go with it.
+func TestPublishJSONByDefault(t *testing.T) {
+	for _, extra := range []map[string]any{nil, {"format": "json"}} {
+		awstest.Isolate(t)
+		fake := &fakeSNS{}
+		d := newDriver(t, fake, extra)
+		evt := testutil.CreateValidEvent()
+		require.NoError(t, d.Send(context.Background(), evt))
+		form := fake.received()[0]
+		want, err := json.Marshal(evt)
+		require.NoError(t, err)
+		assert.JSONEq(t, string(want), form.Get("Message"))
+		assert.Contains(t, form.Get("Message"), `"priority":"Error"`, "Falco's casing")
+		assert.Equal(t, map[string][2]string{
+			"priority": {"String", "Error"},
+			"rule":     {"String", evt.Rule},
+			"source":   {"String", "syscall"},
+			"tags":     {"String", "filesystem,mitre_persistence"},
+			"hostname": {"String", "node-1"},
+		}, attributes(form))
+	}
+	i := slices.IndexFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "format" })
+	require.GreaterOrEqual(t, i, 0)
+	assert.Equal(t, "json", OutputType.Schema.Fields[i].Default)
 }
 
 func TestNumberType(t *testing.T) {

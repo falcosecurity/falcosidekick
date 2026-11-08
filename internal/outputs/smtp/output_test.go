@@ -51,7 +51,7 @@ const (
 func baseConfig() map[string]any {
 	return map[string]any{
 		"host":     "mail.example",
-		"user":     "falco",
+		"username": "falco",
 		"password": testPassword,
 		"from":     "Falco <falco@example.com>",
 		"to":       []string{"secops@example.com", "Ops Team <ops@example.com>"},
@@ -110,20 +110,23 @@ func TestValidation(t *testing.T) {
 		{name: "comma list", config: with(base, "to", "a@example.com, b@example.com"), want: "to[0]: must be one RFC 5322 address"},
 		{name: "bad to", config: with(base, "to", []string{"ok@example.com", "nope"}), want: "to[1]"},
 		{name: "plain without password", config: with(base, "password", nil), want: "password: is required with auth_mechanism plain"},
-		{name: "plain without user", config: with(base, "user", nil), want: "user: is required with auth_mechanism plain"},
+		{name: "plain without username", config: with(base, "username", nil), want: "username: is required with auth_mechanism plain"},
+		{name: "user renamed to username", config: with(base, "username", nil, "user", "falco"), want: "unknown keys: user"},
 		{name: "unsupported mechanism", config: with(base, "auth_mechanism", "oauthbearer"), want: `auth_mechanism: must be plain/xoauth2/none`},
 		{name: "none with credentials", config: with(base, "auth_mechanism", "none"), want: "password: is not used by auth_mechanism none"},
-		{name: "none", config: with(base, "auth_mechanism", "none", "user", nil, "password", nil)},
+		{name: "none", config: with(base, "auth_mechanism", "none", "username", nil, "password", nil)},
+		{name: "none with username", config: with(base, "auth_mechanism", "none", "password", nil), want: "username: is not used by auth_mechanism none"},
+		{name: "xoauth2 without username", config: with(xoauth2, "username", nil), want: "username: is required with auth_mechanism xoauth2"},
 		{name: "xoauth2", config: xoauth2},
 		{name: "xoauth2 implicit", config: with(xoauth2, "tls_mode", "implicit")},
 		{name: "xoauth2 without token", config: with(xoauth2, "token", nil), want: "token: is required"},
 		{name: "xoauth2 with password", config: with(xoauth2, "password", testPassword), want: "password: is not used"},
 		{name: "xoauth2 opportunistic", config: with(xoauth2, "tls_mode", "opportunistic"), want: "xoauth2 requires tls_mode starttls or implicit"},
 		{name: "xoauth2 opportunistic on localhost", config: with(xoauth2, "tls_mode", "opportunistic", "host", "localhost")},
-		{name: "control char", config: with(base, "user", "fal\nco"), want: "user: must not contain control characters"},
+		{name: "control char", config: with(base, "username", "fal\nco"), want: "username: must not contain control characters"},
 		{name: "plain without tls", config: with(base, "tls_mode", "none"), want: "auth_mechanism: plain requires TLS"},
 		{name: "plain without tls on localhost", config: with(base, "tls_mode", "none", "host", "localhost")},
-		{name: "tls block with none", config: with(base, "tls_mode", "none", "auth_mechanism", "none", "user", nil, "password", nil,
+		{name: "tls block with none", config: with(base, "tls_mode", "none", "auth_mechanism", "none", "username", nil, "password", nil,
 			"tls", map[string]any{"insecure_skip_verify": true}), want: "tls: is not used with tls_mode none"},
 		{name: "missing ca", config: with(base, "tls", map[string]any{"ca_file": "/does/not/exist"}), want: "tls.ca_file"},
 		{name: "bad format", config: with(base, "output_format", "markdown"), want: `output_format: must be html/text`},
@@ -178,7 +181,9 @@ func TestSchema(t *testing.T) {
 	}
 	assert.True(t, fields["password"].Secret)
 	assert.True(t, fields["token"].Secret)
-	assert.False(t, fields["user"].Secret)
+	assert.NotContains(t, fields, "user")
+	assert.Contains(t, fields, "username")
+	assert.False(t, fields["username"].Secret)
 	assert.True(t, fields["from"].Required)
 	assert.True(t, fields["to"].Required)
 	assert.Equal(t, "starttls", fields["tls_mode"].Default)
@@ -251,7 +256,7 @@ func TestHTMLMessage(t *testing.T) {
 	assert.Equal(t, "ops@example.com", to[1].Address)
 	subject, err := (&mime.WordDecoder{}).DecodeHeader(msg.Header.Get("Subject"))
 	require.NoError(t, err)
-	assert.Equal(t, `[Error] <script>alert("x")</script> opened /bin/hack`, subject)
+	assert.Equal(t, "[Error] Write below binary dir on node-1", subject, "the output text is not the subject")
 	date, err := msg.Header.Date()
 	require.NoError(t, err)
 	assert.True(t, evt.Time.Equal(date))
@@ -268,7 +273,7 @@ func TestHTMLMessage(t *testing.T) {
 	assert.Contains(t, text, "  fd.name: /bin/hack\n  proc.cmdline: long")
 
 	html := parts["text/html"]
-	assert.Contains(t, html, "border-top:6px solid #e20b0b", "priority color")
+	assert.Contains(t, html, "border-top:6px solid "+shared.PriorityColor(event.PriorityError), "priority color")
 	assert.Contains(t, html, "&lt;script&gt;", "output is escaped")
 	assert.NotContains(t, html, "<script>")
 	assert.Contains(t, html, ">fd.name</th>")
@@ -293,16 +298,41 @@ func TestTextMessage(t *testing.T) {
 	assert.True(t, strings.HasPrefix(text, "Error: File below a known binary directory opened for writing\n"), text)
 }
 
+func TestSubject(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		priority event.Priority
+		hostname string
+		want     string
+	}{
+		{name: "with hostname", priority: event.PriorityError, hostname: "node-1", want: "[Error] Write below binary dir on node-1"},
+		{name: "without hostname", priority: event.PriorityWarning, want: "[Warning] Write below binary dir"},
+		{name: "informational", priority: event.PriorityInformational, hostname: "h", want: "[Informational] Write below binary dir on h"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newTestDriver(t, baseConfig())
+			evt := testutil.CreateValidEvent()
+			evt.Priority = tc.priority
+			evt.Hostname = tc.hostname
+			msg, _ := parse(t, render(t, d, evt))
+			subject, err := (&mime.WordDecoder{}).DecodeHeader(msg.Header.Get("Subject"))
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, subject)
+		})
+	}
+}
+
 func TestSubjectEncoding(t *testing.T) {
 	d := newTestDriver(t, baseConfig())
 	evt := testutil.CreateValidEvent()
-	evt.Output = "naïve\r\nBcc: attacker@example.com " + strings.Repeat("é", 400)
+	evt.Rule = "naïve\r\nBcc: attacker@example.com " + strings.Repeat("é", 400)
 	msg, _ := parse(t, render(t, d, evt))
 	assert.Empty(t, msg.Header.Get("Bcc"), "no header injection")
 	subject, err := (&mime.WordDecoder{}).DecodeHeader(msg.Header.Get("Subject"))
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(subject, "[Error] naïve"), subject)
 	assert.True(t, strings.HasSuffix(subject, "..."))
+	assert.NotContains(t, subject, " on node-1", "the cut drops the hostname of an overlong rule")
 	assert.LessOrEqual(t, len([]rune(subject)), maxSubjectRunes)
 }
 
@@ -368,7 +398,7 @@ func TestImplicitTLS(t *testing.T) {
 
 func TestOpportunisticWithoutStartTLS(t *testing.T) {
 	srv := newFakeServer(t, func(s *fakeServer) { s.noStartTLS = true })
-	d := newTestDriver(t, serverConfig(t, srv, "tls_mode", "opportunistic", "auth_mechanism", "none", "user", nil, "password", nil))
+	d := newTestDriver(t, serverConfig(t, srv, "tls_mode", "opportunistic", "auth_mechanism", "none", "username", nil, "password", nil))
 	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
 	s := srv.recorded()[0]
 	assert.False(t, s.tls)

@@ -152,7 +152,7 @@ func TestElasticsearchIndexesEvent(t *testing.T) {
 	require.NotEmpty(t, source["uuid"])
 	assert.Equal(t, source["uuid"], hits[0]["_id"], "document _id is the event uuid")
 	assert.Equal(t, "E2E "+marker, source["rule"])
-	assert.Equal(t, "warning", source["priority"])
+	assert.Equal(t, "Warning", source["priority"], "the priority as Falco writes it")
 	assert.Equal(t, "syscall", source["source"])
 	assert.Equal(t, "e2e-host", source["hostname"])
 	assert.Equal(t, "e2e event "+marker, source["output"])
@@ -262,8 +262,72 @@ func TestElasticsearchCreatesIndexTemplate(t *testing.T) {
 	_, mapping := es.do(t, http.MethodGet, "/"+index+"/_mapping", "")
 	mapped := esJSON(t, mapping)
 	assert.Contains(t, mapped, `"uuid":{"type":"keyword"}`)
+	assert.Contains(t, mapped, `"hostname":{"type":"keyword"}`)
 	assert.Contains(t, mapped, `"output_fields_as_keyword"`)
 	assert.Len(t, es.search(t, index, marker), 1)
+}
+
+// Unset shard and replica counts leave the cluster default, 1 and 1.
+func TestElasticsearchTemplateKeepsClusterDefaults(t *testing.T) {
+	es := newESServer(t)
+	marker := newMarker(t)
+	prefix := "fsk-e2e-es-dflt-" + marker
+	t.Cleanup(func() {
+		es.deleteIndices(t, prefix+"-*")
+		es.do(t, http.MethodDelete, "/_index_template/"+prefix, "")
+	})
+	sk := startSidekick(t, es.outputs(prefix, "  create_index_template: true\n"))
+
+	_, body := es.do(t, http.MethodGet, "/_index_template/"+prefix, "")
+	assert.NotContains(t, esJSON(t, body), "number_of_shards")
+	assert.NotContains(t, esJSON(t, body), "number_of_replicas")
+
+	sk.postEvent(t, marker)
+	sk.waitStatus(t, "elasticsearch", func(st outputStatus) bool { return st.SentTotal == 1 })
+	created := es.indices(t, prefix+"-*")
+	require.Len(t, created, 1)
+	for _, settings := range created {
+		assert.Contains(t, esJSON(t, settings), `"number_of_shards":"1"`)
+		assert.Contains(t, esJSON(t, settings), `"number_of_replicas":"1"`)
+	}
+}
+
+// With data_stream, the template creates a data stream on the first document, which is created with the event uuid.
+func TestElasticsearchWritesToDataStream(t *testing.T) {
+	es := newESServer(t)
+	marker := newMarker(t)
+	stream := "fsk-e2e-es-ds-" + marker
+	t.Cleanup(func() {
+		es.do(t, http.MethodDelete, "/_data_stream/"+stream, "")
+		es.do(t, http.MethodDelete, "/_index_template/"+stream, "")
+	})
+	sk := startSidekick(t, es.outputs(stream, `  data_stream: true
+  create_index_template: true
+  runtime:
+    batching:
+      enabled: true
+      batch_size: 2
+      flush_interval: 500ms
+`))
+
+	_, tmpl := es.do(t, http.MethodGet, "/_index_template/"+stream, "")
+	assert.Contains(t, esJSON(t, tmpl), `"data_stream":{`)
+
+	sk.postEvent(t, marker)
+	sk.postEvent(t, marker)
+	st := sk.waitStatus(t, "elasticsearch", func(st outputStatus) bool { return st.SentTotal == 2 })
+	assert.Zero(t, st.FailedTotal)
+
+	status, body := es.do(t, http.MethodGet, "/_data_stream/"+stream, "")
+	require.Equal(t, http.StatusOK, status, "the data stream exists: %v", body)
+	hits := es.search(t, stream, marker)
+	require.Len(t, hits, 2)
+	for _, hit := range hits {
+		source := hit["_source"].(map[string]any)
+		assert.Equal(t, source["uuid"], hit["_id"])
+		assert.NotEmpty(t, source["@timestamp"])
+		assert.True(t, strings.HasPrefix(hit["_index"].(string), ".ds-"+stream), "a backing index of the stream: %v", hit["_index"])
+	}
 }
 
 // A wrong base path or rejected credentials stop startup.

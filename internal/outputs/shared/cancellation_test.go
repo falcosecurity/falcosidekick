@@ -100,11 +100,12 @@ func silentCases(t *testing.T) []silentCase {
 			return map[string]any{"host": h, "secret_endpoint": "/integrations/v1/formatted_webhook/t/"}
 		}},
 		{name: "talon", config: func(h string) map[string]any { return map[string]any{"host": h} }},
-		{name: "cloudevents", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h} }},
+		{name: "cloudevents", noProbe: true, config: func(h string) map[string]any {
+			return map[string]any{"host": h, "source": "/falcosidekick"}
+		}},
 		{name: "pagerduty", noProbe: true, config: func(h string) map[string]any { return map[string]any{"host": h, "routing_key": "rk"} }},
 		{name: "opsgenie", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k"} }},
-		{name: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k"} }},
-		{name: "datadog v2", typ: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k", "app_key": "a"} }},
+		{name: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k", "app_key": "a"} }},
 		{name: "awss3", config: func(h string) map[string]any {
 			return awsConfig(h, map[string]any{"bucket": "falco", "use_path_style": true})
 		}},
@@ -119,7 +120,7 @@ func silentCases(t *testing.T) []silentCase {
 		}},
 		{name: "syslog", tcp: true, config: func(h string) map[string]any {
 			cfg := hostPort(h)
-			cfg["protocol"] = "tls"
+			cfg["tls"] = map[string]any{"enabled": true}
 			return cfg
 		}},
 		{name: "smtp", tcp: true, config: func(h string) map[string]any {
@@ -127,13 +128,13 @@ func silentCases(t *testing.T) []silentCase {
 			cfg["from"], cfg["to"], cfg["auth_mechanism"] = "f@example.com", []string{"t@example.com"}, "none"
 			return cfg
 		}},
-		{name: "redis", tcp: true, config: func(h string) map[string]any { return map[string]any{"address": h} }},
+		{name: "redis", tcp: true, config: func(h string) map[string]any { return map[string]any{"address": h, "key": "falco"} }},
 		{name: "otlp", noProbe: true, config: func(h string) map[string]any {
 			signal := map[string]any{"endpoint": h}
-			return map[string]any{"traces": signal, "logs": signal, "metrics": signal}
+			return map[string]any{"logs": signal, "metrics": signal}
 		}},
 		{name: "policyreport", kubeconfig: true, config: func(h string) map[string]any {
-			return map[string]any{"kubeconfig": h, "falco_namespace": "falco"}
+			return map[string]any{"kubeconfig": h, "fallback_namespace": "falco"}
 		}},
 	}
 	covered := map[string]bool{"inmemory": true} // stores in process, no destination
