@@ -139,10 +139,15 @@ func allowedFile(path string, secretDirs []string) error {
 		if err != nil {
 			continue
 		}
-		rel, err := filepath.Rel(resolvedDir, resolved)
-		if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		if within(resolvedDir, resolved) {
 			return nil
 		}
 	}
 	return errFileOutsideDirs
+}
+
+// within reports whether path is dir or below it; both are already resolved.
+func within(dir, path string) bool {
+	rel, err := filepath.Rel(dir, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

@@ -198,6 +198,7 @@ func (s *Server) mountManagement() *fiber.App {
 	outputs.Delete("/:name", s.requireWrites, s.handlePipelineOutputDelete)
 
 	v1.Get("/config", s.handleGetConfig)
+	v1.Get("/secrets", s.handleGetSecrets)
 	v1.Get("/version", s.handleGetVersion)
 
 	registerStaticUI(app, s.uiAssets)
