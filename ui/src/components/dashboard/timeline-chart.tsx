@@ -24,6 +24,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEventsHistogram } from "@/hooks/use-events"
 import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 type Window = "1h" | "6h" | "24h"
 type Mode = "global" | "by-source"
@@ -78,8 +79,8 @@ export function TimelineChart({ className }: TimelineChartProps) {
   )
 
   return (
-    <Card className={className}>
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-3">
+    <Card className={cn("gap-4 py-5 shadow-xs", className)}>
+      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 px-5">
         <div>
           <CardTitle asChild className="text-base">
             <h2>Events over time</h2>
@@ -135,7 +136,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="h-56">
+      <CardContent className="h-64 px-5">
         {isPending ? (
           <LoadingSkeleton lines={5} />
         ) : isError ? (
@@ -143,7 +144,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
         ) : total === 0 ? (
           <EmptyState title={`No events in the last ${cfg.label}`} />
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 600, height: 256 }}>
             <ComposedChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 {seriesKeys.map((key, i) => (

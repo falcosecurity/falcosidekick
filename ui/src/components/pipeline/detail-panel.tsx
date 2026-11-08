@@ -23,7 +23,7 @@ import { api } from "@/lib/api-client"
 import { errorMessage } from "@/lib/api-error"
 import { formatAbsoluteTime, formatNumber } from "@/lib/format"
 import { driverOf, lastSuccessOf, statusOf, type OutputConfigEntry, type OutputStatus } from "@/lib/types"
-import { queueTone } from "@/components/dashboard/output-status-grid"
+import { queueTone } from "@/components/dashboard/attention"
 
 import type { PipelineSelection } from "./canvas"
 
