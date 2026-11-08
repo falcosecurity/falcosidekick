@@ -12,11 +12,17 @@ This project uses GitHub to manage reviews of pull requests.
 
 * Should you wish to work on an issue, please claim it first by commenting on the GitHub issue that you want to work on it. This is to prevent duplicated efforts from contributors on the same issue.
 
+## Branches
+
+* `master` holds Falcosidekick v3. New features and fixes for v3 target `master`.
+
+* `2.x` holds Falcosidekick v2, which accepts fixes and security updates only. A fix for v2 targets `2.x`.
+
 ## Pull Request Checklist
 
-* Start by forking the project, and then create a feature branch from the master branch for your feature.
+* Start by forking the project, and then create a feature branch from the branch your change targets (`master` or `2.x`).
 
-* If needed, rebase to the current master branch before submitting your pull request. If it doesn't merge cleanly with master you may be asked to rebase your changes.
+* If needed, rebase to the current target branch before submitting your pull request. If it doesn't merge cleanly with that branch you may be asked to rebase your changes.
 
 * Commits should be as small as possible, while ensuring that each commit is correct independently (i.e., each commit should compile and pass tests).
 
