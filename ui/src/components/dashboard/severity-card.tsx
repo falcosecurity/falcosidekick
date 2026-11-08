@@ -43,7 +43,7 @@ export function SeverityCard({ className }: { className?: string }) {
   const known = !isPending && !error
 
   return (
-    <Card className={cn("gap-4 py-5 shadow-xs", className)}>
+    <Card size="sm" className={className}>
       <CardHeader className="px-5">
         <CardTitle asChild className="text-base">
           <h2>Events by severity</h2>

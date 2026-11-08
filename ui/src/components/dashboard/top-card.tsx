@@ -8,7 +8,6 @@ import { useEventsCountBy } from "@/hooks/use-events"
 import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
 import type { GroupBy } from "@/lib/types"
-import { cn } from "@/lib/utils"
 
 const DIMENSIONS: { key: GroupBy; label: string }[] = [
   { key: "rule", label: "Rules" },
@@ -27,7 +26,7 @@ export function TopCard({ className }: { className?: string }) {
     .slice(0, LIMIT)
   const max = ranked[0]?.[1] ?? 1
   return (
-    <Card className={cn("gap-4 py-5 shadow-xs", className)}>
+    <Card size="sm" className={className}>
       <CardHeader className="px-5">
         <CardTitle asChild className="text-base">
           <h2>Top {DIMENSIONS.find((d) => d.key === groupBy)!.label.toLowerCase()}</h2>

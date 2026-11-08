@@ -96,13 +96,7 @@ export function AttentionCard({ className }: { className?: string }) {
   const known = !isPending && !error
   const alerting = known && items.length > 0
   return (
-    <Card
-      className={cn(
-        "gap-4 py-5 shadow-xs",
-        alerting && "border-status-error/40 bg-status-error/[0.04] dark:bg-status-error/[0.07]",
-        className,
-      )}
-    >
+    <Card size="sm" className={cn(alerting && "border-status-error/40 bg-status-error/[0.04] dark:bg-status-error/[0.07]", className)}>
       <CardHeader className="px-5">
         <CardTitle asChild className="flex items-center gap-2 text-base">
           <h2>

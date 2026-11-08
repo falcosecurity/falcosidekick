@@ -9,6 +9,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
+import { InlineCode } from "@/components/common/code"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Spinner } from "@/components/ui/spinner"
@@ -68,7 +69,7 @@ export function FilePathInput({ id, value, onChange, invalid, placeholder, ...re
                   <div className="p-4 text-sm text-destructive">{errorMessage(secrets.error)}</div>
                 ) : dirs.length === 0 ? (
                   <div className="p-4 text-sm text-muted-foreground">
-                    No <code className="font-mono text-xs">api.secret_dirs</code> configured: type the path.
+                    No <InlineCode>api.secret_dirs</InlineCode> configured: type the path.
                   </div>
                 ) : empty ? (
                   <div className="p-4 text-sm text-muted-foreground">The secret directories hold no files yet.</div>

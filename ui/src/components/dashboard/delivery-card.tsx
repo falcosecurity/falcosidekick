@@ -22,7 +22,7 @@ export function DeliveryCard({ className }: { className?: string }) {
   const { data, isPending, error } = usePipelineStatus()
   const outputs = byAttention(data ?? [])
   return (
-    <Card className={cn("@container/delivery gap-4 py-5 shadow-xs", className)}>
+    <Card size="sm" className={cn("@container/delivery", className)}>
       <CardHeader className="px-5">
         <CardTitle asChild className="text-base">
           <h2>Delivery</h2>
