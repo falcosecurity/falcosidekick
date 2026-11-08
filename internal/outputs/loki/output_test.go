@@ -17,6 +17,7 @@
 package loki
 
 import (
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -104,7 +105,7 @@ func TestLokiSendUsesGzip(t *testing.T) {
 	var payload lokiPayload
 	require.NoError(t, json.Unmarshal(capturedBody, &payload))
 	require.Len(t, payload.Streams, 1)
-	assert.NotEmpty(t, payload.Streams[0].Stream["rule"])
+	assert.Equal(t, "Error", payload.Streams[0].Stream["priority"])
 }
 
 func TestLokiSendBatchGroupsStreams(t *testing.T) {
@@ -138,10 +139,10 @@ func TestLokiSendBatchGroupsStreams(t *testing.T) {
 
 	var defaultStream, criticalStream *lokiStream
 	for i := range payload.Streams {
-		if payload.Streams[i].Stream["priority"] == string(event.PriorityError) {
+		if payload.Streams[i].Stream["priority"] == event.PriorityError.String() {
 			defaultStream = &payload.Streams[i]
 		}
-		if payload.Streams[i].Stream["priority"] == string(event.PriorityCritical) {
+		if payload.Streams[i].Stream["priority"] == event.PriorityCritical.String() {
 			criticalStream = &payload.Streams[i]
 		}
 	}
@@ -166,15 +167,49 @@ func TestLokiCreateRuntimeDefaults(t *testing.T) {
 	assert.Equal(t, formatJSON, o.cfg.LogFormat)
 }
 
-func TestLokiCreateOutputExtraLabels(t *testing.T) {
+func TestLokiCreateOutputLabelFields(t *testing.T) {
 	d, err := createOutput(map[string]any{
 		"host":         "http://localhost:3100",
-		"extra_labels": "fd.name, user.name, ,proc.cmdline",
+		"label_fields": []any{"fd.name", "container.name"},
 	}, output.Deps{})
 	require.NoError(t, err)
+	assert.Equal(t, []labelField{{field: "fd.name", label: "fd_name"}, {field: "container.name", label: "container_name"}}, d.(*driver).cfg.labelFields)
 
-	o := d.(*driver)
-	assert.Equal(t, []string{"fd.name", "user.name", "proc.cmdline"}, o.extraLabels)
+	for _, tc := range []struct {
+		raw  map[string]any
+		name string
+		want string
+	}{
+		{name: "extra_labels is gone", raw: map[string]any{"extra_labels": "fd.name"}, want: "unknown keys"},
+		{name: "comma string", raw: map[string]any{"label_fields": "fd.name,user.name"}, want: "does not make a valid label name"},
+		{name: "built-in label", raw: map[string]any{"label_fields": []any{"k8s.ns.name"}}, want: "makes the built-in label k8s_ns_name"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.raw["host"] = "http://localhost:3100"
+			_, err := createOutput(tc.raw, output.Deps{})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
+}
+
+func TestLokiSendsLabelFields(t *testing.T) {
+	testutil.RunOutputTests(t, &OutputType, []testutil.OutputTestCase{
+		{
+			Name:         "label fields become stream labels",
+			AddressField: "host",
+			Config:       map[string]any{"label_fields": []any{"user.name"}},
+			ValidateReq: func(t *testing.T, _ *http.Request, body []byte) {
+				gr, err := gzip.NewReader(bytes.NewReader(body))
+				require.NoError(t, err)
+				var payload lokiPayload
+				require.NoError(t, json.NewDecoder(gr).Decode(&payload))
+				require.Len(t, payload.Streams, 1)
+				assert.Equal(t, "root", payload.Streams[0].Stream["user_name"])
+				assert.Equal(t, "error", payload.Streams[0].Stream["level"])
+			},
+		},
+	})
 }
 
 func TestLokiHealthCheck(t *testing.T) {

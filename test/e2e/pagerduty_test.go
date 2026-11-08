@@ -160,6 +160,10 @@ func TestPagerDutyDeliversEvent(t *testing.T) {
 	assert.NotEmpty(t, evt.Payload.Timestamp)
 	assert.Equal(t, marker, evt.Payload.CustomDetails["e2e.marker"])
 	assert.Equal(t, "E2E "+marker, evt.Payload.CustomDetails["rule"])
+	assert.Equal(t, []any{"e2e"}, evt.Payload.CustomDetails["tags"])
+	assert.Equal(t, "E2E "+marker, evt.Payload.Class)
+	assert.Equal(t, "e2e", evt.Payload.Component, "proc.name when there is no container.name")
+	assert.Empty(t, evt.Payload.Group, "no k8s.ns.name")
 	assert.NotContains(t, sk.logs.String(), pagerdutyRoutingKey)
 	for _, path := range []string{"/api/v1/pipeline/outputs/pagerduty", "/api/v1/config"} {
 		assert.NotContains(t, pagerdutyAPIBody(t, sk, path), pagerdutyRoutingKey, path)

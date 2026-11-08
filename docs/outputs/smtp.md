@@ -1,6 +1,6 @@
 # Email (SMTP)
 
-Sends one email per event, HTML or text.
+Sends one email per event, HTML or text. The subject is `[Priority] rule on hostname`, without `on hostname` when the event has none.
 
 - `tls_mode` is `starttls` (required), `implicit`, `opportunistic` or `none`. Credentials are sent only over TLS or to localhost.
 - Startup connects, negotiates TLS and authenticates without sending mail: rejected credentials, a missing STARTTLS or an untrusted certificate stop startup.
@@ -16,7 +16,7 @@ Tested with Mailpit v1.33.0.
 outputs:
   smtp:
     host: smtp.example.com
-    user: falcosidekick@example.com
+    username: falcosidekick@example.com
     password_file: /etc/falcosidekick/secrets/smtp/password
     from: Falco <falcosidekick@example.com>
     to:
@@ -35,8 +35,8 @@ Key in the output file: `smtp`. Category: Email. UI event source: no. Batching: 
 | `host` | string, **required** | - | SMTP server host name or IP address, without scheme or port. Also the name verified in the server certificate. |
 | `port` | integer | - | SMTP server port. Empty or `0` uses `587` with `starttls` and `opportunistic`, `465` with `implicit`, `25` with `none`. |
 | `tls_mode` | one of `starttls`, `implicit`, `opportunistic`, `none` | `starttls` | `starttls` requires STARTTLS, `implicit` connects over TLS, `opportunistic` uses STARTTLS when offered, `none` sends in clear and refuses `tls` settings. |
-| `auth_mechanism` | one of `plain`, `xoauth2`, `none` | `plain` | `plain` needs user and password, `xoauth2` needs user and token with `starttls` or `implicit`, `none` sends no credentials. Credentials go only over TLS, except to localhost. |
-| `user` | string | - | Account name for `plain` or `xoauth2` authentication. |
+| `auth_mechanism` | one of `plain`, `xoauth2`, `none` | `plain` | `plain` needs username and password, `xoauth2` needs username and token with `starttls` or `implicit`, `none` sends no credentials. Credentials go only over TLS, except to localhost. |
+| `username` | string | - | Account name for `plain` or `xoauth2` authentication. |
 | `password` | string, secret | - | Password for `plain` authentication. Also accepted as `password_file`, the path of a file holding the value. |
 | `token` | string, secret | - | OAuth 2.0 access token for `xoauth2` authentication. Also accepted as `token_file`, the path of a file holding the value. |
 | `from` | string, **required** | - | One RFC 5322 address for the `From` header and envelope sender, such as `Falco <falco@example.com>`. |

@@ -73,13 +73,22 @@ func newTemplateData(evt *event.Event) templateData {
 	}
 }
 
+// subject is "[Priority] rule on hostname": both are stable per alert, unlike the output text.
+func subject(evt *event.Event) string {
+	s := "[" + evt.Priority.String() + "] " + evt.Rule
+	if evt.Hostname != "" {
+		s += " on " + evt.Hostname
+	}
+	return shared.TruncateRunes(s, maxSubjectRunes)
+}
+
 // message builds a text body, plus an HTML alternative in html format.
 func (d *driver) message(evt *event.Event) (*mail.Msg, error) {
 	data := newTemplateData(evt)
 	msg := mail.NewMsg()
 	msg.SetAddrHeaderFromMailAddress(mail.HeaderFrom, d.from)
 	msg.SetAddrHeaderFromMailAddress(mail.HeaderTo, d.to...)
-	msg.Subject(shared.TruncateRunes("["+data.Priority+"] "+evt.Output, maxSubjectRunes))
+	msg.Subject(subject(evt))
 	msg.SetDateWithValue(evt.Time)
 	msg.SetMessageID()
 	// RFC 3834: automatic responders do not answer this message.

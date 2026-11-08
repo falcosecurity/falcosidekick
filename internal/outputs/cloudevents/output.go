@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	name          = "cloudevents"
-	defaultSource = "https://falco.org"
+	name            = "cloudevents"
+	suggestedSource = "/falcosidekick"
 )
 
 var targetOptions = shared.HTTPTargetOptions{DefaultEndpoint: "/"}
@@ -62,8 +62,9 @@ var OutputType = output.Type{
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{
-				Name: "source", Type: "string", Default: defaultSource, Label: "Event Source (URI reference)",
-				Description: "Value of the `source` attribute of every event, a URI reference such as `https://falco.org` or `/cluster/prod`. Empty uses the default.",
+				Name: "source", Type: "string", Required: true, Suggested: suggestedSource, Label: "Event Source (URI reference)",
+				Description: "Value of the `source` attribute of every event, a URI reference naming the context that produced it, " +
+					"such as `/falcosidekick` or `/cluster/prod/falcosidekick`.",
 			},
 			{
 				Name: "extensions", Type: "map", Label: "Extension Attributes",
@@ -85,11 +86,12 @@ func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	errs.Merge("", c.HTTPConfig.Validate())
 	errs.Merge("", c.HTTPTargetConfig.Validate(&targetOptions))
-	if c.Source == "" {
-		c.Source = defaultSource
-	} else if !validString(c.Source) {
+	switch _, err := url.Parse(c.Source); {
+	case c.Source == "":
+		errs.Add("source", "is required")
+	case !validString(c.Source):
 		errs.Add("source", "must not contain control characters")
-	} else if _, err := url.Parse(c.Source); err != nil {
+	case err != nil:
 		errs.Add("source", "must be a URI reference")
 	}
 	for _, key := range slices.Sorted(maps.Keys(c.Extensions)) {

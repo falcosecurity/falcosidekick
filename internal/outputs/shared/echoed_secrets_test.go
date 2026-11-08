@@ -35,8 +35,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kmsg"
+	collogs "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -107,35 +109,41 @@ func TestEveryOutputKeepsEchoedSecretsOut(t *testing.T) {
 		}},
 		{name: "talon", config: func(h string) map[string]any { return map[string]any{"host": h, "headers": secretHeader} }},
 		{name: "cloudevents", noProbe: true, config: func(h string) map[string]any {
-			return map[string]any{"host": h, "headers": secretHeader}
+			return map[string]any{"host": h, "source": "/falcosidekick", "headers": secretHeader}
 		}},
 		{name: "pagerduty", noProbe: true, config: func(h string) map[string]any {
 			return map[string]any{"host": h, "routing_key": echoedSecret}
 		}},
 		{name: "opsgenie", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": echoedSecret} }},
-		{name: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": echoedSecret} }},
-		{name: "datadog v2", typ: "datadog", config: func(h string) map[string]any {
+		{name: "datadog", config: func(h string) map[string]any {
 			return map[string]any{"host": h, "api_key": echoedSecret, "app_key": echoedSecret}
 		}},
 		{name: "otlp", noProbe: true, config: func(h string) map[string]any {
 			return map[string]any{
-				"traces": map[string]any{"endpoint": h, "headers": secretHeader},
-				"logs":   map[string]any{"endpoint": h}, "metrics": map[string]any{"endpoint": h},
+				"logs":    map[string]any{"endpoint": h, "headers": secretHeader},
+				"metrics": map[string]any{"endpoint": h},
 			}
 		}},
 		// The exporters return the collector's partial-success message as the error text.
+		// They parse only protobuf replies; the log and metric replies share the partial_success layout.
 		{name: "otlp partial success", typ: "otlp", noProbe: true, want: "partial success", destination: func(t *testing.T) string {
-			return hostileHTTPServer(t, http.StatusOK, `{"partialSuccess":{"rejectedSpans":1,"rejectedLogRecords":1,`+
-				`"rejectedDataPoints":1,"errorMessage":"`+echoedSecret+`"}}`).host
+			body, err := proto.Marshal(&collogs.ExportLogsServiceResponse{PartialSuccess: &collogs.ExportLogsPartialSuccess{
+				RejectedLogRecords: 1, ErrorMessage: echoedSecret,
+			}})
+			require.NoError(t, err)
+			return hostileHandlerServer(t, func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/x-protobuf")
+				_, _ = w.Write(body)
+			}).host
 		}, config: func(h string) map[string]any {
 			signal := map[string]any{"endpoint": h}
-			return map[string]any{"traces": signal, "logs": signal, "metrics": signal}
+			return map[string]any{"logs": signal, "metrics": signal}
 		}},
 		{name: "otlp grpc", typ: "otlp", noProbe: true, want: "PermissionDenied", destination: func(t *testing.T) string {
 			return hostileGRPCServer(t, status.Error(codes.PermissionDenied, "denied: "+echoedSecret)).host
 		}, config: func(h string) map[string]any {
 			signal := map[string]any{"endpoint": h, "protocol": "grpc", "headers": secretHeader}
-			return map[string]any{"traces": signal, "logs": signal, "metrics": signal}
+			return map[string]any{"logs": signal, "metrics": signal}
 		}},
 		{name: "awss3", want: "HTTP 403", destination: hostileS3Server, config: func(h string) map[string]any {
 			return awsHostileConfig(h, map[string]any{"bucket": "falco", "use_path_style": true})
@@ -155,23 +163,23 @@ func TestEveryOutputKeepsEchoedSecretsOut(t *testing.T) {
 		{name: "kafka", want: "SASL_AUTHENTICATION_FAILED", destination: hostileSASLBroker, config: func(h string) map[string]any {
 			return map[string]any{
 				"brokers": []string{h}, "topic": "falco",
-				"auth":     map[string]any{"sasl": "plain", "username": "u", "password": echoedSecret},
+				"auth":     map[string]any{"sasl": "PLAIN", "username": "u", "password": echoedSecret},
 				"producer": map[string]any{"delivery_timeout": "1s"},
 			}
 		}},
 		{name: "policyreport", want: "HTTP 403", destination: hostileAPIServer, config: func(h string) map[string]any {
-			return map[string]any{"kubeconfig": h, "falco_namespace": "falco"}
+			return map[string]any{"kubeconfig": h, "fallback_namespace": "falco"}
 		}},
 		{name: "redis", want: "WRONGPASS", destination: func(t *testing.T) string {
 			return hostileRESPServer(t, func(string) string {
 				return "-WRONGPASS invalid username-password pair: " + echoedSecret + "\r\n"
 			})
 		}, config: func(h string) map[string]any {
-			return map[string]any{"address": h, "username": "u", "password": echoedSecret}
+			return map[string]any{"address": h, "key": "falco", "username": "u", "password": echoedSecret}
 		}},
 		{name: "redis command refused", typ: "redis", want: ": ERR", destination: func(t *testing.T) string {
 			return hostileRESPServer(t, func(string) string { return "-ERR " + echoedSecret + "\r\n" })
-		}, config: func(h string) map[string]any { return map[string]any{"address": h} }},
+		}, config: func(h string) map[string]any { return map[string]any{"address": h, "key": "falco"} }},
 		{name: "smtp", want: "server replied 535", destination: func(t *testing.T) string {
 			return hostileSMTPServer(t, func(verb string) []string {
 				if verb == "EHLO" {
@@ -180,7 +188,7 @@ func TestEveryOutputKeepsEchoedSecretsOut(t *testing.T) {
 				return []string{"535 5.7.8 invalid credentials: " + echoedSecret}
 			})
 		}, config: func(h string) map[string]any {
-			return hostileSMTPConfig(h, map[string]any{"auth_mechanism": "plain", "user": "u", "password": echoedSecret})
+			return hostileSMTPConfig(h, map[string]any{"auth_mechanism": "plain", "username": "u", "password": echoedSecret})
 		}},
 		{name: "smtp session refused", typ: "smtp", want: "server replied 554", destination: func(t *testing.T) string {
 			return hostileSMTPServer(t, func(string) []string { return []string{"554 5.7.1 " + echoedSecret} })
@@ -188,7 +196,7 @@ func TestEveryOutputKeepsEchoedSecretsOut(t *testing.T) {
 		// Syslog has no credential and no reply protocol: the receiver's only text is what it writes on the wire.
 		{name: "syslog", want: "invalid TLS response", destination: hostileTLSPeer, config: func(h string) map[string]any {
 			cfg := hostPort(h)
-			maps.Copy(cfg, map[string]any{"protocol": "tls"})
+			maps.Copy(cfg, map[string]any{"tls": map[string]any{"enabled": true}})
 			return cfg
 		}},
 	}

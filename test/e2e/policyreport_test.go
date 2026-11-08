@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -121,7 +122,7 @@ func (k kubeTarget) waitResult(t *testing.T, namespace, marker string) (report *
 }
 
 func policyReportOutput(kubeconfig, fallback string) string {
-	return fmt.Sprintf("policyreport:\n  kubeconfig: %q\n  falco_namespace: %q\n", kubeconfig, fallback)
+	return fmt.Sprintf("policyreport:\n  kubeconfig: %q\n  fallback_namespace: %q\n", kubeconfig, fallback)
 }
 
 func postFields(t *testing.T, sk *sidekick, marker, priority string, fields map[string]any) {
@@ -169,7 +170,7 @@ func TestPolicyReportWritesNamespaceReport(t *testing.T) {
 	assert.Positive(t, ts["seconds"])
 	assert.Equal(t, []any{map[string]any{"apiVersion": "v1", "kind": "Pod", "name": "api-0", "namespace": ns}}, result["resources"])
 	props, _ := result["properties"].(map[string]any)
-	assert.Equal(t, "warning", props["priority"])
+	assert.Equal(t, "Warning", props["priority"])
 	assert.Equal(t, "e2e-host", props["hostname"])
 }
 
@@ -184,6 +185,30 @@ func TestPolicyReportWritesClusterReport(t *testing.T) {
 	assert.Equal(t, "fail", result["result"])
 	assert.Equal(t, "critical", result["severity"])
 	assert.NotContains(t, result, "resources")
+}
+
+// skip means the policy was not selected: low priorities are alerts too, reported as warn.
+func TestPolicyReportLowPriorityIsWarn(t *testing.T) {
+	k := kubeCluster(t)
+	marker := newMarker(t)
+	sk := startSidekick(t, policyReportOutput(k.kubeconfig, "default")+"  max_results: 50\n")
+
+	postFields(t, sk, marker, "Notice", nil)
+	report, result := k.waitResult(t, "", marker)
+	assert.Equal(t, "warn", result["result"])
+	assert.Equal(t, "low", result["severity"])
+	limit, _, _ := unstructured.NestedInt64(report.Object, "configuration", "limits", "maxResults")
+	assert.Equal(t, int64(50), limit)
+}
+
+func TestPolicyReportRefusesRenamedSettings(t *testing.T) {
+	k := kubeCluster(t)
+	for _, old := range []string{"falco_namespace: falco", "max_events: 10"} {
+		t.Run(old, func(t *testing.T) {
+			logs := startSidekickFails(t, fmt.Sprintf("policyreport:\n  kubeconfig: %q\n  %s\n", k.kubeconfig, old))
+			assert.Contains(t, logs, "unknown keys: "+strings.SplitN(old, ":", 2)[0])
+		})
+	}
 }
 
 // Concurrent events to one report all land: writes are serialized and

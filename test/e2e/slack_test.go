@@ -25,6 +25,8 @@ import (
 	"mime"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -72,6 +74,20 @@ type slackField struct {
 	Title string `json:"title"`
 	Value string `json:"value"`
 	Short bool   `json:"short"`
+}
+
+// slackBlock covers the header, section and context blocks:
+// https://docs.slack.dev/reference/block-kit/blocks
+type slackBlock struct {
+	Text     *slackText  `json:"text"`
+	Type     string      `json:"type"`
+	Fields   []slackText `json:"fields"`
+	Elements []slackText `json:"elements"`
+}
+
+type slackText struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
 }
 
 // slackWebhook is a strict fake that answers rejected requests the way Slack does.
@@ -149,18 +165,36 @@ func TestSlackDeliversEvent(t *testing.T) {
 	messages, rejected := hook.snapshot()
 	require.Empty(t, rejected)
 	require.Len(t, messages, 1)
+	summary := "[Warning] E2E " + marker + " on e2e-host"
+	assert.Equal(t, summary, messages[0].Text, "notifications show the text")
+	assert.Empty(t, messages[0].Blocks, "the blocks stay in the attachment, under its color")
 	require.Len(t, messages[0].Attachments, 1)
 	attachment := messages[0].Attachments[0]
-	assert.Equal(t, "e2e event "+marker, attachment.Fallback)
-	assert.Equal(t, "e2e event "+marker, attachment.Text)
-	assert.NotEmpty(t, attachment.Color)
-	fields := make(map[string]string, len(attachment.Fields))
-	for _, f := range attachment.Fields {
-		fields[f.Title] = f.Value
+	assert.Equal(t, summary, attachment.Fallback)
+	assert.Equal(t, "#ffc700", attachment.Color, "warning in the shared palette")
+	assert.Empty(t, attachment.Fields, "legacy attachment fields are not used")
+
+	var blocks []slackBlock
+	require.NoError(t, json.Unmarshal(attachment.Blocks, &blocks))
+	require.GreaterOrEqual(t, len(blocks), 3)
+	assert.Equal(t, "header", blocks[0].Type)
+	assert.Equal(t, slackText{Type: "plain_text", Text: "E2E " + marker}, *blocks[0].Text)
+	assert.Equal(t, "section", blocks[1].Type)
+	assert.Equal(t, slackText{Type: "mrkdwn", Text: "e2e event " + marker}, *blocks[1].Text)
+	var fields []string
+	for _, b := range blocks[2:] {
+		assert.Equal(t, "section", b.Type)
+		assert.LessOrEqual(t, len(b.Fields), 10)
+		for _, f := range b.Fields {
+			fields = append(fields, f.Text)
+		}
 	}
-	assert.Equal(t, "E2E "+marker, fields["rule"])
-	assert.Equal(t, "warning", fields["priority"])
-	assert.Equal(t, marker, fields["e2e.marker"])
+	assert.Contains(t, fields, "*rule*\nE2E "+marker)
+	assert.Contains(t, fields, "*priority*\nWarning")
+	assert.Contains(t, fields, "*e2e.marker*\n"+marker)
+	timeField := slices.IndexFunc(fields, func(f string) bool { return strings.HasPrefix(f, "*time*\n") })
+	require.GreaterOrEqual(t, timeField, 0)
+	assert.Regexp(t, `^\*time\*\n<!date\^\d+\^\{date_short_pretty\} \{time\}\|\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ>$`, fields[timeField])
 }
 
 func TestSlackReportsNoService(t *testing.T) {

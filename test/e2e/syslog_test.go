@@ -222,12 +222,12 @@ func waitSyslog(t *testing.T, r *syslogReceiver, marker string) syslogMessage {
 }
 
 func TestSyslogDeliversEvent(t *testing.T) {
-	for _, protocol := range []string{"tcp", "udp", "tls"} {
-		t.Run(protocol, func(t *testing.T) {
-			receiver, port, caFile := startSyslogReceiver(t, protocol)
-			extra := ""
+	for _, transport := range []string{"tcp", "udp", "tls"} {
+		t.Run(transport, func(t *testing.T) {
+			receiver, port, caFile := startSyslogReceiver(t, transport)
+			protocol, extra := transport, ""
 			if caFile != "" {
-				extra = fmt.Sprintf("tls:\n  ca_file: %q\n", caFile)
+				protocol, extra = "tcp", fmt.Sprintf("tls:\n  enabled: true\n  ca_file: %q\n", caFile)
 			}
 			sk := startSidekick(t, syslogOutput(port, protocol, extra))
 			marker := newMarker(t)
@@ -260,10 +260,29 @@ func TestSyslogCEF(t *testing.T) {
 
 	m := waitSyslog(t, receiver, marker)
 	assert.Equal(t, 4*8+4, m.Pri, "auth.warning")
-	assert.Regexp(t, `^CEF:0\|Falcosecurity\|Falco\|1\.0\|Falco Event\|E2E `+marker+`\|6\|uuid=\S+ start=\S+ msg=e2e event `+marker+
-		` source=syscall hostname=e2e-host outputfields=e2e\.marker:`+marker+` proc\.name:e2e tags=e2e$`, m.Msg)
+	cef := regexp.MustCompile(`^CEF:0\|Falcosecurity\|Falcosidekick\|[^|]+\|E2E ` + marker + `\|E2E ` + marker + `\|6\|` +
+		`rt=(\d+) dvchost=e2e-host msg=e2e event ` + marker + ` externalId=\S+ cat=syscall FalcoFalcosidekickTags=e2e ` +
+		`cs1Label=e2e\.marker cs1=` + marker + ` cs2Label=proc\.name cs2=e2e$`)
+	parts := cef.FindStringSubmatch(m.Msg)
+	require.NotNil(t, parts, m.Msg)
+	rt, err := strconv.ParseInt(parts[1], 10, 64)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now(), time.UnixMilli(rt), time.Minute, "rt is the event time in epoch milliseconds")
 	_, rejected := receiver.snapshot()
 	assert.Empty(t, rejected)
+}
+
+func TestSyslogRefusesProtocolTLS(t *testing.T) {
+	for _, tc := range []struct{ name, output, want string }{
+		{name: "protocol tls", output: syslogOutput(514, "tls", ""), want: "protocol: must be tcp/udp"},
+		{name: "tls over udp", output: syslogOutput(514, "udp", "tls:\n  enabled: true\n"), want: "tls.enabled: requires protocol tcp"},
+		{name: "tls settings without enabled", output: syslogOutput(514, "tcp", "tls:\n  insecure_skip_verify: true\n"),
+			want: "tls.enabled: must be true when other tls settings are set"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Contains(t, startSidekickFails(t, tc.output), tc.want)
+		})
+	}
 }
 
 func TestSyslogReconnects(t *testing.T) {
@@ -286,7 +305,7 @@ func TestSyslogReconnects(t *testing.T) {
 
 func TestSyslogUnknownCAStopsStartup(t *testing.T) {
 	_, port, _ := startSyslogReceiver(t, "tls")
-	logs := startSidekickFails(t, syslogOutput(port, "tls", fmt.Sprintf("tls:\n  ca_file: %q\n", writeUnknownCA(t))))
+	logs := startSidekickFails(t, syslogOutput(port, "tcp", fmt.Sprintf("tls:\n  enabled: true\n  ca_file: %q\n", writeUnknownCA(t))))
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "TLS certificate verification failed")
 }

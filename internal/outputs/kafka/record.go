@@ -69,7 +69,7 @@ func buildHeaders(evt *event.Event) []kgo.RecordHeader {
 	return []kgo.RecordHeader{
 		{Key: "content-type", Value: []byte("application/json")},
 		{Key: "falco.rule", Value: []byte(evt.Rule)},
-		{Key: "falco.priority", Value: []byte(string(evt.Priority))},
+		{Key: "falco.priority", Value: []byte(evt.Priority.String())},
 		{Key: "falco.source", Value: []byte(evt.Source)},
 	}
 }

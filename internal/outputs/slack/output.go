@@ -49,14 +49,11 @@ var webhookErrors = map[string]bool{
 
 var targetOptions = shared.HTTPTargetOptions{DefaultHost: "https://hooks.slack.com", SecretEndpointRequired: true}
 
+// Slack-app webhooks ignore channel, username and icon overrides, so the output offers none.
 type config struct {
-	Channel                 string `mapstructure:"channel"`
 	Footer                  string `mapstructure:"footer"`
-	IconURL                 string `mapstructure:"icon_url"`
-	IconEmoji               string `mapstructure:"icon_emoji"`
-	BotUsername             string `mapstructure:"bot_username"`
 	OutputFormat            string `mapstructure:"output_format"`
-	MessageFormat           string `mapstructure:"message_format"`
+	MessageTemplate         string `mapstructure:"message_template"`
 	shared.HTTPTargetConfig `mapstructure:",squash"`
 	shared.HTTPConfig       `mapstructure:",squash"`
 	Runtime                 output.RuntimeConfig `mapstructure:"runtime"`
@@ -70,32 +67,17 @@ var OutputType = output.Type{
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{
-				Name: "channel", Type: "string", Label: "Channel",
-				Description: "Channel the messages are posted to, such as `#falco`, when the webhook allows it. Empty uses the webhook's channel.",
-			},
-			{
-				Name: "bot_username", Type: "string", Label: "Bot Username",
-				Description: "Name shown as the sender of the messages, when the webhook allows it. Empty uses the webhook's name.",
-			},
-			{
-				Name: "icon_url", Type: "string", Label: "Icon URL", Suggested: shared.FalcosidekickIconURL,
-				Description: "URL of the image shown as the sender icon. Empty uses the webhook's icon.",
-			},
-			{
-				Name: "icon_emoji", Type: "string", Label: "Icon Emoji (e.g., :ghost:)",
-				Description: "Emoji shown as the sender icon, written as `:name:`. Empty uses the webhook's icon.",
-			},
-			{
 				Name: "output_format", Type: "enum", Values: []string{"all", "fields", "text"}, Default: "all", Label: "Output Format",
-				Description: "Content of the attachment: `text` is the event output text, `fields` lists rule, priority, source, hostname, tags, output fields and time, `all` shows both.",
+				Description: "Content under the rule heading: `text` is the event output text, `fields` lists rule, priority, source, hostname, tags, time and output fields, `all` shows both.",
 			},
 			{
-				Name: "message_format", Type: "string", Label: "Message Template",
-				Description: "Go template for a message text shown above the attachment, applied to the event, such as `Rule {{ .Rule }} on {{ .Hostname }}`. Empty sends no message text.",
+				Name: "message_template", Type: "string", Label: "Message Template",
+				Description: "Go template for the message text, which notifications show, applied to the event, such as `Rule {{ .Rule }} on {{ .Hostname }}`. " +
+					"Empty, or a template that fails, sends `[Priority] rule on hostname`.",
 			},
 			{
 				Name: "footer", Type: "string", Label: "Footer", Suggested: suggestedFooter,
-				Description: "Text shown under the attachment, cut to 300 characters. Empty shows no footer.",
+				Description: "Slack markup shown at the bottom of the attachment, cut to 300 characters. Empty shows no footer.",
 			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
@@ -121,9 +103,9 @@ func (c *config) validate() utils.ValidationErrors {
 	} else if !validOutputFormats[c.OutputFormat] {
 		errs.Add("output_format", "must be all/fields/text")
 	}
-	if c.MessageFormat != "" {
-		if _, err := template.New("").Parse(c.MessageFormat); err != nil {
-			errs.Add("message_format", "invalid Go template")
+	if c.MessageTemplate != "" {
+		if _, err := template.New("").Parse(c.MessageTemplate); err != nil {
+			errs.Add("message_template", "invalid Go template")
 		}
 	}
 	if len(errs) > 0 {
@@ -152,8 +134,8 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 		logger: shared.ResolveLogger(deps.Logger, name),
 	}
 
-	if cfg.MessageFormat != "" {
-		tmpl, err := template.New(name).Parse(cfg.MessageFormat)
+	if cfg.MessageTemplate != "" {
+		tmpl, err := template.New(name).Parse(cfg.MessageTemplate)
 		if err != nil {
 			return nil, fmt.Errorf("%s: parse message template: %w", name, err)
 		}

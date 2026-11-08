@@ -31,7 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 	collogs "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	colmetrics "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
-	coltrace "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -43,7 +42,6 @@ import (
 
 // received holds the OTLP requests a receiver accepted.
 type received struct {
-	traces    []*coltrace.ExportTraceServiceRequest
 	logs      []*collogs.ExportLogsServiceRequest
 	metrics   []*colmetrics.ExportMetricsServiceRequest
 	headers   []map[string]string
@@ -134,9 +132,6 @@ func (r *receiver) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var msg, resp proto.Message
 	var keep func(got *received)
 	switch {
-	case strings.HasSuffix(req.URL.Path, "/traces"):
-		m := &coltrace.ExportTraceServiceRequest{}
-		msg, resp, keep = m, &coltrace.ExportTraceServiceResponse{}, func(got *received) { got.traces = append(got.traces, m) }
 	case strings.HasSuffix(req.URL.Path, "/logs"):
 		m := &collogs.ExportLogsServiceRequest{}
 		msg, resp, keep = m, r.logsResponse(), func(got *received) { got.logs = append(got.logs, m) }
@@ -184,19 +179,6 @@ func (r *receiver) admitGRPC(ctx context.Context, signal string) error {
 	return nil
 }
 
-type traceService struct {
-	coltrace.UnimplementedTraceServiceServer
-	r *receiver
-}
-
-func (s traceService) Export(ctx context.Context, req *coltrace.ExportTraceServiceRequest) (*coltrace.ExportTraceServiceResponse, error) {
-	if err := s.r.admitGRPC(ctx, "traces"); err != nil {
-		return nil, err
-	}
-	s.r.store(func(got *received) { got.traces = append(got.traces, req) })
-	return &coltrace.ExportTraceServiceResponse{}, nil
-}
-
 type logsService struct {
 	collogs.UnimplementedLogsServiceServer
 	r *receiver
@@ -237,7 +219,6 @@ func startGRPCReceiver(t *testing.T) (r *receiver, endpoint string) {
 	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	server := grpc.NewServer()
-	coltrace.RegisterTraceServiceServer(server, traceService{r: r})
 	collogs.RegisterLogsServiceServer(server, logsService{r: r})
 	colmetrics.RegisterMetricsServiceServer(server, metricsService{r: r})
 	go func() { _ = server.Serve(ln) }()

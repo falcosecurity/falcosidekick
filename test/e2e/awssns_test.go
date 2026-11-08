@@ -69,11 +69,11 @@ func (a *awsTarget) receiveNotification(t *testing.T, queueURL string) snsEnvelo
 	return env
 }
 
-func TestAWSSNSPublishesWithAttributes(t *testing.T) {
+func TestAWSSNSPublishesTextWithAttributes(t *testing.T) {
 	target := localstack(t)
 	marker := newMarker(t)
 	topicARN, queueURL := target.createTopic(t, marker)
-	sk := startSidekick(t, target.output("awssns", fmt.Sprintf("topic_arn: %q\n", topicARN)+
+	sk := startSidekick(t, target.output("awssns", fmt.Sprintf("topic_arn: %q\nformat: text\n", topicARN)+
 		"message_attributes: [priority, rule, source, tags, hostname, e2e.marker, proc.name]\n"))
 
 	sk.postEvent(t, marker)
@@ -99,17 +99,35 @@ func TestAWSSNSPublishesWithAttributes(t *testing.T) {
 	target.requireSecretAbsent(t, sk, "awssns")
 }
 
-func TestAWSSNSPublishesRawJSON(t *testing.T) {
+// The event JSON is the default body, with the default message attributes.
+func TestAWSSNSPublishesJSONByDefault(t *testing.T) {
 	target := localstack(t)
 	marker := newMarker(t)
 	topicARN, queueURL := target.createTopic(t, marker)
-	sk := startSidekick(t, target.output("awssns", fmt.Sprintf("topic_arn: %q\nraw_json: true\n", topicARN)))
+	sk := startSidekick(t, target.output("awssns", fmt.Sprintf("topic_arn: %q\n", topicARN)))
 
 	sk.postEvent(t, marker)
 	env := target.receiveNotification(t, queueURL)
 	assertAWSEvent(t, env.Message, marker)
-	assert.Empty(t, env.MessageAttributes)
+	attrs := map[string]string{}
+	for name, attr := range env.MessageAttributes {
+		attrs[name] = attr.Type + ":" + attr.Value
+	}
+	assert.Equal(t, map[string]string{
+		"priority": "String:Warning",
+		"rule":     "String:E2E " + marker,
+		"source":   "String:syscall",
+		"tags":     "String:e2e",
+		"hostname": "String:e2e-host",
+	}, attrs)
 	sk.waitStatus(t, "awssns", func(st outputStatus) bool { return st.SentTotal == 1 })
+}
+
+func TestAWSSNSRefusesRawJSON(t *testing.T) {
+	target := localstack(t)
+	topicARN := fmt.Sprintf("arn:aws:sns:%s:000000000000:fsk-e2e-raw", awsRegion)
+	logs := startSidekickFails(t, target.output("awssns", fmt.Sprintf("topic_arn: %q\nraw_json: true\n", topicARN)))
+	assert.Contains(t, logs, "unknown keys: raw_json")
 }
 
 func TestAWSSNSMissingTopicFailsStartup(t *testing.T) {

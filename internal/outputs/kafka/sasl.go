@@ -18,7 +18,6 @@ package kafka
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/sasl/plain"
@@ -26,18 +25,18 @@ import (
 )
 
 func resolveSASL(cfg *config) (kgo.Opt, error) {
-	switch strings.ToLower(cfg.Auth.SASL) {
-	case "plain":
+	switch cfg.Auth.SASL {
+	case saslPlain:
 		return kgo.SASL(plain.Auth{
 			User: cfg.Auth.Username,
 			Pass: cfg.Auth.Password,
 		}.AsMechanism()), nil
-	case "scram_sha256":
+	case saslSCRAMSHA256:
 		return kgo.SASL(scram.Auth{
 			User: cfg.Auth.Username,
 			Pass: cfg.Auth.Password,
 		}.AsSha256Mechanism()), nil
-	case "scram_sha512":
+	case saslSCRAMSHA512:
 		return kgo.SASL(scram.Auth{
 			User: cfg.Auth.Username,
 			Pass: cfg.Auth.Password,

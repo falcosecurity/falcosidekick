@@ -40,6 +40,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
+	"github.com/falcosecurity/falcosidekick/internal/version"
 )
 
 // rfc5424 matches the header of RFC 5424 section 6 as this output writes it.
@@ -64,7 +65,11 @@ func TestValidation(t *testing.T) {
 		{name: "missing host", config: map[string]any{}, want: "host: is required"},
 		{name: "host with scheme", config: map[string]any{"host": "tcp://syslog"}, want: "host: must be a host name"},
 		{name: "host with path", config: map[string]any{"host": "syslog/x"}, want: "host: must be a host name"},
-		{name: "bad protocol", config: map[string]any{"host": "s", "protocol": "relp"}, want: `protocol: must be tcp/udp/tls`},
+		{name: "bad protocol", config: map[string]any{"host": "s", "protocol": "relp"}, want: `protocol: must be tcp/udp`},
+		{name: "protocol tls is refused", config: map[string]any{"host": "s", "protocol": "tls"}, want: `protocol: must be tcp/udp`},
+		{name: "tls over tcp", config: map[string]any{"host": "s", "tls": map[string]any{"enabled": true}}},
+		{name: "tls over udp", config: map[string]any{"host": "s", "protocol": "udp", "tls": map[string]any{"enabled": true}}, want: "tls.enabled: requires protocol tcp"},
+		{name: "tls_enabled is refused", config: map[string]any{"host": "s", "tls_enabled": true}, want: "tls_enabled"},
 		{name: "uppercase protocol", config: map[string]any{"host": "s", "protocol": "TCP"}, want: "protocol"},
 		{name: "port too high", config: map[string]any{"host": "s", "port": 70000}, want: "port: must be between 1 and 65535"},
 		{name: "negative port", config: map[string]any{"host": "s", "port": -1}, want: "port"},
@@ -72,8 +77,9 @@ func TestValidation(t *testing.T) {
 		{name: "bad format", config: map[string]any{"host": "s", "format": "leef"}, want: `format: must be json/cef`},
 		{name: "cef", config: map[string]any{"host": "s", "format": "cef"}},
 		{name: "bad facility", config: map[string]any{"host": "s", "facility": "local9"}, want: "facility: must be one of"},
-		{name: "tls without protocol tls", config: map[string]any{"host": "s", "tls": map[string]any{"insecure_skip_verify": true}}, want: "tls: requires protocol tls"},
-		{name: "missing ca file", config: map[string]any{"host": "s", "protocol": "tls", "tls": map[string]any{"ca_file": "/does/not/exist"}}, want: "tls.ca_file"},
+		{name: "tls settings without tls.enabled", config: map[string]any{"host": "s", "tls": map[string]any{"insecure_skip_verify": true}},
+			want: "tls.enabled: must be true when other tls settings are set"},
+		{name: "missing ca file", config: map[string]any{"host": "s", "tls": map[string]any{"enabled": true, "ca_file": "/does/not/exist"}}, want: "tls.ca_file"},
 		{name: "unknown key", config: map[string]any{"host": "s", "minimumpriority": "debug"}, want: "minimumpriority"},
 		{name: "v2 checkcert", config: map[string]any{"host": "s", "checkcert": false}, want: "checkcert"},
 	}
@@ -98,8 +104,9 @@ func TestDefaults(t *testing.T) {
 	assert.Equal(t, formatJSON, d.cfg.Format)
 	assert.Equal(t, 16, d.facility, "local0")
 
-	d = newTestDriver(t, map[string]any{"host": "s", "protocol": "tls"})
+	d = newTestDriver(t, map[string]any{"host": "s", "tls": map[string]any{"enabled": true}})
 	assert.Equal(t, 6514, d.cfg.Port, "RFC 5425 port")
+	assert.Equal(t, protocolTCP, d.cfg.Protocol)
 
 	d = newTestDriver(t, map[string]any{"host": "s", "port": 1514, "runtime": map[string]any{"workers": 4}})
 	assert.Equal(t, 1514, d.cfg.Port)
@@ -113,9 +120,10 @@ func TestSchema(t *testing.T) {
 		fields[f.Name] = f
 	}
 	assert.True(t, fields["host"].Required)
-	assert.Equal(t, []string{"tcp", "udp", "tls"}, fields["protocol"].Values)
+	assert.Equal(t, []string{"tcp", "udp"}, fields["protocol"].Values)
 	assert.Contains(t, fields["facility"].Values, "local0")
 	assert.Contains(t, fields, "tls.ca_file")
+	assert.Equal(t, false, fields["tls.enabled"].Default)
 	assert.Contains(t, fields, "runtime.minimum_priority")
 }
 
@@ -190,15 +198,15 @@ func TestHostnameFallback(t *testing.T) {
 }
 
 func TestOctetCountingFrame(t *testing.T) {
-	for _, protocol := range []string{"tcp", "tls"} {
-		d := newTestDriver(t, map[string]any{"host": "s", "protocol": protocol})
+	for _, tlsEnabled := range []bool{false, true} {
+		d := newTestDriver(t, map[string]any{"host": "s", "protocol": "tcp", "tls": map[string]any{"enabled": tlsEnabled}})
 		msg, err := d.message(testutil.CreateValidEvent())
 		require.NoError(t, err)
 		length, rest, ok := strings.Cut(string(msg), " ")
 		require.True(t, ok)
 		n, err := strconv.Atoi(length)
 		require.NoError(t, err)
-		assert.Len(t, rest, n, protocol)
+		assert.Len(t, rest, n, "tls %t", tlsEnabled)
 		assert.True(t, rfc5424.MatchString(rest))
 	}
 }
@@ -206,31 +214,72 @@ func TestOctetCountingFrame(t *testing.T) {
 func TestCEFMessage(t *testing.T) {
 	d := newTestDriver(t, map[string]any{"host": "s", "protocol": "udp", "format": "cef"})
 	evt := testutil.CreateValidEvent()
-	evt.Rule = `Pipe | and \ in rule`
-	evt.Output = "a=b\nnext line"
+	evt.Rule = "Pipe | and \\ in rule\nwith = sign"
+	evt.Output = "a=b\r\nnext line"
 	evt.OutputFields = map[string]any{"z.field": "last", "a.field": `x=y\z`, "n.count": 3}
 	msg, err := d.message(evt)
 	require.NoError(t, err)
 	m := rfc5424.FindStringSubmatch(string(msg))
 	require.NotNil(t, m, string(msg))
+	rule := `Pipe \| and \\ in rule with = sign`
 	assert.Equal(t,
-		`CEF:0|Falcosecurity|Falco|1.0|Falco Event|Pipe \| and \\ in rule|7|uuid=test-uuid-001 start=2026-04-01T10:30:00Z `+
-			`msg=a\=b\nnext line source=syscall hostname=node-1 outputfields=a.field:x\=y\\z n.count:3 z.field:last `+
-			`tags=filesystem,mitre_persistence`,
+		`CEF:0|Falcosecurity|Falcosidekick|dev|`+rule+`|`+rule+`|7|rt=1775039400000 dvchost=node-1 msg=a\=b\r\nnext line `+
+			`externalId=test-uuid-001 cat=syscall FalcoFalcosidekickTags=filesystem,mitre_persistence `+
+			`cs1Label=a.field cs1=x\=y\\z cs2Label=n.count cs2=3 cs3Label=z.field cs3=last`,
 		m[4])
 
-	evt.Hostname = ""
-	evt.Tags = nil
-	assert.True(t, strings.HasSuffix(cefBody(evt), "outputfields=a.field:x\\=y\\\\z n.count:3 z.field:last"))
-	assert.NotContains(t, cefBody(evt), "hostname=")
+	evt.Hostname, evt.Tags, evt.UUID, evt.Source = "", nil, "", ""
+	body := cefBody(evt)
+	for _, absent := range []string{"dvchost=", "FalcoFalcosidekickTags=", "externalId=", "cat="} {
+		assert.NotContains(t, body, absent)
+	}
 
 	for p, want := range map[event.Priority]string{
 		event.PriorityDebug: "0", event.PriorityInformational: "3", event.PriorityNotice: "4", event.PriorityWarning: "6",
 		event.PriorityError: "7", event.PriorityCritical: "8", event.PriorityAlert: "9", event.PriorityEmergency: "10",
 	} {
 		evt.Priority = p
-		assert.Contains(t, cefBody(evt), "|"+want+"|uuid=", p)
+		assert.Contains(t, cefBody(evt), "|"+want+"|rt=", p)
 	}
+}
+
+func TestCEFVersionIsSidekicks(t *testing.T) {
+	previous := version.Version
+	version.Version = "3.0.0|beta"
+	t.Cleanup(func() { version.Version = previous })
+	assert.True(t, strings.HasPrefix(cefBody(testutil.CreateValidEvent()),
+		`CEF:0|Falcosecurity|Falcosidekick|3.0.0\|beta|Write below binary dir|Write below binary dir|`))
+}
+
+func TestCEFMessageIsCapped(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	evt.Output = strings.Repeat("é", 1023) + "cut"
+	body := cefBody(evt)
+	assert.Contains(t, body, " msg="+strings.Repeat("é", 1023)+" ", "1023 characters, not bytes")
+	assert.NotContains(t, body, "cut")
+}
+
+// Output fields beyond cs6 go in vendor keys, never in keys outside the CEF dictionary without the prefix.
+func TestCEFOutputFieldsBeyondSix(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	evt.Tags = nil
+	evt.OutputFields = map[string]any{
+		"a1": "1", "a2": "2", "a3": "3", "a4": "4", "a5": "5", "a6": "6",
+		"proc.aname[2]": "bash", "proc.aname.2": "dup", "tags": "field", "k8s.ns.name": nil,
+	}
+	body := cefBody(evt)
+	for i := 1; i <= 6; i++ {
+		n := strconv.Itoa(i)
+		assert.Contains(t, body, " cs"+n+"Label=a"+n+" cs"+n+"="+n)
+	}
+	assert.NotContains(t, body, "cs7")
+	assert.True(t, strings.HasSuffix(body,
+		" FalcoFalcosidekickK8sNsName=<nil> FalcoFalcosidekickProcAname2=dup FalcoFalcosidekickProcAname22=bash FalcoFalcosidekickTags2=field"), body)
+
+	used := map[string]bool{}
+	assert.Equal(t, "FalcoFalcosidekickFdName", cefVendorKey("fd.name", used))
+	assert.Equal(t, "FalcoFalcosidekickFdName2", cefVendorKey("fd_name", used))
+	assert.Equal(t, "FalcoFalcosidekickEvtArgPID", cefVendorKey("evt.arg.PID", used))
 }
 
 // streamServer sends each octet-counted frame it reads on the returned channel.
@@ -381,8 +430,7 @@ func TestTLSDelivery(t *testing.T) {
 	ln, caFile := tlsServer(t)
 	frames, _ := streamServer(t, ln)
 	cfg := hostPort(t, ln.Addr().String())
-	cfg["protocol"] = protocolTLS
-	cfg["tls"] = map[string]any{"ca_file": caFile}
+	cfg["tls"] = map[string]any{"enabled": true, "ca_file": caFile}
 	d := newTestDriver(t, cfg)
 
 	require.NoError(t, d.HealthCheck(context.Background()))
@@ -394,7 +442,7 @@ func TestTLSUntrustedIsMisconfigured(t *testing.T) {
 	ln, _ := tlsServer(t)
 	streamServer(t, ln)
 	cfg := hostPort(t, ln.Addr().String())
-	cfg["protocol"] = protocolTLS
+	cfg["tls"] = map[string]any{"enabled": true}
 	d := newTestDriver(t, cfg)
 
 	err := d.HealthCheck(context.Background())
@@ -431,7 +479,7 @@ func requireReturnsOnCancel(t *testing.T, call func(context.Context) error) erro
 func TestCancellation(t *testing.T) {
 	t.Run("tls handshake", func(t *testing.T) {
 		cfg := hangingServer(t)
-		cfg["protocol"] = protocolTLS
+		cfg["tls"] = map[string]any{"enabled": true}
 		d := newTestDriver(t, cfg)
 		err := requireReturnsOnCancel(t, d.HealthCheck)
 		assert.NotErrorIs(t, err, output.ErrMisconfigured)

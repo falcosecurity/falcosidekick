@@ -25,11 +25,8 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -83,37 +80,6 @@ var recordResult = grpc.WithUnaryInterceptor(recordPartialSuccess)
 func (s *exporterSettings) grpc() bool { return s.cfg.Protocol == protocolGRPC }
 
 func (s *exporterSettings) gzip() bool { return s.cfg.Compression == compressionGzip }
-
-func newSpanExporter(ctx context.Context, s *exporterSettings) (sdktrace.SpanExporter, error) {
-	if s.grpc() {
-		opts := []otlptracegrpc.Option{
-			otlptracegrpc.WithEndpoint(s.target.host),
-			otlptracegrpc.WithHeaders(s.headers),
-			otlptracegrpc.WithTimeout(s.cfg.Timeout),
-			otlptracegrpc.WithCompressor(s.cfg.Compression),
-			otlptracegrpc.WithRetry(otlptracegrpc.RetryConfig{Enabled: false}),
-			otlptracegrpc.WithDialOption(recordResult),
-		}
-		if s.target.secure {
-			opts = append(opts, otlptracegrpc.WithTLSCredentials(credentials.NewTLS(s.tls)))
-		} else {
-			opts = append(opts, otlptracegrpc.WithInsecure())
-		}
-		return otlptracegrpc.New(ctx, opts...)
-	}
-	compression := otlptracehttp.NoCompression
-	if s.gzip() {
-		compression = otlptracehttp.GzipCompression
-	}
-	return otlptracehttp.New(ctx,
-		otlptracehttp.WithEndpointURL(s.target.url()),
-		otlptracehttp.WithTimeout(s.cfg.Timeout),
-		otlptracehttp.WithHeaders(s.headers),
-		otlptracehttp.WithHTTPClient(s.httpClient),
-		otlptracehttp.WithCompression(compression),
-		otlptracehttp.WithRetry(otlptracehttp.RetryConfig{Enabled: false}),
-	)
-}
 
 func newLogExporter(ctx context.Context, s *exporterSettings) (sdklog.Exporter, error) {
 	if s.grpc() {

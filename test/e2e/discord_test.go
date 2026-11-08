@@ -27,6 +27,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
@@ -215,17 +216,22 @@ func TestDiscordDeliversEvent(t *testing.T) {
 	assert.Equal(t, 1, hook.gets, "startup reads the webhook once")
 	hook.mu.Unlock()
 	require.Len(t, messages[0].Embeds, 1)
-	assert.Nil(t, messages[0].AvatarURL, "no icon set: the webhook's own avatar")
+	assert.Nil(t, messages[0].AvatarURL, "no avatar_url set: the webhook's own avatar")
 	embed := messages[0].Embeds[0]
+	assert.Equal(t, "E2E "+marker, embed.Title)
 	assert.Equal(t, "e2e event "+marker, embed.Description)
+	ts, err := time.Parse(time.RFC3339Nano, embed.Timestamp)
+	require.NoError(t, err, "the timestamp is RFC 3339")
+	assert.WithinDuration(t, time.Now(), ts, time.Minute)
 	require.NotNil(t, embed.Color)
-	assert.Equal(t, 12745742, *embed.Color)
+	assert.Equal(t, 0xffc700, *embed.Color, "warning in the shared palette")
 	fields := make(map[string]string, len(embed.Fields))
 	for _, f := range embed.Fields {
 		fields[f.Name] = f.Value
 	}
 	assert.Equal(t, "E2E "+marker, fields["rule"])
-	assert.Equal(t, "warning", fields["priority"])
+	assert.Equal(t, "Warning", fields["priority"])
+	assert.NotContains(t, fields, "time", "the time is the embed timestamp")
 	assert.Equal(t, "```"+marker+"```", fields["e2e.marker"])
 	assert.Equal(t, "e2e", fields["tags"])
 	assert.NotContains(t, sk.logs.String(), discordToken)

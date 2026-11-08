@@ -39,11 +39,12 @@ import (
 )
 
 const (
-	name             = "awss3"
-	opPutObject      = "PutObject"
-	opHeadBucket     = "HeadBucket"
-	suggestedPrefix  = "falco"
-	defaultCannedACL = string(s3types.ObjectCannedACLBucketOwnerFullControl)
+	name            = "awss3"
+	opPutObject     = "PutObject"
+	opHeadBucket    = "HeadBucket"
+	suggestedPrefix = "falco"
+	// keyTime is basic ISO 8601: object keys stay free of ':', which some S3 clients and tools must escape.
+	keyTime = "20060102T150405.000000000Z"
 
 	contentTypeJSON   = "application/json"
 	contentTypeNDJSON = "application/x-ndjson"
@@ -83,12 +84,13 @@ var OutputType = output.Type{
 			},
 			{
 				Name: "prefix", Type: "string", Suggested: suggestedPrefix, Label: "Key Prefix",
-				Description: "Start of every object key, followed by `/YYYY-MM-DD/<event time>_<event id>.json`, or `.ndjson` for a batch. " +
-					"Leading and trailing `/` are removed; empty writes the keys from the date, at the root of the bucket.",
+				Description: "Start of every object key, followed by `/YYYY-MM-DD/<event time>_<event id>.json`, or `.ndjson` for a batch, " +
+					"with the time as `20060102T150405.000000000Z`. Leading and trailing `/` are removed; empty writes the keys from the date, at the root of the bucket.",
 			},
 			{
-				Name: "object_canned_acl", Type: "enum", Values: cannedACLs, Default: defaultCannedACL, Label: "Object Canned ACL",
-				Description: "Canned ACL set on every object written.",
+				Name: "object_canned_acl", Type: "enum", Values: cannedACLs, Label: "Object Canned ACL",
+				Description: "Canned ACL set on every object written. Empty sends none: buckets created since April 2023 disable ACLs " +
+					"and refuse all but `bucket-owner-full-control`.",
 			},
 			{
 				Name: "use_path_style", Type: "bool", Default: false, Label: "Path-style addressing (for S3-compatible endpoints)",
@@ -114,9 +116,7 @@ func (c *config) validate() utils.ValidationErrors {
 		errs.Add("bucket", "invalid bucket name")
 	}
 	c.Prefix = strings.Trim(c.Prefix, "/")
-	if c.ObjectCannedACL == "" {
-		c.ObjectCannedACL = defaultCannedACL
-	} else if !slices.Contains(cannedACLs, c.ObjectCannedACL) {
+	if c.ObjectCannedACL != "" && !slices.Contains(cannedACLs, c.ObjectCannedACL) {
 		errs.Add("object_canned_acl", "must be one of "+strings.Join(cannedACLs, "/"))
 	}
 	if len(errs) > 0 {
@@ -192,7 +192,7 @@ func (d *driver) objectKey(evt *event.Event, ext string) string {
 	if id == "" {
 		id = uuid.NewString()
 	}
-	key := fmt.Sprintf("%s/%s_%s%s", t.Format(time.DateOnly), t.Format(time.RFC3339Nano), id, ext)
+	key := fmt.Sprintf("%s/%s_%s%s", t.Format(time.DateOnly), t.Format(keyTime), id, ext)
 	if d.cfg.Prefix == "" {
 		return key
 	}

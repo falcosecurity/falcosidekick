@@ -43,7 +43,6 @@ const (
 )
 
 type config struct {
-	Traces  *tracesConfig        `mapstructure:"traces"`
 	Logs    *signalConfig        `mapstructure:"logs"`
 	Metrics *metricsConfig       `mapstructure:"metrics"`
 	Runtime output.RuntimeConfig `mapstructure:"runtime"`
@@ -56,11 +55,6 @@ type signalConfig struct {
 	Compression string                         `mapstructure:"compression"`
 	TLS         shared.TLSClientConfig         `mapstructure:"tls"`
 	Timeout     time.Duration                  `mapstructure:"timeout"`
-}
-
-type tracesConfig struct {
-	signalConfig `mapstructure:",squash"`
-	Duration     time.Duration `mapstructure:"duration"`
 }
 
 type metricsConfig struct {
@@ -182,9 +176,6 @@ func (c *metricsConfig) validateAttributes() utils.ValidationErrors {
 }
 
 func (c *config) applyDefaults() {
-	if c.Traces != nil {
-		c.Traces.applyDefaults()
-	}
 	if c.Logs != nil {
 		c.Logs.applyDefaults()
 	}
@@ -195,14 +186,8 @@ func (c *config) applyDefaults() {
 
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
-	if c.Traces == nil && c.Logs == nil && c.Metrics == nil {
-		errs.Add("", "at least one of traces, logs or metrics is required")
-	}
-	if c.Traces != nil {
-		errs.Merge(signalTraces, c.Traces.validate())
-		if c.Traces.Duration < 0 {
-			errs.Add(signalTraces+".duration", "must be positive")
-		}
+	if c.Logs == nil && c.Metrics == nil {
+		errs.Add("", "at least one of logs or metrics is required")
 	}
 	if c.Logs != nil {
 		errs.Merge(signalLogs, c.Logs.validate())
@@ -219,7 +204,7 @@ func (c *config) validate() utils.ValidationErrors {
 
 func schemaFields() []output.SchemaField {
 	var fields []output.SchemaField
-	for _, signal := range []string{signalTraces, signalLogs, signalMetrics} {
+	for _, signal := range []string{signalLogs, signalMetrics} {
 		fields = append(fields,
 			output.SchemaField{
 				Name: signal + ".endpoint", Type: "string", Label: "Endpoint URL (enables " + signal + ")",
@@ -246,13 +231,7 @@ func schemaFields() []output.SchemaField {
 				fields = append(fields, f)
 			}
 		}
-		switch signal {
-		case signalTraces:
-			fields = append(fields, output.SchemaField{
-				Name: signal + ".duration", Type: "string", Default: "0s", Label: "Span Duration",
-				Description: "Go duration, such as `1s`, added to the event time to end each span. `0s` gives zero-length spans.",
-			})
-		case signalMetrics:
+		if signal == signalMetrics {
 			fields = append(fields, output.SchemaField{
 				Name: signal + ".extra_attributes", Type: "string[]", Label: "Output Fields as Metric Attributes",
 				Description: "Output field names, such as `k8s.ns.name`, added to the counter attributes when the event has them; " +

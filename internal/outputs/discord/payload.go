@@ -18,7 +18,7 @@ package discord
 
 import (
 	"fmt"
-	"slices"
+	"time"
 	"unicode/utf8"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -27,6 +27,7 @@ import (
 
 // Discord rejects an embed over these limits: https://docs.discord.com/developers/resources/message
 const (
+	maxTitleRunes       = 256
 	maxDescriptionRunes = 4096
 	maxFields           = 25
 	maxFieldNameRunes   = 256
@@ -41,7 +42,9 @@ type payload struct {
 }
 
 type embed struct {
+	Title       string  `json:"title"`
 	Description string  `json:"description,omitempty"`
+	Timestamp   string  `json:"timestamp"`
 	Fields      []field `json:"fields"`
 	Color       int     `json:"color"`
 }
@@ -50,18 +53,6 @@ type field struct {
 	Name   string `json:"name"`
 	Value  string `json:"value"`
 	Inline bool   `json:"inline"`
-}
-
-// priorityColors are integers, as the embed object requires.
-var priorityColors = map[event.Priority]int{
-	event.PriorityEmergency:     15158332, // red
-	event.PriorityAlert:         11027200, // dark orange
-	event.PriorityCritical:      15105570, // orange
-	event.PriorityError:         15844367, // gold
-	event.PriorityWarning:       12745742, // dark gold
-	event.PriorityNotice:        3066993,  // teal
-	event.PriorityInformational: 3447003,  // blue
-	event.PriorityDebug:         12370112, // light grey
 }
 
 func newField(name, value string) field {
@@ -76,11 +67,12 @@ func (f field) runes() int {
 	return utf8.RuneCountInString(f.Name) + utf8.RuneCountInString(f.Value)
 }
 
-// buildPayload drops output fields first when the embed would exceed a limit.
+// buildPayload drops output fields first, then shortens the description, when the embed would exceed a limit.
 func (d *driver) buildPayload(evt *event.Event) payload {
+	title := shared.TruncateRunes(evt.Rule, maxTitleRunes)
 	head := []field{
 		newField("rule", evt.Rule),
-		newField("priority", string(evt.Priority)),
+		newField("priority", evt.Priority.String()),
 		newField("source", evt.Source),
 	}
 	if evt.Hostname != "" {
@@ -90,11 +82,13 @@ func (d *driver) buildPayload(evt *event.Event) payload {
 	if tags := shared.FormatTags(evt.Tags, ", "); tags != "" {
 		tail = append(tail, newField("tags", tags))
 	}
-	tail = append(tail, newField("time", evt.Time.String()))
 
 	description := shared.TruncateRunes(evt.Output, maxDescriptionRunes)
-	budget := maxEmbedRunes - utf8.RuneCountInString(description)
-	for _, f := range slices.Concat(head, tail) {
+	budget := maxEmbedRunes - utf8.RuneCountInString(title) - utf8.RuneCountInString(description)
+	for _, f := range head {
+		budget -= f.runes()
+	}
+	for _, f := range tail {
 		budget -= f.runes()
 	}
 	if budget < 0 {
@@ -119,12 +113,14 @@ func (d *driver) buildPayload(evt *event.Event) payload {
 	}
 	fields = append(fields, tail...)
 
-	color, ok := priorityColors[evt.Priority]
-	if !ok {
-		color = priorityColors[event.PriorityDebug]
-	}
 	return payload{
-		AvatarURL: d.cfg.Icon,
-		Embeds:    []embed{{Description: description, Color: color, Fields: fields}},
+		AvatarURL: d.cfg.AvatarURL,
+		Embeds: []embed{{
+			Title:       title,
+			Description: description,
+			Timestamp:   evt.Time.UTC().Format(time.RFC3339Nano),
+			Color:       shared.PriorityRGB(evt.Priority),
+			Fields:      fields,
+		}},
 	}
 }

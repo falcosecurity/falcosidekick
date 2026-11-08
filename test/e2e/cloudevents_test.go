@@ -155,8 +155,16 @@ func startCloudEvents(t *testing.T, status int, extra string) (*cloudEventsRecei
 	receiver := &cloudEventsReceiver{status: status}
 	server := httptest.NewServer(receiver)
 	t.Cleanup(server.Close)
-	sk := startSidekick(t, fmt.Sprintf("cloudevents:\n  host: %q\n  secret_endpoint: %q\n", server.URL, cloudEventsPath)+extra)
+	sk := startSidekick(t, fmt.Sprintf("cloudevents:\n  host: %q\n  secret_endpoint: %q\n  source: /falcosidekick/e2e\n",
+		server.URL, cloudEventsPath)+extra)
 	return receiver, sk
+}
+
+func TestCloudEventsRequiresSource(t *testing.T) {
+	logs := startSidekickFails(t,
+		fmt.Sprintf("cloudevents:\n  host: \"http://127.0.0.1:%d\"\n  secret_endpoint: %q\n", freePort(t), cloudEventsPath))
+	assert.Contains(t, logs, "source: is required")
+	assert.NotContains(t, logs, cloudEventsToken)
 }
 
 func TestCloudEventsDeliversEvent(t *testing.T) {
@@ -171,10 +179,14 @@ func TestCloudEventsDeliversEvent(t *testing.T) {
 	require.Empty(t, rejected)
 	require.Len(t, events, 1)
 	attrs, data := events[0].attributes, events[0].data
-	assert.Equal(t, "https://falco.org", attrs["source"])
-	assert.Equal(t, "falco.rule.output.v1", attrs["type"])
+	assert.Equal(t, "/falcosidekick/e2e", attrs["source"])
+	assert.Equal(t, "org.falco.rule.output.v1", attrs["type"])
 	assert.Equal(t, data["uuid"], attrs["id"], "the event id is the Falco event uuid")
-	assert.NotEmpty(t, attrs["time"])
+	ceTime, err := time.Parse(time.RFC3339Nano, attrs["time"])
+	require.NoError(t, err)
+	eventTime, err := time.Parse(time.RFC3339Nano, data["time"].(string))
+	require.NoError(t, err)
+	assert.True(t, ceTime.Equal(eventTime), "the CloudEvents time is the event time")
 	assert.Equal(t, "Warning", attrs["priority"])
 	assert.Equal(t, "E2E "+marker, attrs["rule"])
 	assert.Equal(t, "syscall", attrs["eventsource"])
@@ -202,7 +214,8 @@ func TestCloudEventsReportsDestinationFailure(t *testing.T) {
 
 // A receiver has no standard probe, so an unreachable host fails only on delivery.
 func TestCloudEventsUnreachableAtStartup(t *testing.T) {
-	sk := startSidekick(t, fmt.Sprintf("cloudevents:\n  host: \"http://127.0.0.1:%d\"\n  secret_endpoint: %q\n", freePort(t), cloudEventsPath))
+	sk := startSidekick(t, fmt.Sprintf("cloudevents:\n  host: \"http://127.0.0.1:%d\"\n  secret_endpoint: %q\n  source: /falcosidekick\n",
+		freePort(t), cloudEventsPath))
 	assert.Equal(t, "idle", sk.status(t, "cloudevents").Status, "no probe, so not degraded")
 
 	sk.postEvent(t, newMarker(t))

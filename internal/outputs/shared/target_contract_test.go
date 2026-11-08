@@ -224,7 +224,9 @@ var httpTargets = []httpTarget{
 	{
 		name: "cloudevents", kind: cloudevents.OutputType,
 		config: func(h string) map[string]any {
-			return map[string]any{"host": h, "base_path": "/ce", "endpoint": "/in", "query_params": secretQuery()}
+			return map[string]any{
+				"host": h, "base_path": "/ce", "endpoint": "/in", "source": "/falcosidekick", "query_params": secretQuery(),
+			}
 		},
 		send: "POST /ce/in?" + wantQuery,
 	},
@@ -243,11 +245,11 @@ var httpTargets = []httpTarget{
 		send: "POST /og/v2/alerts?" + wantQuery, health: "GET /og/v2/heartbeats?" + wantQuery,
 	},
 	{
-		name: "datadog v1", kind: datadog.OutputType,
+		name: "datadog", kind: datadog.OutputType,
 		config: func(h string) map[string]any {
-			return map[string]any{"host": h, "base_path": "/dd", "api_key": "k", "query_params": secretQuery()}
+			return map[string]any{"host": h, "base_path": "/dd", "api_key": "k", "app_key": "a", "query_params": secretQuery()}
 		},
-		send: "POST /dd/api/v1/events?" + wantQuery, health: "GET /dd/api/v1/validate?" + wantQuery,
+		send: "POST /dd/api/v2/events?" + wantQuery, health: "GET /dd/api/v2/validate_keys?" + wantQuery,
 	},
 }
 

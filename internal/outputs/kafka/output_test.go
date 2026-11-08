@@ -104,10 +104,11 @@ func TestResolveSASL(t *testing.T) {
 	}{
 		{"empty returns nil", "", true, false},
 		{"none is not a mechanism", "none", false, true},
-		{"plain returns opt", "plain", false, false},
-		{"scram_sha256 returns opt", "scram_sha256", false, false},
-		{"scram_sha512 returns opt", "scram_sha512", false, false},
+		{"PLAIN returns opt", "PLAIN", false, false},
+		{"SCRAM-SHA-256 returns opt", "SCRAM-SHA-256", false, false},
+		{"SCRAM-SHA-512 returns opt", "SCRAM-SHA-512", false, false},
 		{"unknown returns error", "kerberos", false, true},
+		{"lowercase is not Kafka's spelling", "plain", false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -137,7 +138,6 @@ func TestResolveCompression(t *testing.T) {
 		{"lz4", "lz4"},
 		{"zstd", "zstd"},
 		{"none explicit", "none"},
-		{"empty defaults to none", ""},
 		{"uppercase normalizes", "GZIP"},
 	}
 	for _, tt := range tests {
@@ -145,6 +145,44 @@ func TestResolveCompression(t *testing.T) {
 			opts := resolveCompression(tt.input)
 			assert.Len(t, opts, 1, "must return exactly one option")
 		})
+	}
+	assert.Empty(t, resolveCompression(""), "empty keeps the client default")
+}
+
+// Without producer.compression the client keeps franz-go's preference, snappy then none.
+func TestCompressionCodecReachesTheClient(t *testing.T) {
+	bare, err := kgo.NewClient()
+	require.NoError(t, err)
+	t.Cleanup(bare.Close)
+	none, err := kgo.NewClient(kgo.ProducerBatchCompression(kgo.NoCompression()))
+	require.NoError(t, err)
+	t.Cleanup(none.Close)
+	zstd, err := kgo.NewClient(kgo.ProducerBatchCompression(kgo.ZstdCompression()))
+	require.NoError(t, err)
+	t.Cleanup(zstd.Close)
+
+	for _, tc := range []struct {
+		want     any
+		producer map[string]any
+		name     string
+	}{
+		{name: "unset", producer: map[string]any{}, want: bare.OptValue(kgo.ProducerBatchCompression)},
+		{name: "none", producer: map[string]any{"compression": "none"}, want: none.OptValue(kgo.ProducerBatchCompression)},
+		{name: "zstd", producer: map[string]any{"compression": "zstd"}, want: zstd.OptValue(kgo.ProducerBatchCompression)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d, err := createOutput(map[string]any{"brokers": []string{"127.0.0.1:1"}, "topic": "falco", "producer": tc.producer}, output.Deps{})
+			require.NoError(t, err)
+			require.NoError(t, d.Init(context.Background()))
+			t.Cleanup(func() { _ = d.Close() })
+			assert.Equal(t, tc.want, d.(*driver).client.OptValue(kgo.ProducerBatchCompression))
+		})
+	}
+	assert.NotEqual(t, none.OptValue(kgo.ProducerBatchCompression), bare.OptValue(kgo.ProducerBatchCompression))
+	for _, f := range OutputType.Schema.Fields {
+		if f.Name == "producer.compression" {
+			assert.Nil(t, f.Default, "no codec is imposed")
+		}
 	}
 }
 
@@ -160,17 +198,16 @@ func TestBalancerIsRefused(t *testing.T) {
 	assert.False(t, slices.ContainsFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "producer.balancer" }))
 }
 
-func TestCreateOutputAsync(t *testing.T) {
-	out, err := createOutput(map[string]any{
+// The pipeline queues and retries events, so producer.async is gone.
+func TestAsyncIsRefused(t *testing.T) {
+	_, err := createOutput(map[string]any{
 		"brokers":  []string{"localhost:9092"},
 		"topic":    "events",
-		"producer": map[string]any{"async": true, "delivery_timeout": "1s"},
+		"producer": map[string]any{"async": true},
 	}, output.Deps{})
-	require.NoError(t, err)
-
-	o, ok := out.(*driver)
-	require.True(t, ok)
-	assert.True(t, o.cfg.Producer.Async)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "async")
+	assert.False(t, slices.ContainsFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "producer.async" }))
 }
 
 func TestCreateOutputTopicCreation(t *testing.T) {
@@ -194,68 +231,76 @@ func TestCreateOutputTopicCreation(t *testing.T) {
 	}
 }
 
-func TestCreateOutputClientID(t *testing.T) {
-	out, err := createOutput(map[string]any{
-		"brokers":  []string{"localhost:9092"},
-		"topic":    "events",
-		"producer": map[string]any{"client_id": "my-producer"},
-	}, output.Deps{})
-	require.NoError(t, err)
-	assert.NotNil(t, out)
+func TestClientIDReachesTheClient(t *testing.T) {
+	for _, tc := range []struct {
+		producer map[string]any
+		name     string
+		want     string
+	}{
+		{name: "default", producer: map[string]any{}, want: "falcosidekick"},
+		{name: "explicit", producer: map[string]any{"client_id": "my-producer"}, want: "my-producer"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d, err := createOutput(map[string]any{"brokers": []string{"127.0.0.1:1"}, "topic": "events", "producer": tc.producer}, output.Deps{})
+			require.NoError(t, err)
+			require.NoError(t, d.Init(context.Background()))
+			t.Cleanup(func() { _ = d.Close() })
+			assert.Equal(t, []any{tc.want, true}, d.(*driver).client.OptValues(kgo.ClientID))
+		})
+	}
+	i := slices.IndexFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "producer.client_id" })
+	require.GreaterOrEqual(t, i, 0)
+	assert.Equal(t, "falcosidekick", OutputType.Schema.Fields[i].Default)
 }
 
-func TestCreateOutputTLS(t *testing.T) {
-	tests := []struct {
-		config map[string]any
-		name   string
+func TestTLSEnabledReachesTheClient(t *testing.T) {
+	for _, tc := range []struct {
+		tls     map[string]any
+		name    string
+		wantTLS bool
 	}{
-		{
-			name: "tls with default insecure_skip_verify",
-			config: map[string]any{
-				"brokers":     []string{"localhost:9092"},
-				"topic":       "events",
-				"tls_enabled": true,
-			},
-		},
-		{
-			name: "tls with insecure_skip_verify false",
-			config: map[string]any{
-				"brokers":     []string{"localhost:9092"},
-				"topic":       "events",
-				"tls_enabled": true,
-				"tls": map[string]any{
-					"insecure_skip_verify": false,
-				},
-			},
-		},
+		{name: "absent"},
+		{name: "enabled", tls: map[string]any{"enabled": true}, wantTLS: true},
+		{name: "enabled with settings", tls: map[string]any{"enabled": true, "server_name": "kafka.internal"}, wantTLS: true},
+		{name: "disabled", tls: map[string]any{"enabled": false}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := map[string]any{"brokers": []string{"127.0.0.1:1"}, "topic": "events"}
+			if tc.tls != nil {
+				raw["tls"] = tc.tls
+			}
+			d, err := createOutput(raw, output.Deps{})
+			require.NoError(t, err)
+			require.NoError(t, d.Init(context.Background()))
+			t.Cleanup(func() { _ = d.Close() })
+			assert.Equal(t, tc.wantTLS, d.(*driver).client.OptValue(kgo.DialTLS))
+		})
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			driver, err := createOutput(tt.config, output.Deps{})
+	i := slices.IndexFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "tls.enabled" })
+	assert.GreaterOrEqual(t, i, 0)
+	assert.False(t, slices.ContainsFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "tls_enabled" }))
+}
+
+func TestCreateOutputSASLVariants(t *testing.T) {
+	for _, sasl := range []string{"PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"} {
+		t.Run(sasl, func(t *testing.T) {
+			driver, err := createOutput(map[string]any{
+				"brokers": []string{"localhost:9092"},
+				"topic":   "events",
+				"auth":    map[string]any{"sasl": sasl, "username": "user", "password": "pass"},
+			}, output.Deps{})
 			require.NoError(t, err)
 			assert.NotNil(t, driver)
 		})
 	}
-}
-
-func TestCreateOutputSASLVariants(t *testing.T) {
-	tests := []struct {
-		name string
-		sasl string
-	}{
-		{"plain", "plain"},
-		{"scram256", "scram_sha256"},
-		{"scram512", "scram_sha512"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			driver, err := createOutput(map[string]any{
+	for _, old := range []string{"plain", "scram_sha256", "scram_sha512", "scram-sha-256"} {
+		t.Run("refused "+old, func(t *testing.T) {
+			_, err := createOutput(map[string]any{
 				"brokers": []string{"localhost:9092"},
 				"topic":   "events",
-				"auth":    map[string]any{"sasl": tt.sasl, "username": "user", "password": "pass"},
+				"auth":    map[string]any{"sasl": old, "username": "user", "password": "pass"},
 			}, output.Deps{})
-			require.NoError(t, err)
-			assert.NotNil(t, driver)
+			require.ErrorContains(t, err, "sasl: must be PLAIN/SCRAM-SHA-256/SCRAM-SHA-512")
 		})
 	}
 }
@@ -294,7 +339,7 @@ func TestCreateOutputRejectsUnknownKeys(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown_key")
 }
 
-// TLS settings without tls_enabled used to be ignored, so the client connected in clear text.
+// TLS settings without tls.enabled would be ignored, so the client would connect in clear text.
 func TestCreateOutputRejectsTLSWithoutTLSEnabled(t *testing.T) {
 	_, err := createOutput(map[string]any{
 		"brokers": []string{"localhost:9092"},
@@ -302,7 +347,17 @@ func TestCreateOutputRejectsTLSWithoutTLSEnabled(t *testing.T) {
 		"tls":     map[string]any{"server_name": "kafka.internal"},
 	}, output.Deps{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "tls: is set but tls_enabled is false")
+	assert.Contains(t, err.Error(), "tls.enabled: must be true when other tls settings are set")
+}
+
+func TestCreateOutputRefusesTLSEnabledKey(t *testing.T) {
+	_, err := createOutput(map[string]any{
+		"brokers":     []string{"localhost:9092"},
+		"topic":       "events",
+		"tls_enabled": true,
+	}, output.Deps{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tls_enabled")
 }
 
 func TestCreateOutputSASLInvalid(t *testing.T) {
@@ -312,23 +367,23 @@ func TestCreateOutputSASLInvalid(t *testing.T) {
 		"auth":    map[string]any{"sasl": "kerberos"},
 	}, output.Deps{})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "must be plain/scram_sha256/scram_sha512")
+	assert.Contains(t, err.Error(), "must be PLAIN/SCRAM-SHA-256/SCRAM-SHA-512")
 }
 
 func TestCreateOutputAllOptions(t *testing.T) {
 	d, err := createOutput(map[string]any{
-		"brokers":     []string{"broker1:9092", "broker2:9092"},
-		"topic":       "falco",
-		"auth":        map[string]any{"sasl": "plain", "username": "u", "password": "p"},
-		"tls_enabled": true,
-		"producer":    map[string]any{"client_id": "cid", "compression": "zstd", "required_acks": "one", "async": true, "auto_create_topic": true},
+		"brokers":  []string{"broker1:9092", "broker2:9092"},
+		"topic":    "falco",
+		"auth":     map[string]any{"sasl": "PLAIN", "username": "u", "password": "p"},
+		"tls":      map[string]any{"enabled": true},
+		"producer": map[string]any{"client_id": "cid", "compression": "zstd", "required_acks": "one", "auto_create_topic": true},
 	}, output.Deps{})
 	require.NoError(t, err)
 
 	o, ok := d.(*driver)
 	require.True(t, ok)
 	assert.Equal(t, "falco", o.cfg.Topic)
-	assert.True(t, o.cfg.Producer.Async)
+	assert.True(t, o.cfg.TLS.Enabled)
 }
 
 func TestCloseNilClient(t *testing.T) {
@@ -403,29 +458,6 @@ func TestSendSyncWithClient(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestSendAsyncWithClient(t *testing.T) {
-	d, err := createOutput(map[string]any{
-		"brokers":  []string{"localhost:19092"},
-		"topic":    "events",
-		"producer": map[string]any{"async": true, "delivery_timeout": "1s"},
-	}, output.Deps{})
-	require.NoError(t, err)
-
-	o := d.(*driver)
-	require.NoError(t, o.Init(context.Background()))
-	defer func() { _ = o.Close() }()
-
-	err = o.Send(context.Background(), &event.Event{
-		Rule:         "test",
-		Priority:     event.PriorityWarning,
-		Time:         time.Now(),
-		Source:       "syscall",
-		OutputFields: map[string]interface{}{"a": "b"},
-	})
-	// Async produce returns before any broker answers.
-	assert.NoError(t, err)
-}
-
 func TestSendBatchSyncWithClient(t *testing.T) {
 	d, err := createOutput(map[string]any{
 		"brokers": []string{"localhost:19092"},
@@ -447,25 +479,6 @@ func TestSendBatchSyncWithClient(t *testing.T) {
 	err = o.SendBatch(ctx, events)
 	// No broker is running.
 	assert.Error(t, err)
-}
-
-func TestSendBatchAsyncWithClient(t *testing.T) {
-	d, err := createOutput(map[string]any{
-		"brokers":  []string{"localhost:19092"},
-		"topic":    "events",
-		"producer": map[string]any{"async": true, "delivery_timeout": "1s"},
-	}, output.Deps{})
-	require.NoError(t, err)
-
-	o := d.(*driver)
-	require.NoError(t, o.Init(context.Background()))
-	defer func() { _ = o.Close() }()
-
-	events := []*event.Event{
-		{Rule: "r1", Priority: event.PriorityWarning, Time: time.Now(), Source: "syscall", OutputFields: map[string]interface{}{"a": "b"}},
-	}
-	err = o.SendBatch(context.Background(), events)
-	assert.NoError(t, err)
 }
 
 func TestHealthCheckWithClient(t *testing.T) {
@@ -560,12 +573,12 @@ func TestDeliveryTimeoutSchemaDefault(t *testing.T) {
 	t.Fatal("producer.delivery_timeout missing from schema")
 }
 
-func unreachableDriver(t *testing.T, async bool) *driver {
+func unreachableDriver(t *testing.T) *driver {
 	t.Helper()
 	d, err := createOutput(map[string]any{
 		"brokers":  []string{"127.0.0.1:1"},
 		"topic":    "events",
-		"producer": map[string]any{"async": async, "delivery_timeout": "1s"},
+		"producer": map[string]any{"delivery_timeout": "1s"},
 	}, output.Deps{})
 	require.NoError(t, err)
 	o := d.(*driver)
@@ -574,7 +587,7 @@ func unreachableDriver(t *testing.T, async bool) *driver {
 }
 
 func TestSyncSendIsBoundedByDeliveryTimeout(t *testing.T) {
-	o := unreachableDriver(t, false)
+	o := unreachableDriver(t)
 	defer func() { _ = o.Close() }()
 
 	start := time.Now()
@@ -584,38 +597,20 @@ func TestSyncSendIsBoundedByDeliveryTimeout(t *testing.T) {
 }
 
 func TestCloseIsBoundedByDeliveryTimeout(t *testing.T) {
-	o := unreachableDriver(t, true)
+	o := unreachableDriver(t)
+	var sends sync.WaitGroup
 	for range 10 {
-		require.NoError(t, o.Send(context.Background(), &event.Event{Rule: "r", Priority: event.PriorityWarning, Time: time.Now(), OutputFields: map[string]any{}}))
+		sends.Go(func() {
+			_ = o.Send(context.Background(), &event.Event{Rule: "r", Priority: event.PriorityWarning, Time: time.Now(), OutputFields: map[string]any{}})
+		})
 	}
 
 	start := time.Now()
 	err := o.Close()
+	sends.Wait()
 	assert.Less(t, time.Since(start), 5*time.Second)
 	if err != nil {
 		assert.ErrorContains(t, err, "kafka close")
-	}
-}
-
-func TestAsyncFailureReachesLateFailureHandler(t *testing.T) {
-	o := unreachableDriver(t, true)
-	var mu sync.Mutex
-	var failures []error
-	o.SetLateFailureHandler(func(err error) {
-		mu.Lock()
-		defer mu.Unlock()
-		failures = append(failures, err)
-	})
-	for range 3 {
-		require.NoError(t, o.Send(context.Background(), &event.Event{Rule: "r", Priority: event.PriorityWarning, Time: time.Now(), OutputFields: map[string]any{}}))
-	}
-	_ = o.Close()
-
-	mu.Lock()
-	defer mu.Unlock()
-	require.Len(t, failures, 3)
-	for _, err := range failures {
-		assert.ErrorContains(t, err, "kafka async produce")
 	}
 }
 
@@ -653,12 +648,6 @@ func TestHealthCheckUnreachableBrokerIsTransient(t *testing.T) {
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, output.ErrMisconfigured)
 	assert.Contains(t, err.Error(), "kafka healthcheck")
-}
-
-func TestAsyncFailureWithoutHandlerOnlyLogs(t *testing.T) {
-	o := unreachableDriver(t, true)
-	require.NoError(t, o.Send(context.Background(), &event.Event{Rule: "r", Priority: event.PriorityWarning, Time: time.Now(), OutputFields: map[string]any{}}))
-	_ = o.Close()
 }
 
 // franz-go appends the broker's error message, which can echo submitted values.

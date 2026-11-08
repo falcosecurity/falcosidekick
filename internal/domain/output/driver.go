@@ -42,12 +42,6 @@ type BatchSender interface {
 	SendBatch(ctx context.Context, events []*event.Event) error
 }
 
-// LateFailureReporter is an optional interface for drivers that learn of a failed delivery after Send returned.
-// The handler is installed before the first Send and is called once per failed event, from any goroutine.
-type LateFailureReporter interface {
-	SetLateFailureHandler(handler func(err error))
-}
-
 // WarningReporter is an optional interface for drivers that deliver while part of the destination fails.
 // The handler is installed before the first Send; an empty string clears the warning.
 type WarningReporter interface {

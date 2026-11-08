@@ -34,8 +34,14 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
+const testSource = "/falcosidekick/test"
+
+// newDriver sets testSource when cfg has no source.
 func newDriver(t *testing.T, cfg map[string]any) *driver {
 	t.Helper()
+	if _, ok := cfg["source"]; !ok {
+		cfg["source"] = testSource
+	}
 	d, err := OutputType.New(cfg, output.Deps{})
 	require.NoError(t, err)
 	return d.(*driver)
@@ -49,7 +55,9 @@ func TestSchema(t *testing.T) {
 	assert.True(t, fields["host"].Required)
 	assert.Equal(t, "/", fields["endpoint"].Default)
 	assert.True(t, fields["secret_endpoint"].Secret)
-	assert.Equal(t, defaultSource, fields["source"].Default)
+	assert.True(t, fields["source"].Required)
+	assert.Nil(t, fields["source"].Default, "the source names the deployment, so there is no default")
+	assert.Equal(t, "/falcosidekick", fields["source"].Suggested)
 	assert.Equal(t, "map", fields["extensions"].Type)
 	assert.True(t, fields["password"].Secret)
 	assert.True(t, fields["bearer_token"].Secret)
@@ -65,6 +73,8 @@ func TestValidation(t *testing.T) {
 		{name: "missing host", cfg: map[string]any{}, want: "host"},
 		{name: "invalid host", cfg: map[string]any{"host": "ftp://u:" + sentinel + "@h"}, want: "host: scheme must be http or https"},
 		{name: "endpoint and secret_endpoint", cfg: map[string]any{"endpoint": "/a", "secret_endpoint": "/" + sentinel}, want: "endpoint: cannot be combined"},
+		{name: "missing source", cfg: map[string]any{}, want: "source: is required"},
+		{name: "empty source", cfg: map[string]any{"source": ""}, want: "source: is required"},
 		{name: "source with control character", cfg: map[string]any{"source": "https://falco.org/\n"}, want: "source: must not contain control characters"},
 		{name: "source not a URI reference", cfg: map[string]any{"source": "http://[::1"}, want: "source: must be a URI reference"},
 		{name: "extension uppercase", cfg: map[string]any{"extensions": map[string]any{"Team": "a"}}, want: `extensions["Team"]: name must contain only`},
@@ -86,6 +96,9 @@ func TestValidation(t *testing.T) {
 			if _, ok := tt.cfg["host"]; !ok && tt.name != "missing host" {
 				tt.cfg["host"] = "https://receiver.example"
 			}
+			if _, ok := tt.cfg["source"]; !ok && !strings.HasSuffix(tt.name, "source") {
+				tt.cfg["source"] = testSource
+			}
 			d, err := OutputType.New(tt.cfg, output.Deps{})
 			require.Error(t, err)
 			assert.Nil(t, d)
@@ -102,7 +115,7 @@ func TestValidExtensions(t *testing.T) {
 		"extensions": map[string]any{"team": "secops", "cluster01": "prod east", "averyveryverylongname": "x", "priority": "custom"},
 	})
 	assert.Len(t, d.cfg.Extensions, 4)
-	assert.Equal(t, defaultSource, d.cfg.Source)
+	assert.Equal(t, testSource, d.cfg.Source)
 	assert.Equal(t, "/", d.cfg.Endpoint)
 }
 
@@ -139,7 +152,7 @@ func TestSendBinaryMode(t *testing.T) {
 		"Ce-Specversion": "1.0",
 		"Ce-Id":          "test-uuid-001",
 		"Ce-Source":      "/falco/node-1",
-		"Ce-Type":        "falco.rule.output.v1",
+		"Ce-Type":        "org.falco.rule.output.v1",
 		"Ce-Time":        "2026-04-01T10:30:00Z",
 		"Ce-Priority":    "Error",
 		"Ce-Rule":        "overridden",
@@ -177,7 +190,8 @@ func TestSendDefaults(t *testing.T) {
 	require.Len(t, reqs, 1)
 	h := reqs[0].Header
 	assert.Equal(t, "/", reqs[0].URL.Path)
-	assert.Equal(t, defaultSource, h.Get("Ce-Source"))
+	assert.Equal(t, testSource, h.Get("Ce-Source"))
+	assert.Equal(t, "org.falco.rule.output.v1", h.Get("Ce-Type"))
 	_, err := uuid.Parse(h.Get("Ce-Id"))
 	assert.NoError(t, err, "an event without uuid gets a generated id")
 	assert.Equal(t, "2026-04-01T10:30:00.000000005Z", h.Get("Ce-Time"))

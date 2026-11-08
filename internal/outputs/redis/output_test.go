@@ -38,8 +38,12 @@ import (
 
 const secret = "s3cr3t-redis-password"
 
+// newDriver sets key falco when raw has none: the key is required.
 func newDriver(t *testing.T, raw map[string]any) *driver {
 	t.Helper()
+	if _, ok := raw["key"]; !ok {
+		raw["key"] = "falco"
+	}
 	drv, err := OutputType.New(raw, output.Deps{})
 	require.NoError(t, err)
 	d := drv.(*driver)
@@ -61,14 +65,17 @@ func TestConfigValidation(t *testing.T) {
 		{name: "negative database", raw: map[string]any{"address": "r:6379", "database": -1}, want: "database: must be 0 or greater"},
 		{name: "unknown storage", raw: map[string]any{"address": "r:6379", "storage_type": "set"}, want: "storage_type"},
 		{name: "empty key", raw: map[string]any{"address": "r:6379", "key": ""}, want: "key: is required"},
+		{name: "missing key", raw: map[string]any{"address": "r:6379"}, want: "key: is required"},
 		{name: "username without password", raw: map[string]any{"address": "r:6379", "username": "u"}, want: "password: is required"},
-		{name: "tls settings without tls_enabled", raw: map[string]any{"address": "r:6379", "tls": map[string]any{"insecure_skip_verify": true}},
-			want: "tls: is set but tls_enabled is false"},
+		{name: "tls settings without tls.enabled", raw: map[string]any{"address": "r:6379", "tls": map[string]any{"insecure_skip_verify": true}},
+			want: "tls.enabled: must be true when other tls settings are set"},
+		{name: "tls_enabled is refused", raw: map[string]any{"address": "r:6379", "key": "k", "tls_enabled": true}, want: "unknown keys: tls_enabled"},
 		{name: "cert without key", raw: map[string]any{"address": "r:6379", "tls": map[string]any{"cert_file": "/x"}}, want: "tls"},
 		{name: "unknown key", raw: map[string]any{"address": "r:6379", "storagetype": "list"}, want: "unknown keys"},
 		{name: "database type", raw: map[string]any{"address": "r:6379", "database": "zero"}, want: "database"},
 		{name: "negative max_len", raw: map[string]any{"address": "r:6379", "storage_type": "stream", "max_len": -1}, want: "max_len: must be 0 or greater"},
-		{name: "max_len on list", raw: map[string]any{"address": "r:6379", "max_len": 10}, want: "max_len: applies only to storage_type stream"},
+		{name: "max_len on list", raw: map[string]any{"address": "r:6379", "storage_type": "list", "max_len": 10}, want: "max_len: applies only to storage_type stream"},
+		{name: "hashmap is refused", raw: map[string]any{"address": "r:6379", "key": "k", "storage_type": "hashmap"}, want: "storage_type: must be stream/list/hash"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,9 +93,9 @@ func TestConfigValidation(t *testing.T) {
 }
 
 func TestDefaultsAndSchema(t *testing.T) {
-	d := newDriver(t, map[string]any{"address": "127.0.0.1:6379", "runtime": map[string]any{"minimum_priority": "warning"}})
-	assert.Equal(t, storageList, d.cfg.StorageType)
-	assert.Equal(t, defaultKey, d.cfg.Key)
+	d := newDriver(t, map[string]any{"address": "127.0.0.1:6379", "key": "events", "runtime": map[string]any{"minimum_priority": "warning"}})
+	assert.Equal(t, storageStream, d.cfg.StorageType)
+	assert.Equal(t, int64(100000), d.cfg.MaxLen, "the default stream is bounded")
 	assert.Equal(t, "redis", d.Name())
 	assert.Equal(t, event.PriorityWarning, d.RuntimeConfig().MinPriority)
 	assert.Equal(t, -1, d.opts.MaxRetries)
@@ -102,16 +109,53 @@ func TestDefaultsAndSchema(t *testing.T) {
 	assert.True(t, secrets["password"])
 	assert.False(t, secrets["username"])
 	assert.Contains(t, secrets, "tls.ca_file")
+	assert.Contains(t, secrets, "tls.enabled")
+	assert.NotContains(t, secrets, "tls_enabled")
 	assert.Contains(t, secrets, "runtime.minimum_priority")
+
+	fields := map[string]output.SchemaField{}
+	for _, f := range OutputType.Schema.Fields {
+		fields[f.Name] = f
+	}
+	assert.True(t, fields["key"].Required)
+	assert.Nil(t, fields["key"].Default)
+	assert.Equal(t, "falco", fields["key"].Suggested)
+	assert.Equal(t, "stream", fields["storage_type"].Default)
+	assert.Equal(t, []string{"stream", "list", "hash"}, fields["storage_type"].Values)
+	assert.Equal(t, 100000, fields["max_len"].Default)
+}
+
+// max_len defaults only for streams; 0 keeps every entry.
+func TestMaxLenDefault(t *testing.T) {
+	for _, tc := range []struct {
+		raw  map[string]any
+		name string
+		want int64
+	}{
+		{name: "stream default", raw: map[string]any{}, want: 100000},
+		{name: "explicit stream", raw: map[string]any{"storage_type": "stream"}, want: 100000},
+		{name: "unbounded", raw: map[string]any{"max_len": 0}, want: 0},
+		{name: "explicit", raw: map[string]any{"max_len": 50}, want: 50},
+		{name: "list", raw: map[string]any{"storage_type": "list"}, want: 0},
+		{name: "hash", raw: map[string]any{"storage_type": "hash"}, want: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.raw["address"] = "r:6379"
+			assert.Equal(t, tc.want, newDriver(t, tc.raw).cfg.MaxLen)
+		})
+	}
 }
 
 func TestTLSEnabledBuildsConfig(t *testing.T) {
 	d := newDriver(t, map[string]any{
-		"address": "r:6379", "tls_enabled": true,
-		"tls": map[string]any{"server_name": "redis.internal"},
+		"address": "r:6379",
+		"tls":     map[string]any{"enabled": true, "server_name": "redis.internal"},
 	})
 	require.NotNil(t, d.opts.TLSConfig)
 	assert.Equal(t, "redis.internal", d.opts.TLSConfig.ServerName)
+
+	plain := newDriver(t, map[string]any{"address": "r:6379", "tls": map[string]any{"enabled": false}})
+	assert.Nil(t, plain.opts.TLSConfig)
 }
 
 func TestSendStorageTypes(t *testing.T) {
@@ -125,24 +169,32 @@ func TestSendStorageTypes(t *testing.T) {
 			assert.Equal(t, []string{"RPUSH", "falco-events"}, cmd[:2])
 			assertEventJSON(t, cmd[2])
 		}},
-		{storage: storageHashmap, check: func(t *testing.T, cmd []string) {
+		{storage: storageHash, check: func(t *testing.T, cmd []string) {
 			require.Len(t, cmd, 4)
 			assert.Equal(t, []string{"HSET", "falco-events", evt.UUID}, cmd[:3])
 			assertEventJSON(t, cmd[3])
 		}},
 		{storage: storageStream, check: func(t *testing.T, cmd []string) {
-			require.Len(t, cmd, 5)
-			assert.Equal(t, []string{"XADD", "falco-events", "*", "event"}, cmd[:4])
-			assertEventJSON(t, cmd[4])
+			require.Len(t, cmd, 8)
+			assert.Equal(t, []string{"XADD", "falco-events", "maxlen", "~", "100000", "*", "event"}, cmd[:7])
+			assertEventJSON(t, cmd[7])
+		}},
+		{storage: "", check: func(t *testing.T, cmd []string) {
+			require.Len(t, cmd, 8)
+			assert.Equal(t, []string{"XADD", "falco-events", "maxlen", "~", "100000", "*", "event"}, cmd[:7], "the default is a bounded stream")
+			assertEventJSON(t, cmd[7])
 		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.storage, func(t *testing.T) {
 			fake := startFakeRedis(t, secret)
-			d := newDriver(t, map[string]any{
-				"address": fake.addr, "password": secret, "database": 3,
-				"storage_type": tt.storage, "key": "falco-events",
-			})
+			raw := map[string]any{
+				"address": fake.addr, "password": secret, "database": 3, "key": "falco-events",
+			}
+			if tt.storage != "" {
+				raw["storage_type"] = tt.storage
+			}
+			d := newDriver(t, raw)
 			require.NoError(t, d.Send(context.Background(), evt))
 			data := fake.data()
 			require.Len(t, data, 1)
@@ -159,6 +211,12 @@ func TestStreamMaxLen(t *testing.T) {
 	data := fake.data()
 	require.Len(t, data, 1)
 	assert.Equal(t, []string{"XADD", "falco", "maxlen", "~", "1000", "*", "event"}, data[0][:7])
+
+	unbounded := newDriver(t, map[string]any{"address": fake.addr, "max_len": 0})
+	require.NoError(t, unbounded.Send(context.Background(), testutil.CreateValidEvent()))
+	data = fake.data()
+	require.Len(t, data, 2)
+	assert.Equal(t, []string{"XADD", "falco", "*", "event"}, data[1][:4], "0 sends no MAXLEN")
 }
 
 func assertEventJSON(t *testing.T, payload string) {
@@ -179,13 +237,13 @@ func TestSendBatchUsesOnePipeline(t *testing.T) {
 	require.NoError(t, d.SendBatch(context.Background(), []*event.Event{first, second}))
 	data := fake.data()
 	require.Len(t, data, 2)
-	assert.Equal(t, "RPUSH", data[0][0])
-	assert.Contains(t, data[1][2], `"rule":"second"`)
+	assert.Equal(t, "XADD", data[0][0])
+	assert.Contains(t, data[1][7], `"rule":"second"`)
 }
 
 func TestSendReportsCommandError(t *testing.T) {
 	fake := startFakeRedis(t, "")
-	fake.reply("RPUSH", "-WRONGTYPE Operation against a key holding the wrong kind of value\r\n")
+	fake.reply("XADD", "-WRONGTYPE Operation against a key holding the wrong kind of value\r\n")
 	d := newDriver(t, map[string]any{"address": fake.addr})
 	err := d.Send(context.Background(), testutil.CreateValidEvent())
 	require.Error(t, err)
@@ -206,7 +264,7 @@ func TestSendMarshalError(t *testing.T) {
 }
 
 func TestNotReadyBeforeInit(t *testing.T) {
-	drv, err := OutputType.New(map[string]any{"address": "127.0.0.1:6379"}, output.Deps{})
+	drv, err := OutputType.New(map[string]any{"address": "127.0.0.1:6379", "key": "falco"}, output.Deps{})
 	require.NoError(t, err)
 	assert.ErrorIs(t, drv.Send(context.Background(), testutil.CreateValidEvent()), core.ErrNotReady)
 	assert.ErrorIs(t, drv.HealthCheck(context.Background()), core.ErrNotReady)
@@ -280,7 +338,7 @@ func TestSendErrorPermanence(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fake := startFakeRedis(t, secret)
 			fake.reply("RPUSH", tt.reply)
-			err := newDriver(t, map[string]any{"address": fake.addr, "password": secret}).Send(context.Background(), testutil.CreateValidEvent())
+			err := newDriver(t, map[string]any{"address": fake.addr, "password": secret, "storage_type": "list"}).Send(context.Background(), testutil.CreateValidEvent())
 			require.Error(t, err)
 			assert.Equal(t, tt.permanent, output.IsPermanent(err), err.Error())
 		})
@@ -309,7 +367,7 @@ func TestSendBatchPermanentOnlyWhenEveryCommandIs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fake := startFakeRedis(t, "")
 			fake.replyInOrder("RPUSH", tc.replies...)
-			err := newDriver(t, map[string]any{"address": fake.addr}).SendBatch(context.Background(), batch())
+			err := newDriver(t, map[string]any{"address": fake.addr, "storage_type": "list"}).SendBatch(context.Background(), batch())
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.want)
 			assert.Equal(t, tc.permanent, output.IsPermanent(err))
@@ -326,8 +384,8 @@ func TestErrorsNeverCopyServerText(t *testing.T) {
 		want    string
 		probe   bool
 	}{
-		{command: "RPUSH", reply: "-WRONGTYPE value " + echoed + "\r\n", want: "redis send: WRONGTYPE"},
-		{command: "RPUSH", reply: "-" + echoed + " unknown prefix\r\n", want: "redis send: server error"},
+		{command: "XADD", reply: "-WRONGTYPE value " + echoed + "\r\n", want: "redis send: WRONGTYPE"},
+		{command: "XADD", reply: "-" + echoed + " unknown prefix\r\n", want: "redis send: server error"},
 		{command: "PING", reply: "-NOPERM user " + echoed + " has no permissions\r\n", want: "redis healthcheck: NOPERM", probe: true},
 		{command: "PING", reply: "-ERR " + echoed + "\r\n", want: "redis healthcheck: ERR", probe: true},
 	} {
@@ -366,7 +424,7 @@ func TestHealthCheckUntrustedCertificateIsMisconfiguration(t *testing.T) {
 	t.Cleanup(server.Close)
 	addr := strings.TrimPrefix(server.URL, "https://")
 
-	err := newDriver(t, map[string]any{"address": addr, "tls_enabled": true}).HealthCheck(context.Background())
+	err := newDriver(t, map[string]any{"address": addr, "tls": map[string]any{"enabled": true}}).HealthCheck(context.Background())
 	require.Error(t, err)
 	assert.ErrorIs(t, err, output.ErrMisconfigured)
 }
@@ -389,7 +447,7 @@ func TestReturnsWhenContextEndsOnSilentServer(t *testing.T) {
 }
 
 func TestCloseAfterInit(t *testing.T) {
-	drv, err := OutputType.New(map[string]any{"address": "127.0.0.1:6379"}, output.Deps{})
+	drv, err := OutputType.New(map[string]any{"address": "127.0.0.1:6379", "key": "falco"}, output.Deps{})
 	require.NoError(t, err)
 	require.NoError(t, drv.Init(context.Background()))
 	require.NoError(t, drv.Close())

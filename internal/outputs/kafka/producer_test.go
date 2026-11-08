@@ -56,22 +56,20 @@ func (b *syncBuffer) String() string {
 
 func TestInitAcceptsEveryAcksMode(t *testing.T) {
 	for _, acks := range []string{"", "all", "one", "none"} {
-		for _, async := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%q async=%t", acks, async), func(t *testing.T) {
-				d, err := createOutput(map[string]any{
-					"brokers":  []string{"127.0.0.1:1"},
-					"topic":    "falco",
-					"producer": map[string]any{"required_acks": acks, "async": async},
-				}, output.Deps{})
-				require.NoError(t, err)
-				require.NoError(t, d.Init(context.Background()))
-				drv := d.(*driver)
-				assert.Equal(t, resolveACKs(acks), drv.client.OptValue(kgo.RequiredAcks))
-				wantIdempotent := acks == "" || acks == "all"
-				assert.Equal(t, !wantIdempotent, drv.client.OptValue(kgo.DisableIdempotentWrite))
-				drv.client.Close()
-			})
-		}
+		t.Run(fmt.Sprintf("%q", acks), func(t *testing.T) {
+			d, err := createOutput(map[string]any{
+				"brokers":  []string{"127.0.0.1:1"},
+				"topic":    "falco",
+				"producer": map[string]any{"required_acks": acks},
+			}, output.Deps{})
+			require.NoError(t, err)
+			require.NoError(t, d.Init(context.Background()))
+			drv := d.(*driver)
+			assert.Equal(t, resolveACKs(acks), drv.client.OptValue(kgo.RequiredAcks))
+			wantIdempotent := acks == "" || acks == "all"
+			assert.Equal(t, !wantIdempotent, drv.client.OptValue(kgo.DisableIdempotentWrite))
+			drv.client.Close()
+		})
 	}
 }
 
@@ -133,7 +131,7 @@ func TestClientLogsDialFailureWithoutSecrets(t *testing.T) {
 	d, err := createOutput(map[string]any{
 		"brokers":  []string{addr},
 		"topic":    "falco",
-		"auth":     map[string]any{"sasl": "scram_sha512", "username": "user", "password": password},
+		"auth":     map[string]any{"sasl": "SCRAM-SHA-512", "username": "user", "password": password},
 		"producer": map[string]any{"delivery_timeout": "1s"},
 	}, output.Deps{Logger: slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))})
 	require.NoError(t, err)

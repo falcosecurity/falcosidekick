@@ -124,8 +124,8 @@ func (s *apiServer) snapshot() (requests []string, reports map[string][]byte) {
 func driverFor(t *testing.T, url string) *driver {
 	t.Helper()
 	drv, err := OutputType.New(map[string]any{
-		"kubeconfig":      testutil.WriteKubeconfig(t, url, "", testToken),
-		"falco_namespace": "falco",
+		"kubeconfig":         testutil.WriteKubeconfig(t, url, "", testToken),
+		"fallback_namespace": "falco",
 	}, output.Deps{})
 	require.NoError(t, err)
 	require.NoError(t, drv.Init(context.Background()))

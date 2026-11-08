@@ -18,45 +18,102 @@ package loki
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-func extractLabels(extraLabels []string, evt *event.Event) map[string]string {
+// Built-in stream labels. They are few and bounded; rule, tags and pod stay in the log line.
+const (
+	labelSource    = "source"
+	labelPriority  = "priority"
+	labelLevel     = "level"
+	labelHostname  = "hostname"
+	labelNamespace = "k8s_ns_name"
+
+	fieldNamespace = "k8s.ns.name"
+)
+
+var builtinLabels = map[string]bool{
+	labelSource: true, labelPriority: true, labelLevel: true, labelHostname: true, labelNamespace: true,
+}
+
+// levels maps a priority to the level names Grafana recognizes for log coloring.
+var levels = map[event.Priority]string{
+	event.PriorityEmergency:     "critical",
+	event.PriorityAlert:         "critical",
+	event.PriorityCritical:      "critical",
+	event.PriorityError:         "error",
+	event.PriorityWarning:       "warning",
+	event.PriorityNotice:        "info",
+	event.PriorityInformational: "info",
+	event.PriorityDebug:         "debug",
+}
+
+// labelName maps proc.aname[2] to proc_aname_2; the result must still be a valid label name.
+var labelName = strings.NewReplacer(".", "_", "[", "_", "]", "")
+
+// validLabelName is the Prometheus and Loki label grammar.
+var validLabelName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// labelField is an output field added as a stream label.
+type labelField struct {
+	field string
+	label string
+}
+
+func parseLabelFields(fields []string) ([]labelField, utils.ValidationErrors) {
+	var errs utils.ValidationErrors
+	parsed := make([]labelField, 0, len(fields))
+	seen := make(map[string]string, len(fields))
+	for i, field := range fields {
+		key := fmt.Sprintf("label_fields[%d]", i)
+		label := labelName.Replace(field)
+		switch previous, duplicate := seen[label]; {
+		case !validLabelName.MatchString(label):
+			errs.Add(key, fmt.Sprintf("%q does not make a valid label name: letters, digits, `_`, `.` and an index such as [2], not starting with a digit", field))
+		case strings.HasPrefix(label, "__"):
+			errs.Add(key, fmt.Sprintf("%q makes a label starting with __, reserved by Loki", field))
+		case builtinLabels[label]:
+			errs.Add(key, fmt.Sprintf("%q makes the built-in label %s", field, label))
+		case duplicate:
+			errs.Add(key, fmt.Sprintf("%q and %q make the same label %s", previous, field, label))
+		default:
+			seen[label] = field
+			parsed = append(parsed, labelField{field: field, label: label})
+		}
+	}
+	return parsed, errs
+}
+
+func extractLabels(labelFields []labelField, evt *event.Event) map[string]string {
 	labels := map[string]string{
-		"rule":     evt.Rule,
-		"source":   evt.Source,
-		"priority": string(evt.Priority),
+		labelSource:   evt.Source,
+		labelPriority: evt.Priority.String(),
+		labelLevel:    levels[evt.Priority],
 	}
 
 	if evt.Hostname != "" {
-		labels["hostname"] = evt.Hostname
+		labels[labelHostname] = evt.Hostname
 	}
 
-	if tags := shared.FormatTags(evt.Tags, ","); tags != "" {
-		labels["tags"] = tags
+	if ns, ok := evt.OutputFields[fieldNamespace]; ok {
+		labels[labelNamespace] = fmt.Sprintf("%v", ns)
 	}
 
-	if ns, ok := evt.OutputFields["k8s.ns.name"]; ok {
-		labels["k8s_ns_name"] = fmt.Sprintf("%v", ns)
-	}
-	if pod, ok := evt.OutputFields["k8s.pod.name"]; ok {
-		labels["k8s_pod_name"] = fmt.Sprintf("%v", pod)
-	}
-
-	for _, field := range extraLabels {
-		if v, ok := evt.OutputFields[field]; ok {
-			labels[shared.SanitizeLabel(field)] = fmt.Sprintf("%v", v)
+	for _, f := range labelFields {
+		if v, ok := evt.OutputFields[f.field]; ok {
+			labels[f.label] = fmt.Sprintf("%v", v)
 		}
 	}
 
 	return labels
 }
 
-// serializeLabels creates a deterministic string key for stream grouping.
 func serializeLabels(labels map[string]string) string {
 	keys := shared.SortMapKeys(labels)
 	pairs := make([]string, len(keys))

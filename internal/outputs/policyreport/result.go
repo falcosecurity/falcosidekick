@@ -31,7 +31,6 @@ import (
 const (
 	resultFail = "fail"
 	resultWarn = "warn"
-	resultSkip = "skip"
 
 	severityInfo     = "info"
 	severityLow      = "low"
@@ -115,7 +114,7 @@ func buildResult(evt *event.Event) (map[string]any, error) {
 		}
 	}
 	for k, v := range map[string]string{
-		"priority": string(evt.Priority),
+		"priority": evt.Priority.String(),
 		"hostname": evt.Hostname,
 		"tags":     shared.FormatTags(evt.Tags, ","),
 	} {
@@ -144,16 +143,13 @@ func buildResult(evt *event.Event) (map[string]any, error) {
 	return runtime.DefaultUnstructuredConverter.ToUnstructured(&r)
 }
 
-// mapResult maps notice and below to skip, warning to warn, the rest to fail.
+// mapResult maps warning and below to warn, the rest to fail: skip means the policy was not
+// selected, and every Falco event is an alert.
 func mapResult(p event.Priority) string {
-	switch {
-	case p.Order() <= event.PriorityNotice.Order():
-		return resultSkip
-	case p == event.PriorityWarning:
+	if p.Order() <= event.PriorityWarning.Order() {
 		return resultWarn
-	default:
-		return resultFail
 	}
+	return resultFail
 }
 
 func mapSeverity(p event.Priority) string {

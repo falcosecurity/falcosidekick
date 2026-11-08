@@ -71,7 +71,7 @@ type config struct {
 	Host          string                 `mapstructure:"host"`
 	TLSMode       string                 `mapstructure:"tls_mode"`
 	AuthMechanism string                 `mapstructure:"auth_mechanism"`
-	User          string                 `mapstructure:"user"`
+	Username      string                 `mapstructure:"username"`
 	Password      string                 `mapstructure:"password"`
 	Token         string                 `mapstructure:"token"`
 	From          string                 `mapstructure:"from"`
@@ -104,11 +104,11 @@ var OutputType = output.Type{
 			},
 			{
 				Name: "auth_mechanism", Type: "enum", Values: []string{authPlain, authXOAuth2, authNone}, Default: authPlain, Label: "SASL Mechanism",
-				Description: "`plain` needs user and password, `xoauth2` needs user and token with `starttls` or `implicit`, `none` sends no credentials. " +
+				Description: "`plain` needs username and password, `xoauth2` needs username and token with `starttls` or `implicit`, `none` sends no credentials. " +
 					"Credentials go only over TLS, except to localhost.",
 			},
 			{
-				Name: "user", Type: "string", Label: "User",
+				Name: "username", Type: "string", Label: "Username",
 				Description: "Account name for `plain` or `xoauth2` authentication.",
 			},
 			{
@@ -203,12 +203,12 @@ func (c *config) validateAuth() utils.ValidationErrors {
 	var used map[string]bool
 	switch c.AuthMechanism {
 	case authPlain:
-		used = map[string]bool{"user": true, "password": true}
-		requireField(&errs, "user", c.User, authPlain)
+		used = map[string]bool{"username": true, "password": true}
+		requireField(&errs, "username", c.Username, authPlain)
 		requireField(&errs, "password", c.Password, authPlain)
 	case authXOAuth2:
-		used = map[string]bool{"user": true, "token": true}
-		requireField(&errs, "user", c.User, authXOAuth2)
+		used = map[string]bool{"username": true, "token": true}
+		requireField(&errs, "username", c.Username, authXOAuth2)
 		requireField(&errs, "token", c.Token, authXOAuth2)
 	case authNone:
 	default:
@@ -217,7 +217,7 @@ func (c *config) validateAuth() utils.ValidationErrors {
 	}
 	for _, field := range []struct {
 		name, value string
-	}{{"user", c.User}, {"password", c.Password}, {"token", c.Token}} {
+	}{{"username", c.Username}, {"password", c.Password}, {"token", c.Token}} {
 		switch {
 		case field.value == "":
 		case !used[field.name]:

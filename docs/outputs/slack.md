@@ -2,6 +2,11 @@
 
 Posts each event to a Slack incoming webhook. `host` defaults to `https://hooks.slack.com`; the webhook path, which is a credential, goes in `secret_endpoint`.
 
+- The message is Block Kit inside one attachment, whose side bar has the priority color: the rule as heading, the output text, then the fields.
+- The message text, which notifications show, is `[Priority] rule on hostname`, or `message_template` when set.
+- The time renders in the reader's time zone, with RFC 3339 in UTC for clients that cannot.
+- The webhook sets the channel, name and icon: Slack-app webhooks ignore overrides, so the output has none.
+
 ## Example
 
 <!-- example -->
@@ -9,7 +14,6 @@ Posts each event to a Slack incoming webhook. `host` defaults to `https://hooks.
 outputs:
   slack:
     secret_endpoint_file: /etc/falcosidekick/secrets/slack/webhook-path
-    channel: "#security-alerts"
     output_format: all
     runtime:
       minimum_priority: warning
@@ -29,13 +33,9 @@ Key in the output file: `slack`. Category: Chat. UI event source: no. Batching: 
 | `host` | string | `https://hooks.slack.com` | Address of the destination as scheme, host and optional port, such as `https://example.com:8443`; the path goes in the base path and endpoint. |
 | `base_path` | string | - | Path prefix of every request, such as `/proxy/v2` when the destination sits behind a reverse proxy. |
 | `secret_endpoint` | string, secret, **required** | - | Path the events are sent to, used instead of the endpoint when the path itself is a credential, as in a webhook URL; the API never returns it. Also accepted as `secret_endpoint_file`, the path of a file holding the value. |
-| `channel` | string | - | Channel the messages are posted to, such as `#falco`, when the webhook allows it. Empty uses the webhook's channel. |
-| `bot_username` | string | - | Name shown as the sender of the messages, when the webhook allows it. Empty uses the webhook's name. |
-| `icon_url` | string | - | URL of the image shown as the sender icon. Empty uses the webhook's icon. Suggested: `https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png`. |
-| `icon_emoji` | string | - | Emoji shown as the sender icon, written as `:name:`. Empty uses the webhook's icon. |
-| `output_format` | one of `all`, `fields`, `text` | `all` | Content of the attachment: `text` is the event output text, `fields` lists rule, priority, source, hostname, tags, output fields and time, `all` shows both. |
-| `message_format` | string | - | Go template for a message text shown above the attachment, applied to the event, such as `Rule {{ .Rule }} on {{ .Hostname }}`. Empty sends no message text. |
-| `footer` | string | - | Text shown under the attachment, cut to 300 characters. Empty shows no footer. Suggested: `https://github.com/falcosecurity/falcosidekick`. |
+| `output_format` | one of `all`, `fields`, `text` | `all` | Content under the rule heading: `text` is the event output text, `fields` lists rule, priority, source, hostname, tags, time and output fields, `all` shows both. |
+| `message_template` | string | - | Go template for the message text, which notifications show, applied to the event, such as `Rule {{ .Rule }} on {{ .Hostname }}`. Empty, or a template that fails, sends `[Priority] rule on hostname`. |
+| `footer` | string | - | Slack markup shown at the bottom of the attachment, cut to 300 characters. Empty shows no footer. Suggested: `https://github.com/falcosecurity/falcosidekick`. |
 
 Also takes the shared settings in [Query parameters](common.md#query-parameters), [HTTP authentication and headers](common.md#http-authentication-and-headers), [TLS](common.md#tls), [Delivery](common.md#delivery).
 

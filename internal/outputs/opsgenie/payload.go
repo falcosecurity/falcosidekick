@@ -30,10 +30,10 @@ const (
 	maxMessageRunes     = 130
 	maxDescriptionRunes = 15000
 	maxAliasLen         = 512
+	maxEntityRunes      = 512
 	maxTags             = 20
 	maxTagRunes         = 50
 	maxDetailsRunes     = 8000
-	entity              = "Falcosidekick"
 )
 
 type alert struct {
@@ -99,14 +99,11 @@ func buildDetails(evt *event.Event) map[string]string {
 func buildAlert(evt *event.Event) alert {
 	details := buildDetails(evt)
 
-	message := evt.Output
-	if message == "" {
-		message = evt.Rule
-	}
+	// Opsgenie lists alerts by message, so it is the rule; entity is the affected host.
 	a := alert{
-		Message:     shared.TruncateRunes(message, maxMessageRunes),
-		Entity:      entity,
-		Description: shared.TruncateRunes(evt.Rule, maxDescriptionRunes),
+		Message:     shared.TruncateRunes(evt.Rule, maxMessageRunes),
+		Entity:      shared.TruncateRunes(evt.Hostname, maxEntityRunes),
+		Description: shared.TruncateRunes(evt.Output, maxDescriptionRunes),
 		Details:     details,
 		Priority:    priority(evt.Priority),
 		Tags:        alertTags(evt.Tags),

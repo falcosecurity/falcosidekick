@@ -35,7 +35,6 @@ const CONNECTION_FIELDS = new Set([
   "method",
   "query_params",
   "headers",
-  "tls_enabled",
   "region",
   "site",
   "brokers",
@@ -84,7 +83,7 @@ export function sectionsFor(fields: readonly SchemaField[]): FieldSection[] {
   const keys = [...byKey.keys()].sort((a, b) => {
     const ia = SECTION_ORDER.indexOf(a)
     const ib = SECTION_ORDER.indexOf(b)
-    // Driver-specific groups such as producer or traces come after the common ones, before delivery.
+    // Driver-specific groups such as producer or logs come after the common ones, before delivery.
     const ra = ia === -1 ? SECTION_ORDER.indexOf("tls") + 0.5 : ia
     const rb = ib === -1 ? SECTION_ORDER.indexOf("tls") + 0.5 : ib
     return ra - rb || a.localeCompare(b)

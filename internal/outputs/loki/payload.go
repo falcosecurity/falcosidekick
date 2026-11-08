@@ -36,8 +36,8 @@ type lokiStream struct {
 	Values [][]string        `json:"values"`
 }
 
-func buildPayload(logFormat string, extraLabels []string, evt *event.Event) lokiPayload {
-	labels := extractLabels(extraLabels, evt)
+func buildPayload(logFormat string, labelFields []labelField, evt *event.Event) lokiPayload {
+	labels := extractLabels(labelFields, evt)
 	entry := formatEntry(logFormat, evt)
 
 	return lokiPayload{
@@ -48,12 +48,12 @@ func buildPayload(logFormat string, extraLabels []string, evt *event.Event) loki
 }
 
 // buildBatchPayload sorts the entries of each stream by timestamp, as Loki requires.
-func buildBatchPayload(logFormat string, extraLabels []string, events []*event.Event) lokiPayload {
+func buildBatchPayload(logFormat string, labelFields []labelField, events []*event.Event) lokiPayload {
 	streamMap := make(map[string]*lokiStream)
 	streamOrder := make([]string, 0)
 
 	for _, evt := range events {
-		labels := extractLabels(extraLabels, evt)
+		labels := extractLabels(labelFields, evt)
 		key := serializeLabels(labels)
 		entry := formatEntry(logFormat, evt)
 

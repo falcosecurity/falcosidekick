@@ -147,10 +147,12 @@ func TestAlertmanagerPayloadFormat(t *testing.T) {
 				require.NoError(t, json.Unmarshal(body, &alerts))
 				require.Len(t, alerts, 1)
 				assert.NotEmpty(t, alerts[0].Labels["alertname"], "must include alertname label")
-				assert.NotEmpty(t, alerts[0].Labels["rule"])
-				assert.NotEmpty(t, alerts[0].Labels["severity"])
+				assert.NotContains(t, alerts[0].Labels, "rule")
+				assert.Equal(t, "warning", alerts[0].Labels["severity"])
 				assert.NotEmpty(t, alerts[0].StartsAt, "must include startsAt")
-				assert.NotEmpty(t, alerts[0].Annotations["info"])
+				assert.NotEmpty(t, alerts[0].Annotations["summary"])
+				assert.NotEmpty(t, alerts[0].Annotations["description"])
+				assert.NotContains(t, alerts[0].Annotations, "info")
 			},
 		},
 		{
@@ -176,11 +178,11 @@ func TestAlertmanagerPayloadFormat(t *testing.T) {
 			Name:         "sets endsAt when expires_after configured",
 			AddressField: "hosts",
 			AddressSlice: true,
-			Config:       map[string]any{"expires_after": 300},
+			Config:       map[string]any{"expires_after": "5m"},
 			ValidateReq: func(t *testing.T, _ *http.Request, body []byte) {
 				var alerts []alertPayload
 				require.NoError(t, json.Unmarshal(body, &alerts))
-				assert.NotEmpty(t, alerts[0].EndsAt)
+				assert.Equal(t, "2026-04-01T10:35:00Z", alerts[0].EndsAt)
 			},
 		},
 		{

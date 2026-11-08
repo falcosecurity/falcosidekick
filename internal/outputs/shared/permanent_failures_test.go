@@ -93,28 +93,25 @@ func TestEveryOutputMarksPermanentRejections(t *testing.T) {
 			return map[string]any{"host": h, "secret_endpoint": "/integrations/v1/formatted_webhook/t/"}
 		}},
 		{name: "talon", config: func(h string) map[string]any { return map[string]any{"host": h} }},
-		{name: "cloudevents", config: func(h string) map[string]any { return map[string]any{"host": h} }},
+		{name: "cloudevents", config: func(h string) map[string]any { return map[string]any{"host": h, "source": "/falcosidekick"} }},
 		{name: "pagerduty", config: func(h string) map[string]any { return map[string]any{"host": h, "routing_key": "rk"} }},
 		{name: "opsgenie", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k"} }},
-		{name: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k"} }},
-		{name: "datadog v2", typ: "datadog", config: func(h string) map[string]any {
-			return map[string]any{"host": h, "api_key": "k", "app_key": "a"}
-		}},
+		{name: "datadog", config: func(h string) map[string]any { return map[string]any{"host": h, "api_key": "k", "app_key": "a"} }},
 		// OTLP/HTTP retries only 429, 502, 503 and 504; every other status, 500 included, is final.
 		{name: "otlp", statuses: statusMatrix{
 			permanent: []int{http.StatusBadRequest, http.StatusInternalServerError},
 			transient: []int{http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout},
 		}, config: func(h string) map[string]any {
-			return map[string]any{"traces": map[string]any{"endpoint": h}}
+			return map[string]any{"logs": map[string]any{"endpoint": h}}
 		}},
 		{name: "otlp grpc", typ: "otlp", permanent: grpcAnswer(codes.InvalidArgument), transient: grpcAnswer(codes.Unavailable),
 			config: func(h string) map[string]any {
-				return map[string]any{"traces": map[string]any{"endpoint": h, "protocol": "grpc"}}
+				return map[string]any{"logs": map[string]any{"endpoint": h, "protocol": "grpc"}}
 			}},
 		// ResourceExhausted is final unless the collector attaches RetryInfo.
 		{name: "otlp grpc exhausted", typ: "otlp", permanent: grpcAnswer(codes.ResourceExhausted), transient: grpcAnswer(codes.Aborted),
 			config: func(h string) map[string]any {
-				return map[string]any{"traces": map[string]any{"endpoint": h, "protocol": "grpc"}}
+				return map[string]any{"logs": map[string]any{"endpoint": h, "protocol": "grpc"}}
 			}},
 		{name: "awss3",
 			permanent: func(t *testing.T) *fakeDestination { return fakeS3(t, "InvalidRequest", http.StatusBadRequest) },
@@ -160,7 +157,7 @@ func TestEveryOutputMarksPermanentRejections(t *testing.T) {
 		{name: "policyreport",
 			permanent: func(t *testing.T) *fakeDestination { return fakeAPIServer(t, http.StatusForbidden) },
 			transient: func(t *testing.T) *fakeDestination { return fakeAPIServer(t, http.StatusServiceUnavailable) },
-			config:    func(h string) map[string]any { return map[string]any{"kubeconfig": h, "falco_namespace": "falco"} }},
+			config:    func(h string) map[string]any { return map[string]any{"kubeconfig": h, "fallback_namespace": "falco"} }},
 		{name: "redis",
 			permanent: func(t *testing.T) *fakeDestination {
 				return fakeRedis(t, "-WRONGTYPE Operation against a key holding the wrong kind of value\r\n")
@@ -168,7 +165,9 @@ func TestEveryOutputMarksPermanentRejections(t *testing.T) {
 			transient: func(t *testing.T) *fakeDestination {
 				return fakeRedis(t, "-LOADING Redis is loading the dataset in memory\r\n")
 			},
-			config: func(h string) map[string]any { return map[string]any{"address": h} }},
+			config: func(h string) map[string]any {
+				return map[string]any{"address": h, "key": "falco", "storage_type": "list"}
+			}},
 		{name: "smtp",
 			permanent: func(t *testing.T) *fakeDestination { return fakeSMTP(t, "550 5.1.1 no such user") },
 			transient: func(t *testing.T) *fakeDestination { return fakeSMTP(t, "450 4.2.1 mailbox busy") },

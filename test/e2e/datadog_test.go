@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -34,31 +35,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const datadogAPIKey = "e2eDatadogApiKey0123456789abcdef"
+const (
+	datadogAPIKey = "e2eDatadogApiKey0123456789abcdef"
+	datadogAppKey = "e2eDatadogAppKey0123456789abcdef0123456"
+)
 
-// datadogEvent mirrors the Events API v1 request body:
-// https://docs.datadoghq.com/api/latest/events/#post-an-event
-type datadogEvent struct {
-	Title          string   `json:"title"`
-	Text           string   `json:"text"`
-	AlertType      string   `json:"alert_type"`
-	SourceTypeName string   `json:"source_type_name"`
-	AggregationKey string   `json:"aggregation_key"`
-	DeviceName     string   `json:"device_name"`
-	Host           string   `json:"host"`
-	Priority       string   `json:"priority"`
-	Tags           []string `json:"tags"`
-	DateHappened   int64    `json:"date_happened"`
-	RelatedEventID int64    `json:"related_event_id"`
-}
-
-var datadogAlertTypes = []string{"error", "warning", "info", "success", "user_update", "recommendation", "snapshot"}
-
-const datadogAppKey = "e2eDatadogAppKey0123456789abcdef0123456"
-
-// datadogV2Request mirrors the Events API v2 alert EventCreateRequestPayload:
+// datadogRequest mirrors the Events API v2 alert EventCreateRequestPayload:
 // https://github.com/DataDog/datadog-api-client-go/blob/master/.generator/schemas/v2/openapi.yaml
-type datadogV2Request struct {
+type datadogRequest struct {
 	Data struct {
 		Type       string `json:"type"`
 		Attributes struct {
@@ -80,20 +64,14 @@ type datadogV2Request struct {
 	} `json:"data"`
 }
 
-// datadogAPI is a strict fake that answers 403 to wrong keys, as Datadog does.
+// datadogAPI is a strict fake of Events API v2 that answers 403 to wrong keys, as Datadog does.
+// It knows no v1 route.
 type datadogAPI struct {
-	key         string
-	events      []datadogEvent
-	v2Events    []datadogV2Request
+	events      []datadogRequest
 	rejected    []string
-	validations int
 	keyChecks   int
 	eventStatus int
 	mu          sync.Mutex
-}
-
-func (d *datadogAPI) appKeyValid(req *http.Request) bool {
-	return req.Header.Get("DD-APPLICATION-KEY") == datadogAppKey
 }
 
 func (d *datadogAPI) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -108,31 +86,21 @@ func (d *datadogAPI) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		reject(http.StatusBadRequest, "key in the query string")
 		return
 	}
-	if req.Header.Get("DD-API-KEY") != d.key {
+	if req.Header.Get("DD-API-KEY") != datadogAPIKey {
 		reject(http.StatusForbidden, "wrong key")
 		return
 	}
+	if req.Header.Get("DD-APPLICATION-KEY") != datadogAppKey {
+		reject(http.StatusForbidden, "wrong application key")
+		return
+	}
 	switch {
-	case req.Method == http.MethodGet && req.URL.Path == "/api/v1/validate":
-		d.validations++
-		w.Header().Set("Content-Type", contentTypeJSON)
-		_, _ = io.WriteString(w, `{"valid":true}`)
-	case req.Method == http.MethodPost && req.URL.Path == "/api/v1/events":
-		d.postEvent(w, req, reject)
 	case req.Method == http.MethodGet && req.URL.Path == "/api/v2/validate_keys":
-		if !d.appKeyValid(req) {
-			reject(http.StatusForbidden, "wrong application key")
-			return
-		}
 		d.keyChecks++
 		w.Header().Set("Content-Type", contentTypeJSON)
 		_, _ = io.WriteString(w, `{"status":"ok"}`)
 	case req.Method == http.MethodPost && req.URL.Path == "/api/v2/events":
-		if !d.appKeyValid(req) {
-			reject(http.StatusForbidden, "wrong application key")
-			return
-		}
-		d.postV2Event(w, req, reject)
+		d.postEvent(w, req, reject)
 	default:
 		reject(http.StatusNotFound, "unknown route")
 	}
@@ -145,39 +113,7 @@ func (d *datadogAPI) postEvent(w http.ResponseWriter, req *http.Request, reject 
 	}
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
-	var evt datadogEvent
-	if err := dec.Decode(&evt); err != nil {
-		reject(http.StatusBadRequest, err.Error())
-		return
-	}
-	switch {
-	case dec.More():
-		reject(http.StatusBadRequest, "trailing data")
-		return
-	case evt.Title == "" || evt.Text == "":
-		reject(http.StatusBadRequest, "title and text are required")
-		return
-	case len([]rune(evt.Text)) > 4000:
-		reject(http.StatusBadRequest, "text over 4000 characters")
-		return
-	case evt.AlertType != "" && !slices.Contains(datadogAlertTypes, evt.AlertType):
-		reject(http.StatusBadRequest, "alert_type "+evt.AlertType)
-		return
-	}
-	d.events = append(d.events, evt)
-	w.Header().Set("Content-Type", contentTypeJSON)
-	w.WriteHeader(d.eventStatus)
-	_, _ = io.WriteString(w, `{"status":"ok"}`)
-}
-
-func (d *datadogAPI) postV2Event(w http.ResponseWriter, req *http.Request, reject func(int, string)) {
-	if mediaType, _, err := mime.ParseMediaType(req.Header.Get("Content-Type")); err != nil || mediaType != contentTypeJSON {
-		reject(http.StatusBadRequest, "content type "+req.Header.Get("Content-Type"))
-		return
-	}
-	dec := json.NewDecoder(req.Body)
-	dec.DisallowUnknownFields()
-	var body datadogV2Request
+	var body datadogRequest
 	if err := dec.Decode(&body); err != nil {
 		reject(http.StatusBadRequest, err.Error())
 		return
@@ -198,70 +134,78 @@ func (d *datadogAPI) postV2Event(w http.ResponseWriter, req *http.Request, rejec
 		reject(http.StatusBadRequest, "aggregation_key length")
 	case len(attrs.Tags) == 0 || len(attrs.Tags) > 100:
 		reject(http.StatusBadRequest, "tag count")
+	case slices.ContainsFunc(attrs.Tags, func(tag string) bool { return len([]rune(tag)) > 200 || strings.HasPrefix(tag, "source:") }):
+		reject(http.StatusBadRequest, "tag too long or reserved")
 	case !slices.Contains([]string{"warn", "error", "ok"}, attrs.Attributes.Status):
 		reject(http.StatusBadRequest, "status "+attrs.Attributes.Status)
 	case attrs.Attributes.Priority != "" && !slices.Contains([]string{"1", "2", "3", "4", "5"}, attrs.Attributes.Priority):
 		reject(http.StatusBadRequest, "priority "+attrs.Attributes.Priority)
 	default:
 		if attrs.Timestamp != "" {
-			if _, err := time.Parse(time.RFC3339Nano, attrs.Timestamp); err != nil {
-				reject(http.StatusBadRequest, "timestamp is not ISO 8601")
+			ts, err := time.Parse(time.RFC3339Nano, attrs.Timestamp)
+			if err != nil || time.Since(ts) > 18*time.Hour {
+				reject(http.StatusBadRequest, "timestamp is not ISO 8601 or older than 18h")
 				return
 			}
 		}
-		d.v2Events = append(d.v2Events, body)
+		d.events = append(d.events, body)
 		w.Header().Set("Content-Type", contentTypeJSON)
 		w.WriteHeader(d.eventStatus)
 		_, _ = io.WriteString(w, `{"data":{"type":"event","attributes":{"attributes":{"evt":{"uid":"e2e"}}}}}`)
 	}
 }
 
-func (d *datadogAPI) v2Snapshot() (events []datadogV2Request, rejected []string, keyChecks int) {
+func (d *datadogAPI) snapshot() (events []datadogRequest, rejected []string, keyChecks int) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return append([]datadogV2Request(nil), d.v2Events...), append([]string(nil), d.rejected...), d.keyChecks
+	return append([]datadogRequest(nil), d.events...), append([]string(nil), d.rejected...), d.keyChecks
 }
 
-func (d *datadogAPI) snapshot() (events []datadogEvent, rejected []string, validations int) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return append([]datadogEvent(nil), d.events...), append([]string(nil), d.rejected...), d.validations
+func datadogConfig(host, apiKey, appKey string) string {
+	return fmt.Sprintf("datadog:\n  host: %q\n  api_key: %q\n  app_key: %q\n", host, apiKey, appKey)
 }
 
-func startDatadog(t *testing.T, eventStatus int, key string) (*datadogAPI, *sidekick) {
+func startDatadog(t *testing.T, eventStatus int) (*datadogAPI, *sidekick) {
 	t.Helper()
-	api := &datadogAPI{eventStatus: eventStatus, key: datadogAPIKey}
+	api := &datadogAPI{eventStatus: eventStatus}
 	server := httptest.NewServer(api)
 	t.Cleanup(server.Close)
-	sk := startSidekick(t, fmt.Sprintf("datadog:\n  host: %q\n  api_key: %q\n", server.URL, key))
+	sk := startSidekick(t, datadogConfig(server.URL, datadogAPIKey, datadogAppKey))
 	return api, sk
 }
 
-func TestDatadogDeliversEvent(t *testing.T) {
-	api, sk := startDatadog(t, http.StatusAccepted, datadogAPIKey)
+func TestDatadogDeliversAlertEvent(t *testing.T) {
+	api, sk := startDatadog(t, http.StatusAccepted)
 
 	marker := newMarker(t)
+	before := time.Now()
 	sk.postEvent(t, marker)
 	st := sk.waitStatus(t, "datadog", func(st outputStatus) bool { return st.SentTotal == 1 })
 	assert.Zero(t, st.FailedTotal)
 
-	events, rejected, validations := api.snapshot()
+	events, rejected, keyChecks := api.snapshot()
 	require.Empty(t, rejected)
-	assert.Equal(t, 1, validations, "the startup probe validates the key")
+	assert.Equal(t, 1, keyChecks, "the startup probe validates both keys")
 	require.Len(t, events, 1)
-	evt := events[0]
-	assert.Equal(t, "E2E "+marker, evt.Title)
-	assert.Equal(t, "e2e event "+marker, evt.Text)
-	assert.Equal(t, "warning", evt.AlertType)
-	assert.Equal(t, "falco", evt.SourceTypeName)
-	assert.Equal(t, []string{
-		"e2e.marker:" + marker, "proc.name:e2e", "source:syscall", "source:falco", "hostname:e2e-host", "e2e",
-	}, evt.Tags)
-	assert.NotContains(t, sk.logs.String(), datadogAPIKey)
+	attrs := events[0].Data.Attributes
+	assert.Equal(t, "E2E "+marker, attrs.Title)
+	assert.Equal(t, "e2e event "+marker, attrs.Message)
+	assert.Equal(t, "e2e-host", attrs.Host)
+	assert.Equal(t, "warn", attrs.Attributes.Status)
+	assert.Equal(t, "4", attrs.Attributes.Priority)
+	assert.NotEmpty(t, attrs.AggregationKey)
+	ts, err := time.Parse(time.RFC3339Nano, attrs.Timestamp)
+	require.NoError(t, err)
+	assert.WithinDuration(t, before, ts, 5*time.Second, "the timestamp is the event time")
+	assert.Equal(t, []string{"falco_source:syscall", "e2e"}, attrs.Tags)
+	assert.Equal(t, map[string]any{"output_fields": map[string]any{"e2e.marker": marker, "proc.name": "e2e"}}, attrs.Attributes.Custom)
+	logs := sk.logs.String()
+	assert.NotContains(t, logs, datadogAPIKey)
+	assert.NotContains(t, logs, datadogAppKey)
 }
 
 func TestDatadogReportsRejectedEvent(t *testing.T) {
-	api, sk := startDatadog(t, http.StatusBadRequest, datadogAPIKey)
+	api, sk := startDatadog(t, http.StatusBadRequest)
 
 	sk.postEvent(t, newMarker(t))
 	st := sk.waitStatus(t, "datadog", func(st outputStatus) bool { return st.FailedTotal == 1 })
@@ -277,84 +221,44 @@ func TestDatadogReportsRejectedEvent(t *testing.T) {
 
 // Datadog answers 403 to an invalid key, which stops startup.
 func TestDatadogRejectedKeyFailsStartup(t *testing.T) {
-	api := &datadogAPI{eventStatus: http.StatusAccepted, key: datadogAPIKey}
-	server := httptest.NewServer(api)
-	t.Cleanup(server.Close)
-	wrong := "wrongDatadogKey" + newMarker(t)
+	for _, tc := range []struct{ name, apiKey, appKey string }{
+		{name: "api key", apiKey: "wrongDatadogKey", appKey: datadogAppKey},
+		{name: "application key", apiKey: datadogAPIKey, appKey: "wrongDatadogAppKey"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api := &datadogAPI{eventStatus: http.StatusAccepted}
+			server := httptest.NewServer(api)
+			t.Cleanup(server.Close)
+			suffix := newMarker(t)
 
-	logs := startSidekickFails(t, fmt.Sprintf("datadog:\n  host: %q\n  api_key: %q\n", server.URL, wrong))
-	assert.Contains(t, logs, "HTTP 403")
-	assert.NotContains(t, logs, wrong)
+			logs := startSidekickFails(t, datadogConfig(server.URL, tc.apiKey+suffix, tc.appKey+suffix))
+			assert.Contains(t, logs, "HTTP 403")
+			assert.NotContains(t, logs, suffix)
 
-	events, _, _ := api.snapshot()
-	assert.Empty(t, events)
+			events, _, _ := api.snapshot()
+			assert.Empty(t, events)
+		})
+	}
+}
+
+func TestDatadogRequiresAppKey(t *testing.T) {
+	logs := startSidekickFails(t, fmt.Sprintf("datadog:\n  host: \"http://127.0.0.1:%d\"\n  api_key: %q\n", freePort(t), datadogAPIKey))
+	assert.Contains(t, logs, "app_key: is required")
+	assert.NotContains(t, logs, datadogAPIKey)
 }
 
 func TestDatadogUnreachableStartsDegraded(t *testing.T) {
-	sk := startSidekick(t, fmt.Sprintf("datadog:\n  host: \"http://127.0.0.1:%d\"\n  api_key: %q\n", freePort(t), datadogAPIKey))
+	sk := startSidekick(t, datadogConfig(fmt.Sprintf("http://127.0.0.1:%d", freePort(t)), datadogAPIKey, datadogAppKey))
 	st := sk.status(t, "datadog")
 	assert.Equal(t, "degraded", st.Status)
 	assert.Contains(t, st.LastWarning, "health check failed before start")
 	assert.NotContains(t, st.LastWarning, datadogAPIKey)
 	assert.NotContains(t, sk.logs.String(), datadogAPIKey)
+	assert.NotContains(t, sk.logs.String(), datadogAppKey)
 }
 
-func startDatadogV2(t *testing.T, eventStatus int) (*datadogAPI, *sidekick) {
-	t.Helper()
-	api := &datadogAPI{eventStatus: eventStatus, key: datadogAPIKey}
-	server := httptest.NewServer(api)
-	t.Cleanup(server.Close)
-	sk := startSidekick(t, fmt.Sprintf("datadog:\n  host: %q\n  api_key: %q\n  app_key: %q\n", server.URL, datadogAPIKey, datadogAppKey))
-	return api, sk
-}
-
-func TestDatadogV2DeliversAlertEvent(t *testing.T) {
-	api, sk := startDatadogV2(t, http.StatusAccepted)
-
-	marker := newMarker(t)
-	sk.postEvent(t, marker)
-	st := sk.waitStatus(t, "datadog", func(st outputStatus) bool { return st.SentTotal == 1 })
-	assert.Zero(t, st.FailedTotal)
-
-	events, rejected, keyChecks := api.v2Snapshot()
-	require.Empty(t, rejected)
-	assert.Equal(t, 1, keyChecks, "the startup probe validates both keys")
-	v1Events, _, validations := api.snapshot()
-	assert.Empty(t, v1Events, "an application key selects Events API v2")
-	assert.Equal(t, 1, validations)
-	require.Len(t, events, 1)
-	attrs := events[0].Data.Attributes
-	assert.Equal(t, "E2E "+marker, attrs.Title)
-	assert.Equal(t, "e2e event "+marker, attrs.Message)
-	assert.Equal(t, "warn", attrs.Attributes.Status)
-	assert.Equal(t, "4", attrs.Attributes.Priority)
-	assert.NotEmpty(t, attrs.AggregationKey)
-	assert.NotEmpty(t, attrs.Timestamp)
-	assert.Equal(t, []string{
-		"e2e.marker:" + marker, "proc.name:e2e", "source:syscall", "source:falco", "hostname:e2e-host", "e2e",
-	}, attrs.Tags)
-	logs := sk.logs.String()
-	assert.NotContains(t, logs, datadogAPIKey)
-	assert.NotContains(t, logs, datadogAppKey)
-}
-
-func TestDatadogV2RejectedAppKeyFailsStartup(t *testing.T) {
-	api := &datadogAPI{eventStatus: http.StatusAccepted, key: datadogAPIKey}
-	server := httptest.NewServer(api)
-	t.Cleanup(server.Close)
-	wrong := "wrongDatadogAppKey" + newMarker(t)
-
-	logs := startSidekickFails(t, fmt.Sprintf("datadog:\n  host: %q\n  api_key: %q\n  app_key: %q\n", server.URL, datadogAPIKey, wrong))
-	assert.Contains(t, logs, "HTTP 403")
-	assert.NotContains(t, logs, wrong)
-	assert.NotContains(t, logs, datadogAPIKey)
-
-	events, _, _ := api.v2Snapshot()
-	assert.Empty(t, events)
-}
-
-func TestDatadogV2KeysAbsentFromAPI(t *testing.T) {
-	_, sk := startDatadogV2(t, http.StatusAccepted)
+func TestDatadogKeysAbsentFromAPI(t *testing.T) {
+	_, sk := startDatadog(t, http.StatusAccepted)
 	for _, path := range []string{"/api/v1/config", "/api/v1/pipeline/outputs/datadog", "/api/v1/pipeline/status/datadog"} {
 		resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
 		require.NoError(t, err)
@@ -364,18 +268,5 @@ func TestDatadogV2KeysAbsentFromAPI(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode, path)
 		assert.NotContains(t, string(body), datadogAPIKey, path)
 		assert.NotContains(t, string(body), datadogAppKey, path)
-	}
-}
-
-func TestDatadogKeyAbsentFromAPI(t *testing.T) {
-	_, sk := startDatadog(t, http.StatusAccepted, datadogAPIKey)
-	for _, path := range []string{"/api/v1/config", "/api/v1/pipeline/outputs/datadog", "/api/v1/pipeline/status/datadog"} {
-		resp, err := httpDo(http.MethodGet, sk.apiURL+path, nil)
-		require.NoError(t, err)
-		body, err := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode, path)
-		assert.NotContains(t, string(body), datadogAPIKey, path)
 	}
 }

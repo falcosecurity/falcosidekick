@@ -137,7 +137,7 @@ func (s *metricsSignal) attributes(evt *event.Event) []attribute.KeyValue {
 	attrs := make([]attribute.KeyValue, 0, 5+len(s.extra))
 	attrs = append(attrs,
 		attribute.String(attrRule, evt.Rule),
-		attribute.String(attrPriority, string(evt.Priority)),
+		attribute.String(attrPriority, evt.Priority.String()),
 		attribute.String(attrSource, evt.Source),
 	)
 	attrs = appendIdentity(attrs, evt)

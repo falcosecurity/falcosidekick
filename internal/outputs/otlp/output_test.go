@@ -37,7 +37,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	otellog "go.opentelemetry.io/otel/log"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
-	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/grpc/codes"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
@@ -64,7 +63,7 @@ func newDriver(t *testing.T, raw map[string]any) *driver {
 
 func allSignals(endpoint, protocol string, extra map[string]any) map[string]any {
 	raw := map[string]any{}
-	for _, s := range []string{"traces", "logs", "metrics"} {
+	for _, s := range []string{"logs", "metrics"} {
 		section := map[string]any{"endpoint": endpoint, "protocol": protocol}
 		for k, v := range extra {
 			section[k] = v
@@ -75,39 +74,42 @@ func allSignals(endpoint, protocol string, extra map[string]any) map[string]any 
 }
 
 func TestConfigValidation(t *testing.T) {
-	traces := func(section map[string]any) map[string]any { return map[string]any{"traces": section} }
+	logs := func(section map[string]any) map[string]any { return map[string]any{"logs": section} }
 	tests := []struct {
 		raw  map[string]any
 		name string
 		want string
 	}{
-		{name: "no signal", raw: map[string]any{}, want: "at least one of traces, logs or metrics is required"},
-		{name: "missing endpoint", raw: traces(map[string]any{"protocol": "grpc"}), want: "traces.endpoint: is required"},
-		{name: "bad scheme", raw: traces(map[string]any{"endpoint": "ftp://c:4318"}), want: "must be an http or https URL"},
-		{name: "no host", raw: traces(map[string]any{"endpoint": "http://"}), want: "must be an http or https URL"},
-		{name: "invalid url", raw: traces(map[string]any{"endpoint": "http://c:4318/%zz"}), want: "invalid URL"},
-		{name: "credentials", raw: traces(map[string]any{"endpoint": "https://user:" + secret + "@c:4318"}), want: "must not include credentials"},
-		{name: "query", raw: traces(map[string]any{"endpoint": "http://c:4318/v1/traces?token=" + secret}), want: "must not include a query"},
-		{name: "grpc path", raw: traces(map[string]any{"endpoint": "http://c:4317/v1/traces", "protocol": "grpc"}), want: "must not include a path"},
-		{name: "tls on http", raw: traces(map[string]any{"endpoint": "http://c:4318", "tls": map[string]any{"server_name": "c"}}), want: "tls settings require an https endpoint"},
+		{name: "no signal", raw: map[string]any{}, want: "at least one of logs or metrics is required"},
+		{name: "traces is gone", raw: map[string]any{"traces": map[string]any{"endpoint": "http://c:4318"}}, want: "unknown keys: traces"},
+		{name: "traces beside logs", raw: map[string]any{
+			"logs": map[string]any{"endpoint": "http://c:4318"}, "traces": map[string]any{"endpoint": "http://c:4318"},
+		}, want: "unknown keys: traces"},
+		{name: "missing endpoint", raw: logs(map[string]any{"protocol": "grpc"}), want: "logs.endpoint: is required"},
+		{name: "bad scheme", raw: logs(map[string]any{"endpoint": "ftp://c:4318"}), want: "must be an http or https URL"},
+		{name: "no host", raw: logs(map[string]any{"endpoint": "http://"}), want: "must be an http or https URL"},
+		{name: "invalid url", raw: logs(map[string]any{"endpoint": "http://c:4318/%zz"}), want: "invalid URL"},
+		{name: "credentials", raw: logs(map[string]any{"endpoint": "https://user:" + secret + "@c:4318"}), want: "must not include credentials"},
+		{name: "query", raw: logs(map[string]any{"endpoint": "http://c:4318/v1/logs?token=" + secret}), want: "must not include a query"},
+		{name: "grpc path", raw: logs(map[string]any{"endpoint": "http://c:4317/v1/logs", "protocol": "grpc"}), want: "must not include a path"},
+		{name: "tls on http", raw: logs(map[string]any{"endpoint": "http://c:4318", "tls": map[string]any{"server_name": "c"}}), want: "tls settings require an https endpoint"},
 		{name: "protocol", raw: map[string]any{"logs": map[string]any{"endpoint": "http://c:4318", "protocol": "http/json"}}, want: "logs.protocol"},
 		{name: "compression", raw: map[string]any{"logs": map[string]any{"endpoint": "http://c:4318", "compression": "zstd"}}, want: "logs.compression"},
-		{name: "timeout", raw: traces(map[string]any{"endpoint": "http://c:4318", "timeout": "-1s"}), want: "traces.timeout: must be positive"},
-		{name: "duration", raw: traces(map[string]any{"endpoint": "http://c:4318", "duration": "-1s"}), want: "traces.duration: must be positive"},
-		{name: "authorization value", raw: traces(map[string]any{"endpoint": "http://c:4318", "headers": map[string]any{
+		{name: "timeout", raw: logs(map[string]any{"endpoint": "http://c:4318", "timeout": "-1s"}), want: "logs.timeout: must be positive"},
+		{name: "authorization value", raw: logs(map[string]any{"endpoint": "http://c:4318", "headers": map[string]any{
 			"Authorization": map[string]any{"values": []string{"Bearer " + secret}},
 		}}), want: "authorization must use secrets or files"},
-		{name: "transport header", raw: traces(map[string]any{"endpoint": "http://c:4318", "headers": map[string]any{
+		{name: "transport header", raw: logs(map[string]any{"endpoint": "http://c:4318", "headers": map[string]any{
 			"Content-Encoding": map[string]any{"values": []string{"gzip"}},
 		}}), want: "owned by the HTTP transport"},
-		{name: "header file missing", raw: traces(map[string]any{"endpoint": "http://c:4318", "headers": map[string]any{
+		{name: "header file missing", raw: logs(map[string]any{"endpoint": "http://c:4318", "headers": map[string]any{
 			"X-Token": map[string]any{"files": []string{"/nonexistent/" + secret}},
 		}}), want: "files[0]: file does not exist"},
 		{name: "empty extra attribute", raw: map[string]any{"metrics": map[string]any{"endpoint": "http://c:4318", "extra_attributes": []string{" "}}}, want: "metrics.extra_attributes[0]"},
 		{name: "reserved extra attribute", raw: map[string]any{"metrics": map[string]any{"endpoint": "http://c:4318", "extra_attributes": []string{"falco.rule"}}}, want: "set on every data point"},
 		{name: "duplicate extra attribute", raw: map[string]any{"metrics": map[string]any{"endpoint": "http://c:4318", "extra_attributes": []string{"k8s.pod.name", "k8s.pod.name"}}}, want: "duplicate field"},
-		{name: "unknown key", raw: traces(map[string]any{"endpoint": "http://c:4318", "extraenvvars": map[string]any{}}), want: "unknown keys"},
-		{name: "duration on logs", raw: map[string]any{"logs": map[string]any{"endpoint": "http://c:4318", "duration": "1s"}}, want: "unknown keys"},
+		{name: "unknown key", raw: logs(map[string]any{"endpoint": "http://c:4318", "extraenvvars": map[string]any{}}), want: "unknown keys"},
+		{name: "span duration is gone", raw: logs(map[string]any{"endpoint": "http://c:4318", "duration": "1s"}), want: "unknown keys"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -121,14 +123,12 @@ func TestConfigValidation(t *testing.T) {
 
 func TestDefaultsAndSchema(t *testing.T) {
 	d := newDriver(t, map[string]any{
-		"traces":  map[string]any{"endpoint": "http://c:4318"},
+		"logs":    map[string]any{"endpoint": "http://c:4318"},
 		"runtime": map[string]any{"minimum_priority": "notice"},
 	})
-	assert.Equal(t, protocolHTTP, d.cfg.Traces.Protocol)
-	assert.Equal(t, compressionNone, d.cfg.Traces.Compression)
-	assert.Equal(t, defaultTimeout, d.cfg.Traces.Timeout)
-	assert.Zero(t, d.cfg.Traces.Duration)
-	assert.Nil(t, d.cfg.Logs)
+	assert.Equal(t, protocolHTTP, d.cfg.Logs.Protocol)
+	assert.Equal(t, compressionNone, d.cfg.Logs.Compression)
+	assert.Equal(t, defaultTimeout, d.cfg.Logs.Timeout)
 	assert.Nil(t, d.cfg.Metrics)
 	assert.Equal(t, "otlp", d.Name())
 	assert.Equal(t, event.PriorityNotice, d.RuntimeConfig().MinPriority)
@@ -139,7 +139,7 @@ func TestDefaultsAndSchema(t *testing.T) {
 	for _, f := range OutputType.Schema.Fields {
 		fields[f.Name] = f
 	}
-	for _, s := range []string{"traces", "logs", "metrics"} {
+	for _, s := range []string{"logs", "metrics"} {
 		for _, key := range []string{"endpoint", "protocol", "compression", "timeout", "headers", "tls.ca_file"} {
 			assert.Contains(t, fields, s+"."+key)
 		}
@@ -149,8 +149,10 @@ func TestDefaultsAndSchema(t *testing.T) {
 		}
 		assert.True(t, secretEntry, "%s header secrets are schema secrets", s)
 	}
-	assert.Contains(t, fields, "traces.duration")
 	assert.Contains(t, fields, "metrics.extra_attributes")
+	for name := range fields {
+		assert.False(t, strings.HasPrefix(name, "traces."), "no traces signal: %s", name)
+	}
 	assert.NotContains(t, fields, "logs.duration")
 }
 
@@ -159,13 +161,13 @@ func TestTargetPaths(t *testing.T) {
 		endpoint, want string
 		secure         bool
 	}{
-		{endpoint: "http://c:4318", want: "/v1/traces"},
-		{endpoint: "http://c:4318/", want: "/v1/traces"},
-		{endpoint: "https://c/otlp/v1/traces", want: "/otlp/v1/traces", secure: true},
+		{endpoint: "http://c:4318", want: "/v1/logs"},
+		{endpoint: "http://c:4318/", want: "/v1/logs"},
+		{endpoint: "https://c/otlp/v1/logs", want: "/otlp/v1/logs", secure: true},
 	}
 	for _, tt := range tests {
 		cfg := signalConfig{Endpoint: tt.endpoint}
-		got := cfg.target("/v1/traces")
+		got := cfg.target("/v1/logs")
 		assert.Equal(t, tt.want, got.path, tt.endpoint)
 		assert.Equal(t, tt.secure, got.secure, tt.endpoint)
 	}
@@ -187,14 +189,12 @@ func TestDeliversEverySignal(t *testing.T) {
 						"X-Token": map[string]any{"secrets": []string{secret}},
 					},
 				})
-				raw["traces"].(map[string]any)["duration"] = "250ms"
 				d := newDriver(t, raw)
 
 				evt := testutil.CreateValidEvent()
 				require.NoError(t, d.Send(context.Background(), evt))
 
 				got := r.snapshot()
-				require.Len(t, got.traces, 1)
 				require.Len(t, got.logs, 1)
 				require.Len(t, got.metrics, 1)
 				for i, h := range got.headers {
@@ -205,9 +205,8 @@ func TestDeliversEverySignal(t *testing.T) {
 					}
 				}
 				if protocol == protocolHTTP {
-					assert.ElementsMatch(t, []string{"/v1/traces", "/v1/logs", "/v1/metrics"}, got.paths)
+					assert.ElementsMatch(t, []string{"/v1/logs", "/v1/metrics"}, got.paths)
 				}
-				assertSpan(t, got.traces[0].ResourceSpans[0].ScopeSpans[0].Spans[0], evt)
 				assertLog(t, got)
 				assertMetric(t, got, 1)
 			})
@@ -236,27 +235,6 @@ func attrMap(attrs []*commonpb.KeyValue) map[string]any {
 	return m
 }
 
-func assertSpan(t *testing.T, span *tracepb.Span, evt *event.Event) {
-	t.Helper()
-	assert.Equal(t, evt.Rule, span.Name)
-	assert.Equal(t, tracepb.Span_SPAN_KIND_INTERNAL, span.Kind)
-	assert.Equal(t, uint64(evt.Time.UnixNano()), span.StartTimeUnixNano)
-	assert.Equal(t, uint64(evt.Time.Add(250*time.Millisecond).UnixNano()), span.EndTimeUnixNano)
-	assert.Empty(t, span.ParentSpanId)
-	id, ok := traceID(evt)
-	require.True(t, ok)
-	assert.Equal(t, id[:], span.TraceId)
-	attrs := attrMap(span.Attributes)
-	assert.Equal(t, evt.Rule, attrs["falco.rule"])
-	assert.Equal(t, "error", attrs["falco.priority"])
-	assert.Equal(t, "syscall", attrs["falco.source"])
-	assert.Equal(t, evt.UUID, attrs["falco.uuid"])
-	assert.Equal(t, evt.Output, attrs["falco.output"])
-	assert.Equal(t, "node-1", attrs["host.name"])
-	assert.Equal(t, evt.Tags, attrs["falco.tags"])
-	assert.Equal(t, "/bin/hack", attrs["fd.name"])
-}
-
 func assertLog(t *testing.T, got *received) {
 	t.Helper()
 	rl := got.logs[0].ResourceLogs[0]
@@ -270,7 +248,13 @@ func assertLog(t *testing.T, got *received) {
 	assert.Equal(t, "File below a known binary directory opened for writing", rec.Body.GetStringValue())
 	attrs := attrMap(rec.Attributes)
 	assert.Equal(t, "Write below binary dir", attrs["falco.rule"])
+	assert.Equal(t, "Error", attrs["falco.priority"])
+	assert.Equal(t, "syscall", attrs["falco.source"])
+	assert.Equal(t, "test-uuid-001", attrs["falco.uuid"])
+	assert.Equal(t, "node-1", attrs["host.name"])
+	assert.Equal(t, []string{"filesystem", "mitre_persistence"}, attrs["falco.tags"])
 	assert.Equal(t, "touch /bin/hack", attrs["proc.cmdline"])
+	assert.Equal(t, "/bin/hack", attrs["fd.name"])
 	assert.NotContains(t, attrs, "falco.output")
 }
 
@@ -287,27 +271,22 @@ func assertMetric(t *testing.T, got *received, want int64) {
 	assert.Equal(t, want, sum.DataPoints[0].GetAsInt())
 	attrs := attrMap(sum.DataPoints[0].Attributes)
 	assert.Equal(t, "Write below binary dir", attrs["falco.rule"])
-	assert.Equal(t, "error", attrs["falco.priority"])
+	assert.Equal(t, "Error", attrs["falco.priority"])
 	assert.NotContains(t, attrs, "falco.uuid")
 }
 
 // The SDK reads these variables unless every limit is set explicitly; output fields must arrive whole.
 func TestOTELLimitVariablesHaveNoEffect(t *testing.T) {
-	for _, key := range []string{"OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT", "OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT",
-		"OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT", "OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT"} {
+	for _, key := range []string{"OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT", "OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT"} {
 		t.Setenv(key, "2")
 	}
 	r, endpoint := startHTTPReceiver(t)
 	d := newDriver(t, allSignals(endpoint, protocolHTTP, nil))
 	evt := testutil.CreateValidEvent()
 	require.NoError(t, d.Send(context.Background(), evt))
-	got := r.snapshot()
-	spanAttrs := attrMap(got.traces[0].ResourceSpans[0].ScopeSpans[0].Spans[0].Attributes)
-	logAttrs := attrMap(got.logs[0].ResourceLogs[0].ScopeLogs[0].LogRecords[0].Attributes)
-	for _, attrs := range []map[string]any{spanAttrs, logAttrs} {
-		assert.Equal(t, evt.Rule, attrs["falco.rule"])
-		assert.Equal(t, "/bin/hack", attrs["fd.name"])
-	}
+	attrs := attrMap(r.snapshot().logs[0].ResourceLogs[0].ScopeLogs[0].LogRecords[0].Attributes)
+	assert.Equal(t, evt.Rule, attrs["falco.rule"])
+	assert.Equal(t, "/bin/hack", attrs["fd.name"])
 }
 
 func TestSendBatchExportsOneRequestPerSignal(t *testing.T) {
@@ -317,8 +296,7 @@ func TestSendBatchExportsOneRequestPerSignal(t *testing.T) {
 	second.UUID = secondUUID
 	require.NoError(t, d.SendBatch(context.Background(), []*event.Event{first, second}))
 	got := r.snapshot()
-	require.Len(t, got.traces, 1)
-	assert.Len(t, got.traces[0].ResourceSpans[0].ScopeSpans[0].Spans, 2)
+	require.Len(t, got.logs, 1)
 	assert.Len(t, got.logs[0].ResourceLogs[0].ScopeLogs[0].LogRecords, 2)
 	assertMetric(t, got, 2)
 }
@@ -339,7 +317,7 @@ func TestMetricRetryDoesNotCountTwice(t *testing.T) {
 	assertMetric(t, r.snapshot(), 2)
 }
 
-// The retry is for traces, which failed; metrics went through and must not count the event again.
+// The retry is for logs, which failed; metrics went through and must not count the event again.
 func TestMetricRetryForAnotherSignalDoesNotCountTwice(t *testing.T) {
 	r, endpoint := startHTTPReceiver(t)
 	d := newDriver(t, allSignals(endpoint, protocolHTTP, nil))
@@ -391,18 +369,18 @@ func TestExportErrorsKeepSecretsOut(t *testing.T) {
 	for _, tc := range []struct {
 		protocol, want string
 	}{
-		{protocol: protocolHTTP, want: "otlp send: traces: HTTP 401 Unauthorized; logs: HTTP 401 Unauthorized; metrics: HTTP 401 Unauthorized"},
-		{protocol: protocolGRPC, want: "otlp send: traces: Unauthenticated; logs: Unauthenticated; metrics: Unauthenticated"},
+		{protocol: protocolHTTP, want: "otlp send: logs: HTTP 401 Unauthorized; metrics: HTTP 401 Unauthorized"},
+		{protocol: protocolGRPC, want: "otlp send: logs: Unauthenticated; metrics: Unauthenticated"},
 	} {
 		t.Run(tc.protocol, func(t *testing.T) {
 			var r *receiver
 			var endpoint string
 			if tc.protocol == protocolHTTP {
 				r, endpoint = startHTTPReceiver(t)
-				r.fail(3, http.StatusUnauthorized)
+				r.fail(2, http.StatusUnauthorized)
 			} else {
 				r, endpoint = startGRPCReceiver(t)
-				r.fail(3, int(codes.Unauthenticated))
+				r.fail(2, int(codes.Unauthenticated))
 			}
 			d := newDriver(t, allSignals(endpoint, tc.protocol, map[string]any{
 				"headers": map[string]any{"Authorization": map[string]any{"secrets": []string{"Bearer " + secret}}},
@@ -464,9 +442,9 @@ func TestExportFailureClassification(t *testing.T) {
 
 func TestPartialSignalFailureIsRetriable(t *testing.T) {
 	permanent := newDeliveryError(signalLogs, &exportResult{httpStatus: http.StatusBadRequest}, errors.New(secret))
-	transient := newDeliveryError(signalTraces, &exportResult{httpStatus: http.StatusServiceUnavailable}, errors.New(secret))
+	transient := newDeliveryError(signalMetrics, &exportResult{httpStatus: http.StatusServiceUnavailable}, errors.New(secret))
 	err := joinFailures(context.Background(), []*shared.DeliveryError{permanent, transient})
-	assert.Equal(t, "otlp send: logs: HTTP 400 Bad Request; traces: HTTP 503 Service Unavailable", err.Error())
+	assert.Equal(t, "otlp send: logs: HTTP 400 Bad Request; metrics: HTTP 503 Service Unavailable", err.Error())
 	assert.False(t, output.IsPermanent(err), "a retry can still deliver the transient signal")
 	assert.True(t, output.IsPermanent(joinFailures(context.Background(), []*shared.DeliveryError{permanent, permanent})))
 
@@ -490,8 +468,7 @@ func TestHTTPRedirectPolicy(t *testing.T) {
 
 // With the INSECURE variables set, an https endpoint used to get plain HTTP, its headers in clear.
 func TestInsecureVariablesNeverDowngradeHTTPS(t *testing.T) {
-	for _, key := range []string{"OTEL_EXPORTER_OTLP_INSECURE", "OTEL_EXPORTER_OTLP_TRACES_INSECURE",
-		"OTEL_EXPORTER_OTLP_LOGS_INSECURE", "OTEL_EXPORTER_OTLP_METRICS_INSECURE"} {
+	for _, key := range []string{"OTEL_EXPORTER_OTLP_INSECURE", "OTEL_EXPORTER_OTLP_LOGS_INSECURE", "OTEL_EXPORTER_OTLP_METRICS_INSECURE"} {
 		t.Setenv(key, "true")
 	}
 	t.Setenv("OTEL_EXPORTER_OTLP_TIMEOUT", "1")
@@ -502,10 +479,9 @@ func TestInsecureVariablesNeverDowngradeHTTPS(t *testing.T) {
 	require.NoError(t, os.WriteFile(caFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600))
 	signal := map[string]any{"endpoint": server.URL, "tls": map[string]any{"ca_file": caFile}}
 
-	d := newDriver(t, map[string]any{"traces": signal, "logs": signal, "metrics": signal})
+	d := newDriver(t, map[string]any{"logs": signal, "metrics": signal})
 	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
 	got := r.snapshot()
-	assert.Len(t, got.traces, 1)
 	assert.Len(t, got.logs, 1)
 	assert.Len(t, got.metrics, 1)
 }
@@ -528,7 +504,7 @@ func TestHTTPSWithCAFile(t *testing.T) {
 }
 
 func TestGRPCWithTLS(t *testing.T) {
-	d := newDriver(t, map[string]any{"traces": map[string]any{
+	d := newDriver(t, map[string]any{"logs": map[string]any{
 		"endpoint": "https://127.0.0.1:1", "protocol": "grpc", "tls": map[string]any{"server_name": "collector"},
 	}})
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
@@ -555,13 +531,13 @@ func TestInitFailsOnBadCAFile(t *testing.T) {
 	ca := filepath.Join(t.TempDir(), "ca.pem")
 	require.NoError(t, os.WriteFile(ca, []byte("not a certificate"), 0o600))
 	drv, err := OutputType.New(map[string]any{
-		"traces": map[string]any{"endpoint": "http://c:4318"},
-		"logs":   map[string]any{"endpoint": "https://c:4318", "tls": map[string]any{"ca_file": ca}},
+		"logs":    map[string]any{"endpoint": "http://c:4318"},
+		"metrics": map[string]any{"endpoint": "https://c:4318", "tls": map[string]any{"ca_file": ca}},
 	}, output.Deps{})
 	require.NoError(t, err)
 	err = drv.Init(context.Background())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "otlp logs")
+	assert.Contains(t, err.Error(), "otlp metrics")
 	assert.Empty(t, drv.(*driver).signals, "signals created before the failure are closed")
 }
 
@@ -609,44 +585,6 @@ func TestReturnsWhenContextEndsOnSilentDestination(t *testing.T) {
 			assert.Less(t, time.Since(start), defaultTimeout*3+time.Second, "close is bounded")
 		})
 	}
-}
-
-func TestTraceID(t *testing.T) {
-	base := func(fields map[string]any, hostname string) *event.Event {
-		return &event.Event{OutputFields: fields, Hostname: hostname}
-	}
-	pod := base(map[string]any{"k8s.ns.name": "prod", "k8s.pod.name": "web-0", "container.id": "abc"}, "node")
-	samePod := base(map[string]any{"k8s.ns.name": "prod", "k8s.pod.name": "web-0", "container.id": "def"}, "other")
-	container := base(map[string]any{"container.id": "abc"}, "node")
-	hostContainer := base(map[string]any{"container.id": "host", "evt.hostname": "node-a"}, "node")
-	evtHost := base(map[string]any{"evt.hostname": "node-a"}, "")
-	host := base(map[string]any{}, "node-a")
-	none := base(map[string]any{"container.id": "host"}, "")
-
-	id := func(evt *event.Event) string {
-		v, ok := traceID(evt)
-		if !ok {
-			return ""
-		}
-		return v.String()
-	}
-	assert.Equal(t, id(pod), id(samePod), "one trace per pod")
-	assert.NotEqual(t, id(pod), id(container))
-	assert.Equal(t, id(hostContainer), id(evtHost), "the host container falls back to the host")
-	assert.Equal(t, id(evtHost), id(host))
-	assert.Empty(t, id(none))
-	assert.Len(t, id(pod), 32)
-}
-
-func TestUntracedEventGetsRandomTrace(t *testing.T) {
-	r, endpoint := startHTTPReceiver(t)
-	d := newDriver(t, map[string]any{"traces": map[string]any{"endpoint": endpoint}})
-	evt := testutil.CreateValidEvent()
-	evt.Hostname = ""
-	require.NoError(t, d.Send(context.Background(), evt))
-	span := r.snapshot().traces[0].ResourceSpans[0].ScopeSpans[0].Spans[0]
-	assert.Len(t, span.TraceId, 16)
-	assert.NotEqual(t, make([]byte, 16), span.TraceId)
 }
 
 func TestSeverityCoversEveryPriority(t *testing.T) {

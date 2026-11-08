@@ -58,7 +58,7 @@ func eventAttributes(evt *event.Event) []attribute.KeyValue {
 	attrs := make([]attribute.KeyValue, 0, 6+len(evt.OutputFields))
 	attrs = append(attrs,
 		attribute.String(attrRule, evt.Rule),
-		attribute.String(attrPriority, string(evt.Priority)),
+		attribute.String(attrPriority, evt.Priority.String()),
 		attribute.String(attrSource, evt.Source),
 		attribute.String(attrUUID, evt.UUID),
 	)

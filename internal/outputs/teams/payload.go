@@ -19,6 +19,7 @@ package teams
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
@@ -31,7 +32,6 @@ const (
 	adaptiveSchema      = "http://adaptivecards.io/schemas/adaptive-card.json"
 	// Container styles good/attention/warning/accent need 1.2; Teams renders up to 1.6.
 	adaptiveVersion = "1.4"
-	cardTitle       = "Falcosidekick"
 	// Teams rejects messages above 28 KB; the margin covers what the flow adds.
 	maxPayloadBytes = 27 * 1024
 	maxTextRunes    = 16 * 1024
@@ -82,24 +82,25 @@ type fact struct {
 	Value string `json:"value"`
 }
 
-// priorityStyles maps priorities to Adaptive Card container styles.
-var priorityStyles = map[event.Priority]string{
-	event.PriorityEmergency:     "attention",
-	event.PriorityAlert:         "attention",
-	event.PriorityCritical:      "attention",
-	event.PriorityError:         "warning",
-	event.PriorityWarning:       "warning",
-	event.PriorityNotice:        "good",
-	event.PriorityInformational: "accent",
-	event.PriorityDebug:         "default",
+// toneStyles are valid both as Container styles and as TextBlock colors.
+var toneStyles = map[shared.Tone]string{
+	shared.ToneNeutral: "default",
+	shared.ToneInfo:    "accent",
+	shared.ToneWarning: "warning",
+	shared.ToneDanger:  "attention",
 }
 
-// priorityStyle returns a value valid both as a Container style and as a TextBlock color.
+// priorityStyle maps the shared palette to the named styles Adaptive Cards offer.
 func priorityStyle(p event.Priority) string {
-	if s, ok := priorityStyles[p]; ok {
-		return s
-	}
-	return "default"
+	return toneStyles[shared.PriorityTone(p)]
+}
+
+// cardTime lets the client render the time in the reader's locale; the functions need RFC 3339
+// with a Z offset and no fractional seconds, and clients without them show the raw text.
+// https://learn.microsoft.com/en-us/adaptive-cards/authoring-cards/text-features#datetime-formatting-and-localization
+func cardTime(t time.Time) string {
+	ts := t.UTC().Format("2006-01-02T15:04:05Z")
+	return "{{DATE(" + ts + ")}} {{TIME(" + ts + ")}}"
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -114,7 +115,7 @@ func factBytes(f fact) int {
 func buildFacts(evt *event.Event) (facts []fact, outputFrom, outputTo int) {
 	facts = append(facts,
 		fact{Title: "rule", Value: shared.TruncateRunes(evt.Rule, maxFactRunes)},
-		fact{Title: "priority", Value: string(evt.Priority)},
+		fact{Title: "priority", Value: evt.Priority.String()},
 		fact{Title: "source", Value: shared.TruncateRunes(evt.Source, maxFactRunes)},
 	)
 	if evt.Hostname != "" {
@@ -137,15 +138,15 @@ func buildFacts(evt *event.Event) (facts []fact, outputFrom, outputTo int) {
 func (d *driver) card(evt *event.Event, text string, facts []fact) message {
 	style := priorityStyle(evt.Priority)
 	heading := []element{
-		{Type: "TextBlock", Text: cardTitle, Weight: "bolder", Size: "medium", Wrap: ptr(true)},
-		{Type: "TextBlock", Text: evt.Time.String(), Spacing: "none", IsSubtle: ptr(true), Wrap: ptr(true)},
-		{Type: "TextBlock", Text: string(evt.Priority), Spacing: "none", Weight: "bolder", Color: style, Wrap: ptr(true)},
+		{Type: "TextBlock", Text: shared.TruncateRunes(evt.Rule, maxFactRunes), Weight: "bolder", Size: "medium", Wrap: ptr(true)},
+		{Type: "TextBlock", Text: cardTime(evt.Time), Spacing: "none", IsSubtle: ptr(true), Wrap: ptr(true)},
+		{Type: "TextBlock", Text: evt.Priority.String(), Spacing: "none", Weight: "bolder", Color: style, Wrap: ptr(true)},
 	}
 	header := element{Type: "Container", Style: style, Bleed: ptr(true), Items: heading}
-	if d.cfg.ActivityImage != "" {
+	if d.cfg.IconURL != "" {
 		header.Items = []element{{Type: "ColumnSet", Columns: []element{
 			{Type: "Column", Width: "auto", Items: []element{
-				{Type: "Image", URL: d.cfg.ActivityImage, Size: "small", AltText: cardTitle},
+				{Type: "Image", URL: d.cfg.IconURL, Size: "small"},
 			}},
 			{Type: "Column", Width: "stretch", Items: heading},
 		}}}

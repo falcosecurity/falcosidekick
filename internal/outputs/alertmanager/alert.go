@@ -37,8 +37,7 @@ func (d *driver) buildAlert(evt *event.Event) alertPayload {
 	labels := map[string]string{
 		"alertname": evt.Rule,
 		"source":    evt.Source,
-		"rule":      evt.Rule,
-		"priority":  string(evt.Priority),
+		"priority":  evt.Priority.String(),
 		"severity":  d.resolveSeverity(evt.Priority),
 	}
 
@@ -50,15 +49,14 @@ func (d *driver) buildAlert(evt *event.Event) alertPayload {
 		labels["tags"] = tags
 	}
 
-	// Alertmanager restricts label names, not label values.
+	// Names are checked at validation; values are free text.
 	for k, v := range d.cfg.ExtraLabels {
-		labels[shared.SanitizeLabel(k)] = v
+		labels[k] = v
 	}
 
 	annotations := map[string]string{
-		"info":        evt.Output,
-		"description": evt.Output,
 		"summary":     evt.Rule,
+		"description": evt.Output,
 	}
 	for k, v := range d.cfg.ExtraAnnotations {
 		annotations[k] = v
@@ -75,7 +73,7 @@ func (d *driver) buildAlert(evt *event.Event) alertPayload {
 	}
 
 	if d.cfg.ExpiresAfter > 0 {
-		alert.EndsAt = evt.Time.Add(time.Duration(d.cfg.ExpiresAfter) * time.Second).UTC().Format(time.RFC3339)
+		alert.EndsAt = evt.Time.Add(d.cfg.ExpiresAfter).UTC().Format(time.RFC3339)
 	}
 
 	return alert
@@ -88,5 +86,17 @@ func (d *driver) resolveSeverity(priority event.Priority) string {
 			return s
 		}
 	}
-	return shared.PrioritySeverity(priority)
+	return severity(priority)
+}
+
+// severity maps a priority to the monitoring-mixins severities critical, warning and info.
+func severity(p event.Priority) string {
+	switch p {
+	case event.PriorityEmergency, event.PriorityAlert, event.PriorityCritical:
+		return "critical"
+	case event.PriorityError, event.PriorityWarning:
+		return "warning"
+	default:
+		return "info"
+	}
 }

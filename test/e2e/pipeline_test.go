@@ -129,7 +129,9 @@ func TestReloadCarriesStatusToTheReplacement(t *testing.T) {
 	}))
 	t.Cleanup(healthy.Close)
 
-	webhook := func(url string) string { return outputYAML("webhook", "host: \""+url+"\"\nruntime:\n  health_check: false") }
+	webhook := func(url string) string {
+		return outputYAML("webhook", "host: \""+url+"\"\nruntime:\n  health_check: false")
+	}
 	sk := startSidekick(t, webhook(failing.URL))
 	sk.postEvent(t, newMarker(t))
 	before := sk.waitStatus(t, "webhook", func(st outputStatus) bool { return st.FailedTotal == 1 })

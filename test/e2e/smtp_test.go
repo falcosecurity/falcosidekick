@@ -87,7 +87,7 @@ func serverCertificate(t *testing.T, addr, host string) string {
 }
 
 func (m *mailpitTarget) output(password, caFile, extra string) string {
-	return fmt.Sprintf("smtp:\n  host: %q\n  port: %s\n  user: %q\n  password: %q\n  from: %q\n  to: [%q]\n  tls:\n    ca_file: %q\n",
+	return fmt.Sprintf("smtp:\n  host: %q\n  port: %s\n  username: %q\n  password: %q\n  from: %q\n  to: [%q]\n  tls:\n    ca_file: %q\n",
 		m.host, m.port, m.user, password, "Falco E2E <"+smtpFrom+">", smtpTo, caFile) + indent(extra)
 }
 
@@ -142,7 +142,7 @@ func TestSMTPDeliversEvent(t *testing.T) {
 	msg := target.waitMessage(t, marker)
 	assert.Equal(t, mailpitAddress{Name: "Falco E2E", Address: smtpFrom}, msg.From)
 	assert.Equal(t, []mailpitAddress{{Address: smtpTo}}, msg.To)
-	assert.Equal(t, "[Warning] e2e event "+marker, msg.Subject)
+	assert.Equal(t, "[Warning] E2E "+marker+" on e2e-host", msg.Subject)
 	assert.Contains(t, msg.Text, "Rule:     E2E "+marker)
 	assert.Contains(t, msg.Text, "e2e.marker: "+marker)
 	assert.Contains(t, msg.HTML, ">E2E "+marker+"</h1>")

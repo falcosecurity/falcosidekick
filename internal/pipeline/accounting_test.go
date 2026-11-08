@@ -330,24 +330,3 @@ func TestBatchWorkerSendsNothingAfterCancellation(t *testing.T) {
 		})
 	}
 }
-
-type lateFailureDriver struct {
-	handler func(error)
-	testutil.MockDriver
-}
-
-func (d *lateFailureDriver) SetLateFailureHandler(handler func(error)) { d.handler = handler }
-
-func TestLateFailureCountsAsFailed(t *testing.T) {
-	metrics := newRecordingMetrics()
-	driver := &lateFailureDriver{MockDriver: testutil.MockDriver{DriverName: "async"}}
-	out := NewOutput(driver, retryingConfig(), metrics)
-	require.NotNil(t, driver.handler)
-
-	driver.handler(errDelivery)
-
-	status := out.GetStatus()
-	assert.Equal(t, 1, status.FailedTotal)
-	assert.Equal(t, errDelivery.Error(), status.LastError)
-	assert.Equal(t, 1, metrics.statuses["error"], "counted once, in output_events_total")
-}

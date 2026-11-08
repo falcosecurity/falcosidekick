@@ -20,14 +20,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"maps"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 	"text/template"
+	"time"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +42,11 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
-const testEndpoint = "/services/T000/B000/XXXX"
+const (
+	testEndpoint = "/services/T000/B000/XXXX"
+	// testDate is testutil.CreateValidEvent's time, 2026-04-01T10:30:00Z.
+	testDate = "<!date^1775039400^{date_short_pretty} {time}|2026-04-01T10:30:00Z>"
+)
 
 func runSlackCases(t *testing.T, cases []testutil.OutputTestCase) {
 	t.Helper()
@@ -50,59 +58,40 @@ func runSlackCases(t *testing.T, cases []testutil.OutputTestCase) {
 	testutil.RunOutputTests(t, &OutputType, cases)
 }
 
+func newDriver(cfg *config) *driver {
+	if cfg.OutputFormat == "" {
+		cfg.OutputFormat = formatAll
+	}
+	return &driver{cfg: *cfg, logger: slog.New(slog.DiscardHandler)}
+}
+
+// sectionFields returns the texts of every section field, in order.
+func sectionFields(p slackPayload) []string {
+	var out []string
+	for _, b := range p.Attachments[0].Blocks {
+		for _, f := range b.Fields {
+			out = append(out, f.Text)
+		}
+	}
+	return out
+}
+
+func blockTypes(p slackPayload) []string {
+	out := make([]string, 0, len(p.Attachments[0].Blocks))
+	for _, b := range p.Attachments[0].Blocks {
+		kind := b.Type
+		if b.Type == "section" && b.Fields != nil {
+			kind = "section/fields"
+		}
+		out = append(out, kind)
+	}
+	return out
+}
+
 func TestSlackCommonCases(t *testing.T) {
 	runSlackCases(t, []testutil.OutputTestCase{
 		{Name: "sends valid event", AddressField: "host"},
 		{Name: "returns error on server 500", AddressField: "host", MockStatus: http.StatusInternalServerError, ExpectError: true},
-	})
-}
-
-func TestSlackPayloadFormat(t *testing.T) {
-	runSlackCases(t, []testutil.OutputTestCase{
-		{
-			Name:         "sends attachment with priority color",
-			AddressField: "host",
-			ValidateReq: func(t *testing.T, req *http.Request, body []byte) {
-				var payload slackPayload
-				require.NoError(t, json.Unmarshal(body, &payload))
-				require.Len(t, payload.Attachments, 1)
-				assert.NotEmpty(t, payload.Attachments[0].Color)
-				assert.NotEmpty(t, payload.Attachments[0].Fields)
-			},
-		},
-		{
-			Name:         "includes channel when configured",
-			AddressField: "host",
-			Config:       map[string]any{"channel": "#alerts"},
-			ValidateReq: func(t *testing.T, _ *http.Request, body []byte) {
-				var payload slackPayload
-				require.NoError(t, json.Unmarshal(body, &payload))
-				assert.Equal(t, "#alerts", payload.Channel)
-			},
-		},
-		{
-			Name:         "includes username and icon",
-			AddressField: "host",
-			Config:       map[string]any{"bot_username": "FalcoBot", "icon_url": "https://example.com/icon.png"},
-			ValidateReq: func(t *testing.T, _ *http.Request, body []byte) {
-				var payload slackPayload
-				require.NoError(t, json.Unmarshal(body, &payload))
-				assert.Equal(t, "FalcoBot", payload.Username)
-				assert.Equal(t, "https://example.com/icon.png", payload.IconURL)
-			},
-		},
-		{
-			Name:         "text-only format omits fields",
-			AddressField: "host",
-			Config:       map[string]any{"output_format": "text"},
-			ValidateReq: func(t *testing.T, _ *http.Request, body []byte) {
-				var payload slackPayload
-				require.NoError(t, json.Unmarshal(body, &payload))
-				require.Len(t, payload.Attachments, 1)
-				assert.Empty(t, payload.Attachments[0].Fields)
-				assert.NotEmpty(t, payload.Attachments[0].Text)
-			},
-		},
 	})
 }
 
@@ -111,16 +100,195 @@ func TestSlackCreateValidation(t *testing.T) {
 	assert.Error(t, err, "missing secret_endpoint must fail")
 }
 
-func TestSlackMessageTemplate(t *testing.T) {
+// Slack-app webhooks ignore the sender overrides, and message_format is now message_template.
+func TestSlackRemovedKeysAreRefused(t *testing.T) {
+	for key, value := range map[string]any{
+		"channel": "#alerts", "bot_username": "FalcoBot", "icon_url": shared.FalcosidekickIconURL,
+		"icon_emoji": ":ghost:", "message_format": "{{ .Rule }}",
+	} {
+		t.Run(key, func(t *testing.T) {
+			_, err := createOutput(map[string]any{"secret_endpoint": testEndpoint, key: value}, output.Deps{})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), key)
+		})
+	}
+}
+
+func TestBuildPayloadAll(t *testing.T) {
+	d := newDriver(&config{Footer: suggestedFooter})
+	evt := testutil.CreateValidEvent()
+	p := d.buildPayload(evt)
+
+	body, err := json.Marshal(p)
+	require.NoError(t, err)
+	for _, key := range []string{"channel", "username", "icon_url", "icon_emoji", `"fields":[{"title"`} {
+		assert.NotContains(t, string(body), key)
+	}
+
+	assert.Equal(t, "[Error] Write below binary dir on node-1", p.Text)
+	require.Len(t, p.Attachments, 1)
+	att := p.Attachments[0]
+	assert.Equal(t, shared.PriorityColor(event.PriorityError), att.Color)
+	assert.Equal(t, p.Text, att.Fallback)
+	assert.Equal(t, []string{"header", "section", "section/fields", "context"}, blockTypes(p))
+	assert.Equal(t, &textObject{Type: "plain_text", Text: "Write below binary dir"}, att.Blocks[0].Text)
+	assert.Equal(t, &textObject{Type: "mrkdwn", Text: evt.Output}, att.Blocks[1].Text)
+	assert.Equal(t, []string{
+		"*rule*\nWrite below binary dir",
+		"*priority*\nError",
+		"*source*\nsyscall",
+		"*hostname*\nnode-1",
+		"*tags*\nfilesystem, mitre_persistence",
+		"*time*\n" + testDate,
+		"*fd.name*\n/bin/hack",
+		"*proc.cmdline*\ntouch /bin/hack",
+		"*user.name*\nroot",
+	}, sectionFields(p))
+	for _, f := range att.Blocks[2].Fields {
+		assert.Equal(t, "mrkdwn", f.Type)
+	}
+	assert.Equal(t, []textObject{{Type: "mrkdwn", Text: suggestedFooter}}, att.Blocks[3].Elements)
+}
+
+func TestBuildPayloadFormats(t *testing.T) {
+	for _, tc := range []struct {
+		format string
+		want   []string
+	}{
+		{format: formatAll, want: []string{"header", "section", "section/fields"}},
+		{format: formatText, want: []string{"header", "section"}},
+		{format: formatFields, want: []string{"header", "section/fields"}},
+	} {
+		t.Run(tc.format, func(t *testing.T) {
+			p := newDriver(&config{OutputFormat: tc.format}).buildPayload(testutil.CreateValidEvent())
+			assert.Equal(t, tc.want, blockTypes(p), "no footer block unless set")
+			assert.NotEmpty(t, p.Text, "notifications always have a text")
+		})
+	}
+}
+
+func TestBuildPayloadOptionalParts(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	evt.Hostname = ""
+	evt.Tags = nil
+	evt.Output = ""
+	evt.OutputFields = nil
+	p := newDriver(&config{}).buildPayload(evt)
+	assert.Equal(t, "[Error] Write below binary dir", p.Text, "no hostname, no \"on\"")
+	assert.Equal(t, []string{"header", "section/fields"}, blockTypes(p), "an empty output sends no empty section")
+	assert.Equal(t, []string{"*rule*\nWrite below binary dir", "*priority*\nError", "*source*\nsyscall", "*time*\n" + testDate}, sectionFields(p))
+}
+
+func TestBuildPayloadEveryPriorityUsesThePalette(t *testing.T) {
+	d := newDriver(&config{OutputFormat: formatText})
+	for _, p := range []event.Priority{
+		event.PriorityDebug, event.PriorityInformational, event.PriorityNotice, event.PriorityWarning,
+		event.PriorityError, event.PriorityCritical, event.PriorityAlert, event.PriorityEmergency,
+	} {
+		t.Run(string(p), func(t *testing.T) {
+			evt := testutil.CreateValidEvent()
+			evt.Priority = p
+			assert.Equal(t, shared.PriorityColor(p), d.buildPayload(evt).Attachments[0].Color)
+		})
+	}
+}
+
+func TestSlackDate(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	assert.Equal(t, testDate, slackDate(evt.Time))
+	assert.Equal(t, testDate, slackDate(evt.Time.In(time.FixedZone("UTC+9", 9*3600))), "the fallback is UTC")
+}
+
+func TestBuildPayloadEscapesEventText(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	evt.Rule = "R <!channel>"
+	evt.Hostname = "h&<x>"
+	evt.Output = "out <!here> & <https://evil.example|click>"
+	evt.OutputFields = map[string]any{"a<b": "<@U123>"}
+	p := newDriver(&config{}).buildPayload(evt)
+	assert.Equal(t, "[Error] R &lt;!channel&gt; on h&amp;&lt;x&gt;", p.Text)
+	assert.Equal(t, "R <!channel>", p.Attachments[0].Blocks[0].Text.Text, "plain_text needs no escaping")
+	assert.Equal(t, "out &lt;!here&gt; &amp; &lt;https://evil.example|click&gt;", p.Attachments[0].Blocks[1].Text.Text)
+	assert.Contains(t, sectionFields(p), "*a&lt;b*\n&lt;@U123&gt;")
+}
+
+func TestEscapeMrkdwnCut(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want string
+		max  int
+	}{
+		{in: "abc", max: 3, want: "abc"},
+		{in: "a&b", max: 7, want: "a&amp;b"},
+		{in: "abcdef", max: 5, want: "ab..."},
+		{in: "a&bcdef", max: 9, want: "a&amp;..."},
+		{in: "ab&cdef", max: 8, want: "ab..."}, // the escape sequence is not split
+	} {
+		t.Run(tc.in, func(t *testing.T) {
+			got := escapeMrkdwn(tc.in, tc.max)
+			assert.Equal(t, tc.want, got)
+			assert.LessOrEqual(t, utf8.RuneCountInString(got), tc.max)
+		})
+	}
+}
+
+func TestBuildPayloadLimits(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	evt.Rule = strings.Repeat("r", 500)
+	evt.Output = strings.Repeat("o", 5000)
+	evt.OutputFields = map[string]any{}
+	for i := range 150 {
+		evt.OutputFields[fmt.Sprintf("f%03d", i)] = strings.Repeat("v", 3000)
+	}
+	p := newDriver(&config{Footer: strings.Repeat("f", 500)}).buildPayload(evt)
+	blocks := p.Attachments[0].Blocks
+	// Block Kit limits: header 150, section text 3000, field 2000, 10 fields per section, 50 blocks.
+	assert.Equal(t, 150, utf8.RuneCountInString(blocks[0].Text.Text))
+	assert.Equal(t, 3000, utf8.RuneCountInString(blocks[1].Text.Text), "the cut keeps the whole budget")
+	assert.LessOrEqual(t, len(blocks), 50, "Slack accepts at most 50 blocks")
+	assert.Equal(t, 300, utf8.RuneCountInString(blocks[len(blocks)-1].Elements[0].Text))
+	fields := sectionFields(p)
+	assert.Len(t, fields, 100)
+	for _, b := range blocks {
+		assert.LessOrEqual(t, len(b.Fields), 10, "Slack accepts at most 10 fields per section")
+	}
+	assert.Len(t, blocks, 1+1+10+1, "header, text, 100 fields in 10 sections, footer")
+	for _, f := range fields[6:] {
+		assert.Equal(t, 2000, utf8.RuneCountInString(f), "a long output field is cut to the field limit")
+	}
+	assert.Equal(t, "*time*\n"+testDate, fields[5], "time is kept when output fields are dropped")
+}
+
+func TestBuildPayloadMessageTemplate(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		tmpl string
+		want string
+	}{
+		{name: "rendered", tmpl: "Rule: {{ .Rule }}", want: "Rule: Write below binary dir"},
+		{name: "execution fails", tmpl: "{{ .NonExistent }}", want: "[Error] Write below binary dir on node-1"},
+		{name: "renders empty", tmpl: "{{ if false }}x{{ end }}", want: "[Error] Write below binary dir on node-1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newDriver(&config{OutputFormat: formatText})
+			d.messageTmpl = template.Must(template.New(name).Parse(tc.tmpl))
+			p := d.buildPayload(testutil.CreateValidEvent())
+			assert.Equal(t, tc.want, p.Text)
+			assert.Equal(t, tc.want, p.Attachments[0].Fallback)
+		})
+	}
+}
+
+func TestSlackMessageTemplateIsSent(t *testing.T) {
 	runSlackCases(t, []testutil.OutputTestCase{
 		{
 			Name:         "renders message template",
 			AddressField: "host",
-			Config:       map[string]any{"message_format": "Alert: {{ .Rule }}"},
+			Config:       map[string]any{"message_template": "Alert: {{ .Rule }}"},
 			ValidateReq: func(t *testing.T, _ *http.Request, body []byte) {
 				var payload slackPayload
 				require.NoError(t, json.Unmarshal(body, &payload))
-				assert.Contains(t, payload.Text, "Alert:")
+				assert.Equal(t, "Alert: Write below binary dir", payload.Text)
 			},
 		},
 	})
@@ -218,156 +386,6 @@ func TestSlackSendSafeDiagnostics(t *testing.T) {
 	}
 }
 
-func TestBuildPayloadMrkdwnIn(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatText, Footer: suggestedFooter}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-
-	payload := o.buildPayload(evt)
-	require.Len(t, payload.Attachments, 1)
-	assert.Contains(t, payload.Attachments[0].MrkdwnIn, "text")
-	assert.Contains(t, payload.Attachments[0].MrkdwnIn, "fallback")
-}
-
-func TestBuildPayloadIconEmoji(t *testing.T) {
-	o := &driver{cfg: config{
-		OutputFormat: formatText,
-		Footer:       suggestedFooter,
-		IconEmoji:    ":ghost:",
-	}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-
-	payload := o.buildPayload(evt)
-	assert.Equal(t, ":ghost:", payload.IconEmoji)
-}
-
-func TestBuildPayloadFieldsOnlyFormat(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatFields, Footer: suggestedFooter}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-
-	payload := o.buildPayload(evt)
-	require.Len(t, payload.Attachments, 1)
-
-	att := payload.Attachments[0]
-	assert.NotEmpty(t, att.Fields, "fields format must include fields")
-	assert.Empty(t, att.Text, "fields format must not include text body")
-}
-
-func TestBuildPayloadAllFormat(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-
-	payload := o.buildPayload(evt)
-	att := payload.Attachments[0]
-	assert.NotEmpty(t, att.Fields, "all format must include fields")
-	assert.NotEmpty(t, att.Text, "all format must include text body")
-}
-
-func TestBuildPayloadEveryPriorityHasColor(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatText, Footer: suggestedFooter}, logger: slog.Default()}
-
-	priorities := []event.Priority{
-		event.PriorityDebug, event.PriorityInformational, event.PriorityNotice,
-		event.PriorityWarning, event.PriorityError, event.PriorityCritical,
-		event.PriorityAlert, event.PriorityEmergency,
-	}
-	for _, p := range priorities {
-		t.Run(string(p), func(t *testing.T) {
-			evt := testutil.CreateValidEvent()
-			evt.Priority = p
-			payload := o.buildPayload(evt)
-			color := payload.Attachments[0].Color
-			assert.NotEmpty(t, color, "priority %s must produce a color", p)
-			assert.Equal(t, shared.PriorityColor(p), color, "must use shared PriorityColor")
-		})
-	}
-}
-
-func TestBuildPayloadNoHostname(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-	evt.Hostname = ""
-
-	payload := o.buildPayload(evt)
-	for _, f := range payload.Attachments[0].Fields {
-		assert.NotEqual(t, "hostname", f.Title, "empty hostname must not produce a field")
-	}
-}
-
-func TestBuildPayloadNoTags(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-	evt.Tags = nil
-
-	payload := o.buildPayload(evt)
-	for _, f := range payload.Attachments[0].Fields {
-		assert.NotEqual(t, "tags", f.Title, "nil tags must not produce a field")
-	}
-}
-
-func TestBuildPayloadTagsSorted(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-	evt.Tags = []string{"z", "a", "m"}
-
-	payload := o.buildPayload(evt)
-	var tagsField slackAttachmentField
-	for _, f := range payload.Attachments[0].Fields {
-		if f.Title == "tags" {
-			tagsField = f
-			break
-		}
-	}
-	assert.Equal(t, "a, m, z", tagsField.Value)
-}
-
-func TestBuildPayloadOutputFieldsOrder(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-	evt.OutputFields = map[string]interface{}{
-		"z.field": "zz",
-		"a.field": "aa",
-	}
-
-	payload := o.buildPayload(evt)
-	var fieldTitles []string
-	for _, f := range payload.Attachments[0].Fields {
-		if f.Title == "a.field" || f.Title == "z.field" {
-			fieldTitles = append(fieldTitles, f.Title)
-		}
-	}
-	require.Len(t, fieldTitles, 2)
-	assert.Equal(t, "a.field", fieldTitles[0])
-	assert.Equal(t, "z.field", fieldTitles[1])
-}
-
-func TestBuildPayloadMessageTemplateExec(t *testing.T) {
-	tmpl, err := template.New("slack").Parse("Rule: {{ .Rule }}")
-	require.NoError(t, err)
-
-	o := &driver{
-		cfg:         config{OutputFormat: formatText, Footer: suggestedFooter},
-		messageTmpl: tmpl,
-		logger:      slog.Default(),
-	}
-	evt := testutil.CreateValidEvent()
-	payload := o.buildPayload(evt)
-	assert.Equal(t, "Rule: Write below binary dir", payload.Text)
-}
-
-func TestBuildPayloadMessageTemplateBadField(t *testing.T) {
-	tmpl, err := template.New("slack").Parse("{{ .NonExistent }}")
-	require.NoError(t, err)
-
-	o := &driver{
-		cfg:         config{OutputFormat: formatText, Footer: suggestedFooter},
-		messageTmpl: tmpl,
-		logger:      slog.Default(),
-	}
-	evt := testutil.CreateValidEvent()
-	payload := o.buildPayload(evt)
-	assert.Empty(t, payload.Text, "failed template must produce empty text")
-}
-
 func TestSlackTemplateSafeDiagnostic(t *testing.T) {
 	for _, format := range []string{"text", "json"} {
 		t.Run(format, func(t *testing.T) {
@@ -386,45 +404,37 @@ func TestSlackTemplateSafeDiagnostic(t *testing.T) {
 			}))
 			defer server.Close()
 			driver, err := createOutput(map[string]any{
-				"host":            server.URL,
-				"secret_endpoint": testEndpoint,
-				"message_format":  `{{index "private-template-token" -1}}`,
+				"host":             server.URL,
+				"secret_endpoint":  testEndpoint,
+				"message_template": `{{index "private-template-token" -1}}`,
 			}, output.Deps{Logger: slog.New(handler)})
 			require.NoError(t, err)
 			evt := testutil.CreateValidEvent()
 			require.NoError(t, driver.Send(t.Context(), evt))
 			var payload slackPayload
 			require.NoError(t, json.Unmarshal(<-requests, &payload))
-			assert.Empty(t, payload.Text)
+			assert.Equal(t, summary(evt), payload.Text)
 			require.Len(t, payload.Attachments, 1)
-			assert.Equal(t, evt.Output, payload.Attachments[0].Text)
+			assert.Equal(t, evt.Output, payload.Attachments[0].Blocks[1].Text.Text)
 			assert.Contains(t, logs.String(), "cannot render message template")
 			assert.NotContains(t, logs.String(), "private-template-token")
 		})
 	}
 }
 
-func TestBuildPayloadChannel(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatText, Footer: suggestedFooter, Channel: "#security"}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-	payload := o.buildPayload(evt)
-	assert.Equal(t, "#security", payload.Channel)
-}
-
-func TestBuildPayloadNoChannel(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatText, Footer: suggestedFooter}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-	payload := o.buildPayload(evt)
-	assert.Empty(t, payload.Channel)
-}
-
 func TestCreateOutputInvalidTemplate(t *testing.T) {
 	_, err := createOutput(map[string]any{
-		"secret_endpoint": testEndpoint,
-		"message_format":  "{{ .Broken",
+		"secret_endpoint":  testEndpoint,
+		"message_template": "{{ .Broken",
 	}, output.Deps{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid Go template")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "message_template: invalid Go template")
+}
+
+func TestCreateOutputInvalidFormat(t *testing.T) {
+	_, err := createOutput(map[string]any{"secret_endpoint": testEndpoint, "output_format": "blocks"}, output.Deps{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "output_format: must be all/fields/text")
 }
 
 func TestCreateRuntimeDefaults(t *testing.T) {
@@ -437,17 +447,23 @@ func TestCreateRuntimeDefaults(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, formatAll, o.cfg.OutputFormat)
 	assert.Empty(t, o.cfg.Footer, "the footer is only suggested")
-	assert.Empty(t, o.buildPayload(testutil.CreateValidEvent()).Attachments[0].Footer, "no footer unless set")
+	assert.NotContains(t, blockTypes(o.buildPayload(testutil.CreateValidEvent())), "context", "no footer unless set")
 }
 
-func TestFooterAndIconAreSuggested(t *testing.T) {
-	for _, name := range []string{"footer", "icon_url"} {
-		i := slices.IndexFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == name })
-		require.GreaterOrEqual(t, i, 0, name)
-		f := &OutputType.Schema.Fields[i]
-		assert.Nil(t, f.Default, name)
-		assert.NotEmpty(t, f.Suggested, name)
+func TestSchema(t *testing.T) {
+	fields := map[string]output.SchemaField{}
+	for _, f := range OutputType.Schema.Fields {
+		_, dup := fields[f.Name]
+		require.False(t, dup, f.Name)
+		fields[f.Name] = f
 	}
+	for _, removed := range []string{"channel", "bot_username", "icon_url", "icon_emoji", "message_format"} {
+		assert.NotContains(t, fields, removed)
+	}
+	assert.Contains(t, fields, "message_template")
+	assert.Nil(t, fields["footer"].Default)
+	assert.Equal(t, suggestedFooter, fields["footer"].Suggested)
+	assert.Equal(t, formatAll, fields["output_format"].Default)
 }
 
 func TestSlackHealthCheckSendsNoRequest(t *testing.T) {
@@ -477,61 +493,26 @@ func TestSlackClose(t *testing.T) {
 	assert.NoError(t, d.Close(), "Close is idempotent")
 }
 
-func TestBuildPayloadFieldShortDetection(t *testing.T) {
-	o := &driver{cfg: config{OutputFormat: formatAll, Footer: suggestedFooter}, logger: slog.Default()}
-	evt := testutil.CreateValidEvent()
-	evt.OutputFields = map[string]interface{}{
-		"short": "x",
-		"long":  "this is a long value that exceeds thirty six runes easily",
-	}
-
-	payload := o.buildPayload(evt)
-	for _, f := range payload.Attachments[0].Fields {
-		if f.Title == "short" {
-			assert.True(t, f.Short)
-		}
-		if f.Title == "long" {
-			assert.False(t, f.Short)
-		}
-	}
-}
-
-func TestSlackFieldsFormat(t *testing.T) {
-	runSlackCases(t, []testutil.OutputTestCase{
-		{
-			Name:         "fields format sends fields without text",
-			AddressField: "host",
-			Config:       map[string]any{"output_format": "fields"},
-			ValidateReq: func(t *testing.T, _ *http.Request, body []byte) {
-				var payload slackPayload
-				require.NoError(t, json.Unmarshal(body, &payload))
-				require.Len(t, payload.Attachments, 1)
-				assert.NotEmpty(t, payload.Attachments[0].Fields)
-				assert.Empty(t, payload.Attachments[0].Text)
-			},
-		},
-	})
-}
-
-func TestSlackBotUsernameIsNotBasicAuth(t *testing.T) {
+func TestSlackSendsBlocksInOneColoredAttachment(t *testing.T) {
 	var authorization []string
+	var body []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authorization = r.Header.Values("Authorization")
+		body, _ = io.ReadAll(r.Body)
 		_, _ = w.Write([]byte("ok"))
 	}))
 	t.Cleanup(server.Close)
-	d, err := createOutput(map[string]any{
-		"host": server.URL, "secret_endpoint": testEndpoint, "bot_username": "FalcoBot",
-	}, output.Deps{})
+	d, err := createOutput(map[string]any{"host": server.URL, "secret_endpoint": testEndpoint}, output.Deps{})
 	require.NoError(t, err)
 	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
 	assert.Empty(t, authorization)
 
-	names := map[string]int{}
-	for _, field := range OutputType.Schema.Fields {
-		names[field.Name]++
-	}
-	for name, count := range names {
-		assert.Equal(t, 1, count, name)
-	}
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(body, &raw))
+	keys := slices.Sorted(maps.Keys(raw))
+	assert.Equal(t, []string{"attachments", "text"}, keys)
+	var p slackPayload
+	require.NoError(t, json.Unmarshal(body, &p))
+	require.Len(t, p.Attachments, 1)
+	assert.Equal(t, "header", p.Attachments[0].Blocks[0].Type)
 }

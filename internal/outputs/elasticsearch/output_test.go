@@ -20,8 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -238,13 +240,16 @@ func TestElasticsearchSendStatus(t *testing.T) {
 		{name: "already indexed", uuid: "id-1", status: http.StatusConflict, wantRequest: "PUT /falco/_create/id-1"},
 		{name: "rejected", uuid: "id-1", status: http.StatusBadRequest, wantRequest: "PUT /falco/_create/id-1", wantErr: true},
 		{name: "escaped id", uuid: "a/b", status: http.StatusCreated, wantRequest: "PUT /falco/_create/a%2Fb"},
-		{name: "without uuid", status: http.StatusCreated, wantRequest: "POST /falco/_doc"},
-		{name: "conflict without uuid", status: http.StatusConflict, wantRequest: "POST /falco/_doc", wantErr: true},
+		{name: "without uuid", status: http.StatusCreated, wantRequest: "POST /falco/_doc?op_type=create"},
+		{name: "conflict without uuid", status: http.StatusConflict, wantRequest: "POST /falco/_doc?op_type=create", wantErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var request string
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				request = r.Method + " " + r.URL.EscapedPath()
+				if r.URL.RawQuery != "" {
+					request += "?" + r.URL.RawQuery
+				}
 				w.WriteHeader(tc.status)
 			}))
 			t.Cleanup(server.Close)
@@ -261,6 +266,81 @@ func TestElasticsearchSendStatus(t *testing.T) {
 			}
 			assert.NoError(t, err)
 		})
+	}
+}
+
+func TestElasticsearchDataStreamConfig(t *testing.T) {
+	for _, tc := range []struct {
+		config     map[string]any
+		name       string
+		wantErr    string
+		wantSuffix string
+	}{
+		{name: "dated index by default", config: map[string]any{}, wantSuffix: "daily"},
+		{name: "data stream is not dated", config: map[string]any{"data_stream": true}, wantSuffix: "none"},
+		{name: "data stream with suffix none", config: map[string]any{"data_stream": true, "index_suffix": "none"}, wantSuffix: "none"},
+		{name: "data stream with daily", config: map[string]any{"data_stream": true, "index_suffix": "daily"},
+			wantErr: "index_suffix: must be none with data_stream"},
+		{name: "data stream with monthly", config: map[string]any{"data_stream": true, "index_suffix": "monthly"},
+			wantErr: "index_suffix: must be none with data_stream"},
+		{name: "op_type is set by the output", config: map[string]any{"query_params": map[string]any{"op_type": map[string]any{"values": []string{"index"}}}},
+			wantErr: `query_params["op_type"]: is set by the output`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.config["host"] = "http://127.0.0.1:9200"
+			d, err := createOutput(tc.config, output.Deps{})
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantSuffix, d.(*driver).cfg.Suffix)
+		})
+	}
+}
+
+// A data stream accepts only create: every request names it, the stream itself, never a dated index.
+func TestElasticsearchDataStreamSends(t *testing.T) {
+	var requests []string
+	var bodies [][]byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		request := r.Method + " " + r.URL.EscapedPath()
+		if op := r.URL.Query().Get("op_type"); op != "" {
+			request += " op_type=" + op
+		}
+		requests = append(requests, request)
+		body, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, body)
+		if r.URL.Path == "/_bulk" {
+			_, _ = w.Write([]byte(`{"errors":false,"items":[{"create":{"status":201}}]}`))
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+	}))
+	t.Cleanup(server.Close)
+	d, err := createOutput(map[string]any{"host": server.URL, "index": "logs-falco-default", "data_stream": true}, output.Deps{})
+	require.NoError(t, err)
+
+	withID := testutil.CreateValidEvent()
+	withoutID := testutil.CreateValidEvent()
+	withoutID.UUID = ""
+	require.NoError(t, d.Send(context.Background(), withID))
+	require.NoError(t, d.Send(context.Background(), withoutID))
+	require.NoError(t, d.(output.BatchSender).SendBatch(context.Background(), []*event.Event{withID}))
+
+	assert.Equal(t, []string{
+		"PUT /logs-falco-default/_create/test-uuid-001",
+		"POST /logs-falco-default/_doc op_type=create",
+		"POST /_bulk",
+	}, requests)
+	lines := strings.Split(strings.TrimSpace(string(bodies[2])), "\n")
+	require.Len(t, lines, 2)
+	assert.JSONEq(t, `{"create":{"_index":"logs-falco-default","_id":"test-uuid-001"}}`, lines[0])
+	for _, doc := range [][]byte{bodies[0], bodies[1], []byte(lines[1])} {
+		var decoded map[string]any
+		require.NoError(t, json.Unmarshal(doc, &decoded))
+		assert.Equal(t, withID.Time.Format(time.RFC3339Nano), decoded["@timestamp"])
 	}
 }
 

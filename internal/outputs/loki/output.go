@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -38,9 +37,11 @@ const (
 var targetOptions = shared.HTTPTargetOptions{DefaultEndpoint: defaultEndpoint}
 
 type config struct {
-	Tenant                  string `mapstructure:"tenant"`
-	LogFormat               string `mapstructure:"log_format"`
-	ExtraLabels             string `mapstructure:"extra_labels"`
+	Tenant      string   `mapstructure:"tenant"`
+	LogFormat   string   `mapstructure:"log_format"`
+	LabelFields []string `mapstructure:"label_fields"`
+	// labelFields is LabelFields once validated.
+	labelFields             []labelField
 	shared.HTTPTargetConfig `mapstructure:",squash"`
 	shared.HTTPConfig       `mapstructure:",squash"`
 	Runtime                 output.RuntimeConfig `mapstructure:"runtime"`
@@ -62,19 +63,19 @@ var OutputType = output.Type{
 				Description: "Content of each log line: `json` is the whole event as JSON, `text` is the event output text only.",
 			},
 			{
-				Name: "extra_labels", Type: "string", Label: "Extra Labels (comma-separated field names)",
-				Description: "Output field names, separated by commas, such as `container.id,proc.name`, added as stream labels when the event has them. " +
-					"Characters other than letters, digits and `_` in label names become `_`.",
+				Name: "label_fields", Type: "string[]", Label: "Output Fields as Stream Labels",
+				Description: "Output field names, such as `container.name`, added as stream labels when the event has them, named with `.` and `[` as `_`: " +
+					"`container_name`. Every distinct value adds a stream, so list only fields with few values. " +
+					"A name that does not make a valid label name, or makes a built-in label, is refused.",
 			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
 	},
 }
 
 type driver struct {
-	sender      *shared.Sender
-	logger      *slog.Logger
-	extraLabels []string
-	cfg         config
+	sender *shared.Sender
+	logger *slog.Logger
+	cfg    config
 }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
@@ -90,6 +91,9 @@ func (c *config) validate() utils.ValidationErrors {
 	} else if !validLogFormats[c.LogFormat] {
 		errs.Add("log_format", "must be json/text")
 	}
+	labelFields, labelErrs := parseLabelFields(c.LabelFields)
+	errs.Merge("", labelErrs)
+	c.labelFields = labelFields
 	if len(errs) > 0 {
 		return errs
 	}
@@ -113,21 +117,10 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 		sender.SetHeader("X-Scope-OrgID", cfg.Tenant)
 	}
 
-	var extraLabels []string
-	if cfg.ExtraLabels != "" {
-		for _, l := range strings.Split(cfg.ExtraLabels, ",") {
-			l = strings.TrimSpace(l)
-			if l != "" {
-				extraLabels = append(extraLabels, l)
-			}
-		}
-	}
-
 	return &driver{
-		cfg:         cfg,
-		sender:      sender,
-		logger:      shared.ResolveLogger(deps.Logger, name),
-		extraLabels: extraLabels,
+		cfg:    cfg,
+		sender: sender,
+		logger: shared.ResolveLogger(deps.Logger, name),
 	}, nil
 }
 
@@ -140,7 +133,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	if err != nil {
 		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
-	payload := buildPayload(d.cfg.LogFormat, d.extraLabels, evt)
+	payload := buildPayload(d.cfg.LogFormat, d.cfg.labelFields, evt)
 	return d.sender.SendGzipJSON(ctx, http.MethodPost, target, payload)
 }
 
@@ -149,7 +142,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if err != nil {
 		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
-	payload := buildBatchPayload(d.cfg.LogFormat, d.extraLabels, events)
+	payload := buildBatchPayload(d.cfg.LogFormat, d.cfg.labelFields, events)
 	return d.sender.SendGzipJSON(ctx, http.MethodPost, target, payload)
 }
 

@@ -23,8 +23,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -49,8 +51,11 @@ type config struct {
 	shared.HTTPConfig       `mapstructure:",squash"`
 	Hosts                   []string             `mapstructure:"hosts"`
 	Runtime                 output.RuntimeConfig `mapstructure:"runtime"`
-	ExpiresAfter            int                  `mapstructure:"expires_after"`
+	ExpiresAfter            time.Duration        `mapstructure:"expires_after"`
 }
+
+// labelName is the Prometheus label name grammar that Alertmanager validates.
+var labelName = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 
 // OutputType describes the Alertmanager output for the catalog.
 var OutputType = output.Type{
@@ -69,23 +74,23 @@ var OutputType = output.Type{
 				Description: "Link sent as the `generatorURL` of every alert; Alertmanager shows it as the alert source.",
 			},
 			{
-				Name: "expires_after", Type: "int", Default: 0, Label: "Alert Expires After (seconds; 0 leaves it to Alertmanager's resolve_timeout, 5m by default)",
-				Description: "Seconds after the event time at which the alert ends, sent as `endsAt`. " +
+				Name: "expires_after", Type: "string", Default: "0", Label: "Alert Expires After (0 leaves it to Alertmanager's resolve_timeout, 5m by default)",
+				Description: "Go duration, such as `30m`, after the event time at which the alert ends, sent as `endsAt`. " +
 					"`0` sends no end time, so Alertmanager resolves the alert after its `resolve_timeout`.",
 			},
 			{
 				Name: "extra_labels", Type: "map", Label: "Extra Labels",
 				Description: "Labels added to every alert, by label name; they replace built-in labels of the same name. " +
-					"Characters other than letters, digits and `_` in names become `_`.",
+					"Names must match `[a-zA-Z_][a-zA-Z0-9_]*`.",
 			},
 			{
 				Name: "extra_annotations", Type: "map", Label: "Extra Annotations",
-				Description: "Annotations added to every alert, by name; they replace the built-in `info`, `description` and `summary` of the same name.",
+				Description: "Annotations added to every alert, by name; they replace the built-in `summary` and `description` of the same name.",
 			},
 			{
 				Name: "custom_severity_map", Type: "map", Label: "Custom Severity Map",
 				Description: "Value of the `severity` label by lowercase Falco priority, such as `critical: P1`. " +
-					"Priorities not listed get `critical`, `warning` or `information`.",
+					"Priorities not listed get `critical`, `warning` or `info`.",
 			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
 	},
@@ -105,8 +110,14 @@ func (c *config) validate() utils.ValidationErrors {
 	errs.Merge("", c.HTTPConfig.Validate())
 	errs.Merge("hosts", shared.ValidateOrigins(c.Hosts))
 	errs.Merge("", c.HTTPTargetConfig.Validate(&targetOptions))
-	if c.ExpiresAfter < 0 {
-		errs.Add("expires_after", "must be >= 0")
+	// A bare integer decodes as nanoseconds, so anything below a second is a unit mistake.
+	if c.ExpiresAfter < 0 || (c.ExpiresAfter > 0 && c.ExpiresAfter < time.Second) {
+		errs.Add("expires_after", "must be 0 or a Go duration of at least 1s, such as 30m")
+	}
+	for _, key := range shared.SortMapKeys(c.ExtraLabels) {
+		if !labelName.MatchString(key) {
+			errs.Add(fmt.Sprintf("extra_labels[%q]", key), "name must match [a-zA-Z_][a-zA-Z0-9_]*")
+		}
 	}
 	if len(errs) > 0 {
 		return errs
