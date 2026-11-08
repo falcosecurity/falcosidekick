@@ -16,7 +16,7 @@ Start from [`config_example_sidekick.yaml`](../config_example_sidekick.yaml) and
 | `3.1`, `3`, `v3-latest` (and `-slim`) | latest stable release of that minor, of v3, of v3; not moved by pre-releases |
 | `v3-main`, `v3-main-slim` | latest `master` build, not a release |
 
-The same tags are published to `public.ecr.aws/falcosecurity/falcosidekick`. `latest` is still v2.
+Images are published to Docker Hub only. `latest` is still v2.
 
 The container runs as user 1234. It receives Falco events on port 2801, which also serves `/healthz`, `/version` and `/metrics`. The API and the UI are on a separate management port, 2802, bound to `127.0.0.1` by default because the API has no authentication.
 

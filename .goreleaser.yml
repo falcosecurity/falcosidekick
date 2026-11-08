@@ -86,7 +86,6 @@ dockers_v2:
       - linux/arm64
     images:
       - "falcosecurity/falcosidekick"
-      - "public.ecr.aws/falcosecurity/falcosidekick"
     tags:
       - "{{ .Version }}"
       - '{{ if eq (index .Env "FSK_LATEST_MINOR") "true" }}{{ .Major }}.{{ .Minor }}{{ end }}'
@@ -113,7 +112,6 @@ dockers_v2:
       - linux/arm64
     images:
       - "falcosecurity/falcosidekick"
-      - "public.ecr.aws/falcosecurity/falcosidekick"
     tags:
       - "{{ .Version }}-slim"
       - '{{ if eq (index .Env "FSK_LATEST_MINOR") "true" }}{{ .Major }}.{{ .Minor }}-slim{{ end }}'

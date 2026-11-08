@@ -57,17 +57,6 @@ jobs:
         with:
           username: falcosecurity
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
-        with:
-          role-to-assume: arn:aws:iam::292999226676:role/github_actions-falcosidekick-ecr
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
-        with:
-          registry-type: public
-
       - uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         with:
           version: v2.18.2
@@ -80,7 +69,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          images=(falcosecurity/falcosidekick public.ecr.aws/falcosecurity/falcosidekick)
+          images=(falcosecurity/falcosidekick)
           image="${images[0]}"
           for variant in ui slim; do
             suffix=""
