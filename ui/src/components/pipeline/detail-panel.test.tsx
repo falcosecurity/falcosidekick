@@ -139,6 +139,22 @@ describe("PipelineDetailPanel", () => {
     expect(value("Host (scheme, host and port)")).not.toHaveTextContent("default")
   })
 
+  test("sections expand and collapse together and start over for another output", async () => {
+    mockOutputTypes()
+    const { rerender } = renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={delivering} />)
+    await screen.findByRole("heading", { level: 3, name: "Configuration" })
+    fireEvent.click(screen.getByRole("radio", { name: "All fields" }))
+    const triggers = () => screen.getAllByRole("button", { expanded: true })
+    fireEvent.click(screen.getByRole("button", { name: /Expand all/ }))
+    expect(screen.queryAllByRole("button", { expanded: false })).toHaveLength(0)
+    expect(triggers().length).toBeGreaterThan(2)
+    fireEvent.click(screen.getByRole("button", { name: /Collapse all/ }))
+    expect(screen.queryAllByRole("button", { expanded: true })).toHaveLength(0)
+
+    rerender(<PipelineDetailPanel selection={sink("inmemory")} entry={memoryEntry} status={null} />)
+    expect(await screen.findByRole("radio", { name: "Set", checked: true })).toBeInTheDocument()
+  })
+
   test("an output type the catalog does not know falls back to the raw configuration", async () => {
     mockOutputTypes()
     renderWithProviders(<PipelineDetailPanel
