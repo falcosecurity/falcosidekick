@@ -15,6 +15,8 @@ import { useReturnFocus } from "@/hooks/use-return-focus"
 import { useOutputTypes, useSaveOutput, useStoredOutput } from "@/hooks/use-output-writes"
 import { usePipelineComposite } from "@/hooks/use-pipeline"
 import { errorMessage, isApiError } from "@/lib/api-error"
+import { withRuntimeDefaults } from "@/lib/runtime-defaults"
+import type { OutputConfigEntry } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 import { ConfigureStep } from "./configure-step"
@@ -114,13 +116,17 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
   const [driver, setDriver] = useState<string | null>(editing ? target.name : null)
   // edited is null until the first change; until then the form shows the initial state.
   const [edited, setEdited] = useState<FormState | null>(null)
+  // The stored output the edits started from: the patch and its version both come from it, so a
+  // newer copy read meanwhile cannot slip old values under a new version and bypass the 409.
+  const [baseline, setBaseline] = useState<OutputConfigEntry | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [conflict, setConflict] = useState(false)
   const [openSections, setOpenSections] = useState<string[]>([])
 
   const type = types.data?.find((t) => t.name === driver)
-  const fields = useMemo(() => type?.schema.fields ?? [], [type])
+  const runtimeDefaults = config.data?.config.runtime_defaults
+  const fields = useMemo(() => withRuntimeDefaults(type?.schema.fields ?? [], runtimeDefaults), [type, runtimeDefaults])
   const sections = useMemo(() => sectionsFor(fields), [fields])
   const filesOnly = config.data ? config.data.config.database.backend !== "inmemory" : true
   const configured = useMemo(() => new Set((composite.data?.outputs ?? []).map((o) => o.name)), [composite.data])
@@ -131,18 +137,21 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
     return initialState(type.schema.fields, editing ? stored.data : null)
   }, [type, editing, stored.data])
   const state = edited ?? initial
+  const base = editing ? (edited ? baseline : (stored.data ?? null)) : null
 
   const selectDriver = (name: string) => {
     setDriver(name)
     setEdited(null)
+    setBaseline(null)
     setErrors({})
   }
 
-  const patch = useMemo(() => (state ? buildPatch(fields, state, editing ? stored.data : null) : {}), [fields, state, editing, stored.data])
+  const patch = useMemo(() => (state ? buildPatch(fields, state, base) : {}), [fields, state, base])
   const rows = useMemo(() => reviewRows(fields, patch), [fields, patch])
 
   const setField = (name: string, value: FieldValue) => {
     if (!state) return
+    if (!edited) setBaseline(stored.data ?? null)
     setEdited({ ...state, [name]: value })
     if (errors[name]) {
       setErrors((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => key !== name)))
@@ -169,7 +178,7 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
     if (!driver) return
     setSubmitError(null)
     save.mutate(
-      { name: driver, version: editing ? (stored.data?.version ?? 0) : 0, config: patch },
+      { name: driver, version: base?.version ?? 0, config: patch },
       {
         onSuccess: (entry) => {
           toast.success(editing ? `${driverTitle(entry.name)} updated` : `${driverTitle(entry.name)} added to the pipeline`)
@@ -196,6 +205,7 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
     setConflict(false)
     await stored.refetch()
     setEdited(null)
+    setBaseline(null)
     setErrors({})
     setStep(1)
   }

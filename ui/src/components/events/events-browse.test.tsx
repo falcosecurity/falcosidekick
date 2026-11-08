@@ -2,7 +2,7 @@ import { afterEach, describe, expect, mock, test } from "bun:test"
 import { useLocation } from "react-router"
 
 import { setApiAdapterForTests } from "@/lib/api-client"
-import { fixtureAdapter, fixtures, routeKey } from "@/test/fixtures"
+import { errorResponse, fixtureAdapter, fixtures, routeKey } from "@/test/fixtures"
 import { cleanup, fireEvent, renderWithProviders, screen, waitFor } from "@/test/test-utils"
 
 import { EventDetailDrawer } from "./event-detail-drawer"
@@ -83,6 +83,19 @@ describe("PriorityQuickFilter", () => {
     fireEvent.click(critical)
     await waitFor(() => expect(screen.getByRole("status", { name: "location" })).toHaveTextContent("priority=warning%2Ccritical&rule=X"))
     expect(screen.getByRole("status", { name: "location" })).not.toHaveTextContent("page=")
+  })
+
+  test("while counts load or when they fail, no priority reads zero or is disabled, and the failure is said", async () => {
+    const base = fixtureAdapter()
+    setApiAdapterForTests(async (config) => {
+      if (routeKey(config) === "GET /events/count/priority") throw errorResponse(config, 503, { error: "event store not available" })
+      return base(config)
+    })
+    renderWithProviders(<PriorityQuickFilter />, { initialEntries: ["/events"] })
+    expect(screen.getByRole("button", { name: "Debug" })).toBeEnabled()
+    expect(await screen.findByText(/Counts by priority unavailable: event store not available/)).toBeInTheDocument()
+    for (const name of ["Emergency", "Critical", "Debug"]) expect(screen.getByRole("button", { name })).toBeEnabled()
+    expect(screen.queryByText("0")).toBeNull()
   })
 })
 

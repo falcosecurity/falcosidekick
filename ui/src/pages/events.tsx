@@ -259,7 +259,7 @@ export function EventsPage() {
                     </TableCell>
                     <TableCell className="py-2.5 align-middle">
                       <div className="hidden font-mono text-xs tabular-nums sm:block">{formatClock(evt.time)}</div>
-                      <TimeAgo value={evt.time} className="block text-xs text-muted-foreground" />
+                      <TimeAgo value={evt.time} interactive={false} className="block text-xs text-muted-foreground" />
                     </TableCell>
                     <TableCell className="py-2.5 align-middle">
                       <button

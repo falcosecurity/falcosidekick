@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react"
+import { useCallback, useSyncExternalStore } from "react"
 
 // Tailwind breakpoints used by the shell.
 export const MEDIA_MD = "(min-width: 48rem)"
@@ -11,8 +11,9 @@ function mediaList(query: string): MediaQueryList | null {
 }
 
 export function useMediaQuery(query: string): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
+  // Stable per query, so the store subscribes once instead of on every render.
+  const subscribe = useCallback(
+    (onChange: () => void) => {
       const list = mediaList(query)
       if (!list) return () => {}
       list.addEventListener("change", onChange)
@@ -22,7 +23,7 @@ export function useMediaQuery(query: string): boolean {
         window.removeEventListener("resize", onChange)
       }
     },
-    () => mediaList(query)?.matches ?? true,
-    () => true,
+    [query],
   )
+  return useSyncExternalStore(subscribe, () => mediaList(query)?.matches ?? true, () => true)
 }

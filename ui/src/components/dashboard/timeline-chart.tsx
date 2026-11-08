@@ -18,6 +18,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { useEventsHistogram } from "@/hooks/use-events"
 import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 type Window = "1h" | "6h" | "24h"
 type Mode = "global" | "by-source"
@@ -60,7 +61,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
 
   const cfg = WINDOWS.find((w) => w.value === window) ?? WINDOWS[2]!
 
-  const { data, isPending, isError, error } = useEventsHistogram({
+  const { data, isPending, isError, error, isPlaceholderData } = useEventsHistogram({
     since: `${cfg.sinceSeconds}s`,
     bucket_ms: cfg.bucketMs,
     group_by: mode === "by-source" ? "source" : undefined,
@@ -119,7 +120,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
             ))}
           </ToggleGroup>
           {/* Totals only from loaded data: a zero must never stand for "unknown". */}
-          {data && !isError && (
+          {data && !isError && !isPlaceholderData && (
             <div className="hidden text-right text-xs tabular-nums text-muted-foreground sm:block">
               <div>
                 <span className="font-semibold text-foreground">{formatNumber(total)}</span> total
@@ -137,7 +138,12 @@ export function TimelineChart({ className }: TimelineChartProps) {
         ) : total === 0 ? (
           <EmptyState title="No events" description={`Nothing arrived in the last ${cfg.label}.`} />
         ) : (
-          <ChartContainer config={config} className="aspect-auto h-full w-full" initialDimension={{ width: 600, height: 256 }}>
+          <ChartContainer
+            config={config}
+            className={cn("aspect-auto h-full w-full transition-opacity", isPlaceholderData && "opacity-40")}
+            aria-busy={isPlaceholderData || undefined}
+            initialDimension={{ width: 600, height: 256 }}
+          >
             <ComposedChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
                 {seriesKeys.map((key, i) => (

@@ -84,30 +84,53 @@ export function newRow(partial: Partial<MapRow> = {}): MapRow {
   return { id: nextRowId++, key: "", kind: "values", text: "", stored: false, edited: false, ...partial }
 }
 
-function rowsOf(value: unknown, field: SchemaField): MapRow[] {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return []
+function rowsOf(value: unknown, field: SchemaField, entry?: OutputConfigEntry | null): MapRow[] {
+  const object = value !== null && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
   const rows: MapRow[] = []
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    if (!isEntryMap(field)) {
-      rows.push(newRow({ key, text: textOf(entry, field), stored: true }))
-      continue
-    }
-    const object = (entry ?? {}) as Record<string, unknown>
+  if (!isEntryMap(field)) {
+    for (const [key, item] of Object.entries(object)) rows.push(newRow({ key, text: textOf(item, field), stored: true }))
+    return rows
+  }
+  const keys = new Set([...Object.keys(object), ...storedSecretKeys(field, entry)])
+  for (const key of keys) {
+    const item = (object[key] ?? {}) as Record<string, unknown>
     for (const kind of ENTRY_KINDS) {
-      const list = object[kind]
-      if (!Array.isArray(list)) continue
-      for (const item of list) {
-        // Secret values come back masked; the row keeps the stored value unless edited.
-        rows.push(newRow({ key, kind, text: kind === "secrets" ? "" : String(item), stored: true }))
+      if (kind === "secrets") {
+        // The API removes secret values and flags them in secret_fields: one row stands for them.
+        if (hasStoredSecrets(field, key, entry)) rows.push(newRow({ key, kind, stored: true }))
+        continue
       }
+      const list = item[kind]
+      if (Array.isArray(list)) for (const text of list) rows.push(newRow({ key, kind, text: String(text), stored: true }))
     }
   }
   return rows
 }
 
-/** secretPointer is the JSON pointer the API uses in secret_fields for a field path. */
-function secretPointer(path: string): string {
-  return "/" + path.split(".").join("/")
+function escapePointer(part: string): string {
+  return part.replaceAll("~", "~0").replaceAll("/", "~1")
+}
+
+/** secretPointer is the JSON pointer the API uses in secret_fields for a field path and optional entry key. */
+function secretPointer(path: string, ...rest: string[]): string {
+  return "/" + [...path.split("."), ...rest].map(escapePointer).join("/")
+}
+
+function hasStoredSecrets(field: SchemaField, key: string, entry?: OutputConfigEntry | null): boolean {
+  return entry?.secret_fields?.[secretPointer(field.name, key, "secrets")] === true
+}
+
+/** The entry keys of field with stored secrets, including keys that hold nothing else. */
+function storedSecretKeys(field: SchemaField, entry?: OutputConfigEntry | null): string[] {
+  const prefix = secretPointer(field.name) + "/"
+  const keys: string[] = []
+  for (const [pointer, set] of Object.entries(entry?.secret_fields ?? {})) {
+    if (!set || !pointer.startsWith(prefix) || !pointer.endsWith("/secrets")) continue
+    const escaped = pointer.slice(prefix.length, -"/secrets".length)
+    if (escaped.includes("/")) continue
+    keys.push(escaped.replaceAll("~1", "/").replaceAll("~0", "~"))
+  }
+  return keys
 }
 
 /** Builds the form for a new output, or from the stored output when editing. */
@@ -131,7 +154,7 @@ export function initialState(fields: readonly SchemaField[], entry?: OutputConfi
       const value = getPath(cfg, field.name)
       state[field.name] = { kind: "bool", value: typeof value === "boolean" ? value : null }
     } else if (field.type === "map") {
-      state[field.name] = { kind: "map", rows: rowsOf(getPath(cfg, field.name), field) }
+      state[field.name] = { kind: "map", rows: rowsOf(getPath(cfg, field.name), field, entry) }
     } else {
       state[field.name] = { kind: "text", text: textOf(getPath(cfg, field.name), field) }
     }
@@ -230,6 +253,56 @@ function entryObject(rows: MapRow[], field: SchemaField): Record<string, unknown
   return out
 }
 
+function stringMapChanges(field: SchemaField, rows: MapRow[], previous: Record<string, unknown>, editing: boolean): Record<string, unknown> {
+  const next = entryObject(rows, field)
+  const changes: Record<string, unknown> = {}
+  for (const [key, entry] of Object.entries(next)) if (!sameValue(entry, previous[key])) changes[key] = entry
+  if (editing) for (const key of Object.keys(previous)) if (!(key in next)) changes[key] = null
+  return changes
+}
+
+/**
+ * Per entry key, only the kinds that changed. The server merges the patch: a kind left out keeps
+ * its stored value, so an untouched stored secret is never named, and one the user removed is null.
+ */
+function entryMapChanges(
+  field: SchemaField,
+  rows: MapRow[],
+  previous: Record<string, unknown>,
+  stored: OutputConfigEntry | null | undefined,
+): Record<string, unknown> {
+  const kept = new Set(rows.filter((row) => row.kind === "secrets" && row.stored && !row.edited).map((row) => row.key.trim()))
+  const next = entryObject(
+    rows.filter((row) => !(row.kind === "secrets" && row.stored && !row.edited)),
+    field,
+  ) as Record<string, Record<string, string[]>>
+  if (stored == null) return next
+
+  const changes: Record<string, unknown> = {}
+  const keys = new Set([...Object.keys(previous), ...storedSecretKeys(field, stored), ...Object.keys(next), ...kept])
+  for (const key of keys) {
+    const after = next[key] ?? {}
+    const prior = (previous[key] ?? {}) as Record<string, unknown>
+    const hadSecrets = hasStoredSecrets(field, key, stored)
+    if (Object.keys(after).length === 0 && !kept.has(key)) {
+      if (key in previous || hadSecrets) changes[key] = null
+      continue
+    }
+    const change: Record<string, unknown> = {}
+    for (const kind of ENTRY_KINDS) {
+      if (kind === "secrets") {
+        if (kept.has(key)) continue
+        if (after.secrets) change.secrets = after.secrets
+        else if (hadSecrets) change.secrets = null
+        continue
+      }
+      if (!sameValue(after[kind], prior[kind])) change[kind] = after[kind] ?? null
+    }
+    if (Object.keys(change).length > 0) changes[key] = change
+  }
+  return changes
+}
+
 /**
  * Builds the PUT patch. A new output sends what is set; an edit sends only what changed, with null
  * for what was cleared, and leaves stored secrets out unless replaced.
@@ -265,25 +338,9 @@ export function buildPatch(
         setPath(patch, filePath, null)
       }
     } else {
-      const rows = value.rows.filter((row) => !(row.stored && !row.edited && row.kind === "secrets"))
-      const keptSecretKeys = new Set(
-        value.rows.filter((row) => row.stored && !row.edited && row.kind === "secrets").map((row) => row.key.trim()),
-      )
-      const next = entryObject(rows, field)
-      const previous = (before ?? {}) as Record<string, unknown>
-      const changes: Record<string, unknown> = {}
-      for (const [key, entry] of Object.entries(next)) {
-        if (keptSecretKeys.has(key)) continue
-        const full = isEntryMap(field)
-          ? Object.fromEntries(ENTRY_KINDS.map((kind) => [kind, (entry as Record<string, unknown>)[kind] ?? null]))
-          : entry
-        if (!sameValue(entry, previous[key])) changes[key] = editing ? full : entry
-      }
-      if (editing) {
-        for (const key of Object.keys(previous)) {
-          if (!(key in next) && !keptSecretKeys.has(key)) changes[key] = null
-        }
-      }
+      const changes = isEntryMap(field)
+        ? entryMapChanges(field, value.rows, (before ?? {}) as Record<string, unknown>, stored)
+        : stringMapChanges(field, value.rows, (before ?? {}) as Record<string, unknown>, editing)
       if (Object.keys(changes).length > 0) setPath(patch, field.name, changes)
     }
   }

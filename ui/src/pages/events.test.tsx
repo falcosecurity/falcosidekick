@@ -93,7 +93,8 @@ describe("EventsPage", () => {
       expect(button).toHaveAttribute("title", events[i]!.rule)
       expect(within(row).getByText(`priority ${events[i]!.priority}`)).toHaveClass("sr-only")
       expect(within(row).getByText(events[i]!.source)).toHaveAttribute("data-variant", "source")
-      expect(within(row).getByRole("time")).toHaveAttribute("tabindex", "0")
+      // The exact time is in the cell already: the relative one is no extra tab stop per row.
+      expect(within(row).getByRole("time")).not.toHaveAttribute("tabindex")
     }
     expect(within(table).getByRole("columnheader", { name: "Source" })).toHaveClass("hidden", "md:table-cell")
     expect(within(table).getByRole("columnheader", { name: "Hostname" })).toHaveClass("hidden", "lg:table-cell")
