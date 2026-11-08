@@ -4,10 +4,6 @@ project_name: falcosidekick
 dist: dist/release
 
 env:
-  - GO111MODULE=on
-  - DOCKER_CLI_EXPERIMENTAL=enabled
-  - DOCKER_BUILDKIT=1
-  - BUILDX_PLATFORMS=linux/amd64,linux/arm64
   - COSIGN_YES=true
 
 snapshot:
@@ -93,10 +89,13 @@ dockers_v2:
       - '{{ if eq (index .Env "FSK_LATEST_MAJOR") "true" }}v3-latest{{ end }}'
     build_args:
       BINARY: falcosidekick
-      VARIANT: ui
     labels:
+      "org.opencontainers.image.title": "falcosidekick"
+      "org.opencontainers.image.description": "Forwards Falco events to outputs, with a web UI"
+      "org.opencontainers.image.source": "https://github.com/falcosecurity/falcosidekick"
+      "org.opencontainers.image.licenses": "Apache-2.0"
+      "org.opencontainers.image.vendor": "The Falco Authors"
       "org.opencontainers.image.created": "{{ .CommitDate }}"
-      "org.opencontainers.image.name": "falcosidekick"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
       "org.opencontainers.image.version": "{{ .Version }}"
       "io.falcosecurity.falcosidekick.variant": "ui"
@@ -119,10 +118,13 @@ dockers_v2:
       - '{{ if eq (index .Env "FSK_LATEST_MAJOR") "true" }}v3-latest-slim{{ end }}'
     build_args:
       BINARY: falcosidekick-slim
-      VARIANT: slim
     labels:
+      "org.opencontainers.image.title": "falcosidekick"
+      "org.opencontainers.image.description": "Forwards Falco events to outputs, without the web UI"
+      "org.opencontainers.image.source": "https://github.com/falcosecurity/falcosidekick"
+      "org.opencontainers.image.licenses": "Apache-2.0"
+      "org.opencontainers.image.vendor": "The Falco Authors"
       "org.opencontainers.image.created": "{{ .CommitDate }}"
-      "org.opencontainers.image.name": "falcosidekick"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
       "org.opencontainers.image.version": "{{ .Version }}"
       "io.falcosecurity.falcosidekick.variant": "slim"

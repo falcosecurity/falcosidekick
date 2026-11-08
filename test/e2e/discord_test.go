@@ -215,7 +215,7 @@ func TestDiscordDeliversEvent(t *testing.T) {
 	assert.Equal(t, 1, hook.gets, "startup reads the webhook once")
 	hook.mu.Unlock()
 	require.Len(t, messages[0].Embeds, 1)
-	require.NotNil(t, messages[0].AvatarURL)
+	assert.Nil(t, messages[0].AvatarURL, "no icon set: the webhook's own avatar")
 	embed := messages[0].Embeds[0]
 	assert.Equal(t, "e2e event "+marker, embed.Description)
 	require.NotNil(t, embed.Color)

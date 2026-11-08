@@ -95,6 +95,7 @@ func TestReleaseArtifacts(t *testing.T) {
 			IDs             []string          `yaml:"ids"`
 			Dockerfile      string            `yaml:"dockerfile"`
 			BuildArgs       map[string]string `yaml:"build_args"`
+			Labels          map[string]string `yaml:"labels"`
 			LegacyBuildArgs any               `yaml:"build_args_templates"`
 			Images          []string          `yaml:"images"`
 			Platforms       []string          `yaml:"platforms"`
@@ -132,13 +133,13 @@ func TestReleaseArtifacts(t *testing.T) {
 				require.Nil(t, docker.LegacyBuildArgs)
 				require.Equal(t, []string{"falcosecurity/falcosidekick"}, docker.Images)
 				require.ElementsMatch(t, []string{"linux/amd64", "linux/arm64"}, docker.Platforms)
-				suffix := ""
-				if ui {
-					require.Equal(t, "ui", docker.BuildArgs["VARIANT"])
-				} else {
-					require.Equal(t, "slim", docker.BuildArgs["VARIANT"])
-					suffix = "-slim"
+				suffix, variant := "", "ui"
+				if !ui {
+					suffix, variant = "-slim", "slim"
 				}
+				require.Equal(t, variant, docker.Labels["io.falcosecurity.falcosidekick.variant"])
+				require.Equal(t, "falcosidekick", docker.Labels["org.opencontainers.image.title"])
+				require.NotContains(t, docker.Labels, "org.opencontainers.image.name", "not an OCI annotation")
 				latestMinor := `{{ if eq (index .Env "FSK_LATEST_MINOR") "true" }}`
 				latestMajor := `{{ if eq (index .Env "FSK_LATEST_MAJOR") "true" }}`
 				require.Equal(t, []string{
@@ -243,7 +244,10 @@ func TestReleaseAliasesFollowTheHighestStableTag(t *testing.T) {
 func TestReleaseInputsArePinnedAndUpdated(t *testing.T) {
 	dockerfile, err := os.ReadFile(filepath.Join("..", "Dockerfile"))
 	require.NoError(t, err)
-	require.Regexp(t, `(?m)^ARG BASE_IMAGE=alpine:[0-9.]+@sha256:[0-9a-f]{64}$`, string(dockerfile))
+	// A static binary on distroless static: CA certificates and nothing to patch, as UID 65532.
+	require.Regexp(t, `(?m)^ARG BASE_IMAGE=gcr\.io/distroless/static-debian13:nonroot@sha256:[0-9a-f]{64}$`, string(dockerfile))
+	require.Regexp(t, `(?m)^USER 65532:65532$`, string(dockerfile))
+	require.Regexp(t, `(?m)^ENTRYPOINT \["/usr/bin/falcosidekick"\]$`, string(dockerfile))
 
 	var dependabot struct {
 		Updates []struct {

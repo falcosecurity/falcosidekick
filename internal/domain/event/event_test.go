@@ -133,14 +133,13 @@ func TestEventValidate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "nil output fields rejected",
-			event:   Event{Rule: "Test rule", Time: now, Priority: PriorityWarning, Source: "syscall"},
-			wantErr: true,
+			// Falco omits output_fields with json_include_output_fields_property: false.
+			name:  "missing output fields accepted",
+			event: Event{Rule: "Test rule", Time: now, Priority: PriorityWarning, Source: "syscall"},
 		},
 		{
-			name:    "empty output fields rejected",
-			event:   Event{Rule: "Test rule", Time: now, Priority: PriorityWarning, Source: "syscall", OutputFields: map[string]interface{}{}},
-			wantErr: true,
+			name:  "empty output fields accepted",
+			event: Event{Rule: "Test rule", Time: now, Priority: PriorityWarning, Source: "syscall", OutputFields: map[string]interface{}{}},
 		},
 		{
 			name:    "invalid priority rejected",
@@ -205,7 +204,27 @@ func TestEventJSONRoundTrip(t *testing.T) {
 	assert.Equal(t, original.Tags, decoded.Tags)
 	assert.Equal(t, original.Hostname, decoded.Hostname)
 
-	assert.Contains(t, string(data), `"priority":"error"`)
+	assert.Contains(t, string(data), `"priority":"Error"`, "the event JSON keeps Falco's casing")
+}
+
+// Falco writes priorities capitalised ("Warning") and "Info" in its short format; any casing is read,
+// and what Sidekick writes is Falco's.
+func TestPriorityJSONFollowsFalco(t *testing.T) {
+	for in, want := range map[string]Priority{
+		"Warning": PriorityWarning, "warning": PriorityWarning, "WARNING": PriorityWarning,
+		"Informational": PriorityInformational, "Info": PriorityInformational, "Emergency": PriorityEmergency,
+	} {
+		var evt Event
+		require.NoError(t, json.Unmarshal([]byte(`{"priority":"`+in+`"}`), &evt), in)
+		assert.Equal(t, want, evt.Priority, in)
+		out, err := json.Marshal(evt.Priority)
+		require.NoError(t, err)
+		assert.Equal(t, `"`+want.String()+`"`, string(out))
+	}
+
+	var evt Event
+	require.NoError(t, json.Unmarshal([]byte(`{"rule":"r","time":"2026-01-01T00:00:00Z","priority":"Bogus"}`), &evt))
+	require.ErrorIs(t, evt.Validate(), ErrInvalidEvent, "an unknown priority is refused by Validate, with its reason")
 }
 
 func TestValidateNormalizesPriorityCase(t *testing.T) {

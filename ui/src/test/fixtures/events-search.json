@@ -9,7 +9,7 @@
         "proc.pid": 4242,
         "user.name": "root"
       },
-      "priority": "critical",
+      "priority": "Critical",
       "rule": "Terminal shell in container",
       "source": "syscall",
       "tags": [
@@ -28,7 +28,7 @@
         "proc.name": "cat",
         "user.name": "app"
       },
-      "priority": "warning",
+      "priority": "Warning",
       "rule": "Read sensitive file untrusted",
       "source": "syscall",
       "tags": [
@@ -39,13 +39,12 @@
       "uuid": "00000000-0000-4000-8000-000000000002"
     },
     {
-      "hostname": "unknown",
       "output": "K8s secret read (user=system:serviceaccount:default:ci)",
       "output_fields": {
         "ka.target.name": "db-credentials",
         "ka.user.name": "system:serviceaccount:default:ci"
       },
-      "priority": "notice",
+      "priority": "Notice",
       "rule": "K8s Secret Get Successfully",
       "source": "k8s_audit",
       "tags": [

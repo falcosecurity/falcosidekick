@@ -21,7 +21,7 @@
         "path": ""
       }
     },
-    "listen_address": "0.0.0.0",
+    "listen_address": "",
     "listen_port": 2801,
     "log_format": "text",
     "log_level": "info",
@@ -52,7 +52,7 @@
         "success_threshold": 2
       },
       "health_check": true,
-      "minimum_priority": "warning",
+      "minimum_priority": "Warning",
       "queue_size": 100,
       "retry": {
         "initial_interval": 10000000,
@@ -62,6 +62,7 @@
       },
       "workers": 1
     },
+    "shutdown_delay": 5000000000,
     "ui": {
       "enabled": false,
       "event_source": "inmemory"

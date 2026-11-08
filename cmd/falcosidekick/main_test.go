@@ -71,9 +71,48 @@ func writeTestConfig(t *testing.T, content string) string {
 func writeServerConfig(t *testing.T, extra string) (path string, port, managementPort int) {
 	t.Helper()
 	port, managementPort = findFreePort(t), findFreePort(t)
+	if !strings.Contains(extra, "shutdown_delay") {
+		extra = "shutdown_delay: 0s\n" + extra
+	}
 	path = writeTestConfig(t, fmt.Sprintf(
 		"listen_port: %d\nlisten_address: 127.0.0.1\nmanagement:\n  listen_port: %d\n%s", port, managementPort, extra))
 	return path, port, managementPort
+}
+
+// On SIGTERM /readyz fails at once while events are still accepted for shutdown_delay, so
+// Kubernetes stops routing to the pod before the listener closes; then the process stops.
+func TestShutdownDrainsWhileNotReady(t *testing.T) {
+	cfg, port, _ := writeServerConfig(t, "shutdown_delay: 1s\n")
+	outs := writeTestOutputs(t, "outputs:\n  inmemory:\n    capacity: 10\n")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- run(ctx, cfg, []string{outs}) }()
+	waitForServer(t, port)
+
+	cancel()
+	base := fmt.Sprintf("http://127.0.0.1:%d", port)
+	require.Eventually(t, func() bool {
+		resp, err := http.Get(base + "/readyz") //nolint:noctx // test probe
+		if err != nil {
+			return false
+		}
+		_ = resp.Body.Close()
+		return resp.StatusCode == http.StatusServiceUnavailable
+	}, 500*time.Millisecond, 10*time.Millisecond, "not ready right after SIGTERM")
+
+	body := `{"rule":"r","priority":"Warning","output":"o","time":"2026-01-01T00:00:00Z","output_fields":{"a":"b"}}`
+	resp, err := http.Post(base+"/", "application/json", strings.NewReader(body)) //nolint:noctx // test request
+	require.NoError(t, err, "still accepting events while draining")
+	_ = resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(15 * time.Second):
+		t.Fatal("run did not return after the shutdown delay")
+	}
 }
 
 func writeTestOutputs(t *testing.T, content string) string {
@@ -92,11 +131,22 @@ func findFreePort(t *testing.T) int {
 	return port
 }
 
+// waitForServer waits until the ingestion listener on port reports ready.
 func waitForServer(t *testing.T, port int) {
+	t.Helper()
+	waitForOK(t, fmt.Sprintf("http://127.0.0.1:%d/readyz", port))
+}
+
+// waitForManagement waits until the management listener on port answers the API.
+func waitForManagement(t *testing.T, port int) {
+	t.Helper()
+	waitForOK(t, fmt.Sprintf("http://127.0.0.1:%d/api/v1/version", port))
+}
+
+func waitForOK(t *testing.T, healthURL string) {
 	t.Helper()
 	const timeout = 5 * time.Second
 	deadline := time.Now().Add(timeout)
-	healthURL := fmt.Sprintf("http://127.0.0.1:%d/healthz", port)
 	for time.Now().Before(deadline) {
 		resp, err := http.Get(healthURL) //nolint:noctx // test helper, hardcoded localhost
 		if err == nil {
@@ -107,7 +157,7 @@ func waitForServer(t *testing.T, port int) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	t.Fatalf("server on port %d did not become ready within %s", port, timeout)
+	t.Fatalf("%s did not answer 200 within %s", healthURL, timeout)
 }
 
 func writeTestOutputsAt(t *testing.T, path, content string) {
@@ -831,7 +881,7 @@ func TestRunUIEnabledBinaryRoutingMatchesTag(t *testing.T) {
 	}()
 
 	waitForServer(t, port)
-	waitForServer(t, managementPort)
+	waitForManagement(t, managementPort)
 
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", managementPort)) //nolint:noctx // test helper
 	require.NoError(t, err)
@@ -870,7 +920,7 @@ func TestRunUIDisabledDoesNotServeStaticAssets(t *testing.T) {
 		done <- run(ctx, cfg, []string{outs})
 	}()
 
-	waitForServer(t, managementPort)
+	waitForManagement(t, managementPort)
 
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/", managementPort)) //nolint:noctx // test helper
 	require.NoError(t, err)
@@ -1010,7 +1060,7 @@ func TestNewAppStartsWhenTheStoredEventSourceDoesNotBuild(t *testing.T) {
 
 	serveErr := make(chan error, 1)
 	a.serve(serveErr)
-	waitForServer(t, cfg.Management.ListenPort)
+	waitForManagement(t, cfg.Management.ListenPort)
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet,
 		fmt.Sprintf("http://127.0.0.1:%d/api/v1/events/search", cfg.Management.ListenPort), http.NoBody)
 	require.NoError(t, err)

@@ -154,13 +154,13 @@ kubectl --context "$HELPER_CONTEXT" -n "$NAMESPACE" port-forward "deployment/$SE
 PF_PID=$!
 
 for _ in $(seq 1 20); do
-  if curl -sf "http://localhost:$LOCAL_PORT/healthz" >/dev/null 2>&1; then
+  if curl -sf "http://localhost:$LOCAL_PORT/readyz" >/dev/null 2>&1; then
     break
   fi
   sleep 0.5
 done
 
-if ! curl -sf "http://localhost:$LOCAL_PORT/healthz" >/dev/null 2>&1; then
+if ! curl -sf "http://localhost:$LOCAL_PORT/readyz" >/dev/null 2>&1; then
   err "port-forward did not become reachable on http://localhost:$LOCAL_PORT within 10s"
   tail -n 20 "$PF_LOG" >&2 || true
   exit 1

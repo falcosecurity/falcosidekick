@@ -30,10 +30,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-const (
-	truncateFieldSuffix = "[...]"
-	defaultHostname     = "unknown"
-)
+const truncateFieldSuffix = "[...]"
 
 // Enricher adds custom fields, tags, UUID, and applies transformations to events.
 type Enricher struct {
@@ -59,17 +56,14 @@ func NewEnricher(cfg output.EnricherConfig) (*Enricher, error) {
 }
 
 // Enrich applies all enrichment steps to the evt in place.
-func (e *Enricher) Enrich(evt *event.Event) error {
+func (e *Enricher) Enrich(evt *event.Event) {
 	evt.UUID = uuid.NewString()
 
 	e.injectCustomFields(evt)
 	e.evaluateTemplatedFields(evt)
 	e.injectCustomTags(evt)
-	e.applyDefaultHostname(evt)
 	e.replaceBrackets(evt)
 	e.truncateIfNeeded(evt)
-
-	return nil
 }
 
 func (e *Enricher) injectCustomFields(evt *event.Event) {
@@ -94,12 +88,6 @@ func (e *Enricher) injectCustomTags(evt *event.Event) {
 	}
 	evt.Tags = append(evt.Tags, e.cfg.CustomTags...)
 	sort.Strings(evt.Tags)
-}
-
-func (e *Enricher) applyDefaultHostname(evt *event.Event) {
-	if evt.Hostname == "" {
-		evt.Hostname = defaultHostname
-	}
 }
 
 func (e *Enricher) replaceBrackets(evt *event.Event) {

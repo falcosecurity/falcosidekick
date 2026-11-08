@@ -27,7 +27,7 @@ v2 configuration is not compatible with v3.
 
 ## Outputs
 
-Webhook, Slack, Loki, Elasticsearch, Alertmanager and Kafka.
+24 outputs: chat, alerting and on-call, logs, queues and streams, storage, observability, webhooks and response. The [outputs index](docs/outputs/README.md) lists them, with a page each.
 
 ## Build
 

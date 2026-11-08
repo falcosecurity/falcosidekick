@@ -64,11 +64,12 @@ func TestLogLevelValidate(t *testing.T) {
 		level   LogLevel
 		wantErr bool
 	}{
-		{"trace", LogLevelTrace, false},
 		{"debug", LogLevelDebug, false},
 		{"info", LogLevelInfo, false},
-		{"warning", LogLevelWarning, false},
+		{"warn", LogLevelWarn, false},
 		{"error", LogLevelError, false},
+		{"trace is not a level", LogLevel("trace"), true},
+		{"warning is spelled warn", LogLevel("warning"), true},
 		{"invalid", LogLevel("invalid"), true},
 		{"empty", LogLevel(""), true},
 	}
@@ -129,17 +130,20 @@ func TestUIConfigValidate(t *testing.T) {
 	}
 }
 
-func TestConfigValidateValid(t *testing.T) {
-	cfg := Config{
-		ListenAddress: "0.0.0.0",
-		ListenPort:    2801,
-		LogLevel:      LogLevelInfo,
-		LogFormat:     LogFormatText,
-		Database:      DatabaseConfig{Backend: DatabaseInMemory, ConnectTimeout: time.Second},
-		Metrics:       MetricsConfig{MaxLabelValues: 1000},
-		Management:    ManagementConfig{ListenAddress: "127.0.0.1", ListenPort: 2802},
+func validConfig() Config {
+	return Config{
+		ListenPort: 2801,
+		LogLevel:   LogLevelInfo,
+		LogFormat:  LogFormatText,
+		Database:   DatabaseConfig{Backend: DatabaseInMemory, ConnectTimeout: time.Second},
+		Metrics:    MetricsConfig{MaxLabelValues: 1000},
+		Management: ManagementConfig{ListenAddress: "127.0.0.1", ListenPort: 2802},
 	}
-	assert.Empty(t, cfg.Validate())
+}
+
+func TestConfigValidateValid(t *testing.T) {
+	cfg := validConfig()
+	assert.Empty(t, cfg.Validate(), "an empty listen_address listens on every interface")
 }
 
 func TestConfigValidateManagementPort(t *testing.T) {
@@ -175,8 +179,16 @@ func TestConfigValidateManagementPort(t *testing.T) {
 func TestManagementConfigRefusesEmptyAddress(t *testing.T) {
 	errs := ManagementConfig{ListenPort: 2802}.Validate()
 	require.Len(t, errs, 1)
-	assert.Contains(t, errs[0].Error(), "listen_address: is required (0.0.0.0 for every interface)")
-	assert.Empty(t, ManagementConfig{ListenAddress: "0.0.0.0", ListenPort: 2802}.Validate())
+	assert.Contains(t, errs[0].Error(), `listen_address: is required ("::" for every interface)`)
+	assert.Empty(t, ManagementConfig{ListenAddress: "::", ListenPort: 2802}.Validate())
+}
+
+func TestShutdownDelayMustNotBeNegative(t *testing.T) {
+	cfg := validConfig()
+	cfg.ShutdownDelay = -time.Second
+	errs := cfg.Validate()
+	require.Len(t, errs, 1)
+	assert.Contains(t, errs[0].Error(), "shutdown_delay: must be >= 0")
 }
 
 func TestAPIConfigValidateSecretDirs(t *testing.T) {

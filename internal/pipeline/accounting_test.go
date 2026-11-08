@@ -39,7 +39,6 @@ var errDelivery = errors.New("delivery failed")
 type recordingMetrics struct {
 	core.MetricsCollector
 	statuses map[string]int
-	errs     []error
 	drops    int
 	mu       sync.Mutex
 }
@@ -58,12 +57,6 @@ func (m *recordingMetrics) RecordDrop(_ context.Context, _ string, events int64)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.drops += int(events)
-}
-
-func (m *recordingMetrics) RecordError(_ context.Context, _ string, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.errs = append(m.errs, err)
 }
 
 func retryingConfig() *output.RuntimeConfig {
@@ -97,8 +90,7 @@ func cancelledBackoffCase(t *testing.T, enqueue int, newOutput func(*recordingMe
 		assert.Equal(t, enqueue, status.FailedTotal)
 		assert.Zero(t, status.DroppedTotal)
 		assert.Equal(t, errDelivery.Error(), status.LastError)
-		assert.Equal(t, enqueue, metrics.statuses["error"], "output_total counts events, a batch included")
-		assert.Equal(t, []error{errDelivery}, metrics.errs)
+		assert.Equal(t, enqueue, metrics.statuses["error"], "output_events_total counts events, a batch included")
 		assert.Zero(t, metrics.drops)
 	})
 }
@@ -357,6 +349,5 @@ func TestLateFailureCountsAsFailed(t *testing.T) {
 	status := out.GetStatus()
 	assert.Equal(t, 1, status.FailedTotal)
 	assert.Equal(t, errDelivery.Error(), status.LastError)
-	assert.Equal(t, 1, metrics.statuses["error"])
-	assert.Equal(t, []error{errDelivery}, metrics.errs)
+	assert.Equal(t, 1, metrics.statuses["error"], "counted once, in output_events_total")
 }

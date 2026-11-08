@@ -465,20 +465,36 @@ func TestReloaderMisconfiguredDestinationKeepsOldOutput(t *testing.T) {
 		"the previous output still delivers")
 }
 
+// Views of falcosidekick_reloads_total: every attempt, or the attempts with one result.
 const (
-	metricReloadTotal       = "falcosidekick_reload_total"
-	metricReloadFailures    = "falcosidekick_reload_failures_total"
-	metricReloadPartial     = "falcosidekick_reload_partial_total"
-	metricReloadLastSuccess = "falcosidekick_reload_last_success_timestamp"
+	metricReloadTotal       = ""
+	metricReloadFailures    = resultFailure
+	metricReloadPartial     = resultPartial
+	metricReloadLastSuccess = "falcosidekick_reload_last_success_timestamp_seconds"
 )
 
-func getMetricValue(gathered []*dto.MetricFamily, name string) float64 {
+// getMetricValue sums falcosidekick_reloads_total over every source, for every result or the one named.
+func getMetricValue(gathered []*dto.MetricFamily, result string) float64 {
+	return sumReloads(gathered, result, "")
+}
+
+func sumReloads(gathered []*dto.MetricFamily, result, source string) float64 {
+	var total float64
 	for _, mf := range gathered {
-		if mf.GetName() == name {
-			return mf.GetMetric()[0].GetCounter().GetValue()
+		if mf.GetName() != "falcosidekick_reloads_total" {
+			continue
+		}
+		for _, m := range mf.GetMetric() {
+			labels := map[string]string{}
+			for _, l := range m.GetLabel() {
+				labels[l.GetName()] = l.GetValue()
+			}
+			if (result == "" || labels["result"] == result) && (source == "" || labels["source"] == source) {
+				total += m.GetCounter().GetValue()
+			}
 		}
 	}
-	return 0
+	return total
 }
 
 func getLastSuccessTimestamp(gathered []*dto.MetricFamily) float64 {
@@ -1449,8 +1465,9 @@ func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {
 	assert.True(t, entry.Provisioned, "restored entry must be marked Provisioned:true")
 }
 
-func getMetricValueBySource(gathered []*dto.MetricFamily, name, source string) float64 {
-	return getMetricBySource(gathered, name, source).GetCounter().GetValue()
+// getMetricValueBySource sums falcosidekick_reloads_total for one source, for every result or the one named.
+func getMetricValueBySource(gathered []*dto.MetricFamily, result, source string) float64 {
+	return sumReloads(gathered, result, source)
 }
 
 // getMetricBySource returns the sample of family name labeled source, nil if there is none.

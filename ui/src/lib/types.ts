@@ -256,8 +256,11 @@ export interface PostgresConfig {
 export interface CoreConfig {
   log_format: string
   log_level: string
+  // "" listens on every interface, IPv4 and IPv6.
   listen_address: string
   listen_port: number
+  // Go duration in nanoseconds: how long ingestion keeps accepting events after SIGTERM.
+  shutdown_delay: GoDuration
   tls?: ListenerTLSConfig
   management: { listen_address: string; listen_port: number }
   ui: { enabled: boolean; event_source: string }

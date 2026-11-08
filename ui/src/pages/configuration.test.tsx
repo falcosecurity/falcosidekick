@@ -39,7 +39,9 @@ describe("ConfigurationPage", () => {
     expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([
       "#listeners", "#database", "#api", "#reload", "#observability", "#ui",
     ])
-    expect(value("Listeners", "Ingestion")).toHaveTextContent("0.0.0.0:2801")
+    expect(value("Listeners", "Ingestion")).toHaveTextContent(/^:2801$/)
+    expect(row("Listeners", "Ingestion")).toHaveTextContent(/Every interface, IPv4 and IPv6/)
+    expect(value("Listeners", "Shutdown delay")).toHaveTextContent("5s")
     expect(value("Listeners", "Ingestion TLS")).toHaveTextContent("Disabled")
     expect(value("Listeners", "Management")).toHaveTextContent("127.0.0.1:2802")
     expect(value("Database", "Backend")).toHaveTextContent("inmemory")

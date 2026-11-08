@@ -17,7 +17,6 @@
 package event
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -81,9 +80,13 @@ func (p Priority) String() string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-// ParsePriority converts a case-insensitive string to a Priority.
+// ParsePriority converts a case-insensitive string to a Priority; "info" is Falco's short form of
+// informational.
 func ParsePriority(s string) (Priority, error) {
 	p := Priority(strings.ToLower(strings.TrimSpace(s)))
+	if p == "info" {
+		p = PriorityInformational
+	}
 	if p == "" {
 		return "", fmt.Errorf("empty priority")
 	}
@@ -91,6 +94,22 @@ func ParsePriority(s string) (Priority, error) {
 		return "", errors.New("unknown priority")
 	}
 	return p, nil
+}
+
+// MarshalText writes the priority as Falco does, such as "Warning", so the event JSON that outputs
+// forward and the API serves keeps Falco's shape.
+func (p Priority) MarshalText() ([]byte, error) {
+	return []byte(p.String()), nil
+}
+
+// UnmarshalText accepts any casing; Event.Validate refuses an unknown value with its own message.
+func (p *Priority) UnmarshalText(text []byte) error {
+	if parsed, err := ParsePriority(string(text)); err == nil {
+		*p = parsed
+		return nil
+	}
+	*p = Priority(text)
+	return nil
 }
 
 // Event represents a Falco security event.
@@ -127,17 +146,12 @@ func (e *Event) Validate() error {
 		return fmt.Errorf("%w: %w", ErrInvalidEvent, err)
 	}
 	e.Priority = normalized
-	if len(e.OutputFields) == 0 {
-		return fmt.Errorf("%w: output_fields is required", ErrInvalidEvent)
+	// Falco leaves output_fields out with json_include_output_fields_property: false.
+	if e.OutputFields == nil {
+		e.OutputFields = map[string]any{}
 	}
 	if e.Source == "" {
 		e.Source = "syscall"
 	}
 	return nil
-}
-
-// MarshalJSON encodes the event as JSON.
-func (e *Event) MarshalJSON() ([]byte, error) {
-	type Alias Event
-	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(e)})
 }

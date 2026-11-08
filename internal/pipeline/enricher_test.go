@@ -17,6 +17,7 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -91,7 +92,7 @@ func TestEnrichGeneratesUUID(t *testing.T) {
 	e, _ := NewEnricher(testEnricherConfig())
 	evt := newTestEvent()
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	assert.NotEmpty(t, evt.UUID)
 	assert.Len(t, evt.UUID, 36)
 }
@@ -101,8 +102,8 @@ func TestEnrichUUIDUniqueness(t *testing.T) {
 	e1 := newTestEvent()
 	e2 := newTestEvent()
 
-	require.NoError(t, e.Enrich(e1))
-	require.NoError(t, e.Enrich(e2))
+	e.Enrich(e1)
+	e.Enrich(e2)
 	assert.NotEqual(t, e1.UUID, e2.UUID)
 }
 
@@ -112,7 +113,7 @@ func TestEnrichInjectsCustomFields(t *testing.T) {
 	e, _ := NewEnricher(cfg)
 	evt := newTestEvent()
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	assert.Equal(t, "prod", evt.OutputFields["env"])
 	assert.Equal(t, "us-1", evt.OutputFields["cluster"])
 	assert.Equal(t, "bash", evt.OutputFields["proc.name"])
@@ -126,7 +127,7 @@ func TestEnrichEvaluatesTemplatedFields(t *testing.T) {
 	e, _ := NewEnricher(cfg)
 	evt := newTestEvent()
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	assert.Equal(t, "process=bash", evt.OutputFields["proc_info"])
 }
 
@@ -138,7 +139,7 @@ func TestEnrichTemplateErrorContinues(t *testing.T) {
 	e, _ := NewEnricher(cfg)
 	evt := newTestEvent()
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	_, exists := evt.OutputFields["bad"]
 	assert.False(t, exists)
 }
@@ -149,7 +150,7 @@ func TestEnrichInjectsCustomTags(t *testing.T) {
 	e, _ := NewEnricher(cfg)
 	evt := newTestEvent()
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	assert.Equal(t, []string{"falco", "security", "tag1"}, evt.Tags)
 }
 
@@ -159,24 +160,28 @@ func TestEnrichNoCustomTagsPreservesOriginal(t *testing.T) {
 	original := make([]string, len(evt.Tags))
 	copy(original, evt.Tags)
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	assert.Equal(t, original, evt.Tags)
 }
 
-func TestEnrichDefaultHostname(t *testing.T) {
+// A missing hostname stays missing: Sidekick does not invent one that could match a real host.
+func TestEnrichKeepsAMissingHostnameEmpty(t *testing.T) {
 	e, _ := NewEnricher(testEnricherConfig())
 	evt := newTestEvent()
 	evt.Hostname = ""
 
-	require.NoError(t, e.Enrich(evt))
-	assert.Equal(t, defaultHostname, evt.Hostname)
+	e.Enrich(evt)
+	assert.Empty(t, evt.Hostname)
+	data, err := json.Marshal(evt)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), `"hostname"`)
 }
 
 func TestEnrichPreservesExistingHostname(t *testing.T) {
 	e, _ := NewEnricher(testEnricherConfig())
 	evt := newTestEvent()
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	assert.Equal(t, "node-1", evt.Hostname)
 }
 
@@ -188,7 +193,7 @@ func TestEnrichReplacesBrackets(t *testing.T) {
 	const testPath = "/dev/null"
 	evt.OutputFields["fd[0]"] = testPath
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	assert.Equal(t, testPath, evt.OutputFields["fd_0_"])
 	_, hasBrackets := evt.OutputFields["fd[0]"]
 	assert.False(t, hasBrackets)
@@ -200,7 +205,7 @@ func TestEnrichNoBracketReplacerSkips(t *testing.T) {
 	const testPath = "/dev/null"
 	evt.OutputFields["fd[0]"] = testPath
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	assert.Equal(t, testPath, evt.OutputFields["fd[0]"])
 }
 
@@ -211,7 +216,7 @@ func TestEnrichTruncatesLargeEvents(t *testing.T) {
 		evt.OutputFields[strings.Repeat("field", i+1)] = strings.Repeat("x", 1000)
 	}
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 
 	truncated := false
 	for _, v := range evt.OutputFields {
@@ -232,7 +237,7 @@ func TestEnrichCustomTruncateThresholds(t *testing.T) {
 	evt := newTestEvent()
 	evt.OutputFields["data"] = strings.Repeat("a", 100)
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 
 	val := evt.OutputFields["data"].(string)
 	assert.LessOrEqual(t, len(val), 50)
@@ -251,6 +256,6 @@ func TestEnrichDoesNotTruncateSmallEvents(t *testing.T) {
 	evt := newTestEvent()
 	evt.OutputFields["small"] = "tiny"
 
-	require.NoError(t, e.Enrich(evt))
+	e.Enrich(evt)
 	assert.Equal(t, "tiny", evt.OutputFields["small"])
 }

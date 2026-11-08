@@ -307,7 +307,7 @@ func (d *driver) Histogram(_ context.Context, req *output.HistogramRequest) (*ou
 
 func (d *driver) addToIndexes(pos int, evt *event.Event) {
 	addToIndex(d.byRule, evt.Rule, pos)
-	addToIndex(d.byPriority, string(evt.Priority), pos)
+	addToIndex(d.byPriority, evt.Priority.String(), pos)
 	addToIndex(d.bySource, evt.Source, pos)
 	if evt.Hostname != "" {
 		addToIndex(d.byHostname, evt.Hostname, pos)
@@ -323,7 +323,7 @@ func (d *driver) removeFromIndexes(pos int) {
 		return
 	}
 	removeFromIndex(d.byRule, e.Rule, pos)
-	removeFromIndex(d.byPriority, string(e.Priority), pos)
+	removeFromIndex(d.byPriority, e.Priority.String(), pos)
 	removeFromIndex(d.bySource, e.Source, pos)
 	removeFromIndex(d.byHostname, e.Hostname, pos)
 	for _, tag := range e.Tags {
@@ -389,7 +389,7 @@ func (d *driver) findMatchingPositions(filters *output.Filters) map[int]struct{}
 		}
 	}
 
-	narrow(d.byPriority, filters.Priority)
+	narrow(d.byPriority, priorityKeys(filters.Priority))
 	narrow(d.byRule, filters.Rule)
 	narrow(d.bySource, filters.Source)
 	narrow(d.byHostname, filters.Hostname)
@@ -467,7 +467,7 @@ func countFromEvents(events []*event.Event, field string) map[string]int64 {
 func accumulateByField(dst map[string]int64, e *event.Event, field string) {
 	switch field {
 	case fieldPriority:
-		dst[string(e.Priority)]++
+		dst[e.Priority.String()]++
 	case fieldRule:
 		dst[e.Rule]++
 	case fieldSource:

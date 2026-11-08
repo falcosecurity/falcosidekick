@@ -47,18 +47,9 @@ func NewLogger(level core.LogLevel, format core.LogFormat) (*slog.Logger, error)
 }
 
 func parseLevel(level string) (slog.Level, error) {
-	switch level {
-	case "trace":
-		return slog.LevelDebug - 4, nil
-	case "debug":
-		return slog.LevelDebug, nil
-	case "info":
-		return slog.LevelInfo, nil
-	case "warning":
-		return slog.LevelWarn, nil
-	case "error":
-		return slog.LevelError, nil
-	default:
+	var l slog.Level
+	if !core.ValidLogLevels[core.LogLevel(level)] || l.UnmarshalText([]byte(level)) != nil {
 		return slog.LevelInfo, errors.New("logging: unsupported level")
 	}
+	return l, nil
 }

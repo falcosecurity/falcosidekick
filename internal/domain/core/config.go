@@ -39,6 +39,9 @@ type Config struct {
 	Reload        ReloadConfig       `json:"reload" mapstructure:"reload"`
 	ListenPort    int                `json:"listen_port" mapstructure:"listen_port"`
 	Provisioning  ProvisioningConfig `json:"provisioning" mapstructure:"provisioning"`
+	// ShutdownDelay is how long ingestion keeps accepting events after SIGTERM while /readyz fails,
+	// so Kubernetes stops routing to the pod before the listener closes.
+	ShutdownDelay time.Duration `json:"shutdown_delay" mapstructure:"shutdown_delay"`
 }
 
 // MetricsConfig controls the Prometheus metrics on /metrics.
@@ -104,9 +107,9 @@ type ManagementConfig struct {
 // Validate checks the management listener.
 func (c ManagementConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
-	// Empty would listen on every interface: the unauthenticated API must be opened with 0.0.0.0.
+	// Empty would listen on every interface: the unauthenticated API must be opened explicitly.
 	if c.ListenAddress == "" {
-		errs.Add("listen_address", "is required (0.0.0.0 for every interface)")
+		errs.Add("listen_address", `is required ("::" for every interface)`)
 	}
 	if c.ListenPort < 1 || c.ListenPort > 65535 {
 		errs.Add("listen_port", "must be 1-65535")
@@ -151,6 +154,9 @@ func (c *Config) Validate() utils.ValidationErrors {
 	if c.ListenPort < 1 || c.ListenPort > 65535 {
 		errs.Add("listen_port", "must be 1-65535")
 	}
+	if c.ShutdownDelay < 0 {
+		errs.Add("shutdown_delay", "must be >= 0")
+	}
 	errs.Merge("management", c.Management.Validate())
 	if c.Management.ListenPort == c.ListenPort {
 		errs.Add("management.listen_port", "must differ from listen_port")
@@ -173,26 +179,24 @@ func (c *Config) Validate() utils.ValidationErrors {
 // LogLevel identifies a logging verbosity level.
 type LogLevel string
 
-// Supported log levels.
+// Supported log levels, named as log/slog names them.
 const (
-	LogLevelTrace   LogLevel = "trace"
-	LogLevelDebug   LogLevel = "debug"
-	LogLevelInfo    LogLevel = "info"
-	LogLevelWarning LogLevel = "warning"
-	LogLevelError   LogLevel = "error"
+	LogLevelDebug LogLevel = "debug"
+	LogLevelInfo  LogLevel = "info"
+	LogLevelWarn  LogLevel = "warn"
+	LogLevelError LogLevel = "error"
 )
 
 // ValidLogLevels holds the set of accepted log level values.
 var ValidLogLevels = map[LogLevel]bool{
-	LogLevelTrace: true, LogLevelDebug: true, LogLevelInfo: true,
-	LogLevelWarning: true, LogLevelError: true,
+	LogLevelDebug: true, LogLevelInfo: true, LogLevelWarn: true, LogLevelError: true,
 }
 
 // Validate checks the log level for correctness.
 func (l LogLevel) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if !ValidLogLevels[l] {
-		errs.Add("log_level", "must be trace/debug/info/warning/error")
+		errs.Add("log_level", "must be debug/info/warn/error")
 	}
 	return errs
 }

@@ -26,17 +26,14 @@ import (
 // NoopCollector implements core.MetricsCollector with no-op methods.
 type NoopCollector struct{}
 
-// RecordInput is a no-op.
-func (NoopCollector) RecordInput(_ context.Context, _, _ string) {}
+// RecordRequest is a no-op.
+func (NoopCollector) RecordRequest(_ context.Context, _ string) {}
 
 // RecordOutput is a no-op.
 func (NoopCollector) RecordOutput(_ context.Context, _, _ string, _ int64, _ time.Duration) {}
 
 // RecordDrop is a no-op.
 func (NoopCollector) RecordDrop(_ context.Context, _ string, _ int64) {}
-
-// RecordError is a no-op.
-func (NoopCollector) RecordError(_ context.Context, _ string, _ error) {}
 
 // RecordEvent is a no-op.
 func (NoopCollector) RecordEvent(_ context.Context, _ *event.Event) {}

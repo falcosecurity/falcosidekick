@@ -52,7 +52,7 @@ func createValidEventJSON() []byte {
 		Hostname:     "node-1",
 		Priority:     event.PriorityWarning,
 	}
-	data, _ := evt.MarshalJSON()
+	data, _ := json.Marshal(evt)
 	return data
 }
 
@@ -115,26 +115,44 @@ func TestHandlePostEventMissingRule(t *testing.T) {
 	assert.Contains(t, string(body), "rule is required")
 }
 
-func TestHandleGetHealthz(t *testing.T) {
+// /livez answers while the process serves; /readyz follows SetReady: not ready until the pipeline
+// runs, ready, then not ready again from SIGTERM on.
+func TestLivenessAndReadiness(t *testing.T) {
 	srv := buildTestServer(t, nil)
+	get := func(path string) (int, string) {
+		resp, err := srv.ingestion.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, http.NoBody))
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(body)
+	}
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", http.NoBody)
+	status, body := get("/livez")
+	assert.Equal(t, http.StatusOK, status)
+	assert.JSONEq(t, `{"status":"ok"}`, body)
 
-	resp, err := srv.ingestion.Test(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, 200, resp.StatusCode)
+	status, body = get("/readyz")
+	assert.Equal(t, http.StatusServiceUnavailable, status, "not ready before the pipeline runs")
+	assert.JSONEq(t, `{"status":"not ready"}`, body)
 
-	body, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(body), `"status":"ok"`)
+	srv.SetReady(true)
+	status, body = get("/readyz")
+	assert.Equal(t, http.StatusOK, status)
+	assert.JSONEq(t, `{"status":"ready"}`, body)
+
+	srv.SetReady(false)
+	status, _ = get("/readyz")
+	assert.Equal(t, http.StatusServiceUnavailable, status, "not ready while draining")
+	status, _ = get("/livez")
+	assert.Equal(t, http.StatusOK, status, "still alive while draining")
 }
 
 func TestHandleGetVersion(t *testing.T) {
 	srv := buildTestServer(t, nil)
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/version", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/version", http.NoBody)
 
-	resp, err := srv.ingestion.Test(req)
+	resp, err := srv.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, 200, resp.StatusCode)
@@ -154,7 +172,7 @@ func TestServerDefaults(t *testing.T) {
 
 	srv, err := NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Config: testConfig(t)})
 	require.NoError(t, err)
-	assert.Equal(t, "0.0.0.0:2801", srv.address, "ingestion listens on every interface")
+	assert.Equal(t, ":2801", srv.address, "ingestion listens on every interface, IPv4 and IPv6")
 	assert.Equal(t, "127.0.0.1:2802", srv.managementAddress, "the unauthenticated API stays local")
 
 	_, err = NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t)})
@@ -240,24 +258,6 @@ func TestLegacyOutputsPathIsRemoved(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, 404, resp.StatusCode, "legacy /api/v1/outputs must be removed; callers use /api/v1/pipeline/outputs")
-}
-
-func TestHandleGetVersionAliasAtAPIv1(t *testing.T) {
-	srv := buildTestServer(t, nil)
-
-	legacy, err := srv.ingestion.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/version", http.NoBody))
-	require.NoError(t, err)
-	defer legacy.Body.Close()
-	legacyBody, _ := io.ReadAll(legacy.Body)
-
-	aliased, err := srv.app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/version", http.NoBody))
-	require.NoError(t, err)
-	defer aliased.Body.Close()
-	aliasedBody, _ := io.ReadAll(aliased.Body)
-
-	assert.Equal(t, 200, legacy.StatusCode)
-	assert.Equal(t, 200, aliased.StatusCode)
-	assert.JSONEq(t, string(legacyBody), string(aliasedBody), "/api/v1/version must return the same body as /version")
 }
 
 func TestStartAndShutdown(t *testing.T) {

@@ -104,7 +104,7 @@ extract_input_total() {
   local total=0
   while read -r n; do
     total=$((total + n))
-  done < <(echo "$body" | grep -E '^falcosidekick_input_total\{' | awk '{print $NF}' | awk -F'.' '{print $1}')
+  done < <(echo "$body" | grep -E '^falcosidekick_events_total\{.*source="syscall"' | awk '{print $NF}' | awk -F'.' '{print $1}')
   echo "$total"
 }
 
@@ -128,16 +128,16 @@ received() {
 }
 
 log "6/9 HTTP smoke checks"
-if body=$(curl_ok "http://127.0.0.1:$LOCAL_PORT/healthz") && [[ "$body" == *'"status":"ok"'* ]]; then
-  log "  ok: /healthz [criterion 2]"
+if body=$(curl_ok "http://127.0.0.1:$LOCAL_PORT/readyz") && [[ "$body" == *'"status":"ready"'* ]]; then
+  log "  ok: /readyz [criterion 2]"
 else
-  fail "/healthz did not return {status:ok}: $body"
+  fail "/readyz did not return {status:ready}: $body"
 fi
 
-if body=$(curl_ok "http://127.0.0.1:$LOCAL_PORT/version") && [[ "$body" == *'"version"'* ]]; then
-  log "  ok: /version [criterion 3]"
+if body=$(curl_ok "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/version") && [[ "$body" == *'"version"'* ]]; then
+  log "  ok: /api/v1/version [criterion 3]"
 else
-  fail "/version unexpected: $body"
+  fail "/api/v1/version unexpected: $body"
 fi
 
 if body=$(curl_ok "http://127.0.0.1:$MGMT_LOCAL_PORT/api/v1/config") && [[ "$body" == *'listen_port'* ]]; then
@@ -149,7 +149,7 @@ fi
 # Baseline metric counter before any events.
 metrics_before=$(curl_ok "http://127.0.0.1:$LOCAL_PORT/metrics" || echo "")
 baseline_total=$(extract_input_total "$metrics_before")
-log "  baseline falcosidekick_input_total = $baseline_total"
+log "  baseline falcosidekick_events_total{source=syscall} = $baseline_total"
 
 webhook_baseline=$(webhook_sent_total)
 log "  baseline webhook sent_total = $webhook_baseline"
@@ -215,7 +215,7 @@ for _ in $(seq 1 "$FALCO_PROPAGATION_WAIT"); do
   sleep 1
 done
 
-log "  falcosidekick_input_total: before=$baseline_total after=$after_total"
+log "  falcosidekick_events_total{source=syscall}: before=$baseline_total after=$after_total"
 if [[ "$counter_advanced" -eq 1 ]]; then
   log "  ok: /metrics input counter advanced [criterion 7]"
 else

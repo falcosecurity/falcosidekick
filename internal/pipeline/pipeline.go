@@ -66,13 +66,7 @@ func (p *Pipeline) Shutdown(ctx context.Context) error {
 
 // ProcessEvent enriches and dispatches an event to all active outputs.
 func (p *Pipeline) ProcessEvent(ctx context.Context, evt *event.Event) {
-	if err := p.enricher.Enrich(evt); err != nil {
-		if p.metrics != nil {
-			p.metrics.RecordError(ctx, "enricher", err)
-		}
-		return
-	}
-
+	p.enricher.Enrich(evt)
 	if p.metrics != nil {
 		p.metrics.RecordEvent(ctx, evt)
 	}

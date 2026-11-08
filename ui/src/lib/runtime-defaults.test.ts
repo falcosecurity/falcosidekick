@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 
+import { normalizeConfig } from "@/lib/api-client"
 import type { RuntimeConfig, SchemaField } from "@/lib/types"
 import { fixtures } from "@/test/fixtures"
 
@@ -15,7 +16,8 @@ const FIELDS = [
 
 describe("withRuntimeDefaults", () => {
   test("runtime fields default to what the running configuration sets, in the schema's units", () => {
-    const defaults = fixtures.config.config.runtime_defaults as RuntimeConfig
+    // As api.getConfig hands it over: the API writes Falco's "Warning", the UI reads "warning".
+    const defaults = normalizeConfig(fixtures.config).config.runtime_defaults as RuntimeConfig
     const byName = Object.fromEntries(withRuntimeDefaults(FIELDS, defaults).map((f) => [f.name, f.default]))
     expect(byName).toEqual({
       host: "",

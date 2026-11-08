@@ -35,7 +35,7 @@ func hasNoStructuredFilters(f *output.Filters) bool {
 
 func matchesFreeText(e *event.Event, text string) bool {
 	lower := strings.ToLower(text)
-	for _, field := range []string{e.Output, e.Rule, string(e.Priority), e.Source, e.Hostname} {
+	for _, field := range []string{e.Output, e.Rule, e.Priority.String(), e.Source, e.Hostname} {
 		if strings.Contains(strings.ToLower(field), lower) {
 			return true
 		}
@@ -46,6 +46,23 @@ func matchesFreeText(e *event.Event, text string) bool {
 		}
 	}
 	return false
+}
+
+// priorityKeys names filter priorities as the index stores them, in Falco's casing; an unknown value
+// stays as written and matches nothing.
+func priorityKeys(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	keys := make([]string, len(values))
+	for i, v := range values {
+		if p, err := event.ParsePriority(v); err == nil {
+			keys[i] = p.String()
+		} else {
+			keys[i] = v
+		}
+	}
+	return keys
 }
 
 func sortEvents(events []*event.Event, sortBy string, desc bool) {

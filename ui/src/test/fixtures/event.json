@@ -7,7 +7,7 @@
     "proc.pid": 4242,
     "user.name": "root"
   },
-  "priority": "critical",
+  "priority": "Critical",
   "rule": "Terminal shell in container",
   "source": "syscall",
   "tags": [

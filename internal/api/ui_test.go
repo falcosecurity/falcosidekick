@@ -93,7 +93,10 @@ func TestListenersAreSeparate(t *testing.T) {
 		management   int
 	}{
 		{method: http.MethodPost, path: "/", ingestion: http.StatusOK, management: http.StatusMethodNotAllowed},
-		{method: http.MethodGet, path: "/healthz", ingestion: http.StatusOK, management: http.StatusOK},
+		{method: http.MethodGet, path: "/livez", ingestion: http.StatusOK},
+		{method: http.MethodGet, path: "/readyz", ingestion: http.StatusServiceUnavailable},
+		{method: http.MethodGet, path: "/healthz", ingestion: http.StatusNotFound},
+		{method: http.MethodGet, path: "/version", ingestion: http.StatusNotFound},
 		{method: http.MethodGet, path: "/metrics", ingestion: http.StatusOK},
 		{method: http.MethodGet, path: "/api/v1/pipeline/status", ingestion: http.StatusNotFound, management: http.StatusOK},
 		{method: http.MethodGet, path: "/api/v1/events/search", ingestion: http.StatusNotFound},

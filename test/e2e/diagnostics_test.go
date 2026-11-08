@@ -57,7 +57,7 @@ func TestInvalidConfigIsRejectedWithoutEchoingValues(t *testing.T) {
 		core    launchOptions
 	}{
 		{name: "log_level", core: launchOptions{logLevel: echoed, logFormat: "json"}, outputs: webhook,
-			want: "log_level: must be trace/debug/info/warning/error"},
+			want: "log_level: must be debug/info/warn/error"},
 		{name: "log_format", core: launchOptions{logLevel: "info", logFormat: echoed}, outputs: webhook,
 			want: "log_format: must be text/json"},
 		{name: "database backend", core: withExtra("database:\n  backend: " + echoed + "\n"), outputs: webhook,

@@ -41,9 +41,9 @@ func registerStaticUI(app *fiber.App, assets fs.FS) {
 	app.Get("/*", spaFallback(assets))
 }
 
-// skipAPIPaths leaves the API and the readiness probe to their handlers.
+// skipAPIPaths leaves the API to its handlers.
 func skipAPIPaths(c fiber.Ctx) bool {
-	return strings.HasPrefix(c.Path(), "/api/") || c.Path() == "/healthz"
+	return strings.HasPrefix(c.Path(), "/api/")
 }
 
 func spaFallback(assets fs.FS) fiber.Handler {

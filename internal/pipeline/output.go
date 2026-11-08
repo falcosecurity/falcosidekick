@@ -428,6 +428,5 @@ func (o *Output) recordFailure(ctx context.Context, count int64, err error) {
 	o.outcome.Load().failedWith(count, err)
 	if o.metrics != nil {
 		o.metrics.RecordOutput(ctx, o.driver.Name(), "error", count, 0)
-		o.metrics.RecordError(ctx, o.driver.Name(), err)
 	}
 }
