@@ -1,0 +1,46 @@
+{
+  "outputs": [
+    {
+      "circuit_state": "",
+      "dropped_total": 0,
+      "events_per_minute": 0,
+      "failed_total": 0,
+      "last_error": "build output alertmanager: hosts: must be a valid URL",
+      "last_success": "0001-01-01T00:00:00Z",
+      "last_warning": "",
+      "name": "alertmanager",
+      "queue_capacity": 0,
+      "queue_depth": 0,
+      "sent_total": 0,
+      "status": "failed"
+    },
+    {
+      "circuit_state": "closed",
+      "dropped_total": 0,
+      "events_per_minute": 3,
+      "failed_total": 0,
+      "last_error": "",
+      "last_success": "2026-11-08T12:00:00Z",
+      "last_warning": "",
+      "name": "inmemory",
+      "queue_capacity": 100,
+      "queue_depth": 0,
+      "sent_total": 3,
+      "status": "ok"
+    },
+    {
+      "circuit_state": "closed",
+      "dropped_total": 0,
+      "events_per_minute": 0,
+      "failed_total": 3,
+      "last_error": "connection refused",
+      "last_success": "0001-01-01T00:00:00Z",
+      "last_warning": "",
+      "name": "webhook",
+      "queue_capacity": 100,
+      "queue_depth": 0,
+      "sent_total": 0,
+      "status": "error"
+    }
+  ]
+}

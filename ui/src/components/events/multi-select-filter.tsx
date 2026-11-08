@@ -105,7 +105,7 @@ export function MultiSelectFilter({
           <span className="flex items-center gap-2 truncate">
             <span className="truncate">{summary}</span>
             {count > 1 && (
-              <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+              <Badge variant="secondary" className="h-5 px-1.5 text-2xs">
                 {count}
               </Badge>
             )}
@@ -122,13 +122,13 @@ export function MultiSelectFilter({
           />
           {count > 0 && (
             <div className="flex items-center justify-between border-b px-2 py-1.5">
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 {count} selected
               </span>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-[11px]"
+                className="h-6 px-2 text-2xs"
                 onClick={clear}
               >
                 <X className="mr-1 size-3" aria-hidden />
@@ -198,7 +198,7 @@ function FilterItem({
         <span className="truncate">{option.label}</span>
       </span>
       {option.hint && (
-        <span className="text-[10px] text-muted-foreground">{option.hint}</span>
+        <span className="text-2xs text-muted-foreground">{option.hint}</span>
       )}
     </CommandItem>
   )

@@ -2,8 +2,9 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test"
 import { QueryClient } from "@tanstack/react-query"
 import userEvent from "@testing-library/user-event"
 
+import { AUTH_UNAVAILABLE_MESSAGE } from "@/lib/auth"
 import { useUIStore } from "@/stores/ui-store"
-import { act, cleanup, renderWithProviders, screen } from "@/test/test-utils"
+import { cleanup, renderWithProviders, screen } from "@/test/test-utils"
 
 import { TopBar } from "./top-bar"
 
@@ -11,7 +12,7 @@ let originalStore: ReturnType<typeof useUIStore.getState>
 
 beforeEach(() => {
   originalStore = useUIStore.getState()
-  useUIStore.setState({ authEnabled: false, sidebarCollapsed: true, refreshIntervalMs: 0 })
+  useUIStore.setState({ sidebarCollapsed: true, sidebarOpen: false, refreshIntervalMs: 0 })
 })
 
 afterEach(() => {
@@ -19,30 +20,38 @@ afterEach(() => {
   useUIStore.setState(originalStore, true)
 })
 
-describe("TopBar responsive controls", () => {
-  test("uses two stable mobile rows and one desktop row without hiding commands", () => {
+describe("TopBar", () => {
+  test("is a landmark with one row and a truncating title", () => {
     renderWithProviders(<TopBar />, { initialEntries: ["/pipeline"] })
-    const toggle = screen.getByRole("button", { name: "Toggle navigation sidebar" })
-    const grid = toggle.parentElement!
-    expect(grid).toHaveClass("grid", "h-24", "grid-rows-2", "grid-cols-[auto_minmax(0,1fr)]", "px-2")
-    expect(grid).toHaveClass("sm:h-14", "sm:grid-rows-1", "sm:grid-cols-[auto_minmax(0,1fr)_auto]", "sm:px-4")
-    expect(screen.getByText("Pipeline")).toHaveClass("min-w-0", "truncate")
+    const header = screen.getByRole("banner")
+    expect(header.firstElementChild).toHaveClass("flex", "h-14", "items-center")
+    expect(screen.getByText("Pipeline")).toHaveClass("min-w-0", "flex-1", "truncate")
     const controls = screen.getByRole("button", { name: "Switch to dark theme" }).parentElement!
-    expect(controls).toHaveClass("col-span-2", "sm:col-span-1", "gap-1", "sm:gap-2")
+    expect(controls).toHaveClass("shrink-0")
     expect(controls).toContainElement(screen.getByRole("button", { name: "Refresh all data now" }))
     expect(controls).toContainElement(screen.getByRole("combobox", { name: "Auto-refresh interval" }))
-    expect(controls).toContainElement(screen.getByLabelText(/Authentication disabled/))
-    expect(controls.parentElement).toBe(grid)
-    expect(screen.getByRole("button", { name: "Switch to dark theme" })).toBeVisible()
+    expect(controls).toContainElement(screen.getByLabelText(AUTH_UNAVAILABLE_MESSAGE))
   })
 
-  test("the navigation command still toggles the sidebar", async () => {
+  test("falls back to the product name on unknown routes", () => {
+    renderWithProviders(<TopBar />, { initialEntries: ["/nowhere"] })
+    expect(screen.getByText("Falcosidekick")).toBeInTheDocument()
+  })
+
+  test("opens the navigation sheet below md and toggles the rail at lg", async () => {
     renderWithProviders(<TopBar />)
     const user = userEvent.setup()
-    await user.click(screen.getByRole("button", { name: "Toggle navigation sidebar" }))
+    const opener = screen.getByRole("button", { name: "Open navigation" })
+    expect(opener).toHaveClass("md:hidden")
+    await user.click(opener)
+    expect(useUIStore.getState().sidebarOpen).toBe(true)
+
+    const collapse = screen.getByRole("button", { name: "Collapse navigation sidebar" })
+    expect(collapse).toHaveClass("hidden", "lg:inline-flex")
+    expect(collapse).toHaveAttribute("aria-pressed", "true")
+    await user.click(collapse)
     expect(useUIStore.getState().sidebarCollapsed).toBe(false)
-    await user.click(screen.getByRole("button", { name: "Toggle navigation sidebar" }))
-    expect(useUIStore.getState().sidebarCollapsed).toBe(true)
+    expect(collapse).toHaveAttribute("aria-pressed", "false")
   })
 
   test("the grouped refresh command still invalidates queries", async () => {
@@ -55,16 +64,5 @@ describe("TopBar responsive controls", () => {
     } finally {
       invalidate.mockRestore()
     }
-  })
-
-  test("auth-state updates preserve both the control group and its theme command", () => {
-    renderWithProviders(<TopBar />)
-    const theme = screen.getByRole("button", { name: "Switch to dark theme" })
-    const controls = theme.parentElement
-    act(() => useUIStore.setState({ authEnabled: true }))
-    expect(screen.queryByLabelText(/Authentication disabled/)).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Switch to dark theme" })).toBe(theme)
-    act(() => useUIStore.setState({ authEnabled: false }))
-    expect(controls).toContainElement(screen.getByLabelText(/Authentication disabled/))
   })
 })

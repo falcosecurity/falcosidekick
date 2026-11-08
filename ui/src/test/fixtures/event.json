@@ -1,0 +1,20 @@
+{
+  "hostname": "node-1",
+  "output": "Terminal shell in container (user=root container=nginx shell=bash)",
+  "output_fields": {
+    "container.name": "nginx",
+    "proc.name": "bash",
+    "proc.pid": 4242,
+    "user.name": "root"
+  },
+  "priority": "critical",
+  "rule": "Terminal shell in container",
+  "source": "syscall",
+  "tags": [
+    "container",
+    "shell",
+    "mitre_execution"
+  ],
+  "time": "2026-11-08T10:45:00Z",
+  "uuid": "00000000-0000-4000-8000-000000000001"
+}

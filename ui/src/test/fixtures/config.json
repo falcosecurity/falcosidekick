@@ -1,0 +1,48 @@
+{
+  "config": {
+    "api": {
+      "allow_writes": false,
+      "secret_dirs": []
+    },
+    "database": {
+      "backend": "inmemory",
+      "connect_timeout": 30000000000,
+      "postgres": {
+        "database": "",
+        "host": "",
+        "max_connections": 4,
+        "poll_interval": 10000000000,
+        "port": 5432,
+        "sslmode": "verify-full",
+        "tls": {},
+        "user": ""
+      },
+      "sqlite": {
+        "path": ""
+      }
+    },
+    "listen_address": "0.0.0.0",
+    "listen_port": 2801,
+    "log_format": "text",
+    "log_level": "info",
+    "management": {
+      "listen_address": "127.0.0.1",
+      "listen_port": 2802
+    },
+    "metrics": {
+      "extra_labels": [],
+      "max_label_values": 1000
+    },
+    "provisioning": {
+      "allow_ui_updates": false
+    },
+    "reload": {
+      "poll_interval": 30000000000,
+      "retire_timeout": 10000000000
+    },
+    "ui": {
+      "enabled": false,
+      "event_source": "inmemory"
+    }
+  }
+}

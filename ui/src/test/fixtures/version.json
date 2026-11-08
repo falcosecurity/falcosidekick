@@ -1,0 +1,6 @@
+{
+  "build_date": "2026-11-08T12:00:00Z",
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "go_version": "go1.26.0",
+  "version": "3.0.0-beta.1"
+}

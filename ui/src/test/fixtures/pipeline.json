@@ -1,0 +1,118 @@
+{
+  "layout": {
+    "nodes": [
+      {
+        "id": "source:falco",
+        "x": 0,
+        "y": 120
+      },
+      {
+        "id": "core:sidekick",
+        "x": 320,
+        "y": 120
+      },
+      {
+        "id": "sink:inmemory",
+        "x": 640,
+        "y": 0
+      },
+      {
+        "id": "sink:webhook",
+        "x": 640,
+        "y": 120.5
+      },
+      {
+        "id": "sink:alertmanager",
+        "x": 640,
+        "y": 240
+      }
+    ],
+    "updated_at": "2026-11-08T11:45:00Z"
+  },
+  "outputs": {
+    "alertmanager": {
+      "config": {
+        "hosts": [
+          "http://127.0.0.1:2899"
+        ]
+      },
+      "name": "alertmanager",
+      "provisioned": false,
+      "updated_at": "2026-11-08T11:30:00Z",
+      "version": 3
+    },
+    "inmemory": {
+      "config": {
+        "capacity": 5000
+      },
+      "name": "inmemory",
+      "provisioned": true,
+      "updated_at": "2026-11-08T11:00:00Z",
+      "version": 1
+    },
+    "webhook": {
+      "config": {
+        "endpoint": "/events",
+        "headers": {
+          "X-Api-Key": {
+            "values": [
+              "public"
+            ]
+          }
+        },
+        "host": "http://127.0.0.1:2899"
+      },
+      "name": "webhook",
+      "provisioned": false,
+      "secret_fields": {
+        "/headers/X-Api-Key/secrets": true
+      },
+      "updated_at": "2026-11-08T11:15:00Z",
+      "version": 2
+    }
+  },
+  "status": [
+    {
+      "circuit_state": "",
+      "dropped_total": 0,
+      "events_per_minute": 0,
+      "failed_total": 0,
+      "last_error": "build output alertmanager: hosts: must be a valid URL",
+      "last_success": "0001-01-01T00:00:00Z",
+      "last_warning": "",
+      "name": "alertmanager",
+      "queue_capacity": 0,
+      "queue_depth": 0,
+      "sent_total": 0,
+      "status": "failed"
+    },
+    {
+      "circuit_state": "closed",
+      "dropped_total": 0,
+      "events_per_minute": 3,
+      "failed_total": 0,
+      "last_error": "",
+      "last_success": "2026-11-08T12:00:00Z",
+      "last_warning": "",
+      "name": "inmemory",
+      "queue_capacity": 100,
+      "queue_depth": 0,
+      "sent_total": 3,
+      "status": "ok"
+    },
+    {
+      "circuit_state": "closed",
+      "dropped_total": 0,
+      "events_per_minute": 0,
+      "failed_total": 3,
+      "last_error": "connection refused",
+      "last_success": "0001-01-01T00:00:00Z",
+      "last_warning": "",
+      "name": "webhook",
+      "queue_capacity": 100,
+      "queue_depth": 0,
+      "sent_total": 0,
+      "status": "error"
+    }
+  ]
+}

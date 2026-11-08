@@ -1,5 +1,6 @@
-import { PRIORITY_LABELS, type Priority } from "@/lib/types"
+import { Badge } from "@/components/ui/badge"
 import { PRIORITY_LABEL_SHORT } from "@/lib/constants"
+import { PRIORITY_LABELS, type Priority } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 interface PriorityBadgeProps {
@@ -20,17 +21,10 @@ const TOKEN: Record<Priority, string> = {
 }
 
 export function PriorityBadge({ priority, short = true, className }: PriorityBadgeProps) {
-  const label = short ? PRIORITY_LABEL_SHORT[priority] : PRIORITY_LABELS[priority]
   return (
-    <span
-      aria-label={`priority ${priority}`}
-      className={cn(
-        "inline-flex items-center rounded border px-1.5 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide tabular-nums",
-        TOKEN[priority],
-        className,
-      )}
-    >
-      {label}
-    </span>
+    <Badge variant="priority" data-priority={priority} className={cn(TOKEN[priority], className)}>
+      <span className="sr-only">priority {priority}</span>
+      <span aria-hidden>{short ? PRIORITY_LABEL_SHORT[priority] : PRIORITY_LABELS[priority]}</span>
+    </Badge>
   )
 }

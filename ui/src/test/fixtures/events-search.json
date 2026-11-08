@@ -1,0 +1,61 @@
+{
+  "events": [
+    {
+      "hostname": "node-1",
+      "output": "Terminal shell in container (user=root container=nginx shell=bash)",
+      "output_fields": {
+        "container.name": "nginx",
+        "proc.name": "bash",
+        "proc.pid": 4242,
+        "user.name": "root"
+      },
+      "priority": "critical",
+      "rule": "Terminal shell in container",
+      "source": "syscall",
+      "tags": [
+        "container",
+        "shell",
+        "mitre_execution"
+      ],
+      "time": "2026-11-08T10:45:00Z",
+      "uuid": "00000000-0000-4000-8000-000000000001"
+    },
+    {
+      "hostname": "node-2",
+      "output": "Read sensitive file untrusted (file=/etc/shadow)",
+      "output_fields": {
+        "fd.name": "/etc/shadow",
+        "proc.name": "cat",
+        "user.name": "app"
+      },
+      "priority": "warning",
+      "rule": "Read sensitive file untrusted",
+      "source": "syscall",
+      "tags": [
+        "filesystem",
+        "mitre_credential_access"
+      ],
+      "time": "2026-11-08T10:30:00Z",
+      "uuid": "00000000-0000-4000-8000-000000000002"
+    },
+    {
+      "hostname": "unknown",
+      "output": "K8s secret read (user=system:serviceaccount:default:ci)",
+      "output_fields": {
+        "ka.target.name": "db-credentials",
+        "ka.user.name": "system:serviceaccount:default:ci"
+      },
+      "priority": "notice",
+      "rule": "K8s Secret Get Successfully",
+      "source": "k8s_audit",
+      "tags": [
+        "k8s"
+      ],
+      "time": "2026-11-08T10:15:00Z",
+      "uuid": "00000000-0000-4000-8000-000000000003"
+    }
+  ],
+  "limit": 10,
+  "page": 1,
+  "total": 3
+}

@@ -5,8 +5,8 @@ import { useUIStore } from "./ui-store"
 function resetStore() {
   useUIStore.setState({
     sidebarCollapsed: false,
+    sidebarOpen: false,
     refreshIntervalMs: 15_000,
-    authEnabled: null,
   })
 }
 
@@ -21,6 +21,15 @@ describe("ui-store", () => {
     expect(useUIStore.getState().sidebarCollapsed).toBe(!initial)
   })
 
+  test("setSidebarOpen drives the navigation sheet without being persisted", () => {
+    useUIStore.getState().setSidebarOpen(true)
+    expect(useUIStore.getState().sidebarOpen).toBe(true)
+    const persisted = JSON.parse(localStorage.getItem("falcosidekick-ui") ?? "{}") as { state?: Record<string, unknown> }
+    expect(persisted.state).not.toHaveProperty("sidebarOpen")
+    useUIStore.getState().setSidebarOpen(false)
+    expect(useUIStore.getState().sidebarOpen).toBe(false)
+  })
+
   test("setRefreshIntervalMs accepts 0 (off) and preset range", () => {
     useUIStore.getState().setRefreshIntervalMs(0)
     expect(useUIStore.getState().refreshIntervalMs).toBe(0)
@@ -30,15 +39,5 @@ describe("ui-store", () => {
     expect(useUIStore.getState().refreshIntervalMs).toBe(30_000)
     useUIStore.getState().setRefreshIntervalMs(900_000)
     expect(useUIStore.getState().refreshIntervalMs).toBe(30_000)
-  })
-
-  test("setAuthEnabled accepts tri-state", () => {
-    const set = useUIStore.getState().setAuthEnabled
-    set(true)
-    expect(useUIStore.getState().authEnabled).toBe(true)
-    set(false)
-    expect(useUIStore.getState().authEnabled).toBe(false)
-    set(null)
-    expect(useUIStore.getState().authEnabled).toBeNull()
   })
 })

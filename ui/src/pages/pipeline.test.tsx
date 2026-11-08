@@ -9,9 +9,7 @@ import { act, cleanup, renderWithProviders, screen } from "@/test/test-utils"
 
 import { PipelinePage } from "./pipeline"
 
-const composite: PipelineComposite = {
-  outputs: [], status: [], layout: { nodes: [], edges: [], version: 1, updated_at: "" },
-}
+const composite: PipelineComposite = { outputs: [], status: [], layout: { nodes: [], updated_at: "" } }
 const originalResizeObserver = window.ResizeObserver
 const observers: PageResizeObserver[] = []
 

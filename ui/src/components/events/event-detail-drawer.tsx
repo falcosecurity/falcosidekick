@@ -2,10 +2,12 @@ import { Copy, FileCode2, X } from "lucide-react"
 import { useRef } from "react"
 import { toast } from "sonner"
 
+import { SourceChip, TagChip } from "@/components/common/chips"
 import { ConfigTree } from "@/components/common/config-tree"
 import { PriorityBadge } from "@/components/common/priority-badge"
+import { SectionHeading } from "@/components/common/section-heading"
+import { StatTile } from "@/components/common/stat-tile"
 import { TimeAgo } from "@/components/common/time-ago"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
@@ -47,9 +49,7 @@ export function EventDetailDrawer({ event, open, onClose, onCloseAutoFocus }: Ev
         className="flex w-full flex-col gap-0 p-0 sm:max-w-xl"
         showCloseButton={false}
         onOpenAutoFocus={(e) => {
-          opener.current = document.activeElement instanceof HTMLElement
-            ? document.activeElement
-            : null
+          opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
           e.preventDefault()
           closeButton.current?.focus()
         }}
@@ -78,17 +78,12 @@ export function EventDetailDrawer({ event, open, onClose, onCloseAutoFocus }: Ev
             <SheetHeader className="gap-3 border-b pt-6 pr-14 pb-4 pl-6">
               <div className="flex items-start gap-3">
                 <PriorityBadge priority={event.priority} className="mt-0.5" />
-                <SheetTitle className="flex-1 text-base leading-snug">{event.rule}</SheetTitle>
+                <SheetTitle className="flex-1 text-base leading-snug [overflow-wrap:anywhere]">{event.rule}</SheetTitle>
               </div>
               <SheetDescription className="sr-only">{event.output}</SheetDescription>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <code className="rounded bg-muted px-1.5 py-0.5 font-mono">{event.uuid}</code>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 px-2"
-                  onClick={() => copyText(event.uuid, "UUID")}
-                >
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono [overflow-wrap:anywhere]">{event.uuid}</code>
+                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={() => copyText(event.uuid, "UUID")}>
                   <Copy className="mr-1 size-3" aria-hidden /> UUID
                 </Button>
                 <Button
@@ -104,41 +99,35 @@ export function EventDetailDrawer({ event, open, onClose, onCloseAutoFocus }: Ev
 
             <ScrollArea className="flex-1">
               <div className="flex flex-col gap-6 px-6 py-5">
-                <section className="grid grid-cols-2 gap-3">
-                  <MetaTile label="Time">
+                <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <StatTile label="Time" valueClassName="font-normal">
                     <div className="text-sm">{formatAbsoluteTime(event.time)}</div>
                     <div className="text-xs text-muted-foreground">
                       <TimeAgo value={event.time} />
                     </div>
-                  </MetaTile>
-                  <MetaTile label="Source">
-                    <Badge variant="outline" className="font-mono text-xs">
-                      {event.source}
-                    </Badge>
-                  </MetaTile>
+                  </StatTile>
+                  <StatTile label="Source" valueClassName="font-normal">
+                    <SourceChip source={event.source} />
+                  </StatTile>
                   {event.hostname && (
-                    <MetaTile label="Hostname">
-                      <code className="font-mono text-xs">{event.hostname}</code>
-                    </MetaTile>
+                    <StatTile label="Hostname" valueClassName="font-mono text-xs font-normal">
+                      {event.hostname}
+                    </StatTile>
                   )}
                   {event.tags && event.tags.length > 0 && (
-                    <MetaTile label="Tags">
+                    <StatTile label="Tags" valueClassName="font-normal">
                       <div className="flex flex-wrap gap-1">
-                        {event.tags.map((t) => (
-                          <Badge key={t} variant="secondary" className="text-[10px] font-normal">
-                            {t}
-                          </Badge>
+                        {event.tags.map((tag) => (
+                          <TagChip key={tag} tag={tag} />
                         ))}
                       </div>
-                    </MetaTile>
+                    </StatTile>
                   )}
-                </section>
+                </dl>
 
                 <section className="flex flex-col gap-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Rendered output
-                  </h3>
-                  <blockquote className="border-l-2 border-brand/60 bg-muted/40 px-3 py-2 text-sm leading-relaxed">
+                  <SectionHeading>Rendered output</SectionHeading>
+                  <blockquote className="border-l-2 border-brand/60 bg-muted/40 px-3 py-2 text-sm leading-relaxed [overflow-wrap:anywhere]">
                     {event.output}
                   </blockquote>
                 </section>
@@ -146,9 +135,7 @@ export function EventDetailDrawer({ event, open, onClose, onCloseAutoFocus }: Ev
                 <Separator />
 
                 <section className="flex flex-col gap-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Output fields
-                  </h3>
+                  <SectionHeading>Output fields</SectionHeading>
                   <ConfigTree data={event.output_fields} />
                 </section>
               </div>
@@ -157,16 +144,5 @@ export function EventDetailDrawer({ event, open, onClose, onCloseAutoFocus }: Ev
         )}
       </SheetContent>
     </Sheet>
-  )
-}
-
-function MetaTile({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border bg-card/50 p-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-1">{children}</div>
-    </div>
   )
 }

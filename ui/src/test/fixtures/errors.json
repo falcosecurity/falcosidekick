@@ -1,0 +1,44 @@
+{
+  "bad_request": {
+    "body": {
+      "error": "since must be a non-negative duration"
+    },
+    "status": 400
+  },
+  "database_not_configured": {
+    "body": {
+      "error": "database not configured"
+    },
+    "status": 503
+  },
+  "event_store_unavailable": {
+    "body": {
+      "error": "event store not available"
+    },
+    "status": 503
+  },
+  "not_found": {
+    "body": {
+      "error": "event not found"
+    },
+    "status": 404
+  },
+  "validation": {
+    "body": {
+      "error": "apply output: apply create: catalog: create \"slack\": slack: secret_endpoint: is required"
+    },
+    "status": 400
+  },
+  "version_conflict": {
+    "body": {
+      "error": "output 'webhook' changed since the version sent; read it again and retry"
+    },
+    "status": 409
+  },
+  "writes_disabled": {
+    "body": {
+      "error": "API writes are disabled (set api.allow_writes to enable)"
+    },
+    "status": 403
+  }
+}

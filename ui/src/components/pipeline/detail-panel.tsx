@@ -5,16 +5,23 @@ import falcoIcon from "@/assets/falco-icon.svg"
 import { ConfigTree } from "@/components/common/config-tree"
 import { EmptyState } from "@/components/common/empty-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
+import { Meter } from "@/components/common/meter"
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
+import { SectionHeading } from "@/components/common/section-heading"
+import { StatTile } from "@/components/common/stat-tile"
 import { StatusBadge } from "@/components/common/status-badge"
+import { TimeAgo } from "@/components/common/time-ago"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { useConfig, useVersion } from "@/hooks/use-config"
+import { useOutputs } from "@/hooks/use-pipeline"
+import { useRefetchInterval } from "@/hooks/use-refetch-interval"
 import { api } from "@/lib/api-client"
-import { formatDurationMs, formatNumber } from "@/lib/format"
-import { cn } from "@/lib/utils"
-import { statusOf, type OutputConfigEntry, type OutputStatus } from "@/lib/types"
-import { useUIStore } from "@/stores/ui-store"
+import { errorMessage } from "@/lib/api-error"
+import { formatAbsoluteTime, formatNumber } from "@/lib/format"
+import { driverOf, lastSuccessOf, statusOf, type OutputConfigEntry, type OutputStatus } from "@/lib/types"
+import { queueTone } from "@/components/dashboard/output-status-grid"
 
 import type { PipelineSelection } from "./canvas"
 
@@ -29,7 +36,9 @@ export function PipelineDetailPanel({ selection, entry, status }: DetailPanelPro
     return (
       <Card className="h-full min-w-0">
         <CardHeader className="min-w-0">
-          <CardTitle className="text-base">Detail</CardTitle>
+          <CardTitle asChild className="text-base">
+            <h2>Detail</h2>
+          </CardTitle>
           <CardDescription>Select any node in the pipeline to see its details.</CardDescription>
         </CardHeader>
       </Card>
@@ -49,28 +58,26 @@ function SourceDetail() {
             <img src={falcoIcon} alt="" aria-hidden className="size-6" />
           </span>
           <div>
-            <CardTitle className="text-base">Falco</CardTitle>
+            <CardTitle asChild className="text-base">
+              <h2>Falco</h2>
+            </CardTitle>
             <CardDescription>event source</CardDescription>
           </div>
         </div>
       </CardHeader>
       <ScrollArea className="min-h-0 min-w-0 flex-1 px-6 pb-6">
         <section className="flex flex-col gap-2 text-sm">
-          <p>
-            Falco sends events to this falcosidekick instance over HTTP.
-          </p>
+          <p>Falco sends events to this falcosidekick instance over HTTP.</p>
           <p className="text-muted-foreground">
-            Falco's <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">http_output</code>{" "}
-            posts detected events as JSON to <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">POST /</code>{" "}
-            on this server. There is no outbound connection from falcosidekick to Falco; the arrow
-            above represents the inbound event flow.
+            Falco's <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">http_output</code> posts
+            detected events as JSON to <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">POST /</code> on
+            this server. There is no outbound connection from falcosidekick to Falco; the arrow above represents
+            the inbound event flow.
           </p>
         </section>
         <Separator className="my-4" />
         <section className="flex flex-col gap-2 text-sm">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Endpoint
-          </h3>
+          <SectionHeading>Endpoint</SectionHeading>
           <code className="block rounded bg-muted p-2 font-mono text-xs">POST /</code>
           <p className="text-xs text-muted-foreground">
             Point your Falco <code>http_output.url</code> at this host and port.
@@ -82,40 +89,25 @@ function SourceDetail() {
 }
 
 function CoreDetail() {
-  const refreshIntervalMs = useUIStore((s) => s.refreshIntervalMs)
-  const refetchInterval = refreshIntervalMs > 0 ? refreshIntervalMs : false
-  const versionQuery = useQuery({
-    queryKey: ["version"],
-    queryFn: ({ signal }) => api.getVersion(signal),
-  })
-  const configQuery = useQuery({
-    queryKey: ["config"],
-    queryFn: ({ signal }) => api.getConfig(signal),
-    refetchInterval,
-  })
-  const outputsQuery = useQuery({
-    queryKey: ["pipeline", "outputs"],
-    queryFn: ({ signal }) => api.getOutputs(signal),
-    refetchInterval,
-  })
+  const versionQuery = useVersion()
+  const configQuery = useConfig()
+  const outputsQuery = useOutputs()
 
-  if (versionQuery.isError || configQuery.isError || outputsQuery.isError) {
-    return <EmptyState title="Unable to load pipeline details" />
-  }
-  if (versionQuery.isPending || configQuery.isPending || outputsQuery.isPending) {
-    return <LoadingSkeleton lines={5} />
+  const failure = [versionQuery, configQuery, outputsQuery].find((q) => q.isError)
+  if (failure) {
+    return <EmptyState title="Unable to load pipeline details" description={errorMessage(failure.error)} />
   }
   const version = versionQuery.data
-  const maskedConfig = configQuery.data
+  const config = configQuery.data?.config
   const outputs = outputsQuery.data
+  if (!version || !config || !outputs) {
+    return <LoadingSkeleton lines={5} />
+  }
 
-  const listenAddress =
-    (maskedConfig?.config?.["listen_address"] as string | undefined) ?? ""
-  const listenPort =
-    (maskedConfig?.config?.["listen_port"] as number | undefined) ?? 2801
-  const logLevel = (maskedConfig?.config?.["log_level"] as string | undefined) ?? ""
-  const database =
-    (maskedConfig?.config?.["database"] as { backend?: string } | undefined)?.backend ?? ""
+  const listenAddress = (config["listen_address"] as string | undefined) ?? ""
+  const listenPort = (config["listen_port"] as number | undefined) ?? 2801
+  const logLevel = (config["log_level"] as string | undefined) ?? ""
+  const database = (config["database"] as { backend?: string } | undefined)?.backend ?? ""
 
   return (
     <Card className="flex h-full min-h-0 min-w-0 flex-col">
@@ -125,37 +117,33 @@ function CoreDetail() {
             <Server className="size-5" aria-hidden />
           </span>
           <div>
-            <CardTitle className="text-base">Falco Sidekick</CardTitle>
+            <CardTitle asChild className="text-base">
+              <h2>Falco Sidekick</h2>
+            </CardTitle>
             <CardDescription>event pipeline</CardDescription>
           </div>
         </div>
       </CardHeader>
       <ScrollArea className="min-h-0 min-w-0 flex-1 px-6 pb-6">
         <section className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Build
-          </h3>
+          <SectionHeading>Build</SectionHeading>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
             <dt className="text-muted-foreground">Version</dt>
-            <dd className="font-mono">{version?.version ?? "unknown"}</dd>
-            {version?.commit && (
-              <>
-                <dt className="text-muted-foreground">Commit</dt>
-                <dd className="truncate font-mono text-xs">{version.commit}</dd>
-              </>
-            )}
+            <dd className="font-mono [overflow-wrap:anywhere]">{version.version}</dd>
+            <dt className="text-muted-foreground">Commit</dt>
+            <dd className="font-mono text-xs [overflow-wrap:anywhere]">{version.commit}</dd>
+            <dt className="text-muted-foreground">Built</dt>
+            <dd className="font-mono text-xs">{formatAbsoluteTime(version.build_date)}</dd>
+            <dt className="text-muted-foreground">Go</dt>
+            <dd className="font-mono text-xs">{version.go_version}</dd>
           </dl>
         </section>
         <Separator className="my-4" />
         <section className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Runtime
-          </h3>
+          <SectionHeading>Runtime</SectionHeading>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
             <dt className="text-muted-foreground">Listen</dt>
-            <dd className="font-mono">
-              {listenAddress ? `${listenAddress}:${listenPort}` : `:${listenPort}`}
-            </dd>
+            <dd className="font-mono">{listenAddress ? `${listenAddress}:${listenPort}` : `:${listenPort}`}</dd>
             {logLevel && (
               <>
                 <dt className="text-muted-foreground">Log level</dt>
@@ -169,7 +157,7 @@ function CoreDetail() {
               </>
             )}
             <dt className="text-muted-foreground">Outputs</dt>
-            <dd>{outputs?.length ?? 0}</dd>
+            <dd>{outputs.length}</dd>
           </dl>
         </section>
       </ScrollArea>
@@ -178,41 +166,42 @@ function CoreDetail() {
 }
 
 function OutputDetail({ entry, status }: { entry: OutputConfigEntry | null; status: OutputStatus | null }) {
-  const isInmemory = entry?.type === "inmemory" || entry?.name === "inmemory"
-  const inmemoryCapacity =
-    (entry?.config?.["capacity"] as number | undefined) ?? undefined
-  const refreshIntervalMs = useUIStore((s) => s.refreshIntervalMs)
+  const isInmemory = entry?.name === "inmemory"
+  const inmemoryCapacity = typeof entry?.config?.["capacity"] === "number" ? entry.config["capacity"] : undefined
+  const refetchInterval = useRefetchInterval()
 
   const eventsCountQuery = useQuery({
     queryKey: ["events", "count", "for-inmemory"],
     queryFn: ({ signal }) => api.countEvents({}, signal),
     enabled: isInmemory,
-    refetchInterval: isInmemory && refreshIntervalMs > 0 ? refreshIntervalMs : false,
+    refetchInterval: isInmemory ? refetchInterval : false,
   })
 
   if (!entry) {
     return (
       <Card className="h-full min-w-0">
         <CardHeader className="min-w-0">
-          <CardTitle className="text-base">Output detail</CardTitle>
+          <CardTitle asChild className="text-base">
+            <h2>Output detail</h2>
+          </CardTitle>
           <CardDescription>Output not found.</CardDescription>
         </CardHeader>
       </Card>
     )
   }
+  const lastSuccess = status ? lastSuccessOf(status) : null
   return (
     <Card className="flex h-full min-h-0 min-w-0 flex-col">
       <CardHeader className="min-w-0 shrink-0">
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
-            <OutputTypeIcon type={entry.type} name={entry.name} />
+            <OutputTypeIcon driver={driverOf(entry)} />
             <div className="min-w-0">
-              <CardTitle className="text-base leading-normal [overflow-wrap:anywhere]">{entry.name}</CardTitle>
+              <CardTitle asChild className="text-base leading-normal [overflow-wrap:anywhere]">
+                <h2>{entry.name}</h2>
+              </CardTitle>
               <CardDescription className="[overflow-wrap:anywhere]">
-                type: <span className="font-mono">{entry.type}</span>
-                {entry.provisioned && (
-                  <span className="ml-2 text-[11px] uppercase tracking-wide">file-provisioned</span>
-                )}
+                {entry.provisioned ? "from output files" : "created through the API"}
               </CardDescription>
             </div>
           </div>
@@ -222,66 +211,54 @@ function OutputDetail({ entry, status }: { entry: OutputConfigEntry | null; stat
       <ScrollArea className="min-h-0 min-w-0 flex-1 px-6 pb-6">
         {status && (
           <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Health
-            </h3>
+            <SectionHeading>Health</SectionHeading>
             <dl className="grid grid-cols-2 gap-2 text-sm">
-              <Stat label="Sent" value={formatNumber(status.sent_total)} tone="ok" />
-              <Stat
+              <StatTile label="Sent" value={formatNumber(status.sent_total)} tone="ok" />
+              <StatTile
                 label="Failed"
                 value={formatNumber(status.failed_total)}
                 tone={status.failed_total > 0 ? "error" : "neutral"}
               />
-              <Stat
+              <StatTile
                 label="Dropped"
                 value={formatNumber(status.dropped_total)}
                 tone={status.dropped_total > 0 ? "warning" : "neutral"}
               />
-              <Stat
+              <StatTile
                 label="Queue"
                 value={`${status.queue_depth} / ${status.queue_capacity}`}
-                tone={
-                  status.queue_capacity > 0 && status.queue_depth / status.queue_capacity > 0.75
-                    ? "warning"
-                    : "neutral"
-                }
-              />
-              <Stat
-                label="Evt/min"
-                value={formatNumber(Math.round(status.events_per_minute ?? 0))}
-              />
-              <Stat
-                label="p99 latency"
-                value={status.send_latency_p99_ms == null
-                  ? "Not available"
-                  : formatDurationMs(status.send_latency_p99_ms)}
-              />
-              <Stat
+                tone={queueTone(status.queue_depth, status.queue_capacity)}
+              >
+                <Meter
+                  value={status.queue_depth}
+                  max={status.queue_capacity}
+                  label={`Queue ${status.name}`}
+                  tone={queueTone(status.queue_depth, status.queue_capacity) === "warning" ? "warning" : "brand"}
+                  className="mt-1"
+                />
+              </StatTile>
+              <StatTile label="Evt/min" value={formatNumber(Math.round(status.events_per_minute))} />
+              <StatTile
                 label="Circuit"
-                value={status.circuit_state}
-                tone={
-                  status.circuit_state === "open" || status.circuit_state === "half-open"
-                    ? "warning"
-                    : "neutral"
-                }
+                value={status.circuit_state || "-"}
+                tone={status.circuit_state === "open" || status.circuit_state === "half-open" ? "warning" : "neutral"}
               />
+              <StatTile label="Last success" className="col-span-2" valueClassName="font-normal">
+                {lastSuccess ? <TimeAgo value={lastSuccess} /> : "never"}
+              </StatTile>
             </dl>
             {status.last_error && (
               <div className="mt-2 flex flex-col gap-1">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-status-error-foreground">
-                  Last error
-                </div>
-                <div className="rounded-md border border-status-error/30 bg-status-error/10 px-2 py-1.5 font-mono text-xs break-all text-status-error-foreground">
+                <SectionHeading className="text-2xs text-status-error-foreground">Last error</SectionHeading>
+                <div className="rounded-md border border-status-error/30 bg-status-error/10 px-2 py-1.5 font-mono text-xs text-status-error-foreground [overflow-wrap:anywhere]">
                   {status.last_error}
                 </div>
               </div>
             )}
             {status.last_warning && (
               <div className="mt-2 flex flex-col gap-1">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-status-degraded-foreground">
-                  Last warning
-                </div>
-                <div className="rounded-md border border-status-degraded/30 bg-status-degraded/10 px-2 py-1.5 font-mono text-xs break-all text-status-degraded-foreground">
+                <SectionHeading className="text-2xs text-status-degraded-foreground">Last warning</SectionHeading>
+                <div className="rounded-md border border-status-degraded/30 bg-status-degraded/10 px-2 py-1.5 font-mono text-xs text-status-degraded-foreground [overflow-wrap:anywhere]">
                   {status.last_warning}
                 </div>
               </div>
@@ -293,15 +270,13 @@ function OutputDetail({ entry, status }: { entry: OutputConfigEntry | null; stat
           <>
             {status && <Separator className="my-4" />}
             <section className="flex flex-col gap-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Ring buffer
-              </h3>
+              <SectionHeading>Ring buffer</SectionHeading>
               {eventsCountQuery.isError ? (
-                <EmptyState title="Unable to load ring-buffer usage" />
+                <EmptyState title="Unable to load ring-buffer usage" description={errorMessage(eventsCountQuery.error)} />
               ) : eventsCountQuery.isPending ? (
                 <LoadingSkeleton lines={2} />
               ) : (
-                <BufferMeter used={eventsCountQuery.data} capacity={inmemoryCapacity} />
+                <BufferUsage used={eventsCountQuery.data} capacity={inmemoryCapacity} />
               )}
             </section>
           </>
@@ -310,79 +285,29 @@ function OutputDetail({ entry, status }: { entry: OutputConfigEntry | null; stat
         <Separator className="my-4" />
 
         <section className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Configuration (masked)
-          </h3>
-          <ConfigTree data={entry.config} secretFields={entry.secret_fields} />
+          <SectionHeading>Configuration (masked)</SectionHeading>
+          <ConfigTree data={entry.config ?? {}} secretFields={entry.secret_fields} />
         </section>
       </ScrollArea>
     </Card>
   )
 }
 
-type StatTone = "ok" | "error" | "warning" | "neutral"
-
-const TONE_CLASS: Record<StatTone, { container: string; value: string }> = {
-  ok: {
-    container: "border-l-2 border-l-status-ok bg-muted/30",
-    value: "text-status-ok-foreground",
-  },
-  error: {
-    container: "border-l-2 border-l-status-error bg-status-error/10",
-    value: "text-status-error-foreground",
-  },
-  warning: {
-    container: "border-l-2 border-l-status-degraded bg-status-degraded/10",
-    value: "text-status-degraded-foreground",
-  },
-  neutral: {
-    container: "border-l-2 border-l-border bg-muted/30",
-    value: "text-foreground",
-  },
-}
-
-function BufferMeter({ used, capacity }: { used: number; capacity: number }) {
+function BufferUsage({ used, capacity }: { used: number; capacity: number }) {
   const pct = capacity > 0 ? Math.min(100, (used / capacity) * 100) : 0
-  const tone: StatTone = pct > 90 ? "warning" : "ok"
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
         <span className="text-muted-foreground">Events stored</span>
-        <span className="tabular-nums font-medium">
+        <span className="font-medium tabular-nums">
           {formatNumber(used)} / {formatNumber(capacity)}
         </span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            tone === "warning" ? "bg-status-degraded" : "bg-status-ok",
-          )}
-          style={{ width: `${Math.max(2, pct)}%` }}
-        />
-      </div>
+      <Meter value={used} max={capacity} label="Events stored" size="md" tone={pct > 90 ? "warning" : "ok"} />
       <div className="text-xs text-muted-foreground">
         {pct.toFixed(1)}% of ring capacity.
         {pct >= 100 && " Oldest events are being overwritten."}
       </div>
-    </div>
-  )
-}
-
-function Stat({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string
-  value: string
-  tone?: StatTone
-}) {
-  const t = TONE_CLASS[tone]
-  return (
-    <div className={cn("flex min-w-0 flex-col rounded-md px-2 py-1.5 [overflow-wrap:anywhere]", t.container)}>
-      <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</dt>
-      <dd className={cn("tabular-nums font-medium", t.value)}>{value}</dd>
     </div>
   )
 }
