@@ -1,0 +1,32 @@
+listen_address: localhost
+listen_port: 2801
+
+log_level: info
+log_format: text
+
+ui:
+  enabled: true
+  event_source: inmemory
+
+database:
+  backend: inmemory
+
+provisioning:
+  allow_ui_updates: true
+
+runtime_defaults:
+  workers: 2
+  queue_size: 1000
+  minimum_priority: informational
+  retry:
+    max_attempts: 3
+    initial_interval: 100ms
+    max_interval: 2s
+    multiplier: 2.0
+  circuit_breaker:
+    failure_threshold: 5
+    success_threshold: 2
+    reset_timeout: 30s
+
+reload:
+  poll_interval: 0s

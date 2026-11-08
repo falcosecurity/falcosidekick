@@ -14,44 +14,27 @@ import (
 
 type influxdbPayload string
 
-// Escapers for the InfluxDB line protocol:
-// https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/#special-characters
-var (
-	influxdbTagEscaper   = strings.NewReplacer(",", `\,`, "=", `\=`, " ", `\ `, "\n", `\n`)
-	influxdbFieldEscaper = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
-)
-
-func influxdbTag(key, value string) string {
-	if value == "" {
-		return ""
-	}
-	return "," + influxdbTagEscaper.Replace(key) + "=" + influxdbTagEscaper.Replace(value)
-}
-
 func newInfluxdbPayload(falcopayload types.FalcoPayload) influxdbPayload {
-	s := "events" +
-		influxdbTag("rule", strings.ReplaceAll(falcopayload.Rule, " ", "_")) +
-		influxdbTag("priority", falcopayload.Priority.String()) +
-		influxdbTag("source", falcopayload.Source)
+	s := "events,rule=" + strings.Replace(falcopayload.Rule, " ", "_", -1) + ",priority=" + falcopayload.Priority.String() + ",source=" + falcopayload.Source
 
 	for i, j := range falcopayload.OutputFields {
 		switch v := j.(type) {
 		case string:
-			s += influxdbTag(i, strings.ReplaceAll(v, " ", "_"))
+			s += "," + i + "=" + strings.Replace(v, " ", "_", -1)
 		default:
 			continue
 		}
 	}
 
 	if falcopayload.Hostname != "" {
-		s += influxdbTag(Hostname, falcopayload.Hostname)
+		s += "," + Hostname + "=" + falcopayload.Hostname
 	}
 
 	if len(falcopayload.Tags) != 0 {
-		s += influxdbTag("tags", strings.Join(falcopayload.Tags, "_"))
+		s += ",tags=" + strings.Join(falcopayload.Tags, "_")
 	}
 
-	s += " value=\"" + influxdbFieldEscaper.Replace(falcopayload.Output) + "\""
+	s += " value=\"" + falcopayload.Output + "\""
 
 	return influxdbPayload(s)
 }

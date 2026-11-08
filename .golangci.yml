@@ -1,37 +1,153 @@
 version: "2"
+run:
+  allow-parallel-runners: true
 linters:
   default: none
   enable:
+    - asciicheck
+    - bodyclose
+    - copyloopvar
+    - dogsled
+    - dupl
+    - errcheck
+    - errorlint
+    - exhaustive
     - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - goheader
+    - goprintffuncname
     - gosec
     - govet
     - ineffassign
+    - lll
     - misspell
     - nakedret
+    - noctx
+    - nolintlint
     - prealloc
+    - revive
+    - staticcheck
     - unconvert
+    - unparam
     - unused
+    - whitespace
   settings:
-    gosec:
-      excludes:
-        - G115
-        - G117
-        - G704
+    dupl:
+      threshold: 300
+    exhaustive:
+      default-signifies-exhaustive: true
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    staticcheck:
+      checks: ["all", "-QF1008"]
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    goheader:
+      values:
+        const:
+          AUTHORS: The Falco Authors
+      template: |-
+        Copyright (C) {{ YEAR }} {{ AUTHORS }}
+
+        Licensed under the Apache License, Version 2.0 (the "License");
+        you may not use this file except in compliance with the License.
+        You may obtain a copy of the License at
+
+            http://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software
+        distributed under the License is distributed on an "AS IS" BASIS,
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        See the License for the specific language governing permissions and
+        limitations under the License.
+
+        SPDX-License-Identifier: Apache-2.0
+    govet:
+      enable-all: true
+    lll:
+      line-length: 150
+    misspell:
+      locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+    revive:
+      rules:
+        - name: optimize-operands-order
+        - name: identical-branches
+        - name: comment-spacings
+        - name: package-comments
+        - name: range
+        - name: range-val-address
+        - name: receiver-naming
+        - name: range-val-in-closure
+        - name: superfluous-else
+        - name: unhandled-error
+        - name: exported
+          arguments:
+            - disableStutteringCheck
   exclusions:
     generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
+    rules:
+      - linters:
+          - lll
+        path: api/*
+      - linters:
+          - dupl
+          - lll
+        path: internal/*
+      - linters:
+          - govet
+        text: declaration of "(err|ctx)" shadows declaration at
+      - linters:
+          - errorlint
+        text: type switch on error will fail on wrapped errors. Use errors.As to check for specific errors
+      - linters:
+          - gosec
+        path: _test\.go
+      - linters:
+          - gocyclo
+        path: main.go
+      - linters:
+          - goheader
+        path: _test\.go
+      - linters:
+          - errcheck
+        path: _test\.go
+        text: Error return value of .*.Close.* is not checked
+      - linters:
+          - misspell
+        text: "`mitre` is a misspelling"
     paths:
       - zz_generated.*\.go$
       - third_party$
       - builtin$
       - examples$
+      - ui/
+      - internal/pkg/
 formatters:
   enable:
+    - gci
     - gofmt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/falcosecurity/falcosidekick)
+    goimports:
+      local-prefixes:
+        - github.com/falcosecurity/falcosidekick
   exclusions:
     generated: lax
     paths:
@@ -39,3 +155,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - ui/

@@ -1,0 +1,153 @@
+# falcosidekick v3.0 - output configuration (outputs.yaml)
+#
+# Defines which outputs receive Falco events.
+# Multiple output files can be merged with repeated -o flags.
+# Files are processed left-to-right; same output names deep-merge.
+#
+# Secret fields support _file suffix for file-backed secrets:
+#   password_file: /run/secrets/es-password  (reads file content as password)
+#   Direct values take precedence over _file when both are set.
+#
+# Per-output runtime overrides (under the runtime: sub-key):
+#   runtime:
+#     minimum_priority: ""             # minimum event priority (empty = all)
+#     queue_size: 1000                 # override runtime_defaults
+#     workers: 2                       # override runtime_defaults
+#     batching:
+#       enabled: false
+#       batch_size: 500
+#       flush_interval: 1s
+#
+# Target fields (available to all HTTP-based outputs unless noted):
+#   host:                 scheme, host and port only, e.g. https://collector:8443
+#                         Credentials, path, query and fragment are rejected.
+#   base_path:            public prefix applied to every route of the output,
+#                         including health checks. A trailing slash is removed.
+#   endpoint:             public delivery path, relative to base_path
+#   secret_endpoint:      delivery path holding a credential (or secret_endpoint_file)
+#                         Never returned by the API. Cannot be combined with endpoint.
+#   query_params:         values, then secrets, then files for each parameter
+#     team:
+#       values: ["security"]
+#     token:
+#       secrets: ["TOKEN"]
+#     signature:
+#       files: ["/run/secrets/signature"]  # read and trimmed on each request
+#   # Names and values are escaped. Files are checked at startup.
+#
+# Shared HTTP fields (available to all HTTP-based outputs):
+#   username:             basic auth username
+#   password:             basic auth password (or password_file)
+#   bearer_token:         bearer token (or bearer_token_file)
+#   headers:              values, then secrets, then files for each header
+#     X-Team:
+#       values: ["security"]
+#     X-Api-Key:
+#       secrets: ["TOKEN"]
+#     X-Client-Key:
+#       files: ["/run/secrets/client-key"]  # read and trimmed on each request
+#   # Files are checked at startup by config validation and sender construction.
+#   # Relative paths use the process working directory, as scalar _file does.
+#   # Authorization must use secrets or files, without basic/bearer auth.
+#   # Header names are case-insensitive; duplicate names are rejected.
+#   # Each entry accepts only values/secrets/files string lists (or null to clear).
+#   # Duplicate case aliases of those properties are rejected.
+#   # Framing, connection, proxy and compression headers are transport-owned.
+#   # Custom secret headers follow redirects, including redirects to other origins.
+#   tls:
+#     insecure_skip_verify: false
+#     ca_file: ""
+#     cert_file: ""
+#     key_file: ""
+#     server_name: ""
+
+outputs:
+
+  # ===========================================================================
+  # In-memory Event Store
+  # Required when ui.event_source is "inmemory".
+  # ===========================================================================
+
+  # inmemory:
+  #   capacity: 10000                    # max events in ring buffer
+  #   ttl: 0                             # event TTL (0 = no expiry)
+  #   gc_interval: 10s                   # garbage collection interval
+
+  # ===========================================================================
+  # Webhook
+  # ===========================================================================
+
+  # webhook:
+  #   host: "https://my-service"
+  #   endpoint: /events                  # default: /
+  #   method: POST                       # POST (default) or PUT
+
+  # ===========================================================================
+  # Slack
+  # ===========================================================================
+
+  # slack:
+  #   # host: "https://hooks.slack.com"  # default
+  #   secret_endpoint: /services/XXX/YYY/ZZZ
+  #   # secret_endpoint_file: /run/secrets/slack-endpoint
+  #   channel: "#security-alerts"
+  #   bot_username: "Falcosidekick"
+  #   output_format: all                 # all, fields, text
+  #   runtime:
+  #     minimum_priority: warning
+
+  # ===========================================================================
+  # Elasticsearch (with runtime overrides)
+  # ===========================================================================
+
+  # elasticsearch:
+  #   host: "https://elasticsearch:9200"
+  #   # base_path: /es                   # routes are set by the output
+  #   # filter_path and pipeline are not allowed in query_params
+  #   # password_file: /run/secrets/es-password
+  #   # api_key_file: /run/secrets/es-api-key
+  #   index: falco
+  #   index_suffix: daily                # daily, monthly, annually, none
+  #   runtime:
+  #     queue_size: 5000
+  #     workers: 3
+  #     batching:
+  #       enabled: true
+  #       batch_size: 1000
+  #       flush_interval: 1s
+
+  # ===========================================================================
+  # Loki
+  # ===========================================================================
+
+  # loki:
+  #   host: "http://loki:3100"
+  #   # endpoint: /loki/api/v1/push      # default
+  #   tenant: "security"
+  #   runtime:
+  #     minimum_priority: notice
+
+  # ===========================================================================
+  # Alertmanager
+  # ===========================================================================
+
+  # alertmanager:
+  #   hosts:
+  #     - "http://alertmanager:9093"     # scheme, host and port only
+  #   # base_path: /alertmanager         # same for every host
+  #   # endpoint: /api/v2/alerts         # default
+  #   runtime:
+  #     minimum_priority: warning
+
+  # ===========================================================================
+  # Kafka
+  # ===========================================================================
+
+  # kafka:
+  #   brokers:
+  #     - "kafka:9092"
+  #   topic: "falco-events"
+  #   auth:
+  #     sasl: plain
+  #     username: falcosidekick
+  #     password_file: /run/secrets/kafka-password

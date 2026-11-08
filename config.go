@@ -103,7 +103,7 @@ var httpOutputDefaults = map[string]map[string]any{
 		"Endpoint":                 "/api/v2/alerts",
 		"ExpiresAfter":             0,
 		"DropEventDefaultPriority": "critical",
-		"DropEventThresholds":      "10000:critical, 1000:critical, 100:critical, 10:warning, 1:warning",
+		"DropEventThresholds":      "10000:critical: 1000:critical: 100:critical: 10:warning: 1:warning",
 	},
 	"Elasticsearch": {
 		"ApiKey":                 "",
@@ -165,12 +165,10 @@ var httpOutputDefaults = map[string]map[string]any{
 		"ClusterID":       "",
 		"ClientID":        "",
 		"SubjectTemplate": "falco.<priority>.<rule>",
-		"MinimumPriority": "",
 	},
 	"NATS": {
 		"HostPort":        "",
 		"SubjectTemplate": "falco.<priority>.<rule>",
-		"MinimumPriority": "",
 	},
 	"Opsgenie": {
 		"Region":          "us",
@@ -337,14 +335,14 @@ var outputDefaults = map[string]map[string]any{
 		"MinimumPriority": "",
 	},
 	"Wavefront": {
-		"EndpointType":         "",
-		"EndpointHost":         "",
-		"EndpointToken":        "",
-		"MetricName":           "falco.alert",
-		"EndpointMetricPort":   2878,
-		"MinimumPriority":      "",
-		"FlushIntervalSeconds": 1,
-		"BatchSize":            10000,
+		"EndpointType":        "",
+		"EndpointHost":        "",
+		"EndpointToken":       "",
+		"MetricName":          "falco.alert",
+		"EndpointMetricPort":  2878,
+		"MinimumPriority":     "",
+		"FlushIntervalSecods": 1,
+		"BatchSize":           10000,
 	},
 	"Syslog": {
 		"Host":            "",
@@ -592,7 +590,7 @@ func getConfig() *types.Configuration {
 	v.SetDefault("Yandex.S3.Endpoint", "https://storage.yandexcloud.net")
 	v.SetDefault("Yandex.S3.Bucket", "")
 	v.SetDefault("Yandex.S3.Prefix", "falco")
-	v.SetDefault("Yandex.S3.MinimumPriority", "")
+	v.SetDefault("Yamdex.S3.MinimumPriority", "")
 
 	v.SetDefault("Yandex.DataStreams.Endpoint", "https://yds.serverless.yandexcloud.net")
 	v.SetDefault("Yandex.DataStreams.StreamName", "")
@@ -903,7 +901,34 @@ func getConfig() *types.Configuration {
 	}
 
 	if c.Alertmanager.DropEventThresholds != "" {
-		c.Alertmanager.DropEventThresholdsList = parseDropEventThresholds(c.Alertmanager.DropEventThresholds)
+		c.Alertmanager.DropEventThresholdsList = make([]types.ThresholdConfig, 0)
+		thresholds := strings.Split(strings.ReplaceAll(c.Alertmanager.DropEventThresholds, " ", ""), ",")
+		for _, threshold := range thresholds {
+			values := strings.SplitN(threshold, ":", 2)
+			if len(values) != 2 {
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Fail to parse threshold - No priority given for threshold %v", threshold))
+				continue
+			}
+			valueString := strings.TrimSpace(values[0])
+			valueInt, err := strconv.ParseInt(valueString, 10, 64)
+			if len(values) != 2 || err != nil {
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Fail to parse threshold - Atoi fail %v", threshold))
+				continue
+			}
+			if p := strings.TrimSpace(values[1]); p == "" {
+				utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Priority '%v' is not a valid falco priority level", p))
+				continue
+			}
+			priority := types.Priority(strings.TrimSpace(values[1]))
+			c.Alertmanager.DropEventThresholdsList = append(c.Alertmanager.DropEventThresholdsList, types.ThresholdConfig{Priority: priority, Value: valueInt})
+		}
+	}
+
+	if len(c.Alertmanager.DropEventThresholdsList) > 0 {
+		sort.Slice(c.Alertmanager.DropEventThresholdsList, func(i, j int) bool {
+			// The `>` is used to sort in descending order. If you want to sort in ascending order, use `<`.
+			return c.Alertmanager.DropEventThresholdsList[i].Value > c.Alertmanager.DropEventThresholdsList[j].Value
+		})
 	}
 
 	if c.Telegram.Host == "" {
@@ -983,38 +1008,6 @@ func getConfig() *types.Configuration {
 	c.Cliq.MessageFormatTemplate = getMessageFormatTemplate("Cliq", c.Cliq.MessageFormat)
 
 	return c
-}
-
-// parseDropEventThresholds parses a comma separated list of "<value>:<priority>"
-// thresholds and returns them sorted by descending value.
-func parseDropEventThresholds(s string) []types.ThresholdConfig {
-	list := make([]types.ThresholdConfig, 0)
-	thresholds := strings.Split(strings.ReplaceAll(s, " ", ""), ",")
-	for _, threshold := range thresholds {
-		values := strings.SplitN(threshold, ":", 2)
-		if len(values) != 2 {
-			utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Fail to parse threshold - No priority given for threshold %v", threshold))
-			continue
-		}
-		valueString := strings.TrimSpace(values[0])
-		valueInt, err := strconv.ParseInt(valueString, 10, 64)
-		if len(values) != 2 || err != nil {
-			utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Fail to parse threshold - Atoi fail %v", threshold))
-			continue
-		}
-		if p := strings.TrimSpace(values[1]); p == "" {
-			utils.Log(utils.ErrorLvl, "AlertManager", fmt.Sprintf("Priority '%v' is not a valid falco priority level", p))
-			continue
-		}
-		priority := types.Priority(strings.TrimSpace(values[1]))
-		list = append(list, types.ThresholdConfig{Priority: priority, Value: valueInt})
-	}
-
-	sort.Slice(list, func(i, j int) bool {
-		// The `>` is used to sort in descending order. If you want to sort in ascending order, use `<`.
-		return list[i].Value > list[j].Value
-	})
-	return list
 }
 
 func checkPriority(prio string) string {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/DataDog/datadog-go/statsd"
 	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
@@ -20,10 +20,10 @@ func NewStatsdClient(outputType string, config *types.Configuration, stats *type
 	var fwd string
 	switch outputType {
 	case "StatsD":
-		statsdClient, err = statsd.New(config.Statsd.Forwarder, statsd.WithNamespace(config.Statsd.Namespace), statsd.WithTags(config.Statsd.Tags), statsd.WithoutOriginDetection())
+		statsdClient, err = statsd.New(config.Statsd.Forwarder, statsd.WithNamespace(config.Statsd.Namespace), statsd.WithTags(config.Statsd.Tags))
 		fwd = config.Statsd.Forwarder
 	case "DogStatsD":
-		statsdClient, err = statsd.New(config.Dogstatsd.Forwarder, statsd.WithNamespace(config.Dogstatsd.Namespace), statsd.WithTags(config.Dogstatsd.Tags), statsd.WithoutOriginDetection())
+		statsdClient, err = statsd.New(config.Dogstatsd.Forwarder, statsd.WithNamespace(config.Dogstatsd.Namespace), statsd.WithTags(config.Dogstatsd.Tags))
 		fwd = config.Dogstatsd.Forwarder
 	}
 	if err != nil {

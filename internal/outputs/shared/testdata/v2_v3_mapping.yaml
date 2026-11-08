@@ -1,0 +1,35 @@
+# Input for the v2-to-v3 migrator. Each case maps a v2 output address to the
+# v3 target fields. The migrator itself is out of scope; only the v3 side is tested.
+- output: webhook
+  v2: {address: "https://collector.example:8443/gateway/events?team=security&token=TOKEN"}
+  v3:
+    host: "https://collector.example:8443"
+    endpoint: /gateway/events
+    query_params:
+      team: {values: [security]}
+      token: {secrets: [TOKEN]}
+- output: slack
+  v2: {webhookurl: "https://hooks.slack.com/services/T000/B000/XXXX"}
+  v3:
+    secret_endpoint: /services/T000/B000/XXXX
+- output: slack
+  v2: {webhookurl: "https://slack-proxy.example/hooks/XXXX"}
+  v3:
+    host: "https://slack-proxy.example"
+    secret_endpoint: /hooks/XXXX
+- output: loki
+  v2: {hostport: "https://loki.example/tenant-a", endpoint: /loki/api/v1/push}
+  v3:
+    host: "https://loki.example"
+    base_path: /tenant-a
+    endpoint: /loki/api/v1/push
+- output: elasticsearch
+  v2: {hostport: "https://proxy.example/es"}
+  v3:
+    host: "https://proxy.example"
+    base_path: /es
+- output: alertmanager
+  v2: {hostport: ["https://am-1.example/alertmanager", "https://am-2.example/alertmanager"]}
+  v3:
+    hosts: ["https://am-1.example", "https://am-2.example"]
+    base_path: /alertmanager

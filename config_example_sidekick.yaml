@@ -1,0 +1,102 @@
+# falcosidekick v3.0 - core configuration (sidekick.yaml)
+#
+# Server, logging, TLS, database, UI, enrichment, and runtime defaults.
+# Outputs are configured separately via -o flag (see config_example_outputs.yaml).
+#
+# Usage: falcosidekick -c sidekick.yaml -o outputs.yaml [-o more-outputs.yaml]
+
+# =============================================================================
+# Server
+# =============================================================================
+
+listen_address: "0.0.0.0"    # IP address to bind (empty = all interfaces)
+listen_port: 2801             # HTTP port for receiving Falco events
+
+# =============================================================================
+# Logging
+# Log level can be overridden via FALCOSIDEKICK_LOG_LEVEL env var.
+# =============================================================================
+
+log_level: info               # trace, debug, info, warning, error
+log_format: text              # text (human-readable), json (structured)
+
+# =============================================================================
+# Server TLS
+# When enabled, Falco must be configured to send events over HTTPS.
+# Client TLS for outputs is configured per-output under tls: sub-key.
+# =============================================================================
+
+# tls:
+#   enabled: false                       # enable HTTPS listener
+#   cert_file: /etc/certs/server.crt     # server certificate
+#   key_file: /etc/certs/server.key      # server private key
+#   mutual_tls: false                    # require client certificate
+#   ca_file: /etc/certs/ca.crt           # CA for client cert verification
+
+# =============================================================================
+# Database
+# Backend for config persistence. Re-provisioned from files on restart.
+# =============================================================================
+
+database:
+  backend: inmemory           # inmemory (default), sqlite, postgres
+
+# =============================================================================
+# UI
+# Built-in web interface for event visualization and pipeline monitoring.
+# event_source selects which output serves event queries for the UI.
+# =============================================================================
+
+# ui:
+#   enabled: false                       # enable the web UI
+#   event_source: inmemory               # output name implementing ReadableStore
+
+# =============================================================================
+# Enrichment
+# Fields, tags, and templates added to every event before dispatch.
+# =============================================================================
+
+# enricher:
+#   customfields:                        # static fields added to every event
+#     environment: production
+#     cluster: us-west-2
+#   customtags:                          # static tags added to every event
+#     - security
+#   templatedfields:                     # Go template fields (event.OutputFields as data)
+#     namespace: '{{ or (index . "k8s.ns.name") "unknown" }}'
+#   bracketreplacer: "_"                 # replace [ and ] in field names
+#   truncate_event_threshold: 4096       # max event JSON size before truncating fields (0 = disabled)
+#   truncate_field_threshold: 512        # max field length before truncating (must be > 5 when event truncation enabled)
+
+# =============================================================================
+# Hot-Reload
+# Output config files (-o) are watched for changes and reloaded automatically.
+# Core config (this file) requires a restart. Triggers: fsnotify, SIGHUP, polling.
+# =============================================================================
+
+# reload:
+#   poll_interval: 30s             # content hash poll for K8s ConfigMap symlink swaps (0 disables)
+#   retire_timeout: 10s            # max wait for old output workers to drain during reload replace/remove
+
+# =============================================================================
+# Runtime Defaults
+# Default runtime settings applied to ALL outputs.
+# Individual outputs can override these under their runtime: sub-key.
+# =============================================================================
+
+runtime_defaults:
+  queue_size: 1000            # per-output event queue capacity
+  workers: 2                  # worker goroutines per output
+  retry:
+    max_attempts: 3           # retries before marking event as failed
+    initial_interval: 1s      # first retry backoff
+    max_interval: 30s         # maximum retry backoff
+    multiplier: 2.0           # exponential backoff multiplier
+  circuit_breaker:
+    failure_threshold: 5      # consecutive failures to open circuit
+    success_threshold: 2      # successes in half-open to close circuit
+    reset_timeout: 30s        # time before half-open after open
+  batching:
+    enabled: false            # enable batch delivery (outputs must implement BatchSender)
+    batch_size: 500           # events per batch
+    flush_interval: 1s        # max time before flushing partial batch

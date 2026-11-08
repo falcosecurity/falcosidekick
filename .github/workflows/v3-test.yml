@@ -1,0 +1,105 @@
+name: v3-tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches:
+      - development
+    tags:
+      - "v3.*"
+  pull_request:
+    branches:
+      - development
+
+permissions: {}
+
+jobs:
+  v3-lint:
+    uses: ./.github/workflows/v3-lint.yml
+    permissions:
+      contents: read
+
+  v3-unit-tests:
+    name: v3 Go + UI tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version: '1.26'
+          cache: false
+          check-latest: true
+
+      - uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.2
+        with:
+          bun-version: '1.3'
+
+      - name: Install UI dependencies
+        working-directory: ui
+        run: bun install --frozen-lockfile
+
+      - name: Lint UI
+        working-directory: ui
+        run: bun run lint
+
+      - name: Typecheck UI
+        working-directory: ui
+        run: bun run typecheck
+
+      - name: Test UI
+        id: ui-tests
+        working-directory: ui
+        run: bun test
+
+      - name: Build UI
+        working-directory: ui
+        run: bun run build
+
+      - name: Run v3 Go tests (default build)
+        run: go test -race -count=1 ./internal/... ./cmd/... ./ui ./hack
+
+      - name: Run v3 Go tests (-tags=builtinui)
+        run: go test -race -count=1 -tags=builtinui ./internal/... ./cmd/... ./ui
+
+      - name: Check release configuration
+        id: release-config
+        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
+        with:
+          version: v2.18.2
+          args: check --config .goreleaser.v3.yml
+
+      - name: v3 coverage (minimum 80% per package)
+        id: coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          export LC_ALL=C
+          mkdir -p dist/coverage
+          for package in ./internal/api ./cmd/falcosidekick; do
+            profile="dist/coverage/${package##*/}.out"
+            go test -count=1 -coverprofile="$profile" "$package"
+            go tool cover -func="$profile" | tee "${profile%.out}.txt" | awk -v package="$package" '
+              $1 == "total:" {
+                count++
+                if ($3 !~ /^[0-9]+([.][0-9]+)?%$/) invalid = 1
+                coverage = $3
+                sub(/%$/, "", coverage)
+                if (coverage + 0 < 80 || coverage + 0 > 100) invalid = 1
+                printf "%s: %s coverage (minimum 80%%)\n", package, $3
+              }
+              END {
+                if (count != 1 || invalid) {
+                  printf "::error::%s failed the coverage gate\n", package
+                  exit 1
+                }
+              }
+            '
+          done
