@@ -2,18 +2,19 @@ import { useQuery } from "@tanstack/react-query"
 import { useEffect } from "react"
 
 import { api } from "@/lib/api-client"
-import type { OutputStatus, PipelineComposite } from "@/lib/types"
+import type { OutputConfigEntry, OutputStatus, PipelineComposite } from "@/lib/types"
 import { usePipelineStore } from "@/stores/pipeline-store"
-import { useUIStore } from "@/stores/ui-store"
+
+import { useRefetchInterval } from "./use-refetch-interval"
 
 export function usePipelineComposite() {
   const setComposite = usePipelineStore((s) => s.setComposite)
-  const refreshIntervalMs = useUIStore((s) => s.refreshIntervalMs)
+  const refetchInterval = useRefetchInterval()
 
   const query = useQuery<PipelineComposite>({
     queryKey: ["pipeline", "composite"],
     queryFn: ({ signal }) => api.getPipeline(signal),
-    refetchInterval: refreshIntervalMs > 0 ? refreshIntervalMs : false,
+    refetchInterval,
   })
 
   useEffect(() => {
@@ -25,12 +26,12 @@ export function usePipelineComposite() {
 
 export function usePipelineStatus() {
   const setStatus = usePipelineStore((s) => s.setStatus)
-  const refreshIntervalMs = useUIStore((s) => s.refreshIntervalMs)
+  const refetchInterval = useRefetchInterval()
 
   const query = useQuery<OutputStatus[]>({
     queryKey: ["pipeline", "status"],
     queryFn: ({ signal }) => api.getPipelineStatus(signal),
-    refetchInterval: refreshIntervalMs > 0 ? refreshIntervalMs : false,
+    refetchInterval,
   })
 
   useEffect(() => {
@@ -38,4 +39,13 @@ export function usePipelineStatus() {
   }, [query.data, setStatus])
 
   return query
+}
+
+export function useOutputs() {
+  const refetchInterval = useRefetchInterval()
+  return useQuery<OutputConfigEntry[]>({
+    queryKey: ["pipeline", "outputs"],
+    queryFn: ({ signal }) => api.getOutputs(signal),
+    refetchInterval,
+  })
 }

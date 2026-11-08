@@ -1,9 +1,7 @@
 import { lazy, Suspense } from "react"
 import { createBrowserRouter, RouterProvider } from "react-router"
 
-import { AuthGuard } from "@/components/auth/auth-guard"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
-import { LoginPage } from "@/pages/login"
 import { NotFoundPage } from "@/pages/not-found"
 
 import { AppLayout } from "./layout"
@@ -19,15 +17,7 @@ function Lazy({ children }: { children: React.ReactNode }) {
 
 const router = createBrowserRouter([
   {
-    path: "/login",
-    element: <LoginPage />,
-  },
-  {
-    element: (
-      <AuthGuard>
-        <AppLayout />
-      </AuthGuard>
-    ),
+    element: <AppLayout />,
     children: [
       {
         index: true,

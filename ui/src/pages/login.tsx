@@ -3,11 +3,10 @@ import { Link, useNavigate } from "react-router"
 import logoIcon from "@/assets/logo-icon.svg"
 import { LoginForm } from "@/components/auth/login-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useUIStore } from "@/stores/ui-store"
+import { AUTH_AVAILABLE } from "@/lib/auth"
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const authEnabled = useUIStore((s) => s.authEnabled)
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -22,21 +21,20 @@ export function LoginPage() {
 
         <Card>
           <CardHeader className="gap-1">
-            <CardTitle className="text-base">Sign in</CardTitle>
+            <CardTitle asChild className="text-base">
+              <h2>Sign in</h2>
+            </CardTitle>
             <CardDescription>
-              {authEnabled === false
-                ? "No credentials are required while authentication is disabled."
-                : "Sign in with the credentials configured for this deployment."}
+              {AUTH_AVAILABLE
+                ? "Sign in with the credentials configured for this deployment."
+                : "No credentials are required while authentication is not available."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <LoginForm
-              disabled={authEnabled === false}
-              onSuccess={() => navigate("/", { replace: true })}
-            />
-            {authEnabled === false && (
+            <LoginForm disabled={!AUTH_AVAILABLE} onSuccess={() => navigate("/", { replace: true })} />
+            {!AUTH_AVAILABLE && (
               <p className="mt-4 text-xs text-muted-foreground">
-                Authentication is disabled in this deployment.{" "}
+                Authentication is not available in this deployment.{" "}
                 <Link
                   to="/"
                   className="font-medium text-foreground underline underline-offset-4 hover:text-primary"

@@ -1,8 +1,6 @@
-/**
- * TypeScript types mirroring the Go domain shapes exposed under /api/v1/.
- * Keep these in sync with internal/domain/{event,output,core} when the backend
- * contract changes.
- */
+// Shapes of the JSON served under /api/v1, as encoded by internal/domain, internal/pipeline,
+// internal/api and internal/version. The fixtures under src/test/fixtures are produced by the
+// Go handlers and pin this contract.
 
 export type Priority =
   | "emergency"
@@ -36,11 +34,6 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   debug: "Debug",
 }
 
-export function normalizePriority(p: string | undefined | null): Priority | null {
-  const lower = (p ?? "").toLowerCase()
-  return (PRIORITIES as readonly string[]).includes(lower) ? (lower as Priority) : null
-}
-
 export interface Event {
   uuid: string
   output: string
@@ -60,50 +53,72 @@ export interface SearchResult {
   limit: number
 }
 
-export type OutputStatusState = "ok" | "idle" | "failed" | "error" | "degraded" | "disabled" | "unknown"
-export type CircuitState = "closed" | "open" | "half-open"
+export type OutputStatusState = "ok" | "idle" | "failed" | "error" | "degraded"
+
+export const OUTPUT_STATUS_STATES: readonly OutputStatusState[] = [
+  "ok",
+  "idle",
+  "failed",
+  "error",
+  "degraded",
+] as const
+
+export type CircuitState = "closed" | "open" | "half-open" | "unknown"
+
+export const CIRCUIT_STATES: readonly CircuitState[] = ["closed", "open", "half-open", "unknown"] as const
 
 export interface OutputStatus {
   name: string
-  status?: OutputStatusState
+  status: OutputStatusState
+  /** Empty for an output that is not running (`failed`). */
+  circuit_state: CircuitState | ""
+  /** Zero time (`0001-01-01T00:00:00Z`) until the first successful delivery. */
+  last_success: string
+  last_error: string
+  last_warning: string
   queue_depth: number
   queue_capacity: number
   sent_total: number
   dropped_total: number
   failed_total: number
-  events_per_minute?: number
-  circuit_state: CircuitState
-  last_success: string
-  last_error: string
-  // Present when the output delivers with a problem: a destination not
-  // reachable at startup or a partial fan-out failure.
-  last_warning?: string
-  send_latency_p99_ms?: number
+  events_per_minute: number
 }
 
-export function statusOf(s: OutputStatus | undefined): OutputStatusState {
+/** `unknown` is UI-only: the output is configured but no status has been received for it. */
+export type OutputHealth = OutputStatusState | "unknown"
+
+export const OUTPUT_HEALTHS: readonly OutputHealth[] = [...OUTPUT_STATUS_STATES, "unknown"] as const
+
+export function statusOf(s: OutputStatus | null | undefined): OutputHealth {
   return s?.status ?? "unknown"
 }
 
-export function isFlowing(s: OutputStatus | undefined): boolean {
+export function isFlowing(s: OutputStatus | null | undefined): boolean {
   return s?.status === "ok"
 }
 
-export type SchemaFieldType =
-  | "string"
-  | "string[]"
-  | "int"
-  | "bool"
-  | "enum"
-  | "priority"
-  | "map"
-  | "secret"
+const ZERO_TIME_PREFIX = "0001-01-01T"
+
+export function isZeroTime(value: string): boolean {
+  return value === "" || value.startsWith(ZERO_TIME_PREFIX)
+}
+
+export function lastSuccessOf(s: OutputStatus): string | null {
+  return isZeroTime(s.last_success) ? null : s.last_success
+}
+
+/** v3 runs one output per driver, so an output's name is also its driver type. */
+export function driverOf(output: { name: string }): string {
+  return output.name
+}
+
+export type SchemaFieldType = "string" | "string[]" | "int" | "float" | "bool" | "enum" | "map"
 
 export interface SchemaField {
   name: string
   type: SchemaFieldType
-  required: boolean
   label: string
+  required: boolean
   default?: unknown
   values?: string[]
   secret?: boolean
@@ -121,8 +136,7 @@ export interface OutputType {
 
 export interface OutputConfigEntry {
   name: string
-  type: string
-  config: Record<string, unknown>
+  config: Record<string, unknown> | null
   /** Response-only secret presence, keyed by JSON pointers relative to config. */
   secret_fields?: Record<string, boolean>
   provisioned: boolean
@@ -130,24 +144,15 @@ export interface OutputConfigEntry {
   updated_at: string
 }
 
-export interface PipelineNode {
+export interface LayoutNode {
   id: string
-  kind: "source" | "sidekick" | "output"
-  name: string
-  type?: string
-}
-
-export interface PipelineEdge {
-  id: string
-  from: string
-  to: string
+  x: number
+  y: number
 }
 
 export interface PipelineLayout {
-  version: number
   updated_at: string
-  nodes: PipelineNode[]
-  edges: PipelineEdge[]
+  nodes: LayoutNode[]
 }
 
 export interface PipelineComposite {
@@ -166,22 +171,24 @@ export interface EventFilters {
   since?: string
 }
 
+export type SortField = "timestamp" | "priority" | "rule" | "source"
+
 export interface SearchQuery extends EventFilters {
   page?: number
   limit?: number
-  sort_by?: "timestamp" | "priority" | "rule" | "source"
+  sort_by?: SortField
   sort_desc?: boolean
 }
+
+export type GroupBy = "priority" | "rule" | "source" | "tags" | "hostname"
 
 export interface CountByResponse {
   groups: Record<string, number>
 }
 
-export type HistogramGroupBy = "priority" | "rule" | "source" | "hostname" | "tags"
-
 export interface HistogramRequest extends EventFilters {
   bucket_ms: number
-  group_by?: HistogramGroupBy
+  group_by?: GroupBy
 }
 
 export interface HistogramBucket {
@@ -195,13 +202,14 @@ export interface HistogramResult {
   bucket_ms: number
   from: number
   to: number
-  group_by?: HistogramGroupBy
+  group_by?: GroupBy
 }
 
 export interface VersionInfo {
   version: string
-  commit?: string
-  date?: string
+  commit: string
+  build_date: string
+  go_version: string
 }
 
 export interface MaskedConfig {
@@ -213,9 +221,4 @@ export interface AuthLoginResponse {
   refresh_token: string
   expires_at: string
   refresh_expires_at: string
-}
-
-export interface ApiError {
-  error: string
-  detail?: string
 }

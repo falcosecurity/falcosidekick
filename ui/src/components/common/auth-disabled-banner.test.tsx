@@ -1,32 +1,26 @@
 import { afterEach, describe, expect, test } from "bun:test"
 
-import { useUIStore } from "@/stores/ui-store"
+import { AUTH_UNAVAILABLE_MESSAGE } from "@/lib/auth"
 import { cleanup, renderWithProviders, screen } from "@/test/test-utils"
 
 import { AuthDisabledBanner } from "./auth-disabled-banner"
 
-const initialState = useUIStore.getState()
-
-afterEach(() => {
-  cleanup()
-  useUIStore.setState(initialState)
-})
+afterEach(cleanup)
 
 describe("AuthDisabledBanner", () => {
-  test.each([false, true])("uses a readable foreground when compact=%s", (compact) => {
-    useUIStore.setState({ authEnabled: false })
-    renderWithProviders(<AuthDisabledBanner compact={compact} />)
-    const banner = compact
-      ? screen.getByLabelText(/Authentication disabled/)
-      : screen.getByRole("status")
-    expect(banner).toHaveClass("text-status-degraded-foreground")
-    expect(banner).toHaveClass("bg-status-degraded/10", "border-status-degraded/30")
-    expect(banner).toHaveTextContent(compact ? "Auth off" : "API is unauthenticated")
+  test("always states that authentication is not available, as a compact pill", () => {
+    renderWithProviders(<AuthDisabledBanner compact />)
+    const pill = screen.getByLabelText(AUTH_UNAVAILABLE_MESSAGE)
+    expect(pill).toHaveTextContent("Auth off")
+    expect(pill).toHaveClass("text-status-degraded-foreground", "bg-status-degraded/10", "border-status-degraded/30")
+    expect(pill.querySelector("span:not([aria-hidden])")).toHaveClass("hidden", "sm:inline")
+    expect(pill).not.toHaveAttribute("role")
   })
 
-  test.each([true, null])("does not declare authentication disabled when enabled=%s", (authEnabled) => {
-    useUIStore.setState({ authEnabled })
-    const { container } = renderWithProviders(<AuthDisabledBanner />)
-    expect(container).toBeEmptyDOMElement()
+  test("always states that authentication is not available, as a banner without a live region", () => {
+    renderWithProviders(<AuthDisabledBanner />)
+    const banner = screen.getByText(AUTH_UNAVAILABLE_MESSAGE)
+    expect(banner).toHaveClass("text-status-degraded-foreground")
+    expect(screen.queryByRole("status")).toBeNull()
   })
 })

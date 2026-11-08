@@ -1,0 +1,20 @@
+{
+  "config": {
+    "endpoint": "/events",
+    "headers": {
+      "X-Api-Key": {
+        "values": [
+          "public"
+        ]
+      }
+    },
+    "host": "http://127.0.0.1:2899"
+  },
+  "name": "webhook",
+  "provisioned": false,
+  "secret_fields": {
+    "/headers/X-Api-Key/secrets": true
+  },
+  "updated_at": "2026-11-08T11:15:00Z",
+  "version": 2
+}

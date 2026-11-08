@@ -1,20 +1,5 @@
 import type { Priority } from "./types"
 
-/**
- * Semantic token names used by the priority badge. These map to OKLCH values
- * defined in `ui/styles/globals.css`. Change them there, not here.
- */
-export const PRIORITY_TOKEN: Record<Priority, string> = {
-  emergency: "priority-emergency",
-  alert: "priority-alert",
-  critical: "priority-critical",
-  error: "priority-error",
-  warning: "priority-warning",
-  notice: "priority-notice",
-  informational: "priority-info",
-  debug: "priority-debug",
-}
-
 export const PRIORITY_LABEL_SHORT: Record<Priority, string> = {
   emergency: "EMRG",
   alert: "ALRT",
@@ -40,3 +25,5 @@ export const SINCE_PRESETS: readonly SincePreset[] = [
 ] as const
 
 export const DEFAULT_PAGE_SIZE = 50
+
+export const PAGE_SIZES: readonly number[] = [25, 50, 100, 200, 500] as const

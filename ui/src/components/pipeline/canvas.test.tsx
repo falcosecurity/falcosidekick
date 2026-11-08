@@ -3,22 +3,23 @@ import ELK, { type ELK as ElkInstance, type ElkNode } from "elkjs/lib/elk.bundle
 import { createRef } from "react"
 
 import type { OutputStatus, PipelineComposite } from "@/lib/types"
+import { statusNamed } from "@/test/fixtures"
 import { act, cleanup, fireEvent, renderWithProviders, screen, waitFor, within } from "@/test/test-utils"
 
 import { PipelineCanvas, type PipelineCanvasHandle } from "./canvas"
 
 const composite: PipelineComposite = {
-  outputs: [{ name: "alerts", type: "webhook", config: {}, provisioned: true, version: 1, updated_at: "" }],
+  outputs: [{ name: "alerts", config: {}, provisioned: true, version: 1, updated_at: "" }],
   status: [],
-  layout: { nodes: [], edges: [], version: 1, updated_at: "" },
+  layout: { nodes: [], updated_at: "" },
 }
 
 function status(state: OutputStatus["status"]): OutputStatus {
-  return {
-    name: "alerts", status: state, queue_depth: 0, queue_capacity: 100,
-    sent_total: 0, failed_total: 0, dropped_total: 0,
-    circuit_state: "closed", last_success: "", last_error: "",
-  }
+  return { ...statusNamed("inmemory"), name: "alerts", status: state, circuit_state: "closed" }
+}
+
+function statusBadge(scope: HTMLElement, state: string) {
+  return within(scope).getByText(state, { selector: "[data-status]" })
 }
 
 function positioned(graph: ElkNode, offset = 0): ElkNode {
@@ -122,7 +123,7 @@ describe("PipelineCanvas", () => {
       expect(container.querySelector('[data-testid="rf__edge-falco->sidekick"]')).toHaveClass("animated")
       expect(container.querySelector('[data-testid="rf__edge-sidekick->alerts"]')).toHaveClass("animated")
     })
-    expect(screen.getByLabelText("status ok")).toBeInTheDocument()
+    expect(statusBadge(container, "ok")).toBeInTheDocument()
 
     rerender(<PipelineCanvas {...props} statusByName={{ alerts: status("idle") }} />)
     await waitFor(() => {
@@ -145,8 +146,8 @@ describe("PipelineCanvas", () => {
       <PipelineCanvas composite={composite} statusByName={{ alerts: status("ok") }} selection={{ kind: "sink", name: "alerts" }} onSelect={latestSelect} />,
     )
     await act(async () => pending.resolve(positioned(layoutSpy.mock.calls[0]![0])))
-    const sink = await screen.findByRole("button", { name: /alerts webhook/ })
-    expect(within(sink).getByLabelText("status ok")).toBeInTheDocument()
+    const sink = await screen.findByRole("button", { name: /alerts from output files/ })
+    expect(statusBadge(sink, "ok")).toBeInTheDocument()
     expect(sink).toHaveClass("ring-brand")
     fireEvent.click(sink)
     expect(latestSelect).toHaveBeenCalledWith({ kind: "sink", name: "alerts" })
@@ -164,10 +165,10 @@ describe("PipelineCanvas", () => {
     const replacement = { ...composite, outputs: [{ ...composite.outputs[0]!, name: "replacement" }] }
     rerender(<PipelineCanvas {...props} composite={replacement} />)
     await act(async () => second.resolve(positioned(layoutSpy.mock.calls[1]![0])))
-    expect(await screen.findByRole("button", { name: "replacement webhook" })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "replacement from output files" })).toBeInTheDocument()
     await act(async () => first.resolve(positioned(layoutSpy.mock.calls[0]![0])))
-    expect(screen.queryByRole("button", { name: "alerts webhook" })).not.toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "replacement webhook" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "alerts from output files" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "replacement from output files" })).toBeInTheDocument()
   })
 
   test("reset supersedes a pending layout", async () => {
@@ -180,7 +181,7 @@ describe("PipelineCanvas", () => {
     )
     act(() => ref.current?.resetPositions())
     await act(async () => second.resolve(positioned(layoutSpy.mock.calls[1]![0], 100)))
-    await screen.findByRole("button", { name: "alerts webhook" })
+    await screen.findByRole("button", { name: "alerts from output files" })
     await act(async () => first.resolve(positioned(layoutSpy.mock.calls[0]![0])))
     expect(container.querySelector<HTMLElement>('[data-testid="rf__node-sink:alerts"]')?.style.transform).toBe("translate(740px,20px)")
   })
@@ -188,7 +189,7 @@ describe("PipelineCanvas", () => {
   test.each([false, true])("layout preserves a moved node when the drag has ended: %s", async (ended) => {
     const props = { statusByName: {}, selection: null, onSelect: mock() }
     const { container, rerender } = renderWithProviders(<PipelineCanvas {...props} composite={composite} />)
-    await screen.findByRole("button", { name: "alerts webhook" })
+    await screen.findByRole("button", { name: "alerts from output files" })
     const sink = container.querySelector<HTMLElement>('[data-testid="rf__node-sink:alerts"]')!
     const flow = container.querySelector<HTMLElement>(".react-flow")!
     const bounds = spyOn(flow, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 1000, 600))
@@ -213,7 +214,7 @@ describe("PipelineCanvas", () => {
       await act(async () => pending.resolve(positioned(layoutSpy.mock.calls[1]![0], 100)))
       expect(sink.style.transform).toBe(draggedPosition)
       expect(sink.classList.contains("dragging")).toBe(!ended)
-      expect(await screen.findByRole("button", { name: "new-output webhook" })).toBeInTheDocument()
+      expect(await screen.findByRole("button", { name: "new-output from output files" })).toBeInTheDocument()
 
       if (!ended) {
         const nextLayout = deferredLayout()
@@ -266,7 +267,7 @@ describe("PipelineCanvas", () => {
         outputs: [...composite.outputs, { ...composite.outputs[0]!, name: "new-output" }],
       }} />)
       await act(async () => pending.resolve(positioned(layoutSpy.mock.calls[1]![0], 100)))
-      expect(await screen.findByRole("button", { name: "new-output webhook" })).toBeInTheDocument()
+      expect(await screen.findByRole("button", { name: "new-output from output files" })).toBeInTheDocument()
       expect(observe.mock.calls.filter(([target]) => target === sink)).toHaveLength(measurementsBefore)
       expect(sink).toBeVisible()
     } finally {
@@ -283,7 +284,7 @@ describe("PipelineCanvas", () => {
     expect(await screen.findByText("Unable to lay out pipeline")).toBeInTheDocument()
     expect(container.querySelector(".pipeline-canvas")).toHaveAttribute("aria-busy", "false")
     act(() => ref.current?.resetPositions())
-    expect(await screen.findByRole("button", { name: "alerts webhook" })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "alerts from output files" })).toBeInTheDocument()
     expect(screen.queryByText("Unable to lay out pipeline")).not.toBeInTheDocument()
   })
 
@@ -297,12 +298,25 @@ describe("PipelineCanvas", () => {
     expect(container.querySelectorAll(".react-flow__node")).toHaveLength(2)
   })
 
+  test("each node is a single tab stop: the wrapper is not focusable, the card button is", async () => {
+    const { container } = renderWithProviders(
+      <PipelineCanvas composite={composite} statusByName={{}} selection={null} onSelect={mock()} />,
+    )
+    const sink = await screen.findByRole("button", { name: "alerts from output files" })
+    const wrapper = container.querySelector<HTMLElement>('[data-testid="rf__node-sink:alerts"]')!
+    expect(wrapper.getAttribute("tabindex")).not.toBe("0")
+    expect(wrapper).not.toHaveAttribute("role", "button")
+    expect(sink.tagName).toBe("BUTTON")
+    expect(container.querySelector(`[data-driver="alerts"]`)).not.toBeNull()
+    expect(screen.queryByRole("status")).toBeNull()
+  })
+
   test("the real ELK engine positions a source, core and sink from left to right", async () => {
     layoutSpy.mockRestore()
     const { container } = renderWithProviders(
       <PipelineCanvas composite={composite} statusByName={{}} selection={null} onSelect={mock()} />,
     )
-    await screen.findByRole("button", { name: "alerts webhook" })
+    await screen.findByRole("button", { name: "alerts from output files" })
     const positions = ["source:falco", "core:sidekick", "sink:alerts"].map((id) => {
       const transform = container.querySelector<HTMLElement>(`[data-testid="rf__node-${id}"]`)!.style.transform
       return Number(transform.match(/translate\(([-\d.]+)px/)![1])

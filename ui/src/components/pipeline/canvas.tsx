@@ -31,7 +31,7 @@ import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
 import { StatusBadge } from "@/components/common/status-badge"
 import { cn } from "@/lib/utils"
-import type { OutputStatus, PipelineComposite } from "@/lib/types"
+import type { OutputHealth, OutputStatus, PipelineComposite } from "@/lib/types"
 import { isFlowing, statusOf } from "@/lib/types"
 
 import "@xyflow/react/dist/style.css"
@@ -43,7 +43,6 @@ type KindData = {
   label: string
   subtype?: string
   status?: OutputStatus
-  outputType?: string
   outputName?: string
   onSelect?: () => void
   selected?: boolean
@@ -171,7 +170,7 @@ function CoreFlowNode({ data }: NodeProps<FlowNode>) {
 function SinkFlowNode({ data }: NodeProps<FlowNode>) {
   return (
     <NodeCard
-      iconSlot={<OutputTypeIcon type={data.outputType} name={data.outputName} />}
+      iconSlot={<OutputTypeIcon driver={data.outputName ?? data.label} />}
       title={data.label}
       subtitle={data.subtype}
       accent="neutral"
@@ -282,9 +281,8 @@ function buildGraph(
       data: {
         kind: "sink",
         label: out.name,
-        subtype: out.type,
+        subtype: out.provisioned ? "from output files" : undefined,
         status,
-        outputType: out.type,
         outputName: out.name,
         onSelect: () => onSelect({ kind: "sink", name: out.name }),
         selected: sinkSelected,
@@ -303,7 +301,7 @@ function buildGraph(
   return { nodes, edges }
 }
 
-function edgeStyleForStatus(status?: OutputStatus["status"]): React.CSSProperties {
+function edgeStyleForStatus(status?: OutputHealth): React.CSSProperties {
   switch (status) {
     case "ok":
       return { stroke: "var(--status-ok)", strokeWidth: 1.75 }
@@ -313,10 +311,6 @@ function edgeStyleForStatus(status?: OutputStatus["status"]): React.CSSPropertie
       return { stroke: "var(--status-error)", strokeWidth: 1.5 }
     case "degraded":
       return { stroke: "var(--status-degraded)", strokeWidth: 1.5 }
-    case "idle":
-      return { stroke: "var(--muted-foreground)", strokeWidth: 1.25, strokeDasharray: "4 4" }
-    case "disabled":
-      return { stroke: "var(--status-disabled)", strokeWidth: 1.25, strokeDasharray: "4 4" }
     default:
       return { stroke: "var(--muted-foreground)", strokeWidth: 1.25, strokeDasharray: "4 4" }
   }
@@ -349,7 +343,7 @@ function CanvasInner({
     error: boolean
   } | null>(null)
 
-  const graphKey = JSON.stringify(composite.outputs.map((o) => [o.name, o.type]))
+  const graphKey = JSON.stringify(composite.outputs.map((o) => [o.name, o.provisioned]))
   const graph = useMemo(
     () => buildGraph(composite, statusByName, selection, onSelect),
     [composite, statusByName, selection, onSelect],
@@ -436,6 +430,8 @@ function CanvasInner({
           minZoom={0.1}
           nodesDraggable
           nodesConnectable={false}
+          nodesFocusable={false}
+          edgesFocusable={false}
           elementsSelectable={false}
           panOnDrag
           zoomOnScroll

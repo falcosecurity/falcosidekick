@@ -4,19 +4,13 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import type { Event } from "@/lib/types"
+import { fixtures } from "@/test/fixtures"
 import { cleanup, renderWithProviders, screen, waitFor, within } from "@/test/test-utils"
 
 import { EventDetailDrawer } from "./event-detail-drawer"
 
-const event: Event = {
-  uuid: "event-detail-1",
-  rule: "Read Sensitive File",
-  priority: "warning",
-  source: "syscall",
-  time: "2026-10-05T12:00:00Z",
-  output: "A process read a sensitive file",
-  output_fields: { "proc.name": "cat", count: 2, nested: { enabled: true } },
-}
+const event: Event = fixtures.event
+const bare: Event = { ...event, uuid: "event-detail-2", tags: undefined, hostname: undefined }
 
 afterEach(cleanup)
 
@@ -47,13 +41,27 @@ describe("EventDetailDrawer", () => {
     await waitFor(() => expect(document.activeElement === opener).toBe(true))
   })
 
-  test("renders output fields without requiring optional hostname or tags", async () => {
+  test("renders the backend event with source and tag chips in a labelled list", async () => {
     renderWithProviders(<EventDetailDrawer event={event} open onClose={() => {}} />)
     const dialog = await screen.findByRole("dialog", { name: event.rule })
-
+    const meta = dialog.querySelector("dl")!
+    expect(within(meta).getAllByRole("term").map((t) => t.textContent)).toEqual(["Time", "Source", "Hostname", "Tags"])
+    expect(within(dialog).getByText(event.source)).toHaveAttribute("data-variant", "source")
+    for (const tag of event.tags ?? []) {
+      expect(within(dialog).getByText(tag)).toHaveAttribute("data-variant", "tag")
+    }
+    expect(within(dialog).getByText(event.hostname!)).toBeInTheDocument()
+    expect(within(dialog).getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
+      "Rendered output", "Output fields",
+    ])
     expect(within(dialog).getByText("proc.name")).toBeInTheDocument()
-    expect(within(dialog).getByText("cat")).toBeInTheDocument()
-    expect(within(dialog).getByText("nested:")).toBeInTheDocument()
+    expect(within(dialog).getByText("bash")).toBeInTheDocument()
+  })
+
+  test("renders output fields without requiring optional hostname or tags", async () => {
+    renderWithProviders(<EventDetailDrawer event={bare} open onClose={() => {}} />)
+    const dialog = await screen.findByRole("dialog", { name: event.rule })
+    expect(within(dialog.querySelector("dl")!).getAllByRole("term").map((t) => t.textContent)).toEqual(["Time", "Source"])
     expect(within(dialog).queryByText("Hostname")).not.toBeInTheDocument()
     expect(within(dialog).queryByText("Tags")).not.toBeInTheDocument()
   })

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useEventsHistogram } from "@/hooks/use-events"
+import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
 
 type Window = "1h" | "6h" | "24h"
@@ -65,7 +66,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
 
   const cfg = WINDOWS.find((w) => w.value === window) ?? WINDOWS[2]!
 
-  const { data, isPending, isError } = useEventsHistogram({
+  const { data, isPending, isError, error } = useEventsHistogram({
     since: `${cfg.sinceSeconds}s`,
     bucket_ms: cfg.bucketMs,
     group_by: mode === "by-source" ? "source" : undefined,
@@ -80,7 +81,9 @@ export function TimelineChart({ className }: TimelineChartProps) {
     <Card className={className}>
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-3">
         <div>
-          <CardTitle className="text-base">Events over time</CardTitle>
+          <CardTitle asChild className="text-base">
+            <h2>Events over time</h2>
+          </CardTitle>
           <div className="mt-0.5 text-xs text-muted-foreground">
             last {cfg.label} · {bucketLabel(cfg.bucketMs)} buckets
           </div>
@@ -88,7 +91,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
         <div className="flex flex-wrap items-center gap-2">
           {mode === "by-source" && (
             <Tabs value={shape} onValueChange={(v) => setShape(v as Shape)}>
-              <TabsList className="h-8">
+              <TabsList className="h-8" aria-label="Series layout">
                 <TabsTrigger value="stacked" className="px-3 text-xs">
                   Stacked
                 </TabsTrigger>
@@ -99,7 +102,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
             </Tabs>
           )}
           <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
-            <TabsList className="h-8">
+            <TabsList className="h-8" aria-label="Series">
               <TabsTrigger value="global" className="px-3 text-xs">
                 Global
               </TabsTrigger>
@@ -110,7 +113,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
           </Tabs>
 
           <Select value={window} onValueChange={(v) => setWindow(v as Window)}>
-            <SelectTrigger className="h-8 w-20">
+            <SelectTrigger className="h-8 w-20" aria-label="Time window">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -136,7 +139,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
         {isPending ? (
           <LoadingSkeleton lines={5} />
         ) : isError ? (
-          <EmptyState title="Unable to load timeline" />
+          <EmptyState title="Unable to load timeline" description={errorMessage(error)} />
         ) : total === 0 ? (
           <EmptyState title={`No events in the last ${cfg.label}`} />
         ) : (
@@ -203,7 +206,7 @@ export function TimelineChart({ className }: TimelineChartProps) {
                 <Legend
                   verticalAlign="top"
                   align="right"
-                  wrapperStyle={{ fontSize: "11px", paddingBottom: "4px" }}
+                  wrapperStyle={{ fontSize: "0.6875rem", paddingBottom: "4px" }}
                   iconSize={8}
                 />
               )}

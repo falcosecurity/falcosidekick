@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/common/empty-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useEventsCountBy } from "@/hooks/use-events"
+import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
 
 const SLICE_PALETTE: readonly string[] = [
@@ -29,7 +30,7 @@ export function SourcePieChart({
   groupby = "source",
   title = "Sources",
 }: SourcePieChartProps) {
-  const { data, isPending, isError } = useEventsCountBy(groupby, { since: "24h" })
+  const { data, isPending, isError, error } = useEventsCountBy(groupby, { since: "24h" })
 
   const { slices, total } = useMemo(() => {
     const entries = data
@@ -46,7 +47,9 @@ export function SourcePieChart({
   return (
     <Card className={className}>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle asChild className="text-base">
+          <h2>{title}</h2>
+        </CardTitle>
         {total > 0 && (
           <span className="text-xs tabular-nums text-muted-foreground">
             {formatNumber(total)} · last 24h
@@ -57,11 +60,11 @@ export function SourcePieChart({
         {isPending ? (
           <LoadingSkeleton lines={5} />
         ) : isError ? (
-          <EmptyState title="Unable to load distribution" />
+          <EmptyState title="Unable to load distribution" description={errorMessage(error)} />
         ) : total === 0 ? (
           <EmptyState title="No data in the last 24h" />
         ) : (
-          <div className="grid grid-cols-[1fr_1fr] items-center gap-4">
+          <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[1fr_1fr]">
             <div className="h-44">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>

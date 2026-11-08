@@ -1,15 +1,13 @@
 import { createElement } from "react"
 
-import { iconForOutputType } from "@/lib/output-icons"
+import { DRIVER_LOGOS } from "@/lib/driver-logos"
+import { iconForDriver } from "@/lib/output-icons"
 import { cn } from "@/lib/utils"
 
-type Variant = "brand" | "neutral"
 type Size = "sm" | "md" | "lg"
 
 interface OutputTypeIconProps {
-  type?: string
-  name?: string
-  variant?: Variant
+  driver: string
   size?: Size
   className?: string
 }
@@ -26,31 +24,24 @@ const ICON_SIZE: Record<Size, string> = {
   lg: "size-6",
 }
 
-const VARIANT_CLASS: Record<Variant, string> = {
-  brand: "bg-brand/15 text-brand",
-  neutral: "bg-muted text-muted-foreground",
-}
+// Brand marks keep their original colors, some of them near black, so every driver sits on the
+// same light plate in both themes.
+const PLATE = "bg-white text-neutral-700 ring-1 ring-black/10"
 
-export function OutputTypeIcon({
-  type,
-  name,
-  variant = "neutral",
-  size = "md",
-  className,
-}: OutputTypeIconProps) {
+export function OutputTypeIcon({ driver, size = "md", className }: OutputTypeIconProps) {
+  const icon = iconForDriver(driver)
   return (
     <span
-      className={cn(
-        "flex shrink-0 items-center justify-center rounded-md",
-        CONTAINER_SIZE[size],
-        VARIANT_CLASS[variant],
-        className,
-      )}
+      data-driver={driver}
+      className={cn("flex shrink-0 items-center justify-center rounded-md", CONTAINER_SIZE[size], PLATE, className)}
     >
-      {createElement(iconForOutputType(type, name), {
-        className: ICON_SIZE[size],
-        "aria-hidden": true,
-      })}
+      {icon.kind === "logo" && (
+        <svg viewBox="0 0 24 24" className={ICON_SIZE[size]} fill={DRIVER_LOGOS[icon.logo].color} aria-hidden>
+          <path d={DRIVER_LOGOS[icon.logo].path} />
+        </svg>
+      )}
+      {icon.kind === "asset" && <img src={icon.src} alt="" className={ICON_SIZE[size]} aria-hidden />}
+      {icon.kind === "icon" && createElement(icon.icon, { className: ICON_SIZE[size], "aria-hidden": true })}
     </span>
   )
 }

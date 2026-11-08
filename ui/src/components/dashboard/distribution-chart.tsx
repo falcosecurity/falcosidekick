@@ -2,9 +2,12 @@ import { useMemo } from "react"
 
 import { EmptyState } from "@/components/common/empty-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
+import { Meter } from "@/components/common/meter"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useEventsCountBy } from "@/hooks/use-events"
+import { errorMessage } from "@/lib/api-error"
 import { formatNumber, truncate } from "@/lib/format"
+import type { GroupBy } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 const BAR_PALETTE: readonly string[] = [
@@ -35,13 +38,13 @@ const DOT_PALETTE: readonly string[] = [
 
 interface Props {
   title: string
-  groupby: "rule" | "source" | "tags" | "hostname"
+  groupby: Exclude<GroupBy, "priority">
   limit?: number
   className?: string
 }
 
 export function DistributionChart({ title, groupby, limit = 7, className }: Props) {
-  const { data, isPending, isError } = useEventsCountBy(groupby, { since: "24h" })
+  const { data, isPending, isError, error } = useEventsCountBy(groupby, { since: "24h" })
 
   const { rows, max, grandTotal } = useMemo(() => {
     const entries = data
@@ -60,7 +63,9 @@ export function DistributionChart({ title, groupby, limit = 7, className }: Prop
   return (
     <Card className={className}>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle asChild className="text-base">
+          <h2>{title}</h2>
+        </CardTitle>
         {grandTotal > 0 && (
           <span className="text-xs tabular-nums text-muted-foreground">
             {formatNumber(grandTotal)} events · last 24h
@@ -71,40 +76,37 @@ export function DistributionChart({ title, groupby, limit = 7, className }: Prop
         {isPending ? (
           <LoadingSkeleton lines={6} />
         ) : isError ? (
-          <EmptyState title="Unable to load distribution" />
+          <EmptyState title="Unable to load distribution" description={errorMessage(error)} />
         ) : rows.length === 0 ? (
           <EmptyState title="No data in the last 24h" />
         ) : (
           <ol className="flex flex-col gap-2">
-            {rows.map((r, idx) => {
-              const pct = Math.max(0.02, r.count / max)
-              const barClass = BAR_PALETTE[idx % BAR_PALETTE.length]
-              const dotClass = DOT_PALETTE[idx % DOT_PALETTE.length]
-              return (
-                <li key={r.name} className="group">
-                  <div className="flex items-baseline justify-between gap-3 text-sm">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="inline-flex w-5 shrink-0 justify-end text-[11px] tabular-nums text-muted-foreground">
-                        {idx + 1}
-                      </span>
-                      <span className={cn("size-2 shrink-0 rounded-full", dotClass)} aria-hidden />
-                      <span className="truncate text-foreground" title={r.name || "(empty)"}>
-                        {truncate(r.name || "(empty)", 42)}
-                      </span>
-                    </div>
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {formatNumber(r.count)}
+            {rows.map((r, idx) => (
+              <li key={r.name} className="group">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="inline-flex w-5 shrink-0 justify-end text-2xs tabular-nums text-muted-foreground">
+                      {idx + 1}
+                    </span>
+                    <span className={cn("size-2 shrink-0 rounded-full", DOT_PALETTE[idx % DOT_PALETTE.length])} aria-hidden />
+                    <span className="truncate text-foreground" title={r.name || "(empty)"}>
+                      {truncate(r.name || "(empty)", 42)}
                     </span>
                   </div>
-                  <div className="ml-9 mt-1 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-                    <div
-                      className={cn("h-full rounded-full transition-all", barClass)}
-                      style={{ width: `${pct * 100}%` }}
-                    />
-                  </div>
-                </li>
-              )
-            })}
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {formatNumber(r.count)}
+                  </span>
+                </div>
+                <Meter
+                  decorative
+                  value={Math.max(r.count, max * 0.02)}
+                  max={max}
+                  label={r.name}
+                  className="ml-9 mt-1 h-1.5 w-auto"
+                  fillClassName={cn("transition-all", BAR_PALETTE[idx % BAR_PALETTE.length])}
+                />
+              </li>
+            ))}
           </ol>
         )}
       </CardContent>

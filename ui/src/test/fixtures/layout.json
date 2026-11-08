@@ -1,0 +1,30 @@
+{
+  "nodes": [
+    {
+      "id": "source:falco",
+      "x": 0,
+      "y": 120
+    },
+    {
+      "id": "core:sidekick",
+      "x": 320,
+      "y": 120
+    },
+    {
+      "id": "sink:inmemory",
+      "x": 640,
+      "y": 0
+    },
+    {
+      "id": "sink:webhook",
+      "x": 640,
+      "y": 120.5
+    },
+    {
+      "id": "sink:alertmanager",
+      "x": 640,
+      "y": 240
+    }
+  ],
+  "updated_at": "2026-11-08T11:45:00Z"
+}

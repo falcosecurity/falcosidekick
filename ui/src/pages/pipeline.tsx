@@ -18,6 +18,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
 import { usePipelineComposite, usePipelineStatus } from "@/hooks/use-pipeline"
+import { errorMessage } from "@/lib/api-error"
 import { cn } from "@/lib/utils"
 import { usePipelineStore } from "@/stores/pipeline-store"
 
@@ -102,10 +103,7 @@ export function PipelinePage() {
       {isPending ? (
         <LoadingSkeleton lines={8} />
       ) : isError ? (
-        <EmptyState
-          title="Unable to load pipeline"
-          description={error instanceof Error ? error.message : "Unknown error"}
-        />
+        <EmptyState title="Unable to load pipeline" description={errorMessage(error)} />
       ) : !composite ? (
         <EmptyState title="Pipeline is empty" />
       ) : (

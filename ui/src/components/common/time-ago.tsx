@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react"
-
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useNow } from "@/hooks/use-clock"
 import { formatAbsoluteTime, formatTimeAgo } from "@/lib/format"
+import { cn } from "@/lib/utils"
 
 interface TimeAgoProps {
   value: string | Date | number
@@ -9,21 +9,25 @@ interface TimeAgoProps {
 }
 
 export function TimeAgo({ value, className }: TimeAgoProps) {
-  const [, forceTick] = useState(0)
-
-  useEffect(() => {
-    const id = window.setInterval(() => forceTick((n) => n + 1), 30_000)
-    return () => window.clearInterval(id)
-  }, [])
-
+  const now = useNow()
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return <span className={className}>-</span>
+  }
+  const absolute = formatAbsoluteTime(date)
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <time className={className} dateTime={new Date(value).toISOString()}>
-          {formatTimeAgo(value)}
+        <time
+          dateTime={date.toISOString()}
+          tabIndex={0}
+          className={cn("rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}
+        >
+          {formatTimeAgo(date, now)}
+          <span className="sr-only">, {absolute}</span>
         </time>
       </TooltipTrigger>
-      <TooltipContent>{formatAbsoluteTime(value)}</TooltipContent>
+      <TooltipContent>{absolute}</TooltipContent>
     </Tooltip>
   )
 }

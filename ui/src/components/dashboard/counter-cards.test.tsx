@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { QueryClient } from "@tanstack/react-query"
 
 import { PRIORITIES, PRIORITY_LABELS } from "@/lib/types"
-import { cleanup, renderWithProviders, screen } from "@/test/test-utils"
+import { cleanup, renderWithProviders, screen, within } from "@/test/test-utils"
 
 import { CounterCards } from "./counter-cards"
 
@@ -27,14 +27,15 @@ afterEach(() => {
 })
 
 describe("CounterCards", () => {
-  test("uses readable foregrounds for every priority without changing border colors", () => {
+  test("renders one labelled tile per priority with readable foregrounds and priority borders", () => {
     renderCounters(Object.fromEntries(PRIORITIES.map((priority, index) => [priority, index + 1])))
+    const list = screen.getAllByRole("term")[0]!.closest("dl")!
+    expect(within(list).getAllByRole("term").map((t) => t.textContent)).toEqual(PRIORITIES.map((p) => PRIORITY_LABELS[p]))
     for (const [index, priority] of PRIORITIES.entries()) {
       const token = priority === "informational" ? "info" : priority
       const value = screen.getByText(String(index + 1))
-      expect(screen.getByText(PRIORITY_LABELS[priority])).toBeInTheDocument()
       expect(value).toHaveClass(`text-priority-${token}-foreground`)
-      expect(value.closest('[data-slot="card"]')).toHaveClass(`border-l-priority-${token}`)
+      expect(value.parentElement).toHaveClass(`border-l-priority-${token}`)
     }
   })
 
@@ -46,9 +47,9 @@ describe("CounterCards", () => {
     }
   })
 
-  test("distinguishes failed requests from zero counts", () => {
-    renderCounters(undefined, new Error("offline"))
-    expect(screen.getByText("Unable to load event counts.")).toBeInTheDocument()
+  test("distinguishes failed requests from zero counts and names the cause", () => {
+    renderCounters(undefined, new Error("event store not available"))
+    expect(screen.getByText("Unable to load event counts: event store not available")).toBeInTheDocument()
     expect(screen.queryByText("0")).toBeNull()
   })
 

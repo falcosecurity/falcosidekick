@@ -4,20 +4,17 @@ import { api } from "@/lib/api-client"
 import type {
   Event,
   EventFilters,
+  GroupBy,
   HistogramRequest,
   HistogramResult,
   SearchQuery,
   SearchResult,
 } from "@/lib/types"
-import { useUIStore } from "@/stores/ui-store"
 
-function useGlobalInterval(): number | false {
-  const ms = useUIStore((s) => s.refreshIntervalMs)
-  return ms > 0 ? ms : false
-}
+import { useRefetchInterval } from "./use-refetch-interval"
 
 export function useSearchEvents(query: SearchQuery) {
-  const refetchInterval = useGlobalInterval()
+  const refetchInterval = useRefetchInterval()
   return useQuery<SearchResult>({
     queryKey: ["events", "search", query],
     queryFn: ({ signal }) => api.searchEvents(query, signal),
@@ -35,7 +32,7 @@ export function useEvent(uuid: string | null) {
 }
 
 export function useEventsCount(filters: EventFilters) {
-  const refetchInterval = useGlobalInterval()
+  const refetchInterval = useRefetchInterval()
   return useQuery<number>({
     queryKey: ["events", "count", filters],
     queryFn: ({ signal }) => api.countEvents(filters, signal),
@@ -43,11 +40,8 @@ export function useEventsCount(filters: EventFilters) {
   })
 }
 
-export function useEventsCountBy(
-  groupby: "priority" | "rule" | "source" | "tags" | "hostname",
-  filters: EventFilters,
-) {
-  const refetchInterval = useGlobalInterval()
+export function useEventsCountBy(groupby: GroupBy, filters: EventFilters) {
+  const refetchInterval = useRefetchInterval()
   return useQuery<Record<string, number>>({
     queryKey: ["events", "count-by", groupby, filters],
     queryFn: ({ signal }) => api.countEventsBy(groupby, filters, signal),
@@ -56,7 +50,7 @@ export function useEventsCountBy(
 }
 
 export function useEventsHistogram(req: HistogramRequest) {
-  const refetchInterval = useGlobalInterval()
+  const refetchInterval = useRefetchInterval()
   return useQuery<HistogramResult>({
     queryKey: ["events", "histogram", req],
     queryFn: ({ signal }) => api.getEventsHistogram(req, signal),

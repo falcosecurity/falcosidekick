@@ -3,7 +3,9 @@ import { QueryClient } from "@tanstack/react-query"
 import userEvent from "@testing-library/user-event"
 
 import { api } from "@/lib/api-client"
+import { ApiError } from "@/lib/api-error"
 import type { Event, SearchResult } from "@/lib/types"
+import { events, fixtures } from "@/test/fixtures"
 import {
   act,
   cleanup,
@@ -16,17 +18,8 @@ import {
 
 import { EventsPage } from "./events"
 
-const event: Event = {
-  uuid: "events-page-1",
-  rule: "Read Sensitive File",
-  priority: "warning",
-  source: "syscall",
-  time: "2026-10-05T12:00:00Z",
-  output: "A process read a sensitive file",
-  output_fields: {},
-}
-
-const result: SearchResult = { events: [event], total: 1, page: 1, limit: 50 }
+const event: Event = events[0]!
+const result: SearchResult = { ...fixtures.eventsSearch, events: [event], total: 1 }
 const empty: SearchResult = { ...result, events: [], total: 0 }
 let search: ReturnType<typeof spyOn<typeof api, "searchEvents">>
 let counts: ReturnType<typeof spyOn<typeof api, "countEventsBy">>
@@ -41,6 +34,10 @@ afterEach(() => {
   search.mockRestore()
   counts.mockRestore()
 })
+
+function rowButton(rule = event.rule) {
+  return screen.findByRole("button", { name: rule })
+}
 
 describe("EventsPage", () => {
   test("shows loading state until the request completes", async () => {
@@ -68,56 +65,80 @@ describe("EventsPage", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled()
   })
 
-  test("shows request errors and recovers on retry", async () => {
+  test("shows the backend error text and recovers on retry", async () => {
     const user = userEvent.setup()
-    search.mockRejectedValueOnce(new Error("Event store unavailable"))
+    const { status, body } = fixtures.errors.event_store_unavailable
+    search.mockRejectedValueOnce(new ApiError(status, body.error))
     renderWithProviders(<EventsPage />)
 
     expect(await screen.findByText("Unable to load events")).toBeInTheDocument()
-    expect(screen.getByText("Event store unavailable")).toBeInTheDocument()
-    expect(screen.queryByText(/^Loading/) === null).toBe(true)
+    expect(screen.getByText(body.error)).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Retry" }))
 
     expect(await screen.findByRole("table")).toBeInTheDocument()
     expect(screen.queryByText("Unable to load events")).not.toBeInTheDocument()
   })
 
-  test.each(["[Enter]", " "])("opens from a row with %s and returns focus on Escape", async (key) => {
+  test("renders the full fixture page with one real button per row and no clickable rows", async () => {
+    search.mockResolvedValue(fixtures.eventsSearch)
+    renderWithProviders(<EventsPage />)
+    const table = await screen.findByRole("table")
+    const rows = within(table).getAllByRole("row").slice(1)
+    expect(rows).toHaveLength(events.length)
+    for (const [i, row] of rows.entries()) {
+      expect(row).not.toHaveAttribute("tabindex")
+      expect(row).not.toHaveAttribute("aria-label")
+      const button = within(row).getByRole("button", { name: events[i]!.rule })
+      expect(button).toHaveAttribute("title", events[i]!.rule)
+      expect(within(row).getByText(`priority ${events[i]!.priority}`)).toHaveClass("sr-only")
+      expect(within(row).getByText(events[i]!.source)).toHaveAttribute("data-variant", "source")
+      expect(within(row).getByRole("time")).toHaveAttribute("tabindex", "0")
+    }
+    expect(within(table).getByRole("columnheader", { name: "Source" })).toHaveClass("hidden", "md:table-cell")
+    expect(within(table).getByRole("columnheader", { name: "Hostname" })).toHaveClass("hidden", "lg:table-cell")
+    expect(within(table).getByRole("columnheader", { name: "Tags" })).toHaveClass("hidden", "xl:table-cell")
+    for (const name of ["Priority", "Time", "Rule"]) {
+      expect(within(table).getByRole("columnheader", { name })).not.toHaveClass("hidden")
+    }
+    expect(screen.getByRole("combobox", { name: "Rows per page" })).toBeInTheDocument()
+  })
+
+  test.each(["[Enter]", " "])("opens from the row button with %s and returns focus on Escape", async (key) => {
     const user = userEvent.setup()
     renderWithProviders(<EventsPage />)
-    const row = await screen.findByRole("row", { name: `Event ${event.rule} priority warning` })
-    row.focus()
+    const button = await rowButton()
+    button.focus()
     await user.keyboard(key)
 
     const dialog = await screen.findByRole("dialog", { name: event.rule })
     await waitFor(() => expect(document.activeElement === within(dialog).getByRole("button", { name: "Close" })).toBe(true))
     await user.keyboard("[Escape]")
 
-    await waitFor(() => expect(document.activeElement === row).toBe(true))
+    await waitFor(() => expect(document.activeElement === button).toBe(true))
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
   })
 
-  test("returns focus to the clicked row even if it did not have focus", async () => {
+  test("returns focus to the clicked button even if it did not have focus", async () => {
     const user = userEvent.setup()
     renderWithProviders(<EventsPage />)
-    const row = await screen.findByRole("row", { name: `Event ${event.rule} priority warning` })
+    const button = await rowButton()
     screen.getByRole("button", { name: "Refresh" }).focus()
-    fireEvent.click(row)
+    fireEvent.click(button)
     await screen.findByRole("dialog")
     await user.keyboard("[Escape]")
 
-    await waitFor(() => expect(document.activeElement === row).toBe(true))
+    await waitFor(() => expect(document.activeElement === button).toBe(true))
   })
 
   test("restores focus to the results region when a refreshed result removes the opening row", async () => {
     const user = userEvent.setup()
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
     renderWithProviders(<EventsPage />, { queryClient: client })
-    const row = await screen.findByRole("row", { name: `Event ${event.rule} priority warning` })
-    await user.click(row)
+    const button = await rowButton()
+    await user.click(button)
     await screen.findByRole("dialog")
     act(() => { client.setQueriesData({ queryKey: ["events", "search"] }, empty) })
-    await waitFor(() => expect(row.isConnected).toBe(false))
+    await waitFor(() => expect(button.isConnected).toBe(false))
     await user.keyboard("[Escape]")
 
     await waitFor(() => {
@@ -127,7 +148,7 @@ describe("EventsPage", () => {
 
   test("exposes sort direction and a keyboard focus indicator", async () => {
     const user = userEvent.setup()
-    renderWithProviders(<EventsPage />, { initialEntries: ["/events?page=2&rule=Read+Sensitive+File"] })
+    renderWithProviders(<EventsPage />, { initialEntries: ["/events?page=2&rule=Terminal+shell+in+container"] })
     const table = await screen.findByRole("table")
     const rule = within(table).getByRole("button", { name: "Rule" })
     expect(rule).toHaveClass("focus-visible:outline-2", "focus-visible:outline-ring")
@@ -136,7 +157,7 @@ describe("EventsPage", () => {
     await user.keyboard("[Enter]")
 
     await waitFor(() => expect(search.mock.calls.at(-1)?.[0]).toMatchObject({
-      page: 1, rule: ["Read Sensitive File"], sort_by: "rule", sort_desc: true,
+      page: 1, rule: ["Terminal shell in container"], sort_by: "rule", sort_desc: true,
     }))
     expect(within(table).getByRole("columnheader", { name: "Rule" })).toHaveAttribute("aria-sort", "descending")
     await user.keyboard("[Enter]")
@@ -160,12 +181,7 @@ describe("EventsPage", () => {
   test("does not announce the requested sort until the reordered results arrive", async () => {
     const user = userEvent.setup()
     const pending = Promise.withResolvers<SearchResult>()
-    const olderEvent: Event = {
-      ...event,
-      uuid: "events-page-2",
-      rule: "Write Sensitive File",
-      time: "2026-10-05T11:00:00Z",
-    }
+    const olderEvent: Event = events[1]!
     const initial: SearchResult = { ...result, events: [event, olderEvent], total: 2 }
     const sorted: SearchResult = { ...initial, events: [olderEvent, event] }
     search.mockResolvedValueOnce(initial).mockReturnValueOnce(pending.promise)
@@ -178,20 +194,15 @@ describe("EventsPage", () => {
 
     expect(within(table).getAllByRole("columnheader").some((head) => head.hasAttribute("aria-sort"))).toBe(false)
     expect(table).toHaveAttribute("aria-busy", "true")
-    expect(within(table).getAllByRole("row", { name: /^Event / }).map((row) => row.getAttribute("aria-label"))).toEqual([
-      `Event ${event.rule} priority warning`,
-      `Event ${olderEvent.rule} priority warning`,
-    ])
+    const ruleButtons = () => within(table).getAllByRole("button").map((b) => b.textContent).filter((t) => [event.rule, olderEvent.rule].includes(t ?? ""))
+    expect(ruleButtons()).toEqual([event.rule, olderEvent.rule])
 
     await act(async () => pending.resolve(sorted))
 
     await waitFor(() => expect(table).toHaveAttribute("aria-busy", "false"))
     expect(within(table).getByRole("columnheader", { name: "Rule" })).toHaveAttribute("aria-sort", "descending")
     expect(within(table).getByRole("columnheader", { name: "Time" })).not.toHaveAttribute("aria-sort")
-    expect(within(table).getAllByRole("row", { name: /^Event / }).map((row) => row.getAttribute("aria-label"))).toEqual([
-      `Event ${olderEvent.rule} priority warning`,
-      `Event ${event.rule} priority warning`,
-    ])
+    expect(ruleButtons()).toEqual([olderEvent.rule, event.rule])
   })
 
   test("replaces failed sort results with an error and restores sort semantics only after retry", async () => {

@@ -1,9 +1,10 @@
 import { CardSkeleton } from "@/components/common/loading-skeleton"
+import { StatTile } from "@/components/common/stat-tile"
 import { Card, CardContent } from "@/components/ui/card"
 import { useEventsCountBy } from "@/hooks/use-events"
+import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
 import { PRIORITIES, PRIORITY_LABELS, type Priority } from "@/lib/types"
-import { cn } from "@/lib/utils"
 
 const PRIORITY_CARD_CLASS: Record<Priority, string> = {
   emergency: "border-l-priority-emergency",
@@ -28,7 +29,7 @@ const PRIORITY_TEXT_CLASS: Record<Priority, string> = {
 }
 
 export function CounterCards() {
-  const { data, isPending, isError } = useEventsCountBy("priority", { since: "24h" })
+  const { data, isPending, isError, error } = useEventsCountBy("priority", { since: "24h" })
 
   if (isPending) {
     return (
@@ -44,29 +45,23 @@ export function CounterCards() {
     return (
       <Card>
         <CardContent className="py-6 text-sm text-muted-foreground">
-          Unable to load event counts.
+          Unable to load event counts: {errorMessage(error)}
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-      {PRIORITIES.map((p) => {
-        const count = data?.[p] ?? 0
-        return (
-          <Card key={p} className={cn("border-l-4", PRIORITY_CARD_CLASS[p])}>
-            <CardContent className="flex flex-col gap-0.5 px-3 py-2.5">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                {PRIORITY_LABELS[p]}
-              </span>
-              <span className={cn("text-xl font-semibold tabular-nums leading-tight", PRIORITY_TEXT_CLASS[p])}>
-                {formatNumber(count)}
-              </span>
-            </CardContent>
-          </Card>
-        )
-      })}
-    </div>
+    <dl className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+      {PRIORITIES.map((p) => (
+        <StatTile
+          key={p}
+          label={PRIORITY_LABELS[p]}
+          value={formatNumber(data?.[p] ?? 0)}
+          className={`rounded-xl border border-l-4 bg-card px-3 py-2.5 shadow-sm ${PRIORITY_CARD_CLASS[p]}`}
+          valueClassName={`text-xl leading-tight ${PRIORITY_TEXT_CLASS[p]}`}
+        />
+      ))}
+    </dl>
   )
 }

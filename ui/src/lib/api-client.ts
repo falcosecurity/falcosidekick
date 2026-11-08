@@ -5,13 +5,16 @@ import axios, {
   type AxiosResponse,
 } from "axios"
 
+import { ApiError } from "./api-error"
 import type {
   AuthLoginResponse,
   CountByResponse,
   Event,
   EventFilters,
+  GroupBy,
   HistogramRequest,
   HistogramResult,
+  LayoutNode,
   MaskedConfig,
   OutputConfigEntry,
   OutputStatus,
@@ -43,6 +46,18 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler
 }
 
+function toApiError(error: AxiosError): ApiError {
+  const status = error.response?.status ?? 0
+  const body: unknown = error.response?.data
+  const text =
+    body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
+      ? (body as { error: string }).error
+      : null
+  if (text) return new ApiError(status, text)
+  if (status > 0) return new ApiError(status, `Request failed with status ${status}`)
+  return new ApiError(0, "Unable to reach the server")
+}
+
 function createClient(): AxiosInstance {
   const client = axios.create({
     baseURL: BASE_URL,
@@ -58,11 +73,14 @@ function createClient(): AxiosInstance {
 
   client.interceptors.response.use(
     (response) => response,
-    (error: AxiosError) => {
+    (error: unknown) => {
+      if (axios.isCancel(error) || !axios.isAxiosError(error)) {
+        return Promise.reject(error)
+      }
       if (error.response?.status === 401 && onUnauthorized) {
         onUnauthorized()
       }
-      return Promise.reject(error)
+      return Promise.reject(toApiError(error))
     },
   )
 
@@ -101,73 +119,42 @@ function unwrap<T>(response: AxiosResponse<T>): T {
   return response.data
 }
 
-function normalizeOutputs(
-  value: Record<string, OutputConfigEntry> | OutputConfigEntry[] | null | undefined,
-): OutputConfigEntry[] {
-  if (!value) return []
-  if (Array.isArray(value)) return value
-  return Object.values(value)
+function nullOn404<T>(err: unknown): T | null {
+  if (err instanceof ApiError && err.status === 404) return null
+  throw err
 }
 
-function normalizeStatusList(
-  value: OutputStatus[] | { outputs: OutputStatus[] } | null | undefined,
-): OutputStatus[] {
-  if (!value) return []
-  if (Array.isArray(value)) return value
-  if (Array.isArray(value.outputs)) return value.outputs
-  return []
+// Wire shapes: the server keys outputs by name, wraps status lists and sends an empty object
+// for a layout that was never saved.
+export type OutputsWire = Record<string, OutputConfigEntry> | null
+export type StatusListWire = { outputs: OutputStatus[] }
+export type LayoutWire = { updated_at: string; nodes: LayoutNode[] | null } | Record<string, never> | null
+export type OutputTypeWire = { name: string; category: string; schema: { fields: SchemaField[] | null } }
+export type OutputTypesWire = { types: OutputTypeWire[] | null }
+export type PipelineWire = { outputs: OutputsWire; status: OutputStatus[] | null; layout: LayoutWire }
+
+export function normalizeOutputs(value: OutputsWire): OutputConfigEntry[] {
+  return value ? Object.values(value) : []
 }
 
-function normalizeLayout(
-  value: PipelineLayout | Record<string, never> | null | undefined,
-): PipelineLayout {
-  const fallback: PipelineLayout = {
-    version: 0,
-    updated_at: "",
-    nodes: [],
-    edges: [],
-  }
-  if (!value) return fallback
-  const asLayout = value as Partial<PipelineLayout>
-  return {
-    version: asLayout.version ?? 0,
-    updated_at: asLayout.updated_at ?? "",
-    nodes: Array.isArray(asLayout.nodes) ? asLayout.nodes : [],
-    edges: Array.isArray(asLayout.edges) ? asLayout.edges : [],
-  }
+export function normalizeStatusList(value: OutputStatus[] | null | undefined): OutputStatus[] {
+  return value ?? []
 }
 
-type OutputTypeWire = {
-  name: string
-  category: string
-  fields?: SchemaField[]
-  schema?: {
-    fields?: SchemaField[]
-  }
+export function normalizeLayout(value: LayoutWire): PipelineLayout {
+  if (!value || !("nodes" in value)) return { updated_at: "", nodes: [] }
+  return { updated_at: value.updated_at ?? "", nodes: value.nodes ?? [] }
 }
 
-function normalizeOutputTypes(
-  value: OutputTypeWire[] | { types?: OutputTypeWire[] } | null | undefined,
-): OutputType[] {
-  const items = Array.isArray(value) ? value : Array.isArray(value?.types) ? value.types : []
-  return items.map((item) => ({
+export function normalizeOutputTypes(value: OutputTypesWire): OutputType[] {
+  return (value.types ?? []).map((item) => ({
     name: item.name,
     category: item.category,
-    schema: {
-      fields: Array.isArray(item.schema?.fields)
-        ? item.schema.fields
-        : Array.isArray(item.fields)
-          ? item.fields
-          : [],
-    },
+    schema: { fields: item.schema.fields ?? [] },
   }))
 }
 
-function normalizePipeline(data: {
-  outputs: Record<string, OutputConfigEntry> | OutputConfigEntry[] | null
-  status: OutputStatus[] | { outputs: OutputStatus[] } | null
-  layout: PipelineLayout | Record<string, never> | null
-}): PipelineComposite {
+export function normalizePipeline(data: PipelineWire): PipelineComposite {
   return {
     outputs: normalizeOutputs(data.outputs),
     status: normalizeStatusList(data.status),
@@ -188,11 +175,7 @@ export const api = {
       .then((r) => r.data.count)
   },
 
-  countEventsBy(
-    groupby: "priority" | "rule" | "source" | "tags" | "hostname",
-    filters: EventFilters,
-    signal?: AbortSignal,
-  ): Promise<Record<string, number>> {
+  countEventsBy(groupby: GroupBy, filters: EventFilters, signal?: AbortSignal): Promise<Record<string, number>> {
     return http
       .get<CountByResponse>(`/events/count/${groupby}`, {
         params: paramsFromFilters(filters),
@@ -214,57 +197,37 @@ export const api = {
     return http
       .get<Event>(`/events/${encodeURIComponent(uuid)}`, { signal })
       .then(unwrap)
-      .catch((err: AxiosError) => {
-        if (err.response?.status === 404) return null
-        throw err
-      })
+      .catch(nullOn404<Event>)
   },
 
   getPipeline(signal?: AbortSignal): Promise<PipelineComposite> {
-    return http
-      .get<{
-        outputs: Record<string, OutputConfigEntry> | OutputConfigEntry[] | null
-        status: OutputStatus[] | { outputs: OutputStatus[] } | null
-        layout: PipelineLayout | Record<string, never> | null
-      }>("/pipeline", { signal })
-      .then((r) => normalizePipeline(r.data))
+    return http.get<PipelineWire>("/pipeline", { signal }).then((r) => normalizePipeline(r.data))
   },
 
   getPipelineStatus(signal?: AbortSignal): Promise<OutputStatus[]> {
     return http
-      .get<OutputStatus[] | { outputs: OutputStatus[] } | null>("/pipeline/status", { signal })
-      .then((r) => normalizeStatusList(r.data))
+      .get<StatusListWire>("/pipeline/status", { signal })
+      .then((r) => normalizeStatusList(r.data.outputs))
   },
 
   getPipelineLayout(signal?: AbortSignal): Promise<PipelineLayout> {
-    return http
-      .get<PipelineLayout | Record<string, never>>("/pipeline/layout", { signal })
-      .then((r) => normalizeLayout(r.data))
+    return http.get<LayoutWire>("/pipeline/layout", { signal }).then((r) => normalizeLayout(r.data))
   },
 
   getOutputs(signal?: AbortSignal): Promise<OutputConfigEntry[]> {
-    return http
-      .get<Record<string, OutputConfigEntry> | OutputConfigEntry[] | null>("/pipeline/outputs", {
-        signal,
-      })
-      .then((r) => normalizeOutputs(r.data))
+    return http.get<OutputsWire>("/pipeline/outputs", { signal }).then((r) => normalizeOutputs(r.data))
   },
 
   getOutput(name: string, signal?: AbortSignal): Promise<OutputConfigEntry | null> {
     return http
       .get<OutputConfigEntry>(`/pipeline/outputs/${encodeURIComponent(name)}`, { signal })
       .then(unwrap)
-      .catch((err: AxiosError) => {
-        if (err.response?.status === 404) return null
-        throw err
-      })
+      .catch(nullOn404<OutputConfigEntry>)
   },
 
   getOutputTypes(signal?: AbortSignal): Promise<OutputType[]> {
     return http
-      .get<OutputTypeWire[] | { types?: OutputTypeWire[] } | null>("/pipeline/outputs/types", {
-        signal,
-      })
+      .get<OutputTypesWire>("/pipeline/outputs/types", { signal })
       .then((r) => normalizeOutputTypes(r.data))
   },
 

@@ -18,6 +18,11 @@ const badgeVariants = cva(
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         link: "text-primary underline-offset-4 [a&]:hover:underline",
+        priority:
+          "rounded-sm px-1.5 font-mono text-2xs font-semibold uppercase tracking-wide tabular-nums",
+        status: "gap-1.5 capitalize",
+        source: "rounded-sm px-1.5 font-mono text-2xs font-normal",
+        tag: "rounded-sm px-1.5 text-2xs font-normal",
       },
     },
     defaultVariants: {

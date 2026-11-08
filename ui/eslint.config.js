@@ -43,7 +43,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["**/*.test.{ts,tsx}"],
+    files: ["**/*.test.{ts,tsx}", "src/test/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": "off",
       "no-restricted-globals": "off",

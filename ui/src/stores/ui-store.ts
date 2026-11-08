@@ -18,31 +18,33 @@ export const REFRESH_OPTIONS: Array<{ label: string; value: number }> = [
 const DEFAULT_REFRESH_MS = 15_000
 
 interface UIState {
+  /** Icon rail instead of the full sidebar at `lg` and above; between `md` and `lg` the rail is forced. */
   sidebarCollapsed: boolean
+  /** The navigation sheet below `md`; never persisted. */
+  sidebarOpen: boolean
   refreshIntervalMs: number
-  authEnabled: boolean | null
   toggleSidebar: () => void
+  setSidebarOpen: (open: boolean) => void
   setRefreshIntervalMs: (value: number) => void
-  setAuthEnabled: (value: boolean | null) => void
 }
 
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       sidebarCollapsed: false,
+      sidebarOpen: false,
       refreshIntervalMs: DEFAULT_REFRESH_MS,
-      authEnabled: null,
 
       toggleSidebar() {
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }))
+      },
+      setSidebarOpen(open) {
+        set({ sidebarOpen: open })
       },
       setRefreshIntervalMs(value) {
         if (value === 0 || (value >= 1000 && value <= 600_000)) {
           set({ refreshIntervalMs: value })
         }
-      },
-      setAuthEnabled(value) {
-        set({ authEnabled: value })
       },
     }),
     {
