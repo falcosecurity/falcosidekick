@@ -10,6 +10,7 @@ import { DeleteOutputDialog } from "@/components/outputs/delete-output-dialog"
 import { OutputWizard, type WizardTarget } from "@/components/outputs/wizard/output-wizard"
 import {
   PipelineCanvas,
+  type EventSourceDrawing,
   type PipelineCanvasHandle,
   type PipelineSelection,
 } from "@/components/pipeline/canvas"
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/resizable"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useConfig } from "@/hooks/use-config"
+import { useEventsCount } from "@/hooks/use-events"
 import { MEDIA_MD, useMediaQuery } from "@/hooks/use-media-query"
 import { usePipelineComposite, usePipelineStatus } from "@/hooks/use-pipeline"
 import { errorMessage } from "@/lib/api-error"
@@ -47,7 +49,14 @@ export function PipelinePage() {
   const [removing, setRemoving] = useState<OutputConfigEntry | null>(null)
   const writes = config.data?.config.api.allow_writes === true
   const ui = config.data?.config.ui
+  // The output this configuration reads events from; an output that only could be one stays an output.
   const eventSource = ui?.enabled ? ui.event_source : undefined
+  const configuredSource = composite?.outputs.some((o) => o.name === eventSource) ? eventSource : undefined
+  const stored = useEventsCount({}, { enabled: configuredSource !== undefined })
+  const drawing = useMemo<EventSourceDrawing | undefined>(
+    () => (configuredSource ? { name: configuredSource, stored: stored.data } : undefined),
+    [configuredSource, stored.data],
+  )
   const fileOutputsWritable = config.data?.config.provisioning.allow_ui_updates === true
   const openCreate = useCallback(() => setWizard({ kind: "create" }), [setWizard])
   const canvasRef = useRef<PipelineCanvasHandle>(null)
@@ -185,7 +194,7 @@ export function PipelinePage() {
                   selection={selection}
                   onSelect={handleSelect}
                   onAdd={writes ? openCreate : undefined}
-                  eventSource={eventSource}
+                  eventSource={drawing}
                 />
               ) : (
                 <ScrollArea className="h-full">
@@ -195,7 +204,7 @@ export function PipelinePage() {
                     selection={selection}
                     onSelect={handleSelect}
                     onAdd={writes ? openCreate : undefined}
-                    eventSource={eventSource}
+                    eventSource={configuredSource}
                   />
                 </ScrollArea>
               )}

@@ -298,20 +298,47 @@ describe("PipelineCanvas", () => {
     expect(container.querySelectorAll(".react-flow__node")).toHaveLength(2)
   })
 
-  test("the event source has a line back into Sidekick that the layout ignores, and only it", async () => {
-    const two: PipelineComposite = {
-      ...composite,
-      outputs: [...composite.outputs, { name: "inmemory", config: {}, provisioned: true, version: 1, updated_at: "" }],
-    }
+  const withStore: PipelineComposite = {
+    ...composite,
+    outputs: [...composite.outputs, { name: "inmemory", config: {}, provisioned: true, version: 1, updated_at: "" }],
+  }
+
+  test("only the configured event source moves under Sidekick, with writes down and reads back up", async () => {
     const { container } = renderWithProviders(
-      <PipelineCanvas composite={two} statusByName={{}} selection={null} onSelect={mock()} eventSource="inmemory" />,
+      <PipelineCanvas
+        composite={withStore}
+        statusByName={{}}
+        selection={null}
+        onSelect={mock()}
+        eventSource={{ name: "inmemory", stored: 1204 }}
+      />,
     )
-    const read = await edge(container, "inmemory->sidekick:read")
-    expect(read).toHaveClass("animated")
+    expect(await edge(container, "inmemory->sidekick:read")).toHaveClass("animated")
+    expect(await edge(container, "sidekick->inmemory")).toBeTruthy()
     expect(container.querySelector('[data-testid="rf__edge-alerts->sidekick:read"]')).toBeNull()
-    expect(screen.getByRole("button", { name: /^inmemory File provisioned Event source/ })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /^inmemory File provisioned Event source.*1,204 events stored/ })).toBeInTheDocument()
+
     const laidOut = layoutSpy.mock.calls.at(-1)![0]
-    expect(laidOut.edges?.map((e) => e.id)).not.toContain("inmemory->sidekick:read")
+    expect(laidOut.children?.map((n) => n.id)).not.toContain("sink:inmemory")
+    expect(laidOut.edges?.map((e) => e.id)).not.toContain("sidekick->inmemory")
+    await waitFor(() => {
+      const core = container.querySelector<HTMLElement>('[data-testid="rf__node-core:sidekick"]')!.style.transform
+      const store = container.querySelector<HTMLElement>('[data-testid="rf__node-sink:inmemory"]')!.style.transform
+      const xy = (t: string) => t.match(/translate\(\s*([-\d.]+)px,\s*([-\d.]+)px\s*\)/)!.slice(1).map(Number)
+      const [storeX, storeY] = xy(store) as [number, number]
+      const [coreX, coreY] = xy(core) as [number, number]
+      expect(storeX).toBe(coreX)
+      expect(storeY).toBeGreaterThan(coreY)
+    })
+  })
+
+  test("without a configured event source every output stays in the outputs column", async () => {
+    const { container } = renderWithProviders(
+      <PipelineCanvas composite={withStore} statusByName={{}} selection={null} onSelect={mock()} />,
+    )
+    await screen.findByRole("button", { name: "inmemory File provisioned" })
+    expect(container.querySelector('[data-testid="rf__edge-inmemory->sidekick:read"]')).toBeNull()
+    expect(layoutSpy.mock.calls.at(-1)![0].children?.map((n) => n.id)).toContain("sink:inmemory")
   })
 
   test("each node is a single tab stop: the wrapper is not focusable, the card button is", async () => {
