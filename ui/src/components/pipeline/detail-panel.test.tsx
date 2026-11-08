@@ -252,6 +252,7 @@ describe("PipelineDetailPanel", () => {
     { listen_address: "", tls: false, want: "http://<sidekick-host>:2801/" },
     { listen_address: "0.0.0.0", tls: true, want: "https://<sidekick-host>:2801/" },
     { listen_address: "10.0.0.5", tls: false, want: "http://10.0.0.5:2801/" },
+    { listen_address: "fd00::1", tls: false, want: "http://[fd00::1]:2801/" },
   ])("the Falco snippet for $listen_address with TLS $tls points at $want", ({ listen_address, tls, want }) => {
     const snippet = falcoSnippet({ listen_address, listen_port: 2801, tls: { ...fixtures.config.config.tls!, enabled: tls } })
     expect(snippet).toContain(`url: ${want}`)

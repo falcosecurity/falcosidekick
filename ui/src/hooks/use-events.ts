@@ -16,7 +16,8 @@ import { useUIStore } from "@/stores/ui-store"
 import { useRefetchInterval } from "./use-refetch-interval"
 
 // The event list refreshes on its own only when the page is set live: otherwise rows must not move
-// while someone reads or selects them, and it changes with the query or on Refresh.
+// while someone reads or selects them. Any query it shows, new or revisited, is read again when it
+// is shown, so going back to earlier filters never brings back an old answer.
 export function useSearchEvents(query: SearchQuery) {
   const interval = useRefetchInterval()
   const live = useUIStore((s) => s.eventsLive)
@@ -26,7 +27,8 @@ export function useSearchEvents(query: SearchQuery) {
     placeholderData: (prev) => prev,
     refetchInterval: live ? interval : false,
     refetchOnWindowFocus: live,
-    staleTime: live ? 0 : Infinity,
+    refetchOnReconnect: live,
+    staleTime: 0,
   })
 }
 
@@ -48,12 +50,13 @@ export function useEvent(uuid: string | null) {
   })
 }
 
-export function useEventsCount(filters: EventFilters) {
+export function useEventsCount(filters: EventFilters, { enabled = true }: { enabled?: boolean } = {}) {
   const refetchInterval = useRefetchInterval()
   return useQuery<number>({
     queryKey: ["events", "count", filters],
     queryFn: ({ signal }) => api.countEvents(filters, signal),
-    refetchInterval,
+    enabled,
+    refetchInterval: enabled ? refetchInterval : false,
   })
 }
 

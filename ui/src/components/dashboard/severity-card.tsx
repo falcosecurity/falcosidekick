@@ -32,15 +32,16 @@ function timeLabel(t: number): string {
 export function SeverityCard({ className }: { className?: string }) {
   const [windowLabel, setWindowLabel] = useState<(typeof WINDOWS)[number]["label"]>("6h")
   const window = WINDOWS.find((w) => w.label === windowLabel)!
-  const { data, isPending, error } = useEventsHistogram({ since: window.since, bucket_ms: window.bucketMs, group_by: "priority" })
+  const { data, isPending, error, isPlaceholderData } = useEventsHistogram({ since: window.since, bucket_ms: window.bucketMs, group_by: "priority" })
   const rows = useMemo(() => tierRows(data?.buckets ?? []), [data])
   const totals = useMemo(
     () => Object.fromEntries(SEVERITY_TIERS.map((t) => [t.key, rows.reduce((sum, r) => sum + (r[t.key] ?? 0), 0)])),
     [rows],
   )
   const all = Object.values(totals).reduce((a, b) => a + b, 0)
-  // Totals are shown only from loaded data: a zero must never stand for "unknown".
-  const known = !isPending && !error
+  // Totals are shown only from data loaded for this window: a zero must never stand for "unknown",
+  // and the previous window's series, kept while the new one loads, must not take its label.
+  const known = !isPending && !error && !isPlaceholderData
 
   return (
     <Card size="sm" className={className}>
@@ -84,7 +85,12 @@ export function SeverityCard({ className }: { className?: string }) {
             </EmptyHeader>
           </Empty>
         ) : (
-          <ChartContainer config={CONFIG} className="aspect-auto h-52 w-full" initialDimension={{ width: 360, height: 208 }}>
+          <ChartContainer
+            config={CONFIG}
+            className={cn("aspect-auto h-52 w-full transition-opacity", isPlaceholderData && "opacity-40")}
+            aria-busy={isPlaceholderData || undefined}
+            initialDimension={{ width: 360, height: 208 }}
+          >
             <AreaChart data={rows} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
               <defs>
                 {SEVERITY_TIERS.map((tier) => (

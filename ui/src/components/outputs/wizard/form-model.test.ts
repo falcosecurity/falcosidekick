@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 
 import type { OutputConfigEntry, SchemaField } from "@/lib/types"
 
-import { buildPatch, countSet, fieldOfError, initialState, newRow, validate, type FormState } from "./form-model"
+import { buildPatch, countSet, fieldOfError, initialState, newRow, validate, type FormState, type MapRow } from "./form-model"
 
 const ENTRY = [
   { name: "values", type: "string[]", label: "Values", required: false },
@@ -50,9 +50,9 @@ describe("initialState", () => {
           tls: { insecure_skip_verify: true },
           runtime: { workers: 4 },
           brokers: ["a:9092", "b:9092"],
-          headers: { "X-Key": { secrets: ["****"] }, "X-Env": { values: ["prod"] } },
+          headers: { "X-Key": {}, "X-Env": { values: ["prod"] } },
         },
-        { "/password": true },
+        { "/password": true, "/headers/X-Key/secrets": true },
       ),
     )
     expect(state.host).toEqual({ kind: "text", text: "https://h" })
@@ -149,10 +149,10 @@ describe("buildPatch", () => {
         host: "https://h",
         endpoint: "/v1",
         runtime: { workers: 4 },
-        headers: { "X-Key": { secrets: ["****"] }, "X-Env": { values: ["prod"] }, "X-Old": { values: ["1"] } },
+        headers: { "X-Key": {}, "X-Env": { values: ["prod"] }, "X-Old": { values: ["1"] } },
         labels: { team: "sec" },
       },
-      { "/password": true },
+      { "/password": true, "/headers/X-Key/secrets": true },
     )
     let state = initialState(FIELDS, entry)
     state = setText(state, "endpoint", "")
@@ -164,7 +164,57 @@ describe("buildPatch", () => {
     }
     expect(buildPatch(FIELDS, state, entry)).toEqual({
       endpoint: null,
-      headers: { "X-Env": { values: ["staging"], secrets: null, files: null }, "X-Old": null },
+      headers: { "X-Env": { values: ["staging"] }, "X-Old": null },
+    })
+  })
+
+  // The API removes entry secrets from config and flags them in secret_fields (see the output fixture).
+  describe("entry secrets as the API returns them", () => {
+    const withSecret = stored(
+      { host: "https://h", headers: { "X-Api-Key": { values: ["public"] }, Authorization: {} } },
+      { "/headers/X-Api-Key/secrets": true, "/headers/Authorization/secrets": true },
+    )
+
+    test("each key with a stored secret shows it as stored", () => {
+      const rows = initialState(FIELDS, withSecret).headers
+      expect(rows?.kind === "map" ? rows.rows.map((r) => [r.key, r.kind, r.stored]) : []).toEqual([
+        ["X-Api-Key", "values", true],
+        ["X-Api-Key", "secrets", true],
+        ["Authorization", "secrets", true],
+      ])
+    })
+
+    test("editing another field never names a stored secret", () => {
+      const state = setText(initialState(FIELDS, withSecret), "host", "https://other")
+      expect(buildPatch(FIELDS, state, withSecret)).toEqual({ host: "https://other" })
+    })
+
+    test("changing the public value of a key keeps its secret", () => {
+      const state = initialState(FIELDS, withSecret)
+      const map = state.headers as { kind: "map"; rows: MapRow[] }
+      state.headers = { kind: "map", rows: map.rows.map((r) => (r.key === "X-Api-Key" && r.kind === "values" ? { ...r, text: "public2", edited: true } : r)) }
+      expect(buildPatch(FIELDS, state, withSecret)).toEqual({ headers: { "X-Api-Key": { values: ["public2"] } } })
+    })
+
+    test("removing the stored secret clears only that secret, and removing every row clears the key", () => {
+      const state = initialState(FIELDS, withSecret)
+      const map = state.headers as { kind: "map"; rows: MapRow[] }
+      state.headers = { kind: "map", rows: map.rows.filter((r) => r.kind !== "secrets") }
+      expect(buildPatch(FIELDS, state, withSecret)).toEqual({ headers: { "X-Api-Key": { secrets: null }, Authorization: null } })
+    })
+
+    test("replacing a stored secret sends the new one", () => {
+      const state = initialState(FIELDS, withSecret)
+      const map = state.headers as { kind: "map"; rows: MapRow[] }
+      state.headers = { kind: "map", rows: map.rows.map((r) => (r.key === "Authorization" ? { ...r, text: "Bearer new", edited: true } : r)) }
+      expect(buildPatch(FIELDS, state, withSecret)).toEqual({ headers: { Authorization: { secrets: ["Bearer new"] } } })
+    })
+
+    test("keys with a slash or tilde use escaped pointers", () => {
+      const entry = stored({ headers: { "a/b~c": {} } }, { "/headers/a~1b~0c/secrets": true })
+      const rows = initialState(FIELDS, entry).headers
+      expect(rows?.kind === "map" ? rows.rows.map((r) => [r.key, r.kind]) : []).toEqual([["a/b~c", "secrets"]])
+      expect(buildPatch(FIELDS, initialState(FIELDS, entry), entry)).toEqual({})
     })
   })
 

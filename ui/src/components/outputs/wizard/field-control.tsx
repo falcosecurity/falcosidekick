@@ -252,7 +252,12 @@ function MapEditor({
                       <KeyRound className="size-3" aria-hidden /> Stored, hidden
                     </Badge>
                   ) : row.kind === "files" ? (
-                    <FilePathInput id={`${id}-row-${row.id}`} value={row.text} onChange={(text) => update(row.id, { text })} />
+                    <FilePathInput
+                      id={`${id}-row-${row.id}`}
+                      value={row.text}
+                      onChange={(text) => update(row.id, { text })}
+                      aria-label={`${row.key || "Entry"} file`}
+                    />
                   ) : (
                     <Input type={row.kind === "secrets" ? "password" : "text"} value={row.text} onChange={(e) => update(row.id, { text: e.target.value })} placeholder="Value" aria-label={`${row.key || "Entry"} value`} autoComplete="off" />
                   )}

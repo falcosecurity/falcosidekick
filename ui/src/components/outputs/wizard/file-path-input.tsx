@@ -23,6 +23,8 @@ interface FilePathInputProps {
   invalid?: boolean
   placeholder?: string
   "aria-describedby"?: string
+  /** For an input without a visible label, such as one row of a map. */
+  "aria-label"?: string
 }
 
 function joinPath(dir: string, name: string): string {

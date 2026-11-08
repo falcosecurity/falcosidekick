@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query"
 import { AlertTriangle, ArrowRight, DatabaseZap, Pencil, Server, Trash2 } from "lucide-react"
 import { useState, type ReactNode } from "react"
 import { Link } from "react-router"
@@ -27,13 +26,12 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useConfig } from "@/hooks/use-config"
-import { useEventsCountBy, useLatestEvent } from "@/hooks/use-events"
+import { useEventsCount, useEventsCountBy, useLatestEvent } from "@/hooks/use-events"
 import { useOutputTypes } from "@/hooks/use-output-writes"
-import { useOutputs, usePipelineStatus } from "@/hooks/use-pipeline"
-import { useRefetchInterval } from "@/hooks/use-refetch-interval"
-import { api } from "@/lib/api-client"
+import { usePipelineStatus } from "@/hooks/use-pipeline"
 import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
+import { withRuntimeDefaults } from "@/lib/runtime-defaults"
 import { driverOf, lastSuccessOf, PRIORITIES, statusOf, type CoreConfig, type OutputConfigEntry, type OutputStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -88,7 +86,8 @@ function NodeHeader({ icon, title, description }: { icon: ReactNode; title: stri
 
 /** The Falco settings that send events here, built from the ingestion listener. */
 export function falcoSnippet(cfg: Pick<CoreConfig, "listen_address" | "listen_port" | "tls">): string {
-  const host = cfg.listen_address && cfg.listen_address !== "0.0.0.0" && cfg.listen_address !== "::" ? cfg.listen_address : "<sidekick-host>"
+  const address = cfg.listen_address
+  const host = !address || address === "0.0.0.0" || address === "::" ? "<sidekick-host>" : address.includes(":") ? `[${address}]` : address
   const scheme = cfg.tls?.enabled ? "https" : "http"
   return `json_output: true\nhttp_output:\n  enabled: true\n  url: ${scheme}://${host}:${cfg.listen_port}/`
 }
@@ -169,15 +168,13 @@ function SourceDetail() {
 
 // How the pipeline delivers right now; build and settings are on the Configuration page.
 function CoreDetail() {
+  // One source for every figure: the live status lists each running or failed output.
   const statusQuery = usePipelineStatus()
-  const outputsQuery = useOutputs()
-  const failure = [statusQuery, outputsQuery].find((q) => q.isError)
-  if (failure) {
-    return <ErrorState title="Unable to load pipeline details" description={errorMessage(failure.error)} />
+  if (statusQuery.isError) {
+    return <ErrorState title="Unable to load pipeline details" description={errorMessage(statusQuery.error)} />
   }
   const statuses = statusQuery.data
-  const outputs = outputsQuery.data
-  if (!statuses || !outputs) {
+  if (!statuses) {
     return <LoadingSkeleton lines={5} />
   }
 
@@ -196,7 +193,7 @@ function CoreDetail() {
           <StatGrid className="grid-cols-2">
             <StatTile
               label="Delivering"
-              value={`${statuses.length - attention.length} of ${outputs.length}`}
+              value={`${statuses.length - attention.length} of ${statuses.length}`}
               tone={attention.length > 0 ? "error" : statuses.length > 0 ? "ok" : "neutral"}
             />
             <StatTile label="Peak rate" value={`${formatNumber(Math.round(peak))}/min`} />
@@ -251,18 +248,13 @@ function OutputDetail({
   actions?: OutputActions
 }) {
   const types = useOutputTypes()
-  const uiConfig = useConfig().data?.config.ui
+  const coreConfig = useConfig().data?.config
+  const uiConfig = coreConfig?.ui
   const servesUI = entry != null && uiConfig?.enabled === true && uiConfig.event_source === entry.name
   const isInmemory = entry?.name === "inmemory"
   const inmemoryCapacity = typeof entry?.config?.["capacity"] === "number" ? entry.config["capacity"] : undefined
-  const refetchInterval = useRefetchInterval()
 
-  const eventsCountQuery = useQuery({
-    queryKey: ["events", "count", "for-inmemory"],
-    queryFn: ({ signal }) => api.countEvents({}, signal),
-    enabled: isInmemory,
-    refetchInterval: isInmemory ? refetchInterval : false,
-  })
+  const eventsCountQuery = useEventsCount({}, { enabled: isInmemory })
 
   if (!entry) {
     return (
@@ -374,7 +366,7 @@ function OutputDetail({
         {types.isPending ? (
           <LoadingSkeleton lines={4} />
         ) : outputType ? (
-          <OutputConfigView key={entry.name} entry={entry} fields={outputType.schema.fields} />
+          <OutputConfigView key={entry.name} entry={entry} fields={withRuntimeDefaults(outputType.schema.fields, coreConfig?.runtime_defaults)} />
         ) : (
           <section className="flex flex-col gap-2">
             <SectionHeading>Configuration</SectionHeading>
