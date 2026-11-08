@@ -79,14 +79,14 @@ func TestElasticsearchMarshalSafeDiagnostics(t *testing.T) {
 }
 
 func TestElasticsearchCommonCases(t *testing.T) {
-	testutil.RunOutputTests(t, OutputType, []testutil.OutputTestCase{
+	testutil.RunOutputTests(t, &OutputType, []testutil.OutputTestCase{
 		{Name: "sends valid event", AddressField: "host"},
 		{Name: "returns error on server 500", AddressField: "host", MockStatus: http.StatusInternalServerError, ExpectError: true},
 	})
 }
 
 func TestElasticsearchPayloadFormat(t *testing.T) {
-	testutil.RunOutputTests(t, OutputType, []testutil.OutputTestCase{
+	testutil.RunOutputTests(t, &OutputType, []testutil.OutputTestCase{
 		{
 			Name:         "includes @timestamp in body",
 			AddressField: "host",
@@ -232,7 +232,7 @@ func TestResolveIndexSuffixes(t *testing.T) {
 }
 
 func TestFlattenFieldsReplacesDotsAndPreservesValues(t *testing.T) {
-	testutil.RunOutputTests(t, OutputType, []testutil.OutputTestCase{
+	testutil.RunOutputTests(t, &OutputType, []testutil.OutputTestCase{
 		{
 			Name:         "flattened field names use underscores",
 			AddressField: "host",

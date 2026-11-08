@@ -130,7 +130,12 @@ function nullOn404<T>(err: unknown): T | null {
 export type OutputsWire = Record<string, OutputConfigEntry> | null
 export type StatusListWire = { outputs: OutputStatus[] }
 export type LayoutWire = { updated_at: string; nodes: LayoutNode[] | null } | Record<string, never> | null
-export type OutputTypeWire = { name: string; category: string; schema: { fields: SchemaField[] | null } }
+export type OutputTypeWire = {
+  name: string
+  category: string
+  event_source?: boolean
+  schema: { fields: SchemaField[] | null }
+}
 export type OutputTypesWire = { types: OutputTypeWire[] | null }
 export type PipelineWire = { outputs: OutputsWire; status: OutputStatus[] | null; layout: LayoutWire }
 
@@ -151,6 +156,7 @@ export function normalizeOutputTypes(value: OutputTypesWire): OutputType[] {
   return (value.types ?? []).map((item) => ({
     name: item.name,
     category: item.category,
+    event_source: item.event_source,
     schema: { fields: item.schema.fields ?? [] },
   }))
 }

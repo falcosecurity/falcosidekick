@@ -149,6 +149,8 @@ type Type struct {
 	Name          string                           `json:"name"`
 	Category      Category                         `json:"category"`
 	Schema        Schema                           `json:"schema"`
+	// EventSource marks a type whose driver implements ReadableStore, so ui.event_source may name it.
+	EventSource bool `json:"event_source"`
 }
 
 // Deps holds shared dependencies injected into outputs at creation.

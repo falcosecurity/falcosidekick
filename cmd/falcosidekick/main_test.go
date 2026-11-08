@@ -582,6 +582,13 @@ func TestRunUIEnabledMissingEventSource(t *testing.T) {
 	assert.NotContains(t, err.Error(), "nonexistent")
 }
 
+func TestRunUIEventSourceThatCannotServeEvents(t *testing.T) {
+	cfg := writeTestConfig(t, "ui:\n  enabled: true\n  event_source: webhook")
+	outs := writeTestOutputs(t, "outputs:\n  webhook:\n    host: http://localhost:9999\n")
+	err := run(context.Background(), cfg, []string{outs})
+	require.ErrorContains(t, err, `ui.event_source: output type "webhook" cannot serve events to the UI; use one of: inmemory`)
+}
+
 func TestRunLifecycleCleanShutdown(t *testing.T) {
 	cfg, port, _ := writeServerConfig(t, "")
 	outs := writeTestOutputs(t, "outputs:\n  webhook:\n    host: http://127.0.0.1:19999\n")
@@ -984,8 +991,9 @@ func TestNewAppStartsWhenTheStoredEventSourceDoesNotBuild(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.Close())
 	cat, err := catalog.New([]output.Type{{
-		Name:   "webhook",
-		Schema: output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
+		Name:        "webhook",
+		EventSource: true,
+		Schema:      output.Schema{Fields: []output.SchemaField{{Name: "token", Type: "string", Secret: true}}},
 		New: func(_ map[string]any, _ output.Deps) (output.Driver, error) {
 			return &testutil.MockDriver{DriverName: "webhook"}, nil
 		},

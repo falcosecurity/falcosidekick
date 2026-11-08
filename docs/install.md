@@ -172,6 +172,33 @@ database:
 
 See [configuration](configuration.md#database) for every setting.
 
+## Database and event source
+
+The two settings are independent. `database.backend` keeps the outputs and the UI layout. `ui.event_source` names the output the Events page and the dashboard read events from; it must be an output that stores events and answers queries. Today only `inmemory` can be one: naming another output type, such as `webhook`, stops startup. `GET /api/v1/pipeline/outputs/types` reports `event_source: true` for the types that can.
+
+A postgres database with an `inmemory` event source is the normal setup:
+
+```yaml
+# sidekick.yaml
+database:
+  backend: postgres
+  postgres:
+    host: postgres.default.svc
+    database: falcosidekick
+    user: falcosidekick
+    password_file: /run/secrets/postgres-password
+ui:
+  enabled: true
+  event_source: inmemory
+
+# outputs.yaml
+outputs:
+  inmemory:
+    capacity: 10000
+```
+
+The outputs and the layout are shared through postgres; each instance keeps its own recent events in memory, so they are lost on restart and the UI of one instance shows only the events that instance received.
+
 ## Build from source
 
 Requires Go and [Bun](https://bun.sh).

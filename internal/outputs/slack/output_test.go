@@ -46,7 +46,7 @@ func runSlackCases(t *testing.T, cases []testutil.OutputTestCase) {
 		maps.Copy(config, cases[i].Config)
 		cases[i].Config = config
 	}
-	testutil.RunOutputTests(t, OutputType, cases)
+	testutil.RunOutputTests(t, &OutputType, cases)
 }
 
 func TestSlackCommonCases(t *testing.T) {

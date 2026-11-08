@@ -130,14 +130,14 @@ func TestFanOutCancellationPreservesCause(t *testing.T) {
 }
 
 func TestAlertmanagerCommonCases(t *testing.T) {
-	testutil.RunOutputTests(t, OutputType, []testutil.OutputTestCase{
+	testutil.RunOutputTests(t, &OutputType, []testutil.OutputTestCase{
 		{Name: "sends valid event", AddressField: "hosts", AddressSlice: true},
 		{Name: "returns error on server 500", AddressField: "hosts", AddressSlice: true, MockStatus: http.StatusInternalServerError, ExpectError: true},
 	})
 }
 
 func TestAlertmanagerPayloadFormat(t *testing.T) {
-	testutil.RunOutputTests(t, OutputType, []testutil.OutputTestCase{
+	testutil.RunOutputTests(t, &OutputType, []testutil.OutputTestCase{
 		{
 			Name:         "sends alert with required fields",
 			AddressField: "hosts",
