@@ -42,14 +42,13 @@ Key in the output file: `kafka`. Category: Queues and streams. UI event source: 
 | `brokers` | list of strings, **required** | - | Seed brokers as `host:port`, without scheme or path. The client discovers the rest of the cluster from them. |
 | `topic` | string, **required** | - | Topic for events without a `topic_field` value. Startup checks that it exists and is writable. |
 | `topic_field` | string | - | Output field, such as `k8s.ns.name`, whose string value names the topic. Events without a non-empty string value use `topic`. These topics are not checked at startup. |
-| `message_key` | string | - | Record key used when `message_key_field` gives no value. Empty sends records without a key. Only the default balancer places records by key. |
+| `message_key` | string | - | Record key used when `message_key_field` gives no value; records with the same key go to the same partition. Empty sends records without a key, spread across partitions. |
 | `message_key_field` | string | - | Output field whose non-empty string value is the record key. Otherwise `message_key` applies. |
 | `tls_enabled` | boolean | `false` | Connects to the brokers over TLS. `tls` settings are refused unless this is set. |
 | `auth.sasl` | one of ``, `plain`, `scram_sha256`, `scram_sha512` | - | SASL mechanism for broker authentication: `plain`, `scram_sha256` or `scram_sha512`. Empty disables SASL; any mechanism requires username and password. |
 | `auth.username` | string | - | User for SASL authentication. |
 | `auth.password` | string, secret | - | Password for SASL authentication. Also accepted as `auth.password_file`, the path of a file holding the value. |
 | `producer.compression` | one of `none`, `gzip`, `snappy`, `lz4`, `zstd` | `none` | Codec for record batches sent to the brokers. |
-| `producer.balancer` | one of ``, `round_robin`, `least_backup`, `sticky` | - | How records are spread across partitions. Empty hashes the key like the Java client and moves keyless records between partitions in batches; `round_robin`, `least_backup` and `sticky` ignore the key. |
 | `producer.required_acks` | one of `all`, `one`, `none` | `all` | Acknowledgement the brokers give before a record counts as written: all in-sync replicas, the leader, or none. Idempotent writes are enabled only with `all`. |
 | `producer.client_id` | string | - | Client ID sent to the brokers, visible in their logs and quotas. Empty uses `kgo`. |
 | `producer.async` | boolean | `false` | Returns once the record is buffered, without waiting for the brokers. A later broker failure is counted as failed, so counters are exact only in sync mode. |

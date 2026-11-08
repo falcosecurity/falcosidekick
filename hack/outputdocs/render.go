@@ -221,6 +221,9 @@ func typeText(f *output.SchemaField) string {
 
 func description(name string, f *output.SchemaField) string {
 	d := f.Description
+	if f.Suggested != nil {
+		d += " Suggested: `" + fmt.Sprint(f.Suggested) + "`."
+	}
 	if f.HasFileVariant() {
 		d += " Also accepted as `" + name + "_file`, the path of a file holding the value."
 	}

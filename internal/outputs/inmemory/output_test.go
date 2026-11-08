@@ -46,11 +46,34 @@ func testEvent(rule string, priority event.Priority, source string, t time.Time)
 
 func createTestOutput(capacity int) *driver {
 	o, _ := createOutput(map[string]any{
-		"capacity":    capacity,
-		"ttl":         "0s",
-		"gc_interval": "10s",
+		"capacity": capacity,
+		"ttl":      "0s",
 	}, output.Deps{})
 	return o.(*driver)
+}
+
+func TestGCIntervalNeedsTTL(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		cfg  map[string]any
+		want string
+	}{
+		{"without ttl", map[string]any{"gc_interval": "30s"}, "gc_interval: needs ttl"},
+		{"with ttl 0", map[string]any{"ttl": "0", "gc_interval": "30s"}, "gc_interval: needs ttl"},
+		{"negative", map[string]any{"ttl": "1h", "gc_interval": "-1s"}, "gc_interval: must be >= 0"},
+		{"with ttl", map[string]any{"ttl": "1h", "gc_interval": "30s"}, ""},
+		{"0 with ttl uses the default", map[string]any{"ttl": "1h", "gc_interval": "0"}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := createOutput(tc.cfg, output.Deps{})
+			if tc.want == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
 }
 
 func TestName(t *testing.T) {

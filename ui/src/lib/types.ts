@@ -122,6 +122,8 @@ export interface SchemaField {
   description?: string
   required: boolean
   default?: unknown
+  /** A value the UI proposes for a field without a default, such as the Falco icon. */
+  suggested?: string
   values?: string[]
   secret?: boolean
   file?: boolean

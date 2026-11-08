@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"sync"
 	"syscall"
 	"testing"
@@ -102,7 +103,7 @@ func TestResolveSASL(t *testing.T) {
 		wantErr bool
 	}{
 		{"empty returns nil", "", true, false},
-		{"none returns nil", "none", true, false},
+		{"none is not a mechanism", "none", false, true},
 		{"plain returns opt", "plain", false, false},
 		{"scram_sha256 returns opt", "scram_sha256", false, false},
 		{"scram_sha512 returns opt", "scram_sha512", false, false},
@@ -147,24 +148,16 @@ func TestResolveCompression(t *testing.T) {
 	}
 }
 
-func TestResolveBalancer(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		wantLen int
-	}{
-		{"round_robin", "round_robin", 1},
-		{"least_backup", "least_backup", 1},
-		{"sticky", "sticky", 1},
-		{"empty returns nil", "", 0},
-		{"unknown returns nil", "random", 0},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			opts := resolveBalancer(tt.input)
-			assert.Len(t, opts, tt.wantLen)
-		})
-	}
+// The key always picks the partition, so no partitioner that ignores it can be chosen.
+func TestBalancerIsRefused(t *testing.T) {
+	_, err := createOutput(map[string]any{
+		"brokers":  []string{"localhost:9092"},
+		"topic":    "events",
+		"producer": map[string]any{"balancer": "round_robin"},
+	}, output.Deps{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "balancer")
+	assert.False(t, slices.ContainsFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "producer.balancer" }))
 }
 
 func TestCreateOutputAsync(t *testing.T) {
@@ -328,7 +321,7 @@ func TestCreateOutputAllOptions(t *testing.T) {
 		"topic":       "falco",
 		"auth":        map[string]any{"sasl": "plain", "username": "u", "password": "p"},
 		"tls_enabled": true,
-		"producer":    map[string]any{"client_id": "cid", "compression": "zstd", "balancer": "round_robin", "required_acks": "one", "async": true, "auto_create_topic": true},
+		"producer":    map[string]any{"client_id": "cid", "compression": "zstd", "required_acks": "one", "async": true, "auto_create_topic": true},
 	}, output.Deps{})
 	require.NoError(t, err)
 

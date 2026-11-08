@@ -169,9 +169,11 @@ type SchemaField struct {
 	// EntryFields describes the properties of each value in a map field.
 	EntryFields []SchemaField `json:"entry_fields,omitempty"`
 	Default     any           `json:"default,omitempty"`
-	Name        string        `json:"name"`
-	Type        string        `json:"type"`
-	Label       string        `json:"label"`
+	// Suggested is a value the UI and the docs propose for a field that has no default.
+	Suggested any    `json:"suggested,omitempty"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	Label     string `json:"label"`
 	// Description says what the value does, its format and units; shown in the UI and the docs.
 	Description string   `json:"description,omitempty"`
 	Values      []string `json:"values,omitempty"`

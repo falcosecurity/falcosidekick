@@ -138,17 +138,18 @@ func TestLiveElasticsearch(t *testing.T) {
 	t.Run("daily index matches the template pattern", func(t *testing.T) {
 		liveRequest(t, base, http.MethodDelete, "/fsk-live-tpl-*", "")
 		d := liveDriver(t, map[string]any{"host": base, "index": "fsk-live-tpl"})
-		require.NoError(t, d.(output.BatchSender).SendBatch(ctx, []*event.Event{liveEvent("t1", 1)}))
-		index := d.(*driver).resolveIndex()
+		evt := liveEvent("t1", 1)
+		require.NoError(t, d.(output.BatchSender).SendBatch(ctx, []*event.Event{evt}))
+		index := d.(*driver).resolveIndex(evt)
 		_, body := liveRequest(t, base, http.MethodGet, "/"+index+"/_mapping", "")
 		assert.Contains(t, mustJSON(t, body), `"uuid":{"type":"keyword"}`)
 	})
 
 	t.Run("template indexes dotted output fields", func(t *testing.T) {
 		d := liveDriver(t, map[string]any{"host": base, "index": "fsk-live-tpl"})
-		index := d.(*driver).resolveIndex()
-		liveRequest(t, base, http.MethodDelete, "/"+index, "")
 		evt := liveEvent("dotted-1", nil)
+		index := d.(*driver).resolveIndex(evt)
+		liveRequest(t, base, http.MethodDelete, "/"+index, "")
 		evt.OutputFields = map[string]any{"proc.name": "bash", "proc.pid": 4242}
 		require.NoError(t, d.(output.BatchSender).SendBatch(ctx, []*event.Event{evt}))
 		evt.UUID = "dotted-2"

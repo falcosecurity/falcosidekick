@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -94,8 +95,8 @@ func TestCreateRequiresRegion(t *testing.T) {
 
 func TestDefaults(t *testing.T) {
 	awstest.Isolate(t)
-	d := newDriver(t, "http://127.0.0.1:1", map[string]any{"prefix": "", "runtime": map[string]any{"minimum_priority": "error"}}).(*driver)
-	assert.Equal(t, defaultPrefix, d.cfg.Prefix)
+	d := newDriver(t, "http://127.0.0.1:1", map[string]any{"prefix": "/", "runtime": map[string]any{"minimum_priority": "error"}}).(*driver)
+	assert.Empty(t, d.cfg.Prefix, "the prefix is only suggested")
 	assert.Equal(t, "bucket-owner-full-control", d.cfg.ObjectCannedACL)
 	assert.Equal(t, event.PriorityError, d.RuntimeConfig().MinPriority)
 }
@@ -147,7 +148,7 @@ func TestSendBatchPutsOneNDJSONObject(t *testing.T) {
 
 	reqs := rec.Received()
 	require.Len(t, reqs, 1)
-	assert.Equal(t, "/"+bucket+"/falco/2026-04-01/2026-04-01T10:30:00Z_test-uuid-001.ndjson", reqs[0].URL.Path)
+	assert.Equal(t, "/"+bucket+"/2026-04-01/2026-04-01T10:30:00Z_test-uuid-001.ndjson", reqs[0].URL.Path, "no prefix: keys start at the root")
 	assert.Equal(t, contentTypeNDJSON, reqs[0].Header.Get("Content-Type"))
 	assert.Equal(t, "bucket-owner-full-control", reqs[0].Header.Get("X-Amz-Acl"))
 	lines := strings.Split(strings.TrimSuffix(string(objectBody(t, reqs[0])), "\n"), "\n")
@@ -167,6 +168,16 @@ func TestObjectKey(t *testing.T) {
 
 	generated := d.objectKey(&event.Event{}, ".json")
 	assert.Regexp(t, `^p/\d{4}-\d{2}-\d{2}/[^_]+_[0-9a-f-]{36}\.json$`, generated)
+
+	root := &driver{}
+	assert.Equal(t, "2025-12-31/2025-12-31T23:30:00.000000123Z_u.json", root.objectKey(evt, ".json"), "no leading /")
+}
+
+func TestPrefixIsSuggested(t *testing.T) {
+	i := slices.IndexFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "prefix" })
+	require.GreaterOrEqual(t, i, 0)
+	assert.Nil(t, OutputType.Schema.Fields[i].Default)
+	assert.Equal(t, suggestedPrefix, OutputType.Schema.Fields[i].Suggested)
 }
 
 // objectBody decodes the aws-chunked encoding the SDK uses to send a trailing checksum.

@@ -266,8 +266,8 @@ func TestTemplateCreatedBeforeFirstDelivery(t *testing.T) {
 	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
 	assert.Equal(t, []string{
 		"HEAD /_index_template/falco", "PUT /_index_template/falco",
-		"PUT /falco-" + time.Now().UTC().Format("2006.01.02") + "/_create/test-uuid-001",
-		"PUT /falco-" + time.Now().UTC().Format("2006.01.02") + "/_create/test-uuid-001",
+		"PUT /falco-" + testutil.CreateValidEvent().Time.UTC().Format("2006.01.02") + "/_create/test-uuid-001",
+		"PUT /falco-" + testutil.CreateValidEvent().Time.UTC().Format("2006.01.02") + "/_create/test-uuid-001",
 	}, requests, "the template is created once, before the first document")
 }
 

@@ -31,11 +31,11 @@ Key in the output file: `slack`. Category: Chat. UI event source: no. Batching: 
 | `secret_endpoint` | string, secret, **required** | - | Path the events are sent to, used instead of the endpoint when the path itself is a credential, as in a webhook URL; the API never returns it. Also accepted as `secret_endpoint_file`, the path of a file holding the value. |
 | `channel` | string | - | Channel the messages are posted to, such as `#falco`, when the webhook allows it. Empty uses the webhook's channel. |
 | `bot_username` | string | - | Name shown as the sender of the messages, when the webhook allows it. Empty uses the webhook's name. |
-| `icon_url` | string | - | URL of the image shown as the sender icon. Empty uses the webhook's icon. |
+| `icon_url` | string | - | URL of the image shown as the sender icon. Empty uses the webhook's icon. Suggested: `https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png`. |
 | `icon_emoji` | string | - | Emoji shown as the sender icon, written as `:name:`. Empty uses the webhook's icon. |
 | `output_format` | one of `all`, `fields`, `text` | `all` | Content of the attachment: `text` is the event output text, `fields` lists rule, priority, source, hostname, tags, output fields and time, `all` shows both. |
 | `message_format` | string | - | Go template for a message text shown above the attachment, applied to the event, such as `Rule {{ .Rule }} on {{ .Hostname }}`. Empty sends no message text. |
-| `footer` | string | - | Text shown under the attachment, cut to 300 characters. Empty uses the default. |
+| `footer` | string | - | Text shown under the attachment, cut to 300 characters. Empty shows no footer. Suggested: `https://github.com/falcosecurity/falcosidekick`. |
 
 Also takes the shared settings in [Query parameters](common.md#query-parameters), [HTTP authentication and headers](common.md#http-authentication-and-headers), [TLS](common.md#tls), [Delivery](common.md#delivery).
 

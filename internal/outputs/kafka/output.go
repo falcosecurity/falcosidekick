@@ -57,7 +57,6 @@ type kafkaAuth struct {
 
 type kafkaProducer struct {
 	Compression     string        `mapstructure:"compression"`
-	Balancer        string        `mapstructure:"balancer"`
 	RequiredACKs    string        `mapstructure:"required_acks"`
 	ClientID        string        `mapstructure:"client_id"`
 	DeliveryTimeout time.Duration `mapstructure:"delivery_timeout"`
@@ -87,8 +86,8 @@ var OutputType = output.Type{
 			},
 			{
 				Name: "message_key", Type: "string", Label: "Static message key (for partition affinity)",
-				Description: "Record key used when `message_key_field` gives no value. Empty sends records without a key. " +
-					"Only the default balancer places records by key.",
+				Description: "Record key used when `message_key_field` gives no value; records with the same key go to the same partition. " +
+					"Empty sends records without a key, spread across partitions.",
 			},
 			{
 				Name: "message_key_field", Type: "string", Label: "Message key from event field",
@@ -114,11 +113,6 @@ var OutputType = output.Type{
 			{
 				Name: "producer.compression", Type: "enum", Values: []string{"none", "gzip", "snappy", "lz4", "zstd"}, Default: "none", Label: "Compression",
 				Description: "Codec for record batches sent to the brokers.",
-			},
-			{
-				Name: "producer.balancer", Type: "enum", Values: []string{"", "round_robin", "least_backup", "sticky"}, Default: "", Label: "Partition Balancer",
-				Description: "How records are spread across partitions. Empty hashes the key like the Java client and moves keyless records between partitions in batches; " +
-					"`round_robin`, `least_backup` and `sticky` ignore the key.",
 			},
 			{
 				Name: "producer.required_acks", Type: "enum", Values: []string{"all", "one", "none"}, Default: "all", Label: "Required ACKs",
@@ -168,7 +162,6 @@ func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 var (
 	validSASL         = map[string]bool{"": true, "plain": true, "scram_sha256": true, "scram_sha512": true}
 	validCompression  = map[string]bool{"": true, "none": true, "gzip": true, "snappy": true, "lz4": true, "zstd": true}
-	validBalancer     = map[string]bool{"": true, "round_robin": true, "least_backup": true, "sticky": true}
 	validRequiredACKs = map[string]bool{"": true, "all": true, "one": true, "none": true}
 )
 
@@ -197,9 +190,6 @@ func (p *kafkaProducer) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	if !validCompression[p.Compression] {
 		errs.Add("compression", "must be none/gzip/snappy/lz4/zstd")
-	}
-	if !validBalancer[p.Balancer] {
-		errs.Add("balancer", "must be round_robin/least_backup/sticky")
 	}
 	if !validRequiredACKs[p.RequiredACKs] {
 		errs.Add("required_acks", "must be all/one/none")

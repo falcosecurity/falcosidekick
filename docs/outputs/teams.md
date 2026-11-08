@@ -39,7 +39,7 @@ Key in the output file: `teams`. Category: Chat. UI event source: no. Batching: 
 | `host` | string, **required** | - | Address of the destination as scheme, host and optional port, such as `https://example.com:8443`; the path goes in the base path and endpoint. |
 | `base_path` | string | - | Path prefix of every request, such as `/proxy/v2` when the destination sits behind a reverse proxy. |
 | `secret_endpoint` | string, secret, **required** | - | Path the events are sent to, used instead of the endpoint when the path itself is a credential, as in a webhook URL; the API never returns it. Also accepted as `secret_endpoint_file`, the path of a file holding the value. |
-| `activity_image` | string | `https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png` | Absolute http or https URL of the image shown in the card header. Empty uses the default. |
+| `activity_image` | string | - | Absolute http or https URL of the image shown in the card header. Empty shows no image. Suggested: `https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png`. |
 | `output_format` | one of `all`, `text`, `fields` | `all` | Content of the card: `text` is the event output text, `fields` lists rule, priority, source, hostname, output fields and tags, `all` shows both. |
 
 Also takes the shared settings in [Query parameters](common.md#query-parameters), [HTTP authentication and headers](common.md#http-authentication-and-headers), [TLS](common.md#tls), [Delivery](common.md#delivery).

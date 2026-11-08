@@ -29,11 +29,10 @@ import (
 )
 
 const (
-	name                 = "teams"
-	defaultActivityImage = shared.FalcosidekickIconURL
-	formatAll            = "all"
-	formatFields         = "fields"
-	formatText           = "text"
+	name         = "teams"
+	formatAll    = "all"
+	formatFields = "fields"
+	formatText   = "text"
 	// signatureParam is the Workflows trigger query parameter that authorizes the call.
 	signatureParam = "sig"
 )
@@ -57,8 +56,8 @@ var OutputType = output.Type{
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{
-				Name: "activity_image", Type: "string", Default: defaultActivityImage, Label: "Activity Image URL",
-				Description: "Absolute http or https URL of the image shown in the card header. Empty uses the default.",
+				Name: "activity_image", Type: "string", Suggested: shared.FalcosidekickIconURL, Label: "Activity Image URL",
+				Description: "Absolute http or https URL of the image shown in the card header. Empty shows no image.",
 			},
 			{
 				Name: "output_format", Type: "enum", Values: []string{formatAll, formatText, formatFields}, Default: formatAll, Label: "Output Format",
@@ -88,9 +87,7 @@ func (c *config) validate() utils.ValidationErrors {
 	} else if !validOutputFormats[c.OutputFormat] {
 		errs.Add("output_format", "must be all/text/fields")
 	}
-	if c.ActivityImage == "" {
-		c.ActivityImage = defaultActivityImage
-	} else if !shared.IsAbsoluteHTTPURL(c.ActivityImage) {
+	if c.ActivityImage != "" && !shared.IsAbsoluteHTTPURL(c.ActivityImage) {
 		errs.Add("activity_image", "must be an absolute http or https URL")
 	}
 	if len(errs) > 0 {

@@ -47,7 +47,8 @@ func buildClientOpts(cfg *config, logger *slog.Logger) ([]kgo.Opt, error) {
 	acks := resolveACKs(cfg.Producer.RequiredACKs)
 	opts = append(opts, kgo.RequiredAcks(acks))
 	opts = append(opts, resolveCompression(cfg.Producer.Compression)...)
-	opts = append(opts, resolveBalancer(cfg.Producer.Balancer)...)
+	// The default partitioner hashes keyed records with murmur2, as the Java client does, and spreads
+	// keyless ones by batch size (KIP-794), so a key always picks the partition.
 
 	if cfg.TLSEnabled {
 		tlsCfg, err := shared.BuildTLSConfig(&cfg.TLS)
@@ -97,19 +98,6 @@ func resolveCompression(c string) []kgo.Opt {
 		return []kgo.Opt{kgo.ProducerBatchCompression(kgo.ZstdCompression())}
 	default:
 		return []kgo.Opt{kgo.ProducerBatchCompression(kgo.NoCompression())}
-	}
-}
-
-func resolveBalancer(b string) []kgo.Opt {
-	switch strings.ToLower(b) {
-	case "round_robin":
-		return []kgo.Opt{kgo.RecordPartitioner(kgo.RoundRobinPartitioner())}
-	case "least_backup":
-		return []kgo.Opt{kgo.RecordPartitioner(kgo.LeastBackupPartitioner())}
-	case "sticky":
-		return []kgo.Opt{kgo.RecordPartitioner(kgo.StickyPartitioner())}
-	default:
-		return nil
 	}
 }
 

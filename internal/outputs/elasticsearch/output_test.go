@@ -24,6 +24,7 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -188,47 +189,27 @@ func TestElasticsearchClose(t *testing.T) {
 	assert.NoError(t, d.Close(), "Close is idempotent")
 }
 
-func TestResolveIndexSuffixes(t *testing.T) {
+// The index follows the event time in UTC, not the delivery clock: the last second of a year,
+// delivered later, stays in that day, month and year.
+func TestResolveIndexFollowsTheEventTime(t *testing.T) {
+	lastSecond := time.Date(2026, 1, 1, 0, 59, 59, 0, time.FixedZone("CET", 3600))
 	tests := []struct {
-		check  func(t *testing.T, index string)
-		name   string
-		suffix string
+		suffix, want string
 	}{
-		{
-			name:   "daily contains date with dots",
-			suffix: "daily",
-			check: func(t *testing.T, index string) {
-				assert.Regexp(t, `^falco-\d{4}\.\d{2}\.\d{2}$`, index)
-			},
-		},
-		{
-			name:   "monthly contains year and month",
-			suffix: "monthly",
-			check: func(t *testing.T, index string) {
-				assert.Regexp(t, `^falco-\d{4}\.\d{2}$`, index)
-			},
-		},
-		{
-			name:   "annually contains year only",
-			suffix: "annually",
-			check: func(t *testing.T, index string) {
-				assert.Regexp(t, `^falco-\d{4}$`, index)
-			},
-		},
-		{
-			name:   "none returns bare index",
-			suffix: "none",
-			check: func(t *testing.T, index string) {
-				assert.Equal(t, "falco", index)
-			},
-		},
+		{"daily", "falco-2025.12.31"},
+		{"monthly", "falco-2025.12"},
+		{"annually", "falco-2025"},
+		{"none", "falco"},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.suffix, func(t *testing.T) {
 			o := &driver{cfg: config{Index: "falco", Suffix: tt.suffix}}
-			tt.check(t, o.resolveIndex())
+			assert.Equal(t, tt.want, o.resolveIndex(&event.Event{Time: lastSecond}))
 		})
 	}
+
+	o := &driver{cfg: config{Index: "falco", Suffix: "daily"}}
+	assert.Equal(t, "falco-"+time.Now().UTC().Format("2006.01.02"), o.resolveIndex(&event.Event{}), "no event time: the delivery day")
 }
 
 func TestFlattenFieldsReplacesDotsAndPreservesValues(t *testing.T) {
