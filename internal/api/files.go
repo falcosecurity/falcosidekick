@@ -22,10 +22,10 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/reload"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
@@ -40,9 +40,9 @@ var (
 // same place were accepted before, from an output file or an earlier request.
 func checkFilePaths(stored, merged map[string]any, fields []output.SchemaField, secretDirs []string) error {
 	before := make(map[string]string)
-	_ = collectFilePaths(stored, fields, "", before)
+	_ = reload.CollectFilePaths(stored, fields, before)
 	after := make(map[string]string)
-	if err := collectFilePaths(merged, fields, "", after); err != nil {
+	if err := reload.CollectFilePaths(merged, fields, after); err != nil {
 		return err
 	}
 	locations := make([]string, 0, len(after))
@@ -56,65 +56,6 @@ func checkFilePaths(stored, merged map[string]any, fields []output.SchemaField, 
 		if err := allowedFile(after[location], secretDirs); err != nil {
 			return fmt.Errorf("%s: %w", location, err)
 		}
-	}
-	return nil
-}
-
-// collectFilePaths maps each location of cfg that holds a file path to that path: File fields,
-// <name>_file of secret strings, and the same inside map entries. cfg has schema key spelling.
-func collectFilePaths(cfg map[string]any, fields []output.SchemaField, prefix string, paths map[string]string) error {
-	for i := range fields {
-		field := &fields[i]
-		parent, leaf := utils.NavigateMap(cfg, field.Name)
-		if parent == nil {
-			continue
-		}
-		location := prefix + field.Name
-		switch {
-		case field.File:
-			if err := addFilePaths(paths, location, parent[leaf]); err != nil {
-				return err
-			}
-		case field.HasFileVariant():
-			if err := addFilePaths(paths, location+"_file", parent[leaf+"_file"]); err != nil {
-				return err
-			}
-		case len(field.EntryFields) > 0:
-			entries, _ := parent[leaf].(map[string]any)
-			for key, entry := range entries {
-				if object, ok := entry.(map[string]any); ok {
-					entryPrefix := location + "[" + strconv.Quote(key) + "]."
-					if err := collectFilePaths(object, field.EntryFields, entryPrefix, paths); err != nil {
-						return err
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func addFilePaths(paths map[string]string, location string, value any) error {
-	switch value := value.(type) {
-	case nil:
-	case string:
-		if value != "" {
-			paths[location] = value
-		}
-	case []any:
-		for i, item := range value {
-			path, ok := item.(string)
-			if !ok {
-				return fmt.Errorf("%s[%d]: must be a string", location, i)
-			}
-			paths[location+"["+strconv.Itoa(i)+"]"] = path
-		}
-	case []string:
-		for i, path := range value {
-			paths[location+"["+strconv.Itoa(i)+"]"] = path
-		}
-	default:
-		return fmt.Errorf("%s: must be a file path", location)
 	}
 	return nil
 }

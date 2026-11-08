@@ -1332,9 +1332,28 @@ func TestReplicasApplyEveryKindOfChange(t *testing.T) {
 	assert.Empty(t, notified.status("webhook2").Status)
 }
 
-// Without output files, SIGHUP still rereads the secret files of API outputs and rebuilds those that changed.
-func TestSIGHUPRotatesTheSecretOfAnAPIOutputWithoutOutputFiles(t *testing.T) {
-	secret := filepath.Join(t.TempDir(), "token")
+// Without output files, SIGHUP and a change in api.secret_dirs still reread the secret files of API
+// outputs and rebuild those that changed.
+func TestRotatedSecretOfAnAPIOutputWithoutOutputFiles(t *testing.T) {
+	tests := []struct {
+		name    string
+		sighup  bool
+		inRoots bool
+	}{
+		{name: "SIGHUP", sighup: true},
+		{name: "secret directory watcher", inRoots: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testRotatedAPISecret(t, tt.sighup, tt.inRoots)
+		})
+	}
+}
+
+func testRotatedAPISecret(t *testing.T, sighup, inRoots bool) {
+	root := t.TempDir()
+	secret := filepath.Join(root, "webhook", "token")
+	require.NoError(t, os.Mkdir(filepath.Dir(secret), 0o700))
 	require.NoError(t, os.WriteFile(secret, []byte("first"), 0o600))
 	var (
 		mu    sync.Mutex
@@ -1358,7 +1377,14 @@ func TestSIGHUPRotatesTheSecretOfAnAPIOutputWithoutOutputFiles(t *testing.T) {
 	appCtx, cancel := context.WithCancel(context.Background())
 	workers, stopWorkers := context.WithCancel(context.Background())
 	a.pipe.Start(workers, stopWorkers)
-	a.startReloadWatchers(appCtx, workers, nil, cfg.Reload)
+	var secretDirs []string
+	if inRoots {
+		secretDirs = []string{root}
+	}
+	// No poller: the change must reach the output through the watcher or the signal alone.
+	reloadCfg := cfg.Reload
+	reloadCfg.PollInterval = 0
+	a.startReloadWatchers(appCtx, workers, nil, secretDirs, reloadCfg)
 	t.Cleanup(func() {
 		cancel()
 		a.shutdown()
@@ -1367,8 +1393,14 @@ func TestSIGHUPRotatesTheSecretOfAnAPIOutputWithoutOutputFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, os.WriteFile(secret, []byte("rotated"), 0o600))
-	require.NoError(t, syscall.Kill(os.Getpid(), syscall.SIGHUP))
+	if sighup {
+		require.NoError(t, syscall.Kill(os.Getpid(), syscall.SIGHUP))
+	}
 	require.Eventually(t, func() bool {
+		// The watcher starts in the background and misses a write before it watches the mount.
+		if !sighup && os.WriteFile(secret, []byte("rotated"), 0o600) != nil {
+			return false
+		}
 		mu.Lock()
 		defer mu.Unlock()
 		return slices.Equal(built, []string{"first", "rotated"})
