@@ -52,7 +52,7 @@ describe("OutputWizard", () => {
     expect(screen.getByRole("button", { name: /^Next/ })).toBeDisabled()
     expect(within(list).getByRole("button", { name: /^In-memory store/ })).toHaveTextContent("Event source")
     expect(within(list).getByRole("button", { name: /^Webhook/ })).not.toHaveTextContent("Event source")
-    expect(screen.getByText(/An event source also stores events/)).toBeInTheDocument()
+    expect(screen.getByText(/the driver also stores events/)).toBeInTheDocument()
     fireEvent.change(screen.getByRole("textbox", { name: "Search drivers" }), { target: { value: "slack" } })
     expect(within(list).getAllByRole("button").map((b) => b.textContent)).toEqual(["SlackChat"])
   })

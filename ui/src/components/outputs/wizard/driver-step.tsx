@@ -1,8 +1,7 @@
-import { Check, DatabaseZap, Search } from "lucide-react"
+import { Check, CircleCheck, DatabaseZap, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
-import { Badge } from "@/components/ui/badge"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { FieldDescription } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
@@ -36,6 +35,8 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Search and categories stay on top while the drivers scroll, with room for the focus ring. */}
+      <div className="sticky top-0 z-10 -mx-6 -mt-5 flex flex-col gap-3 border-b bg-popover px-6 pt-3 pb-3">
       <InputGroup>
         <InputGroupAddon>
           <Search aria-hidden />
@@ -76,9 +77,10 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
       {types.some((t) => t.event_source) && (
         <FieldDescription className="flex items-center gap-1.5 text-xs">
           <DatabaseZap className="size-3.5 shrink-0 text-brand" aria-hidden />
-          An event source also stores events, so the Events page and the dashboard can read them (ui.event_source).
+          Event source: the driver also stores events, so the Events page and the dashboard can read them (ui.event_source).
         </FieldDescription>
       )}
+      </div>
       {visible.length === 0 ? (
         <Empty className="border">
           <EmptyHeader>
@@ -87,7 +89,7 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
           </EmptyHeader>
         </Empty>
       ) : (
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Drivers">
+        <ul className="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" aria-label="Drivers">
           {visible.map((t) => {
             const isConfigured = configured.has(t.name)
             const isSelected = selected === t.name
@@ -99,7 +101,7 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
                   aria-pressed={isSelected}
                   onClick={() => onSelect(t.name)}
                   className={cn(
-                    "group flex w-full items-center gap-3 rounded-lg border bg-background p-3 text-left transition-colors",
+                    "group flex h-full w-full items-center gap-3 rounded-lg border bg-background p-3 text-left transition-colors",
                     "hover:border-foreground/25 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
                     "disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-border disabled:hover:bg-background",
                     isSelected && "border-brand bg-brand/5 ring-1 ring-brand",
@@ -110,21 +112,24 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
                     <span className="truncate text-sm font-medium" title={driverTitle(t.name)}>
                       {driverTitle(t.name)}
                     </span>
-                    <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                      {categoryTitle(t.category)}
-                      {t.event_source && (
-                        <Badge variant="outline" className="border-brand/40 font-normal text-brand">
-                          <DatabaseZap aria-hidden /> Event source
-                        </Badge>
-                      )}
-                      {isConfigured && (
-                        <Badge variant="secondary" className="font-normal">
-                          Configured
-                        </Badge>
-                      )}
-                    </span>
+                    <span className="truncate text-xs text-muted-foreground">{categoryTitle(t.category)}</span>
                   </span>
-                  {isSelected && <Check className="size-4 shrink-0 text-brand" aria-hidden />}
+                  <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                    {t.event_source && (
+                      <span title="Event source">
+                        <DatabaseZap className="size-4 text-brand" aria-hidden />
+                        <span className="sr-only">Event source</span>
+                      </span>
+                    )}
+                    {isConfigured ? (
+                      <span title="Already configured">
+                        <CircleCheck className="size-4" aria-hidden />
+                        <span className="sr-only">Configured</span>
+                      </span>
+                    ) : (
+                      isSelected && <Check className="size-4 text-brand" aria-hidden />
+                    )}
+                  </span>
                 </button>
               </li>
             )
