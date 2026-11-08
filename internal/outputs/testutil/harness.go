@@ -41,7 +41,7 @@ type OutputTestCase struct {
 }
 
 // RunOutputTests executes test cases against an output type using a mock HTTP server.
-func RunOutputTests(t *testing.T, outputType output.Type, cases []OutputTestCase) {
+func RunOutputTests(t *testing.T, outputType *output.Type, cases []OutputTestCase) {
 	t.Helper()
 
 	for _, tc := range cases {

@@ -35,14 +35,14 @@ import (
 )
 
 func TestLokiCommonCases(t *testing.T) {
-	testutil.RunOutputTests(t, OutputType, []testutil.OutputTestCase{
+	testutil.RunOutputTests(t, &OutputType, []testutil.OutputTestCase{
 		{Name: "sends valid event", AddressField: "host"},
 		{Name: "returns error on server 500", AddressField: "host", MockStatus: http.StatusInternalServerError, ExpectError: true},
 	})
 }
 
 func TestLokiPayloadFormat(t *testing.T) {
-	testutil.RunOutputTests(t, OutputType, []testutil.OutputTestCase{
+	testutil.RunOutputTests(t, &OutputType, []testutil.OutputTestCase{
 		{
 			Name:         "sets tenant header",
 			AddressField: "host",

@@ -129,6 +129,8 @@ export interface SchemaField {
 export interface OutputType {
   name: string
   category: string
+  /** True when ui.event_source may name this output type. */
+  event_source?: boolean
   schema: {
     fields: SchemaField[]
   }

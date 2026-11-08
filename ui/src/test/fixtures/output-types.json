@@ -2,6 +2,7 @@
   "types": [
     {
       "category": "alerting",
+      "event_source": false,
       "name": "alertmanager",
       "schema": {
         "fields": [
@@ -284,6 +285,7 @@
     },
     {
       "category": "storage",
+      "event_source": false,
       "name": "awss3",
       "schema": {
         "fields": [
@@ -514,6 +516,7 @@
     },
     {
       "category": "queue",
+      "event_source": false,
       "name": "awssns",
       "schema": {
         "fields": [
@@ -734,6 +737,7 @@
     },
     {
       "category": "queue",
+      "event_source": false,
       "name": "awssqs",
       "schema": {
         "fields": [
@@ -934,6 +938,7 @@
     },
     {
       "category": "webhook",
+      "event_source": false,
       "name": "cloudevents",
       "schema": {
         "fields": [
@@ -1198,6 +1203,7 @@
     },
     {
       "category": "alerting",
+      "event_source": false,
       "name": "datadog",
       "schema": {
         "fields": [
@@ -1467,6 +1473,7 @@
     },
     {
       "category": "chat",
+      "event_source": false,
       "name": "discord",
       "schema": {
         "fields": [
@@ -1719,6 +1726,7 @@
     },
     {
       "category": "logs",
+      "event_source": false,
       "name": "elasticsearch",
       "schema": {
         "fields": [
@@ -2017,6 +2025,7 @@
     },
     {
       "category": "queue",
+      "event_source": false,
       "name": "gcppubsub",
       "schema": {
         "fields": [
@@ -2169,6 +2178,7 @@
     },
     {
       "category": "alerting",
+      "event_source": false,
       "name": "grafanaoncall",
       "schema": {
         "fields": [
@@ -2413,6 +2423,7 @@
     },
     {
       "category": "storage",
+      "event_source": true,
       "name": "inmemory",
       "schema": {
         "fields": [
@@ -2549,6 +2560,7 @@
     },
     {
       "category": "queue",
+      "event_source": false,
       "name": "kafka",
       "schema": {
         "fields": [
@@ -2826,6 +2838,7 @@
     },
     {
       "category": "logs",
+      "event_source": false,
       "name": "loki",
       "schema": {
         "fields": [
@@ -3100,6 +3113,7 @@
     },
     {
       "category": "alerting",
+      "event_source": false,
       "name": "opsgenie",
       "schema": {
         "fields": [
@@ -3355,6 +3369,7 @@
     },
     {
       "category": "observability",
+      "event_source": false,
       "name": "otlp",
       "schema": {
         "fields": [
@@ -3774,6 +3789,7 @@
     },
     {
       "category": "alerting",
+      "event_source": false,
       "name": "pagerduty",
       "schema": {
         "fields": [
@@ -4029,6 +4045,7 @@
     },
     {
       "category": "other",
+      "event_source": false,
       "name": "policyreport",
       "schema": {
         "fields": [
@@ -4171,6 +4188,7 @@
     },
     {
       "category": "storage",
+      "event_source": false,
       "name": "redis",
       "schema": {
         "fields": [
@@ -4379,6 +4397,7 @@
     },
     {
       "category": "chat",
+      "event_source": false,
       "name": "slack",
       "schema": {
         "fields": [
@@ -4672,6 +4691,7 @@
     },
     {
       "category": "email",
+      "event_source": false,
       "name": "smtp",
       "schema": {
         "fields": [
@@ -4901,6 +4921,7 @@
     },
     {
       "category": "logs",
+      "event_source": false,
       "name": "syslog",
       "schema": {
         "fields": [
@@ -5114,6 +5135,7 @@
     },
     {
       "category": "response",
+      "event_source": false,
       "name": "talon",
       "schema": {
         "fields": [
@@ -5365,6 +5387,7 @@
     },
     {
       "category": "chat",
+      "event_source": false,
       "name": "teams",
       "schema": {
         "fields": [
@@ -5628,6 +5651,7 @@
     },
     {
       "category": "webhook",
+      "event_source": false,
       "name": "webhook",
       "schema": {
         "fields": [

@@ -35,7 +35,7 @@ type outputConfigResponse struct {
 	SecretFields map[string]bool `json:"secret_fields,omitempty"`
 }
 
-func maskOutputConfig(entry *core.OutputConfigEntry, t output.Type) *outputConfigResponse {
+func maskOutputConfig(entry *core.OutputConfigEntry, t *output.Type) *outputConfigResponse {
 	if entry == nil {
 		return nil
 	}
@@ -71,7 +71,7 @@ func maskOutputConfigs(entries map[string]*core.OutputConfigEntry, cat *catalog.
 	result := make(map[string]*outputConfigResponse, len(entries))
 	for name, entry := range entries {
 		t, _ := cat.Get(name)
-		result[name] = maskOutputConfig(entry, t)
+		result[name] = maskOutputConfig(entry, &t)
 	}
 	return result
 }
@@ -87,7 +87,7 @@ func maskCoreConfig(cfg *core.Config) *core.Config {
 	return masked
 }
 
-func containsSecretPlaceholder(cfg map[string]any, t output.Type) string {
+func containsSecretPlaceholder(cfg map[string]any, t *output.Type) string {
 	copyCfg, _ := copyConfigValue(cfg).(map[string]any)
 	var found string
 	visitProtectedValues(copyCfg, t, func(parent map[string]any, key string, path []string) {
@@ -102,7 +102,7 @@ func containsSecretPlaceholder(cfg map[string]any, t output.Type) string {
 }
 
 // visitProtectedValues treats every leaf as secret when the output type is unknown.
-func visitProtectedValues(cfg map[string]any, t output.Type, visit output.SecretVisitor) {
+func visitProtectedValues(cfg map[string]any, t *output.Type, visit output.SecretVisitor) {
 	if t.Name == "" {
 		visitAllLeaves(cfg, nil, visit)
 		return

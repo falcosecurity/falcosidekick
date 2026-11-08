@@ -69,7 +69,7 @@ func TestMaskOutputConfig_NoSecretSchemaFields(t *testing.T) {
 		UpdatedAt: time.Now(),
 	}
 
-	masked := maskOutputConfig(entry, publicType("slack"))
+	masked := maskOutputConfig(entry, new(publicType("slack")))
 
 	assert.Equal(t, "https://hooks.slack.com/x", masked.Config["host"])
 	assert.Equal(t, "#alerts", masked.Config["channel"])
@@ -84,7 +84,7 @@ func TestMaskOutputConfig_SecretFieldPresent(t *testing.T) {
 		},
 	}
 
-	masked := maskOutputConfig(entry, secretType("elasticsearch"))
+	masked := maskOutputConfig(entry, new(secretType("elasticsearch")))
 
 	assert.Equal(t, "https://es:9200", masked.Config["host"])
 	assert.NotContains(t, masked.Config, "password")
@@ -100,7 +100,7 @@ func TestMaskOutputConfig_SecretFieldAbsent(t *testing.T) {
 		},
 	}
 
-	masked := maskOutputConfig(entry, secretType("elasticsearch"))
+	masked := maskOutputConfig(entry, new(secretType("elasticsearch")))
 
 	_, hasPassword := masked.Config["password"]
 	assert.False(t, hasPassword, "absent secret field must not be synthesized by the mask helper")
@@ -117,7 +117,7 @@ func TestMaskOutputConfig_MultipleSecretFields(t *testing.T) {
 		},
 	}
 
-	masked := maskOutputConfig(entry, secretType("elasticsearch"))
+	masked := maskOutputConfig(entry, new(secretType("elasticsearch")))
 
 	assert.NotContains(t, masked.Config, "password")
 	assert.NotContains(t, masked.Config, "token")
@@ -134,7 +134,7 @@ func TestMaskOutputConfig_UnknownType_ProtectsAllLeaves(t *testing.T) {
 		},
 	}
 
-	masked := maskOutputConfig(entry, output.Type{})
+	masked := maskOutputConfig(entry, &output.Type{})
 
 	assert.Empty(t, masked.Config)
 	assert.Equal(t, map[string]bool{"/host": true, "/port": true, "/enable": true}, masked.SecretFields)
@@ -149,7 +149,7 @@ func TestMaskOutputConfig_CaseInsensitiveMatch(t *testing.T) {
 		},
 	}
 
-	masked := maskOutputConfig(entry, secretType("weird"))
+	masked := maskOutputConfig(entry, new(secretType("weird")))
 
 	assert.Empty(t, masked.Config)
 	assert.Equal(t, map[string]bool{"/Password": true, "/password": true}, masked.SecretFields)
@@ -164,7 +164,7 @@ func TestMaskOutputConfig_DoesNotMutateInput(t *testing.T) {
 		},
 	}
 
-	_ = maskOutputConfig(entry, secretType("elasticsearch"))
+	_ = maskOutputConfig(entry, new(secretType("elasticsearch")))
 
 	assert.Equal(t, "original", entry.Config["password"], "original entry must not be mutated")
 }
@@ -172,7 +172,7 @@ func TestMaskOutputConfig_DoesNotMutateInput(t *testing.T) {
 func TestMaskOutputConfig_NilConfig(t *testing.T) {
 	entry := &core.OutputConfigEntry{Name: "x", Config: nil}
 
-	masked := maskOutputConfig(entry, secretType("x"))
+	masked := maskOutputConfig(entry, new(secretType("x")))
 
 	assert.Nil(t, masked.Config)
 }
@@ -243,7 +243,7 @@ func TestMaskOutputConfig_ConfiguredPresence(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			entry := &core.OutputConfigEntry{Config: map[string]any{"password": tc.value}}
-			masked := maskOutputConfig(entry, secretType("webhook"))
+			masked := maskOutputConfig(entry, new(secretType("webhook")))
 			assert.NotContains(t, masked.Config, "password")
 			assert.Equal(t, map[string]bool{"/password": tc.configured}, masked.SecretFields)
 		})
@@ -280,7 +280,7 @@ func TestMaskOutputConfig_NestedSecretPath(t *testing.T) {
 		},
 	}
 
-	masked := maskOutputConfig(entry, nestedSecretType())
+	masked := maskOutputConfig(entry, new(nestedSecretType()))
 
 	auth := masked.Config["auth"].(map[string]any)
 	assert.NotContains(t, auth, "password")
@@ -297,7 +297,7 @@ func TestMaskOutputConfig_NestedSecretPathAbsentParent(t *testing.T) {
 		Name:   "kafka",
 		Config: map[string]any{"topic": "t"},
 	}
-	masked := maskOutputConfig(entry, nestedSecretType())
+	masked := maskOutputConfig(entry, new(nestedSecretType()))
 	_, hasAuth := masked.Config["auth"]
 	assert.False(t, hasAuth, "absent parent must not be synthesized by the masker")
 }
@@ -310,7 +310,7 @@ func TestContainsSecretPlaceholder_NestedPath(t *testing.T) {
 			"password": SecretMask,
 		},
 	}
-	field := containsSecretPlaceholder(cfg, nestedSecretType())
+	field := containsSecretPlaceholder(cfg, new(nestedSecretType()))
 	assert.Equal(t, "auth.password", field)
 }
 
@@ -319,7 +319,7 @@ func TestContainsSecretPlaceholder_NestedPathAbsentIsSafe(t *testing.T) {
 		"topic": "t",
 		"auth":  map[string]any{"username": "alice"},
 	}
-	assert.Empty(t, containsSecretPlaceholder(cfg, nestedSecretType()),
+	assert.Empty(t, containsSecretPlaceholder(cfg, new(nestedSecretType())),
 		"absent nested secret is a valid keep-existing PUT; must not be rejected")
 }
 

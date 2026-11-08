@@ -43,9 +43,10 @@ const (
 
 // OutputType describes the in-memory event store for the output catalog.
 var OutputType = output.Type{
-	New:      createOutput,
-	Name:     name,
-	Category: output.CategoryStorage,
+	New:         createOutput,
+	Name:        name,
+	Category:    output.CategoryStorage,
+	EventSource: true,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
 			{Name: "capacity", Type: "int", Default: 10000, Required: true, Label: "Max Events"},

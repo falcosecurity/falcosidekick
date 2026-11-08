@@ -20,8 +20,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/falcosecurity/falcosidekick/internal/catalog"
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
+	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/all"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 )
 
 func TestUIConfigValidate(t *testing.T) {
@@ -44,4 +49,42 @@ func TestUIConfigValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckEventSource(t *testing.T) {
+	cat, err := catalog.New(all.Types())
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		wantErr string
+		ui      core.UIConfig
+	}{
+		{"inmemory accepted", "", core.UIConfig{Enabled: true, EventSource: "inmemory"}},
+		{
+			"webhook refused",
+			`ui.event_source: output type "webhook" cannot serve events to the UI; use one of: inmemory`,
+			core.UIConfig{Enabled: true, EventSource: "webhook"},
+		},
+		{"unknown name left to startup", "", core.UIConfig{Enabled: true, EventSource: "nonexistent"}},
+		{"UI disabled not checked", "", core.UIConfig{Enabled: false, EventSource: "webhook"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := CheckEventSource(&tt.ui, cat)
+			if tt.wantErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+			assert.EqualError(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestCheckEventSourceWithoutAnyEventSourceType(t *testing.T) {
+	cat, err := catalog.New([]output.Type{{Name: "webhook", New: webhook.OutputType.New}})
+	require.NoError(t, err)
+
+	err = CheckEventSource(&core.UIConfig{Enabled: true, EventSource: "webhook"}, cat)
+	assert.EqualError(t, err, `ui.event_source: output type "webhook" cannot serve events to the UI`)
 }

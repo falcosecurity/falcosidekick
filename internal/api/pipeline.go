@@ -75,7 +75,7 @@ func (s *Server) handlePipelineOutputByName(c fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "output not found"})
 	}
 	t, _ := s.catalog.Get(name)
-	masked := maskOutputConfig(entry, t)
+	masked := maskOutputConfig(entry, &t)
 	return c.Status(fiber.StatusOK).JSON(masked)
 }
 
@@ -167,7 +167,7 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 		return writeVersionConflict(c, name)
 	}
 
-	if field := containsSecretPlaceholder(body.Config, t); field != "" {
+	if field := containsSecretPlaceholder(body.Config, &t); field != "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "field '" + field + "' is a secret placeholder; omit the key to keep the existing value",
 		})
@@ -196,7 +196,7 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 	}
 	// Answered from what was stored, not read back: a later write may already have replaced it.
 	saved := &core.OutputConfigEntry{Name: name, Config: merged, Version: version, UpdatedAt: time.Now().UTC(), Provisioned: existing != nil && existing.Provisioned}
-	return c.Status(fiber.StatusOK).JSON(maskOutputConfig(saved, t))
+	return c.Status(fiber.StatusOK).JSON(maskOutputConfig(saved, &t))
 }
 
 // outputPutRequest is the body of PUT /api/v1/pipeline/outputs/:name.

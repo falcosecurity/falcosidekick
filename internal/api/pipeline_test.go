@@ -1188,18 +1188,18 @@ func TestHandlePipelineLayoutPut_AnswersWithoutReadingBack(t *testing.T) {
 
 func TestContainsSecretPlaceholder_NoSchemaFallback(t *testing.T) {
 	cfg := map[string]any{"anything": "****"}
-	field := containsSecretPlaceholder(cfg, output.Type{})
+	field := containsSecretPlaceholder(cfg, &output.Type{})
 	assert.Equal(t, "anything", field, "no-schema fallback must flag any string value equal to the sentinel")
 }
 
 func TestContainsSecretPlaceholder_NilConfig(t *testing.T) {
-	field := containsSecretPlaceholder(nil, output.Type{Name: "slack"})
+	field := containsSecretPlaceholder(nil, &output.Type{Name: "slack"})
 	assert.Equal(t, "", field, "nil config must not trigger rejection")
 }
 
 func TestContainsSecretPlaceholder_NonSecretFieldWithSentinelValueAllowed(t *testing.T) {
 	cfg := map[string]any{"channel": "****"}
-	t2 := output.Type{
+	t2 := &output.Type{
 		Name: "slack",
 		Schema: output.Schema{Fields: []output.SchemaField{
 			{Name: "secret_endpoint", Secret: true},

@@ -1,5 +1,6 @@
 {
   "category": "webhook",
+  "event_source": false,
   "name": "webhook",
   "schema": {
     "fields": [

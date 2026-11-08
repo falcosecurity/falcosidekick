@@ -62,6 +62,9 @@ func NewApp(
 	cat *catalog.Catalog,
 	logger *slog.Logger,
 ) (_ *app, retErr error) {
+	if err := config.CheckEventSource(&cfg.UI, cat); err != nil {
+		return nil, err
+	}
 	persistent := cfg.Database.Backend.Persistent()
 	if persistent {
 		if err := config.CheckNoInlineSecrets(outsCfg.Outputs, cat); err != nil {
