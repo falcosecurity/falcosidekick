@@ -6,7 +6,7 @@ import { formatAbsoluteTime } from "@/lib/format"
 import { errorResponse, fixtureAdapter, fixtures } from "@/test/fixtures"
 import { cleanup, renderWithProviders, screen, within } from "@/test/test-utils"
 
-import { ConfigurationPage } from "./configuration"
+import { address, ConfigurationPage } from "./configuration"
 
 afterEach(() => {
   cleanup()
@@ -39,6 +39,10 @@ describe("ConfigurationPage", () => {
     expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual([
       "#listeners", "#database", "#api", "#reload", "#observability", "#ui",
     ])
+    expect(address("", 2801)).toBe(":2801")
+    expect(address("127.0.0.1", 2802)).toBe("127.0.0.1:2802")
+    expect(address("::1", 2802)).toBe("[::1]:2802")
+    expect(address("::", 2801)).toBe("[::]:2801")
     expect(value("Listeners", "Ingestion")).toHaveTextContent(/^:2801$/)
     expect(row("Listeners", "Ingestion")).toHaveTextContent(/Every interface, IPv4 and IPv6/)
     expect(value("Listeners", "Shutdown delay")).toHaveTextContent("5s")
