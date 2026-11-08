@@ -267,6 +267,28 @@ export interface CoreConfig {
   }
   reload: { poll_interval: GoDuration; retire_timeout: GoDuration }
   provisioning: { allow_ui_updates: boolean }
+  // The runtime settings each output's own are merged over, from sidekick.yaml runtime_defaults.
+  runtime_defaults: RuntimeConfig
+}
+
+export interface RuntimeConfig {
+  retry?: {
+    initial_interval: GoDuration
+    max_interval: GoDuration
+    max_attempts: number
+    multiplier: number
+  }
+  circuit_breaker?: {
+    reset_timeout: GoDuration
+    failure_threshold: number
+    success_threshold: number
+  }
+  batching?: { flush_interval: GoDuration; batch_size: number; enabled: boolean }
+  health_check?: boolean
+  // "" when unset: every priority is sent.
+  minimum_priority: string
+  queue_size: number
+  workers: number
 }
 
 export interface MaskedConfig {

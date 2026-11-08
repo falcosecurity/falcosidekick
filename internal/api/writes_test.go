@@ -88,6 +88,32 @@ func TestEveryWriteRouteIsForbiddenByDefault(t *testing.T) {
 	assert.Empty(t, entries, "a forbidden write must not reach the database")
 }
 
+// The secret listing names the files a write can use, so it is served only with writes on.
+func TestGETSecretsNeedsWrites(t *testing.T) {
+	rig := buildMutationRig(t, database.NewMemory(), newMutationTestCatalog(t), true)
+	for _, tc := range []struct {
+		srv  *Server
+		name string
+		want int
+	}{
+		{name: "writes off", srv: readOnlyServer(t, rig), want: http.StatusForbidden},
+		{name: "writes on", srv: rig.Server, want: http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/secrets", http.NoBody)
+			resp, err := tc.srv.app.Test(req)
+			require.NoError(t, err)
+			defer func() { _ = resp.Body.Close() }()
+			assert.Equal(t, tc.want, resp.StatusCode)
+			if tc.want == http.StatusForbidden {
+				var decoded map[string]string
+				require.NoError(t, json.NewDecoder(resp.Body).Decode(&decoded))
+				assert.Equal(t, errWritesDisabled, decoded["error"])
+			}
+		})
+	}
+}
+
 func TestIngestionIsNotAWrite(t *testing.T) {
 	rig := buildMutationRig(t, database.NewMemory(), newMutationTestCatalog(t), true)
 	srv := readOnlyServer(t, rig)

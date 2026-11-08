@@ -191,21 +191,42 @@ func TestHandleGetConfigServesThisReplicaConfiguration(t *testing.T) {
 			require.NoError(t, err)
 			p, err := pipeline.NewPipeline(enricher, pipeline.NewDispatcher(nil), nil)
 			require.NoError(t, err)
-			srv, err := NewServer(&ServerConfig{Pipeline: p, Database: db, Catalog: newTestCatalog(t), Config: cfg})
+			defaults := testutil.DefaultRuntimeConfig()
+			defaults.Workers = 4
+			defaults.QueueSize = 2048
+			defaults.MinPriority = event.PriorityWarning
+			srv, err := NewServer(&ServerConfig{
+				Pipeline: p, Database: db, Catalog: newTestCatalog(t), Config: cfg, RuntimeDefaults: defaults,
+			})
 			require.NoError(t, err)
 			cfg.ListenPort = 1 // the server keeps its own copy
+			defaults.Retry.MaxAttempts = 99
 
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/config", http.NoBody)
 			resp, err := srv.app.Test(req)
 			require.NoError(t, err)
 			defer resp.Body.Close()
 			require.Equal(t, http.StatusOK, resp.StatusCode)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
 			var got struct {
 				Config core.Config `json:"config"`
 			}
-			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+			require.NoError(t, json.Unmarshal(body, &got))
 			assert.Equal(t, 2999, got.Config.ListenPort)
 			assert.Equal(t, "inmemory", string(got.Config.Database.Backend))
+
+			var gotDefaults struct {
+				Config struct {
+					RuntimeDefaults output.RuntimeConfig `json:"runtime_defaults"`
+				} `json:"config"`
+			}
+			require.NoError(t, json.Unmarshal(body, &gotDefaults))
+			want := testutil.DefaultRuntimeConfig()
+			want.Workers = 4
+			want.QueueSize = 2048
+			want.MinPriority = event.PriorityWarning
+			assert.Equal(t, want, gotDefaults.Config.RuntimeDefaults, "the server keeps its own copy of the runtime defaults")
 			cfg.ListenPort = 2999
 		})
 	}

@@ -27,7 +27,7 @@
         "y": 240
       }
     ],
-    "updated_at": "2026-11-08T11:45:00Z"
+    "updated_at": "2026-11-08T12:00:00Z"
   },
   "outputs": {
     "alertmanager": {
@@ -38,7 +38,7 @@
       },
       "name": "alertmanager",
       "provisioned": false,
-      "updated_at": "2026-11-08T11:30:00Z",
+      "updated_at": "2026-11-08T12:00:00Z",
       "version": 3
     },
     "inmemory": {
@@ -47,7 +47,7 @@
       },
       "name": "inmemory",
       "provisioned": true,
-      "updated_at": "2026-11-08T11:00:00Z",
+      "updated_at": "2026-11-08T12:00:00Z",
       "version": 1
     },
     "webhook": {
@@ -67,7 +67,7 @@
       "secret_fields": {
         "/headers/X-Api-Key/secrets": true
       },
-      "updated_at": "2026-11-08T11:15:00Z",
+      "updated_at": "2026-11-08T12:00:00Z",
       "version": 2
     }
   },

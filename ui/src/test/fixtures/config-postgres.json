@@ -47,6 +47,28 @@
       "poll_interval": 30000000000,
       "retire_timeout": 10000000000
     },
+    "runtime_defaults": {
+      "batching": {
+        "batch_size": 50,
+        "enabled": true,
+        "flush_interval": 1000000000
+      },
+      "circuit_breaker": {
+        "failure_threshold": 5,
+        "reset_timeout": 30000000000,
+        "success_threshold": 2
+      },
+      "health_check": true,
+      "minimum_priority": "warning",
+      "queue_size": 100,
+      "retry": {
+        "initial_interval": 10000000,
+        "max_attempts": 1,
+        "max_interval": 100000000,
+        "multiplier": 2
+      },
+      "workers": 1
+    },
     "tls": {
       "ca_file": "",
       "cert_file": "/etc/falcosidekick/certs/tls.crt",
