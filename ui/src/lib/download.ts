@@ -1,3 +1,7 @@
+// Long enough for every browser to start reading the blob: Safari has cancelled downloads whose
+// object URL was revoked right after the click.
+const REVOKE_DELAY_MS = 60_000
+
 /** Saves data as a pretty-printed JSON file through the browser's download. */
 export function downloadJSON(filename: string, data: unknown): void {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
@@ -6,7 +10,7 @@ export function downloadJSON(filename: string, data: unknown): void {
   link.href = url
   link.download = filename
   link.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS)
 }
 
 /** A file name with the export time, safe on every file system: falco-events-20261108-121530.json. */
