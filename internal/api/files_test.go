@@ -34,6 +34,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/gcppubsub"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
+	"github.com/falcosecurity/falcosidekick/internal/reload"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
@@ -145,7 +146,7 @@ func TestListShapeIsReadLikeTheDecoder(t *testing.T) {
 		_, merged, err := mergeOutputConfigForSchema(nil, cfg, webhook.OutputType.Schema)
 		require.NoError(t, err)
 		paths := make(map[string]string)
-		require.NoError(t, collectFilePaths(merged, webhook.OutputType.Schema.Fields, "", paths))
+		require.NoError(t, reload.CollectFilePaths(merged, webhook.OutputType.Schema.Fields, paths))
 		assert.Equal(t, map[string]string{`headers["X-B"].files[0]`: file}, paths)
 		normalized = append(normalized, merged)
 	}

@@ -130,7 +130,7 @@ func run(parentCtx context.Context, configPath string, outputPaths []string) err
 	}
 
 	app.pipe.Start(workerRunCtx, stopWorkers)
-	app.startReloadWatchers(appCtx, workerRunCtx, outsCfg.Paths, cfg.Reload)
+	app.startReloadWatchers(appCtx, workerRunCtx, outsCfg.Paths, cfg.API.SecretDirs, cfg.Reload)
 	if err := app.startReplicaSync(appCtx, &cfg.Database); err != nil {
 		stop()
 		app.shutdown()

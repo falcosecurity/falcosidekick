@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func TestPollerDetectsContentChange(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
 
 	var calls atomic.Int64
-	p := NewPoller([]string{path}, 100*time.Millisecond, func() error {
+	p := NewPoller([]string{path}, nil, 100*time.Millisecond, func() error {
 		calls.Add(1)
 		return nil
 	}, slog.Default())
@@ -61,7 +62,7 @@ func TestPollerSkipsWhenUnchanged(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
 
 	var calls atomic.Int64
-	p := NewPoller([]string{path}, 100*time.Millisecond, func() error {
+	p := NewPoller([]string{path}, nil, 100*time.Millisecond, func() error {
 		calls.Add(1)
 		return nil
 	}, slog.Default())
@@ -81,7 +82,7 @@ func TestPollerStopsOnContextCancel(t *testing.T) {
 	path := filepath.Join(dir, "outputs.yaml")
 	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
 
-	p := NewPoller([]string{path}, 100*time.Millisecond, func() error { return nil }, slog.Default())
+	p := NewPoller([]string{path}, nil, 100*time.Millisecond, func() error { return nil }, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -96,4 +97,84 @@ func TestPollerStopsOnContextCancel(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("poller did not stop on context cancel")
 	}
+}
+
+func TestPollerSecretFiles(t *testing.T) {
+	const interval = time.Second
+	tests := []struct {
+		change func(t *testing.T, dir string, list *dirList)
+		name   string
+		want   int64
+	}{
+		{name: "unchanged", change: func(*testing.T, string, *dirList) {}},
+		{name: "same content rewritten", change: func(t *testing.T, dir string, _ *dirList) {
+			writeFile(t, filepath.Join(dir, "token"), "first")
+		}},
+		{name: "content changed", want: 1, change: func(t *testing.T, dir string, _ *dirList) {
+			writeFile(t, filepath.Join(dir, "token"), "rotated")
+		}},
+		{name: "new file listed", want: 1, change: func(t *testing.T, dir string, list *dirList) {
+			writeFile(t, filepath.Join(dir, "key"), "k")
+			list.set(filepath.Join(dir, "token"), filepath.Join(dir, "key"))
+		}},
+		{name: "file no longer listed", change: func(_ *testing.T, _ string, list *dirList) {
+			list.set()
+		}},
+		{name: "listed file unreadable", change: func(t *testing.T, dir string, _ *dirList) {
+			require.NoError(t, os.Remove(filepath.Join(dir, "token")))
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, "token"), "first")
+			list := &dirList{dirs: []string{filepath.Join(dir, "token")}}
+			synctest.Test(t, func(t *testing.T) {
+				var calls atomic.Int64
+				p := NewPoller(nil, list.get, interval, func() error {
+					calls.Add(1)
+					return nil
+				}, slog.Default())
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				go func() { _ = p.Run(ctx) }()
+				synctest.Wait()
+
+				tt.change(t, dir, list)
+				time.Sleep(interval + time.Millisecond)
+				synctest.Wait()
+				assert.Equal(t, tt.want, calls.Load())
+
+				time.Sleep(interval)
+				synctest.Wait()
+				assert.Equal(t, tt.want, calls.Load(), "a change reloads once")
+			})
+		})
+	}
+}
+
+// A file that leaves the list and comes back counts as new.
+func TestPollerForgetsUnlistedSecretFiles(t *testing.T) {
+	dir := t.TempDir()
+	token := filepath.Join(dir, "token")
+	writeFile(t, token, "first")
+	config := filepath.Join(dir, "outputs.yaml")
+	writeFile(t, config, "outputs: {}")
+	list := &dirList{dirs: []string{token, config}}
+	var calls atomic.Int64
+	p := NewPoller([]string{config}, list.get, time.Second, func() error {
+		calls.Add(1)
+		return nil
+	}, slog.Default())
+	p.hashes[config], _ = hashFile(config)
+	p.hashes[token], _ = hashSecretFile(token)
+
+	list.set()
+	assert.False(t, p.checkForChanges())
+	assert.Contains(t, p.hashes, config, "an output config path stays")
+	assert.NotContains(t, p.hashes, token)
+
+	list.set(token)
+	assert.True(t, p.checkForChanges())
+	assert.False(t, p.checkForChanges())
 }

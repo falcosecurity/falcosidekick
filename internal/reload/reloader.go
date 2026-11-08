@@ -157,6 +157,26 @@ func (r *Reloader) Close() {
 	r.closed = true
 }
 
+// FilePaths returns the files the file outputs read, as written in the output files at the last
+// successful reload, sorted and without duplicates.
+func (r *Reloader) FilePaths() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var files []string
+	for name, cfg := range r.fileRaw {
+		outputType, ok := r.catalog.Get(name)
+		if !ok {
+			continue
+		}
+		paths := make(map[string]string)
+		// A value that is not a path fails the build; the paths before it are still watched.
+		_ = CollectFilePaths(cfg, outputType.Schema.Fields, paths)
+		files = slices.AppendSeq(files, maps.Values(paths))
+	}
+	slices.Sort(files)
+	return slices.Compact(files)
+}
+
 // ApplyOutput applies one UI-driven output config to the dispatcher and persists it, returning the
 // stored version. version is the stored version cfg was built from, 0 for an output not stored yet;
 // with a database, any other stored version returns core.ErrVersionConflict.

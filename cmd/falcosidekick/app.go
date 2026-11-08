@@ -49,7 +49,7 @@ type app struct {
 	pipe     *pipeline.Pipeline
 	srv      *api.Server
 	reloader *reload.Reloader
-	// background holds the replica sync goroutines, which stop with the app context.
+	// background holds the reload trigger and replica sync goroutines, which stop with the app context.
 	background sync.WaitGroup
 }
 
@@ -185,39 +185,50 @@ func NewApp(
 }
 
 // startReloadWatchers binds the worker context so UI-driven applies share the file reload lifetime.
+// Output files, secret directories and SIGHUP trigger a reload, which rebuilds only what changed.
 func (a *app) startReloadWatchers(
 	appCtx, workerRunCtx context.Context,
-	outputPaths []string,
+	outputPaths, secretDirs []string,
 	reloadCfg core.ReloadConfig,
 ) {
 	a.reloader.BindWorkerContext(workerRunCtx, reloadCfg.RetireTimeout)
 
+	secrets := reload.NewSecretPaths(secretDirs, a.reloader.FilePaths)
+	// Only output files add file outputs, so without them the secret directories are the roots alone.
+	watch := len(outputPaths) > 0 || len(secretDirs) > 0
+
+	// A reload can change the files the file outputs read, so the watcher syncs its directories after it.
+	var watcher *reload.Watcher
 	reloadFn := func() error {
-		return a.reloader.Reload(appCtx, workerRunCtx, reloadCfg.RetireTimeout)
+		err := a.reloader.Reload(appCtx, workerRunCtx, reloadCfg.RetireTimeout)
+		if watcher != nil {
+			watcher.Refresh()
+		}
+		return err
 	}
 
-	// SIGHUP also rereads the secret files of API outputs, so it runs without output files too.
-	if len(outputPaths) > 0 {
-		watcher := reload.NewWatcher(outputPaths, 100*time.Millisecond, reloadFn, slog.Default())
-		go func() {
+	if watch {
+		watcher = reload.NewWatcher(outputPaths, secrets.Dirs, 100*time.Millisecond, reloadFn, slog.Default())
+		a.background.Go(func() {
 			if err := watcher.Run(appCtx); err != nil && !errors.Is(err, context.Canceled) {
 				slog.Error("watcher stopped", "error", err)
 			}
-		}()
+		})
 	}
 
-	if len(outputPaths) > 0 && reloadCfg.PollInterval > 0 {
-		poller := reload.NewPoller(outputPaths, reloadCfg.PollInterval, reloadFn, slog.Default())
-		go func() {
+	if watch && reloadCfg.PollInterval > 0 {
+		poller := reload.NewPoller(outputPaths, secrets.Files, reloadCfg.PollInterval, reloadFn, slog.Default())
+		a.background.Go(func() {
 			if err := poller.Run(appCtx); err != nil && !errors.Is(err, context.Canceled) {
 				slog.Error("poller stopped", "error", err)
 			}
-		}()
+		})
 	}
 
+	// SIGHUP also rereads the secret files of API outputs, so it runs without output files too.
 	sigHUP := make(chan os.Signal, 1)
 	signal.Notify(sigHUP, syscall.SIGHUP)
-	go func() {
+	a.background.Go(func() {
 		for {
 			select {
 			case <-appCtx.Done():
@@ -230,7 +241,7 @@ func (a *app) startReloadWatchers(
 				}
 			}
 		}
-	}()
+	})
 }
 
 func (a *app) serve(errCh chan<- error) {
