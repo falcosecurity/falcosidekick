@@ -17,79 +17,50 @@
 package reload
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// CollectFilePaths maps each location of cfg that holds a file path to that path: File fields,
-// <name>_file of secret strings, and the same inside map entries. cfg has schema key spelling.
-// On a value that is not a path it returns an error; paths keeps what was collected before it.
-func CollectFilePaths(cfg map[string]any, fields []output.SchemaField, paths map[string]string) error {
-	return collectFilePaths(cfg, fields, "", paths)
-}
-
-func collectFilePaths(cfg map[string]any, fields []output.SchemaField, prefix string, paths map[string]string) error {
+// fileFieldsDigest returns a digest of the contents of the files the File fields of cfg name, or ""
+// when they name none. Paths inside map entries and <name>_file of secret strings are left out: the
+// former are read at every request, the latter are resolved into cfg. Errors name the location, not
+// the path or the OS error.
+func fileFieldsDigest(name string, cfg map[string]any, fields []output.SchemaField) (string, error) {
+	var fileFields []output.SchemaField
 	for i := range fields {
-		field := &fields[i]
-		parent, leaf := utils.NavigateMap(cfg, field.Name)
-		if parent == nil {
-			continue
-		}
-		location := prefix + field.Name
-		switch {
-		case field.File:
-			if err := addFilePaths(paths, location, parent[leaf]); err != nil {
-				return err
-			}
-		case field.HasFileVariant():
-			if err := addFilePaths(paths, location+"_file", parent[leaf+"_file"]); err != nil {
-				return err
-			}
-		case len(field.EntryFields) > 0:
-			entries, _ := parent[leaf].(map[string]any)
-			for key, entry := range entries {
-				if object, ok := entry.(map[string]any); ok {
-					entryPrefix := location + "[" + strconv.Quote(key) + "]."
-					if err := collectFilePaths(object, field.EntryFields, entryPrefix, paths); err != nil {
-						return err
-					}
-				}
-			}
+		if fields[i].File {
+			fileFields = append(fileFields, fields[i])
 		}
 	}
-	return nil
-}
-
-func addFilePaths(paths map[string]string, location string, value any) error {
-	switch value := value.(type) {
-	case nil:
-	case string:
-		if value != "" {
-			paths[location] = value
-		}
-	case []any:
-		for i, item := range value {
-			path, ok := item.(string)
-			if !ok {
-				return fmt.Errorf("%s[%d]: must be a string", location, i)
-			}
-			paths[location+"["+strconv.Itoa(i)+"]"] = path
-		}
-	case []string:
-		for i, path := range value {
-			paths[location+"["+strconv.Itoa(i)+"]"] = path
-		}
-	default:
-		return fmt.Errorf("%s: must be a file path", location)
+	paths := make(map[string]string)
+	if err := output.CollectFilePaths(cfg, fileFields, paths); err != nil {
+		return "", fmt.Errorf("output %q: %w", name, err)
 	}
-	return nil
+	if len(paths) == 0 {
+		return "", nil
+	}
+	var sums []byte
+	for _, location := range slices.Sorted(maps.Keys(paths)) {
+		data, err := utils.ReadRegularFile(paths[location])
+		if err != nil {
+			return "", fmt.Errorf("output %q: %s: %s", name, location, utils.FileProblem(err))
+		}
+		sum := sha256.Sum256(data)
+		sums = append(sums, location...)
+		sums = append(sums, 0)
+		sums = append(sums, sum[:]...)
+	}
+	digest := sha256.Sum256(sums)
+	return hex.EncodeToString(digest[:]), nil
 }
 
 // SecretPaths lists where the secret files of running outputs live: the api.secret_dirs roots, the

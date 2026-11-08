@@ -86,6 +86,10 @@ type Reloader struct {
 	fileRaw   map[string]map[string]any
 	// apiState holds the running API outputs with resolved secrets, to see a rotated secret file.
 	apiState map[string]map[string]any
+	// fileDigests and apiDigests hold, per running output, the fileFieldsDigest it was built with:
+	// a renewed certificate is a change even though its path is not.
+	fileDigests map[string]string
+	apiDigests  map[string]string
 	// apiVersions holds the stored version each running API output was built from, apiFailed the
 	// version of each API output change that did not build here.
 	apiVersions     map[string]int64
@@ -102,9 +106,10 @@ type Reloader struct {
 	closed          bool
 }
 
-// NewReloader returns a Reloader with its own deep copies of InitialOutputs and FileOutputs.
+// NewReloader returns a Reloader with its own deep copies of InitialOutputs and FileOutputs. It reads
+// the File fields of the running outputs once, as the base the next reload compares with.
 func NewReloader(cfg *ReloaderConfig) *Reloader {
-	return &Reloader{
+	r := &Reloader{
 		outputPaths:     cfg.OutputPaths,
 		catalog:         cfg.Catalog,
 		dispatcher:      cfg.Dispatcher,
@@ -120,7 +125,31 @@ func NewReloader(cfg *ReloaderConfig) *Reloader {
 		apiFailed:       copyVersions(cfg.FailedAPIVersions),
 		rejectInline:    cfg.RejectInlineSecrets,
 		logger:          cfg.Logger,
+		fileDigests:     make(map[string]string),
+		apiDigests:      make(map[string]string),
 	}
+	r.recordStartDigests(r.fileState, r.fileDigests)
+	r.recordStartDigests(r.apiState, r.apiDigests)
+	return r
+}
+
+// recordStartDigests records the digest of each of configs; a file that cannot be read now records
+// none, so the next reload that reads it rebuilds the output once.
+func (r *Reloader) recordStartDigests(configs map[string]map[string]any, digests map[string]string) {
+	for name, cfg := range configs {
+		if digest, err := r.digest(name, cfg); err == nil {
+			digests[name] = digest
+		}
+	}
+}
+
+// digest returns the fileFieldsDigest of cfg for the schema of name; an unknown type has none.
+func (r *Reloader) digest(name string, cfg map[string]any) (string, error) {
+	outputType, ok := r.catalog.Get(name)
+	if !ok {
+		return "", nil
+	}
+	return fileFieldsDigest(name, cfg, outputType.Schema.Fields)
 }
 
 func copyVersions(versions map[string]int64) map[string]int64 {
@@ -170,7 +199,7 @@ func (r *Reloader) FilePaths() []string {
 		}
 		paths := make(map[string]string)
 		// A value that is not a path fails the build; the paths before it are still watched.
-		_ = CollectFilePaths(cfg, outputType.Schema.Fields, paths)
+		_ = output.CollectFilePaths(cfg, outputType.Schema.Fields, paths)
 		files = slices.AppendSeq(files, maps.Values(paths))
 	}
 	slices.Sort(files)
@@ -208,6 +237,11 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 	if err := config.ResolveSecrets(name, resolved, outputType.Schema); err != nil {
 		return 0, r.fail(start, SourceUI, "apply secrets: %w: %w", pipeline.ErrInvalidOutputConfig, err)
 	}
+	// Read before the build, so a file renewed during it is seen by the next reload.
+	digest, err := fileFieldsDigest(name, resolved, outputType.Schema.Fields)
+	if err != nil {
+		return 0, r.fail(start, SourceUI, "apply files: %w: %w", pipeline.ErrInvalidOutputConfig, err)
+	}
 
 	out, err := pipeline.BuildOutput(ctx, r.catalog, name, resolved, r.runtimeDefaults, r.deps)
 	if err != nil {
@@ -236,10 +270,10 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 
 	if _, fileOwned := r.fileState[name]; fileOwned {
 		r.fileState[name] = resolved
-	}
-
-	if _, fromFile := r.fileState[name]; !fromFile {
+		r.fileDigests[name] = digest
+	} else {
 		r.apiState[name] = resolved
+		r.apiDigests[name] = digest
 		r.apiVersions[name] = newVersion
 		delete(r.apiFailed, name)
 	}
@@ -283,6 +317,7 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 
 	// The next file reload then sees the name as added and restores a file-provisioned output.
 	delete(r.fileState, name)
+	delete(r.fileDigests, name)
 	r.forgetAPIOutput(name)
 
 	r.recordUI(start, retireWarning)
@@ -319,7 +354,24 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 		return r.fail(start, SourceFile, "reload secrets: %w", err)
 	}
 
+	// Drivers read File field files at build, so their contents are compared too; they are read before
+	// the build, so a file renewed during it is seen by the next reload.
+	digests := make(map[string]string, len(resolved))
+	for _, name := range slices.Sorted(maps.Keys(resolved)) {
+		digest, err := r.digest(name, resolved[name])
+		if err != nil {
+			return r.fail(start, SourceFile, "reload files: %w", err)
+		}
+		digests[name] = digest
+	}
+
 	diff := DiffOutputConfigs(r.fileState, resolved)
+	for name, cfg := range resolved {
+		_, running := r.fileState[name]
+		if _, changed := diff.Changed[name]; running && !changed && digests[name] != r.fileDigests[name] {
+			diff.Changed[name] = cfg
+		}
+	}
 
 	// A name added to the files but already running, from the API, is a change: Apply replaces it.
 	for _, name := range r.dispatcher.OutputNames() {
@@ -332,7 +384,7 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	// A new secret path whose file holds the same value changes nothing at runtime but must reach the store.
 	rawChanged := !reflect.DeepEqual(r.fileRaw, outsCfg.Outputs)
 
-	rotated, err := r.rotatedAPIOutputs(ctx, resolved)
+	rotated, rotatedDigests, err := r.rotatedAPIOutputs(ctx, resolved)
 	if err != nil {
 		return r.fail(start, SourceFile, "reload: %w", err)
 	}
@@ -381,9 +433,11 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	}
 
 	r.fileState = resolved
+	r.fileDigests = digests
 	r.fileRaw = copyConfigs(outsCfg.Outputs)
 	for name := range rebuilt {
 		r.apiState[name] = rotated[name]
+		r.apiDigests[name] = rotatedDigests[name]
 	}
 	for name := range resolved {
 		r.forgetAPIOutput(name)
@@ -415,6 +469,7 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 
 func (r *Reloader) forgetAPIOutput(name string) {
 	delete(r.apiState, name)
+	delete(r.apiDigests, name)
 	delete(r.apiVersions, name)
 	delete(r.apiFailed, name)
 }
@@ -443,6 +498,7 @@ func (r *Reloader) Reconcile(ctx context.Context) error {
 	}
 
 	resolved := make(map[string]map[string]any)
+	digests := make(map[string]string)
 	versions := make(map[string]int64)
 	failures := make(map[string]error)
 	for name, entry := range entries {
@@ -450,17 +506,13 @@ func (r *Reloader) Reconcile(ctx context.Context) error {
 			continue
 		}
 		versions[name] = entry.Version
-		outputType, ok := r.catalog.Get(name)
-		if !ok {
-			failures[name] = fmt.Errorf("%w: %q", ErrUnknownOutputType, name)
-			continue
-		}
-		cfg := utils.DeepCopyMap(entry.Config)
-		if err := config.ResolveSecrets(name, cfg, outputType.Schema); err != nil {
+		cfg, digest, err := r.resolveStored(name, entry.Config)
+		if err != nil {
 			failures[name] = err
 			continue
 		}
 		resolved[name] = cfg
+		digests[name] = digest
 	}
 	var removed []string
 	for _, known := range []map[string]int64{r.apiVersions, r.apiFailed} {
@@ -493,6 +545,7 @@ func (r *Reloader) Reconcile(ctx context.Context) error {
 	}
 	for name := range built {
 		r.apiState[name] = resolved[name]
+		r.apiDigests[name] = digests[name]
 		r.apiVersions[name] = versions[name]
 		delete(r.apiFailed, name)
 	}
@@ -520,17 +573,39 @@ func (r *Reloader) Reconcile(ctx context.Context) error {
 	return nil
 }
 
+// resolveStored returns a copy of the stored config of name with its secret files read, and the
+// digest of its File field files.
+func (r *Reloader) resolveStored(name string, stored map[string]any) (cfg map[string]any, digest string, err error) {
+	outputType, ok := r.catalog.Get(name)
+	if !ok {
+		return nil, "", fmt.Errorf("%w: %q", ErrUnknownOutputType, name)
+	}
+	cfg = utils.DeepCopyMap(stored)
+	if err := config.ResolveSecrets(name, cfg, outputType.Schema); err != nil {
+		return nil, "", err
+	}
+	digest, err = fileFieldsDigest(name, cfg, outputType.Schema.Fields)
+	if err != nil {
+		return nil, "", err
+	}
+	return cfg, digest, nil
+}
+
 // rotatedAPIOutputs returns the running API outputs, not shadowed by a file output, whose secret files
-// now read differently, resolved again from their stored config.
-func (r *Reloader) rotatedAPIOutputs(ctx context.Context, fileOutputs map[string]map[string]any) (map[string]map[string]any, error) {
+// or File field files now read differently, resolved again from their stored config, with the digest
+// of their File field files.
+func (r *Reloader) rotatedAPIOutputs(
+	ctx context.Context, fileOutputs map[string]map[string]any,
+) (rotated map[string]map[string]any, digests map[string]string, err error) {
 	if r.database == nil || len(r.apiState) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	entries, err := r.database.GetOutputConfigs(ctx)
 	if err != nil {
-		return nil, databaseError(err)
+		return nil, nil, databaseError(err)
 	}
-	rotated := make(map[string]map[string]any)
+	rotated = make(map[string]map[string]any)
+	digests = make(map[string]string)
 	for name, running := range r.apiState {
 		entry, stored := entries[name]
 		// A new version is applied by Reconcile, which records it; here only the secret files changed.
@@ -546,11 +621,17 @@ func (r *Reloader) rotatedAPIOutputs(ctx context.Context, fileOutputs map[string
 			r.logger.Warn("reload: stored output keeps its previous secret", "output", name, "error", err)
 			continue
 		}
-		if !reflect.DeepEqual(cfg, running) {
+		digest, err := fileFieldsDigest(name, cfg, outputType.Schema.Fields)
+		if err != nil {
+			r.logger.Warn("reload: stored output keeps its previous files", "output", name, "error", err)
+			continue
+		}
+		if !reflect.DeepEqual(cfg, running) || digest != r.apiDigests[name] {
 			rotated[name] = cfg
+			digests[name] = digest
 		}
 	}
-	return rotated, nil
+	return rotated, digests, nil
 }
 
 func (r *Reloader) createOutputs(ctx context.Context, configs map[string]map[string]any) (map[string]*pipeline.Output, error) {

@@ -84,6 +84,7 @@ func TestReloaderFilePathsFollowTheOutputFiles(t *testing.T) {
 	token := filepath.Join(secrets, "token")
 	writeFile(t, token, "t")
 	ca := filepath.Join(secrets, "ca.pem")
+	writeFile(t, ca, "ca")
 	path := filepath.Join(t.TempDir(), "outputs.yaml")
 	rec := &buildRecorder{}
 	cat, err := catalog.New([]output.Type{rec.outputType("webhook"), rec.outputType("other")})

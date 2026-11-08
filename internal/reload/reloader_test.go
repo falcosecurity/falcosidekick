@@ -1450,6 +1450,11 @@ func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {
 }
 
 func getMetricValueBySource(gathered []*dto.MetricFamily, name, source string) float64 {
+	return getMetricBySource(gathered, name, source).GetCounter().GetValue()
+}
+
+// getMetricBySource returns the sample of family name labeled source, nil if there is none.
+func getMetricBySource(gathered []*dto.MetricFamily, name, source string) *dto.Metric {
 	for _, mf := range gathered {
 		if mf.GetName() != name {
 			continue
@@ -1457,12 +1462,12 @@ func getMetricValueBySource(gathered []*dto.MetricFamily, name, source string) f
 		for _, m := range mf.GetMetric() {
 			for _, l := range m.GetLabel() {
 				if l.GetName() == "source" && l.GetValue() == source {
-					return m.GetCounter().GetValue()
+					return m
 				}
 			}
 		}
 	}
-	return 0
+	return nil
 }
 
 func applyErr(_ int64, err error) error { return err }
