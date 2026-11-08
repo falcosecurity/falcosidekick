@@ -6,6 +6,7 @@ import { ConfigTree } from "@/components/common/config-tree"
 import { EmptyState } from "@/components/common/empty-state"
 import { LoadingSkeleton } from "@/components/common/loading-skeleton"
 import { Meter } from "@/components/common/meter"
+import { OriginMark } from "@/components/common/origin-mark"
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
 import { SectionHeading } from "@/components/common/section-heading"
 import { StatTile } from "@/components/common/stat-tile"
@@ -201,7 +202,7 @@ function OutputDetail({ entry, status }: { entry: OutputConfigEntry | null; stat
                 <h2>{entry.name}</h2>
               </CardTitle>
               <CardDescription className="[overflow-wrap:anywhere]">
-                {entry.provisioned ? "from output files" : "created through the API"}
+                <OriginMark provisioned={entry.provisioned} showLabel />
               </CardDescription>
             </div>
           </div>
