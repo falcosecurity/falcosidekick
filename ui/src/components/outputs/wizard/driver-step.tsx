@@ -1,10 +1,12 @@
-import { Check, Search } from "lucide-react"
+import { Check, DatabaseZap, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
 import { Badge } from "@/components/ui/badge"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { FieldDescription } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { OutputType } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -40,6 +42,7 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
         </InputGroupAddon>
         <InputGroupInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search drivers" aria-label="Search drivers" autoFocus />
       </InputGroup>
+      {/* Chips where they fit on a line or two, a select on phones. */}
       <ToggleGroup
         type="single"
         size="sm"
@@ -47,7 +50,7 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
         spacing={2}
         value={category}
         onValueChange={(v) => setCategory(v || ALL)}
-        className="flex w-full flex-wrap"
+        className="hidden w-full flex-wrap sm:flex"
         aria-label="Category"
       >
         <ToggleGroupItem value={ALL}>All</ToggleGroupItem>
@@ -57,6 +60,25 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
+      <Select value={category} onValueChange={setCategory}>
+        <SelectTrigger className="w-full sm:hidden" aria-label="Category">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All categories</SelectItem>
+          {categories.map((c) => (
+            <SelectItem key={c} value={c}>
+              {categoryTitle(c)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {types.some((t) => t.event_source) && (
+        <FieldDescription className="flex items-center gap-1.5 text-xs">
+          <DatabaseZap className="size-3.5 shrink-0 text-brand" aria-hidden />
+          An event source also stores events, so the Events page and the dashboard can read them (ui.event_source).
+        </FieldDescription>
+      )}
       {visible.length === 0 ? (
         <Empty className="border">
           <EmptyHeader>
@@ -84,15 +106,25 @@ export function DriverStep({ types, configured, selected, onSelect }: DriverStep
                   )}
                 >
                   <OutputTypeIcon driver={t.name} />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm font-medium">{driverTitle(t.name)}</span>
-                    <span className="truncate text-xs text-muted-foreground">{categoryTitle(t.category)}</span>
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="truncate text-sm font-medium" title={driverTitle(t.name)}>
+                      {driverTitle(t.name)}
+                    </span>
+                    <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      {categoryTitle(t.category)}
+                      {t.event_source && (
+                        <Badge variant="outline" className="border-brand/40 font-normal text-brand">
+                          <DatabaseZap aria-hidden /> Event source
+                        </Badge>
+                      )}
+                      {isConfigured && (
+                        <Badge variant="secondary" className="font-normal">
+                          Configured
+                        </Badge>
+                      )}
+                    </span>
                   </span>
-                  {isConfigured ? (
-                    <Badge variant="secondary" className="shrink-0 font-normal">Configured</Badge>
-                  ) : isSelected ? (
-                    <Check className="size-4 shrink-0 text-brand" aria-hidden />
-                  ) : null}
+                  {isSelected && <Check className="size-4 shrink-0 text-brand" aria-hidden />}
                 </button>
               </li>
             )

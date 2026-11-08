@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { AlertTriangle, Pencil, Server, Trash2 } from "lucide-react"
+import { AlertTriangle, DatabaseZap, Pencil, Server, Trash2 } from "lucide-react"
 import type { ReactNode } from "react"
 
 import falcoIcon from "@/assets/falco-icon.svg"
@@ -17,6 +17,7 @@ import { queueTone } from "@/components/dashboard/attention"
 import { OutputConfigView } from "@/components/outputs/output-config-view"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
@@ -189,6 +190,8 @@ function OutputDetail({
   actions?: OutputActions
 }) {
   const types = useOutputTypes()
+  const uiConfig = useConfig().data?.config.ui
+  const servesUI = entry != null && uiConfig?.enabled === true && uiConfig.event_source === entry.name
   const isInmemory = entry?.name === "inmemory"
   const inmemoryCapacity = typeof entry?.config?.["capacity"] === "number" ? entry.config["capacity"] : undefined
   const refetchInterval = useRefetchInterval()
@@ -244,6 +247,17 @@ function OutputDetail({
       </CardHeader>
       <ScrollArea className="min-h-0 min-w-0 flex-1 px-6 pb-6">
         {status && <OutputProblem status={status} />}
+        {servesUI && (
+          <Item variant="outline" size="sm" className="mb-4 border-brand/30 bg-brand/5">
+            <ItemMedia>
+              <DatabaseZap className="size-4 text-brand" aria-hidden />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle>Event source</ItemTitle>
+              <ItemDescription>The Events page and the dashboard read events from this output.</ItemDescription>
+            </ItemContent>
+          </Item>
+        )}
         {status && (
           <section className="flex flex-col gap-3" aria-label="Health">
             <dl className="grid grid-cols-3 gap-2 text-sm">
