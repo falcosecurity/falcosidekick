@@ -57,7 +57,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "queue",
+	Category: output.CategoryQueue,
 	Schema: output.Schema{
 		Fields: append(append([]output.SchemaField{
 			{Name: "queue_url", Type: "string", Required: true, Label: "Queue URL"},

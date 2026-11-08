@@ -53,7 +53,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "chat",
+	Category: output.CategoryChat,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), []output.SchemaField{
 			{Name: "activity_image", Type: "string", Default: defaultActivityImage, Label: "Activity Image URL"},

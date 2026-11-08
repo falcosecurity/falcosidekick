@@ -147,7 +147,7 @@ type Type struct {
 	// such as settings that make the output read local resources. patch has the request's key spelling.
 	CheckAPIWrite func(patch map[string]any) error `json:"-"`
 	Name          string                           `json:"name"`
-	Category      string                           `json:"category"`
+	Category      Category                         `json:"category"`
 	Schema        Schema                           `json:"schema"`
 }
 

@@ -45,7 +45,7 @@ const (
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "store",
+	Category: output.CategoryStorage,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
 			{Name: "capacity", Type: "int", Default: 10000, Required: true, Label: "Max Events"},

@@ -2412,7 +2412,7 @@
       }
     },
     {
-      "category": "store",
+      "category": "storage",
       "name": "inmemory",
       "schema": {
         "fields": [
@@ -4900,7 +4900,7 @@
       }
     },
     {
-      "category": "logging",
+      "category": "logs",
       "name": "syslog",
       "schema": {
         "fields": [

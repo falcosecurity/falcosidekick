@@ -69,7 +69,7 @@ type kafkaProducer struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "queue",
+	Category: output.CategoryQueue,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
 			{Name: "brokers", Type: "string[]", Required: true, Label: "Broker addresses"},

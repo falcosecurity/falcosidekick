@@ -43,6 +43,9 @@ func New(types []output.Type) (*Catalog, error) {
 		if t.New == nil {
 			return nil, fmt.Errorf("catalog: output type %q has nil constructor", t.Name)
 		}
+		if t.Category != "" && !t.Category.Known() {
+			return nil, fmt.Errorf("catalog: output type %q has unknown category %q", t.Name, t.Category)
+		}
 		if _, exists := c.types[t.Name]; exists {
 			return nil, fmt.Errorf("catalog: duplicate output type %q", t.Name)
 		}

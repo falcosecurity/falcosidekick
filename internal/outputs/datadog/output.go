@@ -72,7 +72,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "alerting",
+	Category: output.CategoryAlerting,
 	Schema: output.Schema{
 		Fields: append(append(targetSchemaFields(), []output.SchemaField{
 			{Name: "api_key", Type: "string", Required: true, Secret: true, Label: "API Key"},

@@ -316,7 +316,7 @@ func TestHandlePipelineOutputTypeByName_Hit(t *testing.T) {
 	var got output.Type
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
 	assert.Equal(t, "slack", got.Name)
-	assert.Equal(t, "chat", got.Category)
+	assert.Equal(t, output.CategoryChat, got.Category)
 	require.Len(t, got.Schema.Fields, 1)
 	assert.True(t, got.Schema.Fields[0].Secret)
 }

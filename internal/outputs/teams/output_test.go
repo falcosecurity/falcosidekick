@@ -159,7 +159,7 @@ func TestSchema(t *testing.T) {
 	assert.Equal(t, defaultActivityImage, fields["activity_image"].Default)
 	assert.Contains(t, fields, "runtime.minimum_priority")
 	assert.True(t, fields["bearer_token"].Secret)
-	assert.Equal(t, "chat", OutputType.Category)
+	assert.Equal(t, output.CategoryChat, OutputType.Category)
 }
 
 func TestPayloadAllFormat(t *testing.T) {

@@ -44,7 +44,7 @@ type config struct {
 var OutputType = output.Type{
 	New:      createOutput,
 	Name:     name,
-	Category: "webhook",
+	Category: output.CategoryWebhook,
 	Schema: output.Schema{
 		Fields: append(append(shared.HTTPTargetSchemaFields(&targetOptions), output.SchemaField{
 			Name: "method", Type: "enum", Values: []string{"POST", "PUT"}, Default: "POST", Label: "HTTP Method",

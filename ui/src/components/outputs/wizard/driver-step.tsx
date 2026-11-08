@@ -9,7 +9,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { OutputType } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
-import { categoryTitle, driverTitle } from "./sections"
+import { categoryOrder, categoryTitle, driverTitle } from "./sections"
 
 const ALL = "all"
 
@@ -23,7 +23,7 @@ interface DriverStepProps {
 export function DriverStep({ types, configured, selected, onSelect }: DriverStepProps) {
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState(ALL)
-  const categories = useMemo(() => [...new Set(types.map((t) => t.category))].sort(), [types])
+  const categories = useMemo(() => [...new Set(types.map((t) => t.category))].sort(categoryOrder), [types])
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
     return types

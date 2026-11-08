@@ -128,23 +128,31 @@ export function driverTitle(driver: string): string {
   return titleCase(driver)
 }
 
-const CATEGORY_TITLES: Record<string, string> = {
-  alerting: "Alerting and on-call",
-  chat: "Chat",
-  email: "Email",
-  logging: "Logging",
-  logs: "Logs",
-  observability: "Observability",
-  other: "Other",
-  queue: "Queues and streams",
-  response: "Response",
-  storage: "Storage",
-  store: "Store",
-  webhook: "Webhooks",
-}
+// The backend defines the categories (output.Categories); this is their display order and wording.
+const CATEGORY_TITLES: [string, string][] = [
+  ["alerting", "Alerting and on-call"],
+  ["chat", "Chat"],
+  ["email", "Email"],
+  ["logs", "Logs"],
+  ["observability", "Observability"],
+  ["queue", "Queues and streams"],
+  ["response", "Response"],
+  ["storage", "Storage"],
+  ["webhook", "Webhooks"],
+  ["other", "Other"],
+]
 
 export function categoryTitle(category: string): string {
-  return CATEGORY_TITLES[category] ?? titleCase(category)
+  return CATEGORY_TITLES.find(([key]) => key === category)?.[1] ?? titleCase(category)
+}
+
+/** Sorts categories in display order; one the UI does not know yet goes before "other". */
+export function categoryOrder(a: string, b: string): number {
+  const rank = (c: string) => {
+    const i = CATEGORY_TITLES.findIndex(([key]) => key === c)
+    return i === -1 ? CATEGORY_TITLES.length - 1.5 : i
+  }
+  return rank(a) - rank(b) || a.localeCompare(b)
 }
 
 /** A short hint under the field: the default, or what a file field expects. */

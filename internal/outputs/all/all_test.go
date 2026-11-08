@@ -25,6 +25,18 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
+// The UI groups drivers by category: every registered driver picks one of output.Categories.
+func TestEveryOutputHasAKnownCategory(t *testing.T) {
+	used := make(map[output.Category]bool)
+	for _, typ := range Types() {
+		assert.True(t, typ.Category.Known(), "%s: category %q is not one of output.Categories", typ.Name, typ.Category)
+		used[typ.Category] = true
+	}
+	for _, category := range output.Categories {
+		assert.True(t, used[category], "category %q has no driver", category)
+	}
+}
+
 // The API checks file paths against api.secret_dirs only for fields marked File, so a path field
 // without the mark would let a request read any file.
 func TestFilePathFieldsAreMarked(t *testing.T) {
