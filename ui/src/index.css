@@ -1,0 +1,7 @@
+@import "../styles/globals.css";
+
+@layer base {
+  body {
+    @apply min-h-screen m-0;
+  }
+}

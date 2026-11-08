@@ -95,27 +95,6 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	mainHandler(w, r)
 }
 
-// kubernetesFields picks the namespace and pod name out of output_fields.
-//
-// The map is decoded straight from the request body, so a field can hold any
-// JSON value. A non-string is ignored rather than asserted, since a bare
-// j.(string) panics on a number, object, list or bool.
-func kubernetesFields(outputFields map[string]interface{}) (namespace, pod string) {
-	for k, v := range outputFields {
-		if v == nil {
-			continue
-		}
-		switch k {
-		case "k8s.ns.name":
-			namespace, _ = v.(string)
-		case "k8s.pod.name":
-			pod, _ = v.(string)
-		}
-	}
-
-	return namespace, pod
-}
-
 func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 	var falcopayload types.FalcoPayload
 
@@ -150,7 +129,17 @@ func newFalcoPayload(payload io.Reader) (types.FalcoPayload, error) {
 
 	falcopayload.UUID = uuid.New().String()
 
-	kn, kp := kubernetesFields(falcopayload.OutputFields)
+	var kn, kp string
+	for i, j := range falcopayload.OutputFields {
+		if j != nil {
+			if i == "k8s.ns.name" {
+				kn = j.(string)
+			}
+			if i == "k8s.pod.name" {
+				kp = j.(string)
+			}
+		}
+	}
 
 	var templatedFields string
 	if len(config.Templatedfields) > 0 {
@@ -422,7 +411,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { awsClient.PutRecord(p) })
 	}
 
-	if config.SMTP.HostPort != "" && smtpClient != nil && (falcopayload.Priority >= types.Priority(config.SMTP.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.SMTP.HostPort != "" && (falcopayload.Priority >= types.Priority(config.SMTP.MinimumPriority) || falcopayload.Rule == testRule) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { smtpClient.SendMail(p) })
 	}
 
@@ -458,7 +447,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { gcpClient.GCPCallCloudFunction(p) })
 	}
 
-	if config.GCP.CloudRun.Endpoint != "" && gcpCloudRunClient != nil && (falcopayload.Priority >= types.Priority(config.GCP.CloudRun.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.GCP.CloudRun.Endpoint != "" && (falcopayload.Priority >= types.Priority(config.GCP.CloudRun.MinimumPriority) || falcopayload.Rule == testRule) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { gcpCloudRunClient.CloudRunFunctionPost(p) })
 	}
 
@@ -474,7 +463,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { googleChatClient.GooglechatPost(p) })
 	}
 
-	if config.Kafka.HostPort != "" && kafkaClient != nil && (falcopayload.Priority >= types.Priority(config.Kafka.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.Kafka.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Kafka.MinimumPriority) || falcopayload.Rule == testRule) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { kafkaClient.KafkaProduce(p) })
 	}
 
@@ -506,7 +495,7 @@ func forwardEvent(falcopayload types.FalcoPayload) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { wavefrontClient.WavefrontPost(p) })
 	}
 
-	if config.Grafana.HostPort != "" && grafanaClient != nil && (falcopayload.Priority >= types.Priority(config.Grafana.MinimumPriority) || falcopayload.Rule == testRule) {
+	if config.Grafana.HostPort != "" && (falcopayload.Priority >= types.Priority(config.Grafana.MinimumPriority) || falcopayload.Rule == testRule) {
 		dispatches = append(dispatches, func(p types.FalcoPayload) { grafanaClient.GrafanaPost(p) })
 	}
 

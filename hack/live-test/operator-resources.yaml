@@ -1,0 +1,77 @@
+apiVersion: instance.falcosecurity.dev/v1alpha1
+kind: Falco
+metadata:
+  name: falco
+  namespace: falco
+  labels:
+    app.kubernetes.io/managed-by: falco-operator
+spec:
+  podTemplateSpec:
+    spec:
+      containers:
+        - name: falco
+          tty: true
+---
+apiVersion: artifact.falcosecurity.dev/v1alpha1
+kind: Plugin
+metadata:
+  name: container
+  namespace: falco
+  labels:
+    app.kubernetes.io/managed-by: falco-operator
+spec:
+  ociArtifact:
+    image:
+      repository: falcosecurity/plugins/plugin/container
+      tag: latest
+    registry:
+      name: ghcr.io
+---
+apiVersion: artifact.falcosecurity.dev/v1alpha1
+kind: Rulesfile
+metadata:
+  name: falco-rules
+  namespace: falco
+  labels:
+    app.kubernetes.io/managed-by: falco-operator
+spec:
+  ociArtifact:
+    image:
+      repository: falcosecurity/rules/falco-rules
+      tag: latest
+    registry:
+      name: ghcr.io
+  priority: 50
+---
+apiVersion: artifact.falcosecurity.dev/v1alpha1
+kind: Config
+metadata:
+  name: falco-output
+  namespace: falco
+  labels:
+    app.kubernetes.io/managed-by: falco-operator
+spec:
+  config:
+    json_output: true
+    stdout_output:
+      enabled: true
+    http_output:
+      enabled: true
+      url: "http://falcosidekick.falco.svc:2801"
+  priority: 60
+---
+# apiVersion: instance.falcosecurity.dev/v1alpha1
+# kind: Component
+# metadata:
+#   name: falcosidekick
+#   namespace: falco
+#   labels:
+#     app.kubernetes.io/managed-by: falco-operator
+# spec:
+#   component:
+#     type: falcosidekick
+#   podTemplateSpec:
+#     spec:
+#       containers:
+#         - name: falcosidekick
+#           image: falcosidekick...

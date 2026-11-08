@@ -24,7 +24,7 @@ import (
 	gcpfunctions "cloud.google.com/go/functions/apiv1"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
-	"github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -422,10 +422,12 @@ func (c *Client) sendRequest(method string, payload interface{}, responseBody *s
 		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrTooManyRequest, resp.StatusCode, c.getInlinedBodyAsString(resp)))
 		return ErrTooManyRequest
 	case http.StatusInternalServerError: //500
-		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrInternalServer, resp.StatusCode, c.getInlinedBodyAsString(resp)))
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v)", ErrTooManyRequest, resp.StatusCode))
 		return ErrInternalServer
 	case http.StatusBadGateway: //502
-		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v): %s", ErrBadGateway, resp.StatusCode, c.getInlinedBodyAsString(resp)))
+		msg := c.getInlinedBodyAsString(resp)
+		fmt.Println(msg)
+		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%v (%v)", ErrTooManyRequest, resp.StatusCode))
 		return ErrBadGateway
 	default:
 		utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("unexpected Response (%v)", resp.StatusCode))

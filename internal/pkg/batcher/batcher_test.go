@@ -23,8 +23,8 @@ func TestElasticsearchBatcher(t *testing.T) {
 
 	// Just to emulated similar payload for testing, not strictly needed
 	type eSPayload struct {
-		types.FalcoPayload
 		Timestamp time.Time `json:"@timestamp"`
+		types.FalcoPayload
 	}
 
 	marshalFunc := func(payload types.FalcoPayload) ([]byte, error) {

@@ -5,7 +5,7 @@ package outputs
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/DataDog/datadog-go/statsd"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/attribute"

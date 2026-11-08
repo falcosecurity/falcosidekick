@@ -1,0 +1,312 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: "Geist Variable", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-priority-emergency: var(--priority-emergency);
+  --color-priority-alert: var(--priority-alert);
+  --color-priority-critical: var(--priority-critical);
+  --color-priority-error: var(--priority-error);
+  --color-priority-warning: var(--priority-warning);
+  --color-priority-notice: var(--priority-notice);
+  --color-priority-info: var(--priority-info);
+  --color-priority-debug: var(--priority-debug);
+  --color-priority-emergency-foreground: var(--priority-emergency-foreground);
+  --color-priority-alert-foreground: var(--priority-alert-foreground);
+  --color-priority-critical-foreground: var(--priority-critical-foreground);
+  --color-priority-error-foreground: var(--priority-error-foreground);
+  --color-priority-warning-foreground: var(--priority-warning-foreground);
+  --color-priority-notice-foreground: var(--priority-notice-foreground);
+  --color-priority-info-foreground: var(--priority-info-foreground);
+  --color-priority-debug-foreground: var(--priority-debug-foreground);
+  --color-status-ok: var(--status-ok);
+  --color-status-error: var(--status-error);
+  --color-status-degraded: var(--status-degraded);
+  --color-status-disabled: var(--status-disabled);
+  --color-status-unknown: var(--status-unknown);
+  --color-status-ok-foreground: var(--status-ok-foreground);
+  --color-status-error-foreground: var(--status-error-foreground);
+  --color-status-degraded-foreground: var(--status-degraded-foreground);
+  --color-status-disabled-foreground: var(--status-disabled-foreground);
+  --color-status-unknown-foreground: var(--status-unknown-foreground);
+  --color-category-1: var(--category-1);
+  --color-category-2: var(--category-2);
+  --color-category-3: var(--category-3);
+  --color-category-4: var(--category-4);
+  --color-category-5: var(--category-5);
+  --color-category-6: var(--category-6);
+  --color-category-7: var(--category-7);
+  --color-category-8: var(--category-8);
+  --color-category-9: var(--category-9);
+  --color-category-10: var(--category-10);
+  --color-category-1-foreground: var(--category-1-foreground);
+  --color-category-2-foreground: var(--category-2-foreground);
+  --color-category-3-foreground: var(--category-3-foreground);
+  --color-category-4-foreground: var(--category-4-foreground);
+  --color-category-5-foreground: var(--category-5-foreground);
+  --color-category-6-foreground: var(--category-6-foreground);
+  --color-category-7-foreground: var(--category-7-foreground);
+  --color-category-8-foreground: var(--category-8-foreground);
+  --color-category-9-foreground: var(--category-9-foreground);
+  --color-category-10-foreground: var(--category-10-foreground);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.975 0.003 230);
+  --foreground: oklch(0.11 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.11 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.11 0 0);
+  --primary: oklch(0.16 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.945 0.005 230);
+  --secondary-foreground: oklch(0.16 0 0);
+  --muted: oklch(0.94 0.007 230);
+  --muted-foreground: oklch(0.36 0 0);
+  --accent: oklch(0.91 0.035 210);
+  --accent-foreground: oklch(0.16 0 0);
+  --destructive: oklch(0.5 0.24 27);
+  --border: oklch(0.85 0.008 230);
+  --input: oklch(0.85 0.008 230);
+  --ring: oklch(0.68 0.12 207);
+  --brand: oklch(0.68 0.12 207);
+  --brand-foreground: oklch(0.985 0 0);
+  --chart-1: oklch(0.68 0.12 207);
+  --chart-2: oklch(0.646 0.222 41.116);
+  --chart-3: oklch(0.6 0.118 184.704);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.68 0.12 207);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.96 0.01 210);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.68 0.12 207);
+  --priority-emergency: oklch(0.48 0.22 15);
+  --priority-alert: oklch(0.55 0.22 20);
+  --priority-critical: oklch(0.58 0.22 28);
+  --priority-error: oklch(0.6 0.2 35);
+  --priority-warning: oklch(0.72 0.17 75);
+  --priority-notice: oklch(0.72 0.14 220);
+  --priority-info: oklch(0.72 0.05 220);
+  --priority-debug: oklch(0.55 0.01 260);
+  --priority-emergency-foreground: oklch(0.42 0.14 15);
+  --priority-alert-foreground: oklch(0.42 0.14 20);
+  --priority-critical-foreground: oklch(0.42 0.14 28);
+  --priority-error-foreground: oklch(0.42 0.12 35);
+  --priority-warning-foreground: oklch(0.42 0.08 75);
+  --priority-notice-foreground: oklch(0.42 0.07 220);
+  --priority-info-foreground: oklch(0.42 0.03 220);
+  --priority-debug-foreground: oklch(0.42 0.01 260);
+  --status-ok: oklch(0.62 0.15 150);
+  --status-error: oklch(0.58 0.22 28);
+  --status-degraded: oklch(0.72 0.17 75);
+  --status-disabled: oklch(0.55 0.01 260);
+  --status-unknown: oklch(0.55 0.01 260);
+  --status-ok-foreground: oklch(0.42 0.09 150);
+  --status-error-foreground: oklch(0.42 0.14 28);
+  --status-degraded-foreground: oklch(0.42 0.08 75);
+  --status-disabled-foreground: oklch(0.42 0.01 260);
+  --status-unknown-foreground: oklch(0.42 0.01 260);
+  --category-1: oklch(0.7 0.17 210);
+  --category-2: oklch(0.68 0.22 300);
+  --category-3: oklch(0.7 0.16 150);
+  --category-4: oklch(0.78 0.17 75);
+  --category-5: oklch(0.65 0.22 30);
+  --category-6: oklch(0.7 0.15 260);
+  --category-7: oklch(0.7 0.17 350);
+  --category-8: oklch(0.7 0.17 110);
+  --category-9: oklch(0.66 0.14 245);
+  --category-10: oklch(0.7 0.15 45);
+  --category-1-foreground: oklch(0.42 0.07 210);
+  --category-2-foreground: oklch(0.42 0.14 300);
+  --category-3-foreground: oklch(0.42 0.09 150);
+  --category-4-foreground: oklch(0.42 0.08 75);
+  --category-5-foreground: oklch(0.42 0.14 30);
+  --category-6-foreground: oklch(0.42 0.12 260);
+  --category-7-foreground: oklch(0.42 0.12 350);
+  --category-8-foreground: oklch(0.42 0.08 110);
+  --category-9-foreground: oklch(0.42 0.09 245);
+  --category-10-foreground: oklch(0.42 0.1 45);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.78 0.11 207);
+  --brand: oklch(0.78 0.11 207);
+  --brand-foreground: oklch(0.145 0 0);
+  --chart-1: oklch(0.78 0.11 207);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.2 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.78 0.11 207);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.26 0.02 210);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.78 0.11 207);
+  --priority-emergency: oklch(0.58 0.23 15);
+  --priority-alert: oklch(0.62 0.22 20);
+  --priority-critical: oklch(0.65 0.22 28);
+  --priority-error: oklch(0.68 0.2 35);
+  --priority-warning: oklch(0.78 0.17 75);
+  --priority-notice: oklch(0.78 0.14 220);
+  --priority-info: oklch(0.78 0.05 220);
+  --priority-debug: oklch(0.68 0.01 260);
+  --priority-emergency-foreground: oklch(0.82 0.08 15);
+  --priority-alert-foreground: oklch(0.82 0.08 20);
+  --priority-critical-foreground: oklch(0.82 0.08 28);
+  --priority-error-foreground: oklch(0.82 0.08 35);
+  --priority-warning-foreground: oklch(0.82 0.1 75);
+  --priority-notice-foreground: oklch(0.82 0.08 220);
+  --priority-info-foreground: oklch(0.82 0.03 220);
+  --priority-debug-foreground: oklch(0.82 0.01 260);
+  --status-ok: oklch(0.7 0.16 150);
+  --status-error: oklch(0.68 0.22 28);
+  --status-degraded: oklch(0.78 0.17 75);
+  --status-disabled: oklch(0.65 0.01 260);
+  --status-unknown: oklch(0.65 0.01 260);
+  --status-ok-foreground: oklch(0.82 0.1 150);
+  --status-error-foreground: oklch(0.82 0.08 28);
+  --status-degraded-foreground: oklch(0.82 0.1 75);
+  --status-disabled-foreground: oklch(0.82 0.01 260);
+  --status-unknown-foreground: oklch(0.82 0.01 260);
+  --category-1: oklch(0.76 0.16 210);
+  --category-2: oklch(0.74 0.2 300);
+  --category-3: oklch(0.76 0.15 150);
+  --category-4: oklch(0.84 0.16 75);
+  --category-5: oklch(0.72 0.2 30);
+  --category-6: oklch(0.76 0.14 260);
+  --category-7: oklch(0.76 0.16 350);
+  --category-8: oklch(0.76 0.16 110);
+  --category-9: oklch(0.72 0.13 245);
+  --category-10: oklch(0.76 0.14 45);
+  --category-1-foreground: oklch(0.82 0.08 210);
+  --category-2-foreground: oklch(0.82 0.1 300);
+  --category-3-foreground: oklch(0.82 0.1 150);
+  --category-4-foreground: oklch(0.82 0.1 75);
+  --category-5-foreground: oklch(0.82 0.08 30);
+  --category-6-foreground: oklch(0.82 0.08 260);
+  --category-7-foreground: oklch(0.82 0.1 350);
+  --category-8-foreground: oklch(0.82 0.1 110);
+  --category-9-foreground: oklch(0.82 0.08 245);
+  --category-10-foreground: oklch(0.82 0.08 45);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+.pipeline-canvas .react-flow__node {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  width: auto !important;
+}
+.pipeline-canvas .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+.pipeline-canvas .react-flow__controls {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05) !important;
+  overflow: hidden;
+}
+.pipeline-canvas .react-flow__controls-button {
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.pipeline-canvas .react-flow__controls-button:hover {
+  background: var(--muted) !important;
+}
+.pipeline-canvas .react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+.pipeline-canvas .react-flow__controls-button svg {
+  fill: currentColor !important;
+}
+.pipeline-canvas .react-flow__edge-text {
+  fill: var(--muted-foreground);
+  font-size: 10px;
+}
+.pipeline-canvas .react-flow__edge-textbg {
+  fill: var(--background);
+}

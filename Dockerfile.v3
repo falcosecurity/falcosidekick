@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE=alpine:3.22
+
+FROM ${BASE_IMAGE}
+
+ARG TARGETPLATFORM
+ARG BINARY=falcosidekick-v3
+ARG VARIANT=ui
+
+LABEL MAINTAINER="Falco Maintainers"
+LABEL org.opencontainers.image.source="https://github.com/falcosecurity/falcosidekick"
+LABEL io.falcosecurity.falcosidekick.variant="${VARIANT}"
+
+RUN apk add --update --no-cache ca-certificates gcompat \
+    && addgroup -S falcosidekick \
+    && adduser -u 1234 -S falcosidekick -G falcosidekick
+
+USER 1234
+WORKDIR /home/falcosidekick/app
+
+COPY LICENSE .
+COPY $TARGETPLATFORM/${BINARY} ./falcosidekick
+
+EXPOSE 2801
+
+ENTRYPOINT ["./falcosidekick"]

@@ -27,19 +27,14 @@ type MarshalFunc func(payload types.FalcoPayload) ([]byte, error)
 // Batching can be configured by the batchSize which is a max number of payloads in the batch or the flushInterval.
 // The callback function is called when the number of payloads reaches the batchSize or upon the flushInterval
 type Batcher struct {
-	batchSize     int
-	flushInterval time.Duration
-
-	callbackFn CallbackFunc
-	marshalFn  MarshalFunc
-
-	mx sync.Mutex
-
-	pending bytes.Buffer
-	// Keeping the original payloads for errors resolution
+	callbackFn      CallbackFunc
+	marshalFn       MarshalFunc
+	curTimer        *time.Timer
 	pendingPayloads []types.FalcoPayload
-
-	curTimer *time.Timer
+	pending         bytes.Buffer
+	batchSize       int
+	flushInterval   time.Duration
+	mx              sync.Mutex
 }
 
 func New(opts ...OptionFunc) *Batcher {

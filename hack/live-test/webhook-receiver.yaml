@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-receiver
+  namespace: falco
+  labels:
+    app: webhook-receiver
+    app.kubernetes.io/part-of: falcosidekick-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webhook-receiver
+  template:
+    metadata:
+      labels:
+        app: webhook-receiver
+    spec:
+      containers:
+        - name: receiver
+          image: mendhak/http-https-echo:37
+          env:
+            - name: HTTP_PORT
+              value: "8080"
+            - name: LOG_IGNORE_PATH
+              value: "/favicon.ico"
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "32Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 1
+            periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-receiver
+  namespace: falco
+  labels:
+    app.kubernetes.io/part-of: falcosidekick-dev
+spec:
+  selector:
+    app: webhook-receiver
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

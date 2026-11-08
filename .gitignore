@@ -11,7 +11,7 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-falcosidekick
+/falcosidekick
 /config.yaml
 .env
 .vscode
@@ -22,5 +22,10 @@ falcosidekick
 tmp/
 dist/
 
+# Frontend
+ui/node_modules/
+ui/dist/
+
 .DS_Store
+screenshot/
 

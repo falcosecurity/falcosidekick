@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/DataDog/datadog-go/statsd"
 	wavefront "github.com/wavefronthq/wavefront-sdk-go/senders"
 	"go.opentelemetry.io/otel/attribute"
 

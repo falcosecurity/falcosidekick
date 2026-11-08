@@ -343,7 +343,7 @@ vars_ override values from _file_.
 
 #### YAML File
 
-See **config_example.yaml** :
+See **config_example_v2_legacy.yaml** :
 
 ```yaml
 #listenaddress: "" # ip address to bind falcosidekick to (default: "" meaning all addresses)
