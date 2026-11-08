@@ -82,6 +82,19 @@ describe("PipelineDetailPanel", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
   })
 
+  test("the output the UI reads events from says so", async () => {
+    spies.push(
+      spyOn(api, "getConfig").mockResolvedValue({
+        config: { ...fixtures.config.config, ui: { enabled: true, event_source: "inmemory" } },
+      }),
+    )
+    spies.push(spyOn(api, "countEvents").mockResolvedValue(0))
+    const { rerender } = renderWithProviders(<PipelineDetailPanel selection={sink("inmemory")} entry={memoryEntry} status={null} />)
+    expect(await screen.findByText("The Events page and the dashboard read events from this output.")).toBeInTheDocument()
+    rerender(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={delivering} />)
+    expect(screen.queryByText("The Events page and the dashboard read events from this output.")).toBeNull()
+  })
+
   test("a provisioned output says it is file provisioned", () => {
     renderWithProviders(<PipelineDetailPanel selection={sink("inmemory")} entry={memoryEntry} status={null} />)
     expect(screen.getByText("File provisioned")).toBeInTheDocument()
