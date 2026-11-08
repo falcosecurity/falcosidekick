@@ -29,7 +29,9 @@ export function TopCard({ className }: { className?: string }) {
   return (
     <Card className={cn("gap-4 py-5 shadow-xs", className)}>
       <CardHeader className="px-5">
-        <CardTitle className="text-base">Top {DIMENSIONS.find((d) => d.key === groupBy)!.label.toLowerCase()}</CardTitle>
+        <CardTitle asChild className="text-base">
+          <h2>Top {DIMENSIONS.find((d) => d.key === groupBy)!.label.toLowerCase()}</h2>
+        </CardTitle>
         <CardDescription>Last 24 hours</CardDescription>
         <CardAction>
           <ToggleGroup type="single" variant="outline" size="sm" value={groupBy} onValueChange={(v) => v && setGroupBy(v as GroupBy)} aria-label="Group by">
