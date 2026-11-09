@@ -1,0 +1,43 @@
+{{- $cfg := include "falcosidekick.sidekickConfig" . | fromYaml }}
+{{- $scheme := (dig "tls" "enabled" false $cfg) | ternary "https" "http" }}
+{{- $fullname := include "falcosidekick.fullname" . }}
+Falcosidekick {{ .Chart.AppVersion }} receives Falco events at:
+
+  {{ $scheme }}://{{ $fullname }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/
+
+In the Falco chart, set:
+
+  falco:
+    json_output: true
+    json_include_output_property: true
+    http_output:
+      enabled: true
+      url: "{{ $scheme }}://{{ $fullname }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}/"
+
+{{- if .Values.ui.enabled }}
+
+The web UI and the API are served on the management port, read-only{{ if dig "api" "allow_writes" false $cfg }} except that api.allow_writes is true{{ end }}:
+{{- if .Values.management.service.enabled }}
+
+  {{ $scheme }}://{{ $fullname }}-management.{{ .Release.Namespace }}.svc:{{ .Values.management.service.port }}/
+
+  The API has no authentication: restrict who can reach this Service.
+{{- else }}
+{{- $port := dig "management" "listen_port" 2802 $cfg | int }}
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward deploy/{{ $fullname }} {{ $port }}
+  open {{ $scheme }}://127.0.0.1:{{ $port }}/
+{{- end }}
+{{- if gt (int .Values.replicaCount) 1 }}
+
+  With {{ .Values.replicaCount }} replicas, each pod's UI shows only the events that pod received.
+{{- end }}
+{{- end }}
+{{- if not .Values.outputs }}
+
+No output is configured: set outputs in the values, for example:
+
+  outputs:
+    webhook:
+      host: "http://receiver.example:8080"
+{{- end }}

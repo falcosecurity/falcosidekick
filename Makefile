@@ -137,7 +137,35 @@ coverage: ## Run tests with coverage and check the 80% threshold
 	fi
 
 .PHONY: verify
-verify: lint test test-hack test-ui-tag ui-build ui-lint ui-typecheck ui-test ## Full verification: Go default and tagged, golangci-lint, UI build, lint, typecheck and tests
+verify: lint test test-hack test-ui-tag ui-build ui-lint ui-typecheck ui-test chart.lint chart.docs.check ## Full verification: Go default and tagged, golangci-lint, UI build, lint, typecheck and tests, Helm chart lint and README
+
+## --------------------------------------
+## Helm chart
+## --------------------------------------
+
+CHART             := chart/falcosidekick
+HELM              ?= helm
+HELM_DOCS_VERSION ?= v1.11.0
+HELM_DOCS         ?= $(GO) run github.com/norwoodj/helm-docs/cmd/helm-docs@$(HELM_DOCS_VERSION)
+
+.PHONY: chart.lint
+chart.lint: ## Lint the Helm chart
+	$(HELM) lint --strict $(CHART)
+
+.PHONY: chart.template
+chart.template: ## Render the Helm chart with its default values
+	$(HELM) template falcosidekick $(CHART) --namespace falco
+
+.PHONY: chart.docs
+chart.docs: ## Write the Helm chart README from README.gotmpl and values.yaml
+	$(HELM_DOCS) -c $(CHART) -t ./README.gotmpl -o ./README.md
+
+.PHONY: chart.docs.check
+chart.docs.check: ## Check that the Helm chart README matches README.gotmpl and values.yaml
+	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && cp -R $(CHART) "$$tmp/" && \
+		$(HELM_DOCS) -c "$$tmp/$(notdir $(CHART))" -t ./README.gotmpl -o ./README.md && \
+		diff -u $(CHART)/README.md "$$tmp/$(notdir $(CHART))/README.md" || \
+		{ echo "$(CHART)/README.md is out of date: run make chart.docs"; exit 1; }
 
 ## --------------------------------------
 ## UI (ui/, Bun only)

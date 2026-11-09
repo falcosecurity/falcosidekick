@@ -1,0 +1,23 @@
+{{- $cfg := include "falcosidekick.sidekickConfig" . | fromYaml }}
+{{- $name := (dig "tls" "enabled" false $cfg) | ternary "https" "http" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "falcosidekick.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "falcosidekick.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingest
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "falcosidekick.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: {{ $name }}
+      port: {{ .Values.service.port }}
+      targetPort: {{ $name }}
+      protocol: TCP

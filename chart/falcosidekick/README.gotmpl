@@ -1,0 +1,98 @@
+# falcosidekick
+
+[Falcosidekick](https://github.com/falcosecurity/falcosidekick) connects [Falco](https://github.com/falcosecurity/falco) to your ecosystem. It receives Falco events over HTTP and forwards them to the outputs you configure.
+
+## Introduction
+
+This chart installs Falcosidekick v3, in beta. Chart version {{ template "chart.version" . }} deploys Falcosidekick {{ template "chart.appVersion" . }}.
+
+v3 configuration is not compatible with v2: see the [migration guide](https://github.com/falcosecurity/falcosidekick/blob/master/docs/migration.md). The chart for Falcosidekick v2 is the `0.x` line of this chart, which Helm still installs by default.
+
+## Adding `falcosecurity` repository
+
+```bash
+helm repo add falcosecurity https://falcosecurity.github.io/charts
+helm repo update
+```
+
+## Installing the Chart
+
+The v3 chart is a prerelease, so Helm installs it only with `--devel`:
+
+```bash
+helm install falcosidekick falcosecurity/falcosidekick --devel --namespace falco --create-namespace \
+  --set outputs.webhook.host=http://receiver.example:8080
+```
+
+From a local checkout of the Falcosidekick repository:
+
+```bash
+helm install falcosidekick ./chart/falcosidekick --namespace falco --create-namespace \
+  --set outputs.webhook.host=http://receiver.example:8080
+```
+
+Point Falco to `http://falcosidekick.falco.svc:2801/`, with `json_output: true` and `http_output.enabled: true`.
+
+## Uninstalling the Chart
+
+```bash
+helm uninstall falcosidekick --namespace falco
+```
+
+## Configuration
+
+`config` is written as `sidekick.yaml` and `outputs` under `outputs:` in `outputs.yaml`, with the v3 keys of the [configuration](https://github.com/falcosecurity/falcosidekick/blob/master/docs/configuration.md) and of each [output](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/README.md), without translation. A change to `config` restarts the pods; a change to `outputs` reloads the outputs without a restart, once the kubelet has updated the ConfigMap (about a minute).
+
+```yaml
+config:
+  log_format: json
+outputs:
+  slack:
+    secret_endpoint_file: /etc/falcosidekick/secrets/slack/endpoint
+secrets:
+  - slack
+```
+
+### Secrets
+
+Values never hold credentials. List existing Secrets in `secrets`: each is mounted read-only at `/etc/falcosidekick/secrets/<name>` and its directory is added to `api.secret_dirs`. Outputs read them through their `_file` fields.
+
+### Web UI
+
+The UI is on by default and read-only: the chart sets `api.allow_writes: false` unless `config.api.allow_writes` is set, `ui.event_source: inmemory`, and adds an `inmemory` output unless `outputs.inmemory` is set. The slim image has no UI: `image.variant: slim` requires `ui.enabled: false`.
+
+The UI and the API listen on the management port, 2802, bound to the pod loopback. Reach them with:
+
+```bash
+kubectl --namespace falco port-forward deploy/falcosidekick 2802
+```
+
+`management.service.enabled: true` creates a ClusterIP Service for that port and sets `management.listen_address: "::"`. The API has no authentication: restrict who can reach that Service. The chart creates no Ingress.
+
+With several replicas, each pod keeps its own recent events, so each pod's UI shows only the events that pod received.
+
+### Database
+
+| `database.backend` | Use |
+| --- | --- |
+| `inmemory` | Outputs created through the API and the UI layout are lost on restart. |
+| `sqlite` | A PersistentVolumeClaim mounted at `/var/lib/falcosidekick`. One replica only: rendering fails with `replicaCount` above 1, because a ReadWriteOnce volume cannot be mounted by two pods and a sqlite file written by two processes gets corrupted. The Deployment uses the `Recreate` strategy. |
+| `postgres` | Several replicas share the outputs. Set the connection in `config.database.postgres`, and the password Secret in `database.postgres.passwordSecret`, which the chart sets as `password_file`. |
+
+### TLS
+
+Set `config.tls.enabled: true` and `tls.secretName` to a Secret holding `tls.crt` and `tls.key`, and `ca.crt` with `config.tls.mutual_tls: true`. The probes then use HTTPS; with mutual TLS they need no client certificate.
+
+### Shutdown
+
+`terminationGracePeriodSeconds` is `config.shutdown_delay` (5s by default) plus the 10s the process gives the server and the outputs to drain, plus 5s.
+
+### Policy Report
+
+`rbac.policyReport: true` creates a ClusterRole allowing `get`, `create` and `update` on openreports.io `reports` and `clusterreports`, binds it to the ServiceAccount and mounts its token, for the `policyreport` output.
+
+### Values
+
+The following table lists the configurable parameters of the {{ template "chart.name" . }} chart v{{ template "chart.version" . }} and their default values. See [values.yaml](values.yaml) for the full list.
+
+{{ template "chart.valuesTable" . }}

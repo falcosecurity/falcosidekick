@@ -1,0 +1,13 @@
+{{- include "falcosidekick.validate" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "falcosidekick.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "falcosidekick.labels" . | nindent 4 }}
+data:
+  sidekick.yaml: |
+    {{- include "falcosidekick.sidekickConfig" . | nindent 4 }}
+  outputs.yaml: |
+    {{- include "falcosidekick.outputsConfig" . | nindent 4 }}

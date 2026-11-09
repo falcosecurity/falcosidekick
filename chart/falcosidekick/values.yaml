@@ -1,0 +1,176 @@
+# Default values for falcosidekick v3.
+
+# -- Number of pods. More than 1 is refused with `database.backend: sqlite`.
+# With the UI on, each pod's UI shows only the events that pod received.
+replicaCount: 1
+
+image:
+  # -- Image repository.
+  repository: falcosecurity/falcosidekick
+  # -- Image tag. Defaults to the chart appVersion.
+  tag: ""
+  # -- Image digest (`sha256:...`). When set, it replaces the tag and the variant.
+  digest: ""
+  # -- Image variant: `""` (with the web UI) or `slim` (without it). `slim` requires `ui.enabled: false`.
+  variant: ""
+  # -- Image pull policy.
+  pullPolicy: IfNotPresent
+
+# -- Image pull secrets.
+imagePullSecrets: []
+
+# -- Overrides the chart name.
+nameOverride: ""
+# -- Overrides the full name of the resources.
+fullnameOverride: ""
+
+# -- Core configuration, written as `sidekick.yaml` with v3 keys (see docs/configuration.md).
+# The chart sets `ui.*`, `database.backend`, `database.sqlite.path`, `database.postgres.password_file`,
+# the TLS file paths, `management.listen_address` and appends to `api.secret_dirs` as the values below require.
+# A change restarts the pods.
+config: {}
+
+# -- Outputs, written under `outputs:` in `outputs.yaml` with v3 keys (see docs/outputs).
+# A change reloads the outputs without a restart, once the kubelet has updated the ConfigMap.
+# Refer to credentials with `_file` fields pointing into `secrets`.
+outputs: {}
+
+# -- Names of existing Secrets. Each is mounted read-only at `/etc/falcosidekick/secrets/<name>`
+# and its directory is added to `api.secret_dirs`.
+secrets: []
+
+ui:
+  # -- Serve the web UI on the management port. Sets `ui.enabled`, `ui.event_source: inmemory`
+  # and `api.allow_writes: false` unless `config.api.allow_writes` is set, and adds an `inmemory`
+  # output unless `outputs.inmemory` is set.
+  enabled: true
+
+management:
+  service:
+    # -- Create a ClusterIP Service for the management port (API and UI) and set
+    # `management.listen_address: "::"`. The API has no authentication: restrict who can reach it.
+    # Without it, use `kubectl port-forward`.
+    enabled: false
+    # -- Management Service port.
+    port: 2802
+    # -- Management Service annotations.
+    annotations: {}
+
+tls:
+  # -- Existing Secret mounted at `/etc/falcosidekick/tls`, for `config.tls.enabled: true`.
+  # Unless set in `config.tls`, `cert_file` is `tls.crt`, `key_file` is `tls.key`, and with
+  # `config.tls.mutual_tls: true` `ca_file` is `ca.crt`.
+  secretName: ""
+
+database:
+  # -- Where outputs created through the API and the UI layout are stored: `inmemory`, `sqlite` or `postgres`.
+  # Set the postgres connection in `config.database.postgres`.
+  backend: inmemory
+  sqlite:
+    persistence:
+      # -- Existing PersistentVolumeClaim for the sqlite file. Empty creates one.
+      existingClaim: ""
+      # -- Storage class of the created claim. Empty uses the cluster default.
+      storageClassName: ""
+      # -- Access modes of the created claim.
+      accessModes:
+        - ReadWriteOnce
+      # -- Size of the created claim.
+      size: 1Gi
+      # -- Annotations of the created claim.
+      annotations: {}
+  postgres:
+    passwordSecret:
+      # -- Existing Secret holding the postgres password, mounted at `/etc/falcosidekick/postgres`
+      # and set as `database.postgres.password_file`.
+      name: ""
+      # -- Key of the password in that Secret.
+      key: password
+
+service:
+  # -- Service type of the ingestion port, which receives Falco events and serves `/metrics`.
+  type: ClusterIP
+  # -- Service port.
+  port: 2801
+  # -- Service annotations.
+  annotations: {}
+
+serviceMonitor:
+  # -- Create a Prometheus Operator ServiceMonitor scraping `/metrics`.
+  enabled: false
+  # -- Scrape interval. Empty uses the Prometheus default.
+  interval: ""
+  # -- Scrape timeout. Empty uses the Prometheus default.
+  scrapeTimeout: ""
+  # -- Extra labels, for the Prometheus `serviceMonitorSelector`.
+  labels: {}
+  # -- TLS settings of the scrape, used when `config.tls.enabled` is true.
+  tlsConfig: {}
+
+rbac:
+  # -- Create a ClusterRole allowing get, create and update on openreports.io `reports` and
+  # `clusterreports`, bound to the ServiceAccount, and mount its token, for the `policyreport` output.
+  policyReport: false
+
+serviceAccount:
+  # -- Create a ServiceAccount.
+  create: true
+  # -- ServiceAccount name. Defaults to the full name when created, else `default`.
+  name: ""
+  # -- ServiceAccount annotations.
+  annotations: {}
+
+podDisruptionBudget:
+  # -- Create a PodDisruptionBudget.
+  enabled: false
+  # -- Minimum available pods. Ignored when `maxUnavailable` is set.
+  minAvailable: 1
+  # -- Maximum unavailable pods.
+  maxUnavailable: ""
+
+# -- Pod annotations.
+podAnnotations: {}
+
+# -- Pod labels.
+podLabels: {}
+
+# -- Pod security context.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+# -- Container security context.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# -- Container resources.
+resources: {}
+
+# -- Node selector.
+nodeSelector: {}
+
+# -- Tolerations.
+tolerations: []
+
+# -- Affinity.
+affinity: {}
+
+# -- Extra container environment variables.
+extraEnv: []
+
+# -- Extra pod volumes.
+extraVolumes: []
+
+# -- Extra container volume mounts.
+extraVolumeMounts: []

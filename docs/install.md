@@ -62,9 +62,29 @@ curl -s localhost:2802/api/v1/pipeline/status
 
 At startup each output probes its destination. A configuration error (rejected credentials, wrong path, untrusted certificate) in an output file stops the process with the reason in the log; in an output created through the API it leaves that output `failed` and the others start. An unreachable destination does not: the output starts as `degraded` (see [configuration](configuration.md#output-status)).
 
+## Helm
+
+The chart lives in [`chart/falcosidekick`](../chart/falcosidekick) and is published to the `falcosecurity` charts repository. The v3 chart, `1.0.0-beta.1`, is a prerelease, so Helm installs it only with `--devel`; without it Helm keeps installing the v2 chart, `0.x`.
+
+```sh
+helm repo add falcosecurity https://falcosecurity.github.io/charts
+helm repo update
+helm install falcosidekick falcosecurity/falcosidekick --devel --namespace falco --create-namespace \
+  --set outputs.webhook.host=http://receiver.example:8080
+```
+
+Before the chart is published, install it from a checkout of this repository:
+
+```sh
+helm install falcosidekick ./chart/falcosidekick --namespace falco --create-namespace \
+  --set outputs.webhook.host=http://receiver.example:8080
+```
+
+`config` is written as `sidekick.yaml` and `outputs` under `outputs:` in `outputs.yaml`, with the keys of this page and of the output pages. Credentials stay in existing Secrets listed in `secrets`, each mounted at `/etc/falcosidekick/secrets/<name>` and added to `api.secret_dirs`; outputs read them through `_file` fields. The UI is on and read-only; reach it with `kubectl --namespace falco port-forward deploy/falcosidekick 2802`. The [chart README](../chart/falcosidekick/README.md) lists every value.
+
 ## Kubernetes
 
-Mount both files from a ConfigMap. Output files are watched: editing the ConfigMap reloads outputs without a restart, once the kubelet has propagated it (about a minute). Put secrets in a Secret and point to them with the `_file` fields, for example `password_file`.
+Without Helm, mount both files from a ConfigMap. Output files are watched: editing the ConfigMap reloads outputs without a restart, once the kubelet has propagated it (about a minute). Put secrets in a Secret and point to them with the `_file` fields, for example `password_file`.
 
 ```yaml
 apiVersion: v1
