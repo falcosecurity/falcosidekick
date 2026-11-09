@@ -1,0 +1,70 @@
+name: chart
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - master
+
+permissions: {}
+
+concurrency:
+  group: chart-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chart-testing:
+    name: chart-testing lint and install
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      # ct compares the chart with the target branch: it needs the history.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      # The versions falcosecurity/charts tests its charts with.
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.1.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.x"
+
+      - uses: helm/chart-testing-action@720270857a28afd41e2426521a7801db09e9b510 # v2.9.0
+
+      # Lints the charts changed against master, with the version increment check, as falcosecurity/charts does.
+      - name: Run chart-testing (lint)
+        run: ct lint --config ct.yaml
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: ui/package.json
+
+      # The chart installs the image built from this commit, not a published one.
+      - name: Build the image
+        run: make image BUN=bun IMAGE=falcosidekick
+
+      - uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
+        with:
+          version: v0.30.0
+          cluster_name: fsk-chart
+
+      - name: Load the image into kind
+        run: kind load docker-image falcosidekick:local --name fsk-chart
+
+      # Installs on every pull request: a change to the binary can break the chart as much as a change to the chart.
+      - name: Run chart-testing (install)
+        run: >-
+          ct install --config ct.yaml --charts chart/falcosidekick
+          --helm-extra-set-args "--set=image.repository=falcosidekick --set=image.tag=local --set=image.pullPolicy=Never"

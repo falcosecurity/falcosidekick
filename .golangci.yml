@@ -51,11 +51,14 @@ linters:
         - performance
         - style
     goheader:
+      # Any year, not the current one: {{ YEAR }} would fail every existing file on 1 January.
       values:
         const:
           AUTHORS: The Falco Authors
+        regexp:
+          COPYRIGHT_YEAR: 20\d\d
       template: |-
-        Copyright (C) {{ YEAR }} {{ AUTHORS }}
+        Copyright (C) {{ COPYRIGHT_YEAR }} {{ AUTHORS }}
 
         Licensed under the Apache License, Version 2.0 (the "License");
         you may not use this file except in compliance with the License.

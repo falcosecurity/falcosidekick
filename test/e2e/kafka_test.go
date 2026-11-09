@@ -125,8 +125,18 @@ func createTopic(t *testing.T, target kafkaTarget, topic string) {
 	require.NoError(t, err)
 	require.Len(t, resp.Topics, 1)
 	require.NoError(t, kerr.ErrorForCode(resp.Topics[0].ErrorCode), "create topic %s", topic)
-
 	t.Cleanup(func() { _ = deleteTopic(target, topic) })
+
+	// A broker answers the creation before its metadata lists the topic (Kafka 3.9 lags more than 4.x);
+	// Sidekick's startup check must see the topic, as in a real deployment where it exists beforehand.
+	require.Eventually(t, func() bool {
+		meta := kmsg.NewPtrMetadataRequest()
+		mt := kmsg.NewMetadataRequestTopic()
+		mt.Topic = kmsg.StringPtr(topic)
+		meta.Topics = append(meta.Topics, mt)
+		got, err := meta.RequestWith(ctx, client)
+		return err == nil && len(got.Topics) == 1 && got.Topics[0].ErrorCode == 0 && len(got.Topics[0].Partitions) > 0
+	}, deliverTimeout, 100*time.Millisecond, "topic %s visible in the metadata", topic)
 }
 
 func deleteTopic(target kafkaTarget, topic string) error {

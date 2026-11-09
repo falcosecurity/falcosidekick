@@ -15,8 +15,19 @@ Start from [`config_example_sidekick.yaml`](../config_example_sidekick.yaml) and
 | `falcosecurity/falcosidekick:<version>-slim` | binary without the UI |
 | `3.1`, `3`, `v3-latest` (and `-slim`) | latest stable release of that minor, of v3, of v3; not moved by pre-releases |
 | `v3-main`, `v3-main-slim` | latest `master` build, not a release |
+| `v3-main-<commit>-amd64`, `v3-main-<commit>-arm64` (and `-slim-amd64`, `-slim-arm64`) | one architecture of the `master` build of that full commit SHA; never moved |
 
 Images are published to Docker Hub only. `latest` is still v2.
+
+Release and `master` images are signed with cosign, keyless, by digest; the signature covers the multi-architecture index and each architecture. Verify one with:
+
+```sh
+cosign verify falcosecurity/falcosidekick:v3-main \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github\.com/falcosecurity/falcosidekick/\.github/workflows/(build|release)\.yml@'
+```
+
+Each release also carries `falcosidekick-checksums.txt`, its cosign bundle, and a SLSA provenance (`*.intoto.jsonl`) for the files that checksum file lists.
 
 The image is distroless static: the binary, CA certificates and no shell. It runs as user and group 65532. It receives Falco events on port 2801, IPv4 and IPv6, which also serves `/livez`, `/readyz` and `/metrics`. The API and the UI are on a separate management port, 2802, bound to `127.0.0.1` by default because the API has no authentication.
 

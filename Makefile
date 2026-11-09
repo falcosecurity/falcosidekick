@@ -116,14 +116,35 @@ test-hack: ## Run release and helper script tests
 docs: ## Write docs/outputs from the output schema (hand-written text outside the generated blocks is kept)
 	$(GO) run ./hack/outputdocs
 
+# The second run covers the files behind build tags; builtinui embeds ui/dist, hence ui-build.
+LINT_TAGS := builtinui,e2e,integration
+
 .PHONY: lint
-lint: ## Run golangci-lint on every Go package
+lint: ui-build ## Run golangci-lint on every Go package, without and with the build tags
 	golangci-lint run $(PACKAGES) ./ui ./hack/...
+	golangci-lint run --build-tags=$(LINT_TAGS) $(PACKAGES) ./ui ./hack/... ./test/...
 
 .PHONY: lint-fix
-lint-fix: ## Run golangci-lint with auto-fix
+lint-fix: ui-build ## Run golangci-lint with auto-fix
 	golangci-lint run --fix $(PACKAGES) ./ui ./hack/...
+	golangci-lint run --fix --build-tags=$(LINT_TAGS) $(PACKAGES) ./ui ./hack/... ./test/...
 	fieldalignment -fix ./internal/...
+
+GOVULNCHECK_VERSION ?= v1.9.0
+ACTIONLINT_VERSION  ?= v1.7.12
+
+.PHONY: go.mod.check
+go.mod.check: ## Check that go.mod and go.sum are tidy and that the module cache matches go.sum
+	$(GO) mod verify
+	$(GO) mod tidy -diff
+
+.PHONY: govulncheck
+govulncheck: ## Report known vulnerabilities reachable from the code, tests and tagged files included
+	$(GO) run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) -test -tags=e2e,integration ./...
+
+.PHONY: actionlint
+actionlint: ## Lint the GitHub workflows (and their run: scripts, when shellcheck is installed)
+	$(GO) run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
 
 .PHONY: coverage
 coverage: ## Run tests with coverage and check the 80% threshold
@@ -137,7 +158,7 @@ coverage: ## Run tests with coverage and check the 80% threshold
 	fi
 
 .PHONY: verify
-verify: lint test test-hack test-ui-tag ui-build ui-lint ui-typecheck ui-test chart.lint chart.docs.check ## Full verification: Go default and tagged, golangci-lint, UI build, lint, typecheck and tests, Helm chart lint and README
+verify: lint test test-hack test-ui-tag ui-build ui-lint ui-typecheck ui-test chart.lint chart.docs.check go.mod.check govulncheck actionlint ## Full verification: Go default and tagged, golangci-lint, UI build, lint, typecheck and tests, Helm chart lint and README, go.mod, vulnerabilities, workflows
 
 ## --------------------------------------
 ## Helm chart
@@ -155,6 +176,10 @@ chart.lint: ## Lint the Helm chart
 .PHONY: chart.template
 chart.template: ## Render the Helm chart with its default values
 	$(HELM) template falcosidekick $(CHART) --namespace falco
+
+.PHONY: chart.secret-fields
+chart.secret-fields: ## Write the chart's list of secret settings from the output schema
+	$(GO) run ./hack/secretfields
 
 .PHONY: chart.docs
 chart.docs: ## Write the Helm chart README from README.gotmpl and values.yaml

@@ -143,10 +143,11 @@ signs:
     args: ["sign-blob", "--bundle", "${artifact}.bundle", "${artifact}"]
     artifacts: checksum
 
+# By digest: a tag can move between the push and the signature.
 docker_signs:
   - id: falcosidekick
     cmd: cosign
-    args: ["sign", "--recursive", "${artifact}"]
+    args: ["sign", "--recursive", "${artifact}@${digest}"]
     output: true
 
 release:

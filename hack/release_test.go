@@ -18,6 +18,7 @@ package hacktesting
 
 import (
 	"context"
+	"encoding/base64"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,24 +33,73 @@ import (
 
 type releaseWorkflow struct {
 	On map[string]struct {
-		Tags []string `yaml:"tags"`
+		Tags     []string `yaml:"tags"`
+		Branches []string `yaml:"branches"`
 	} `yaml:"on"`
-	Jobs map[string]struct {
-		Name        string            `yaml:"name"`
-		Uses        string            `yaml:"uses"`
-		Needs       []string          `yaml:"needs"`
-		If          string            `yaml:"if"`
-		Permissions map[string]string `yaml:"permissions"`
-		Steps       []releaseStep     `yaml:"steps"`
-	} `yaml:"jobs"`
+	// Permissions is nil when the workflow sets none.
+	Permissions *map[string]string     `yaml:"permissions"`
+	Concurrency *workflowConcurrency   `yaml:"concurrency"`
+	Jobs        map[string]*releaseJob `yaml:"jobs"`
+}
+
+type releaseJob struct {
+	Permissions    *map[string]string   `yaml:"permissions"`
+	Concurrency    *workflowConcurrency `yaml:"concurrency"`
+	Env            map[string]string    `yaml:"env"`
+	With           map[string]string    `yaml:"with"`
+	Outputs        map[string]string    `yaml:"outputs"`
+	Name           string               `yaml:"name"`
+	Uses           string               `yaml:"uses"`
+	If             string               `yaml:"if"`
+	RunsOn         string               `yaml:"runs-on"`
+	Needs          []string             `yaml:"needs"`
+	Steps          []releaseStep        `yaml:"steps"`
+	TimeoutMinutes int                  `yaml:"timeout-minutes"`
+}
+
+// scenarioSuccess is the shim scenario in which every tool succeeds.
+const scenarioSuccess = "success"
+
+type workflowConcurrency struct {
+	Group            string `yaml:"group"`
+	CancelInProgress string `yaml:"cancel-in-progress"`
 }
 
 type releaseStep struct {
 	With             map[string]string `yaml:"with"`
+	Env              map[string]string `yaml:"env"`
 	ID               string            `yaml:"id"`
+	Name             string            `yaml:"name"`
 	Uses             string            `yaml:"uses"`
 	Run              string            `yaml:"run"`
 	WorkingDirectory string            `yaml:"working-directory"`
+}
+
+// permissions returns the job permissions; a job without any fails the test.
+func (j *releaseJob) permissions(t *testing.T) map[string]string {
+	t.Helper()
+	require.NotNil(t, j.Permissions, "job %q sets no permissions", j.Name)
+	return *j.Permissions
+}
+
+func readWorkflow(t *testing.T, file string) releaseWorkflow {
+	t.Helper()
+	var workflow releaseWorkflow
+	readReleaseYAML(t, ".github/workflows/"+file, &workflow)
+	return workflow
+}
+
+// stepIndex is the position of the step with that id, or of the first step using that action.
+func stepIndex(t *testing.T, job *releaseJob, idOrAction string) int {
+	t.Helper()
+	require.NotNil(t, job, "missing job")
+	for i, step := range job.Steps {
+		if step.ID == idOrAction || (step.Uses != "" && strings.HasPrefix(step.Uses, idOrAction+"@")) {
+			return i
+		}
+	}
+	t.Fatalf("no step %s", idOrAction)
+	return -1
 }
 
 func readReleaseYAML(t *testing.T, path string, target any) {
@@ -89,7 +139,8 @@ func TestReleaseArtifacts(t *testing.T) {
 			LDFlags      []string `yaml:"ldflags"`
 		} `yaml:"builds"`
 		DockerSigns []struct {
-			Artifacts *string `yaml:"artifacts"`
+			Artifacts *string  `yaml:"artifacts"`
+			Args      []string `yaml:"args"`
 		} `yaml:"docker_signs"`
 		Dockers []struct {
 			IDs             []string          `yaml:"ids"`
@@ -107,6 +158,8 @@ func TestReleaseArtifacts(t *testing.T) {
 	require.Equal(t, "v3-main", config.Snapshot.VersionTemplate)
 	require.Len(t, config.DockerSigns, 1)
 	require.Nil(t, config.DockerSigns[0].Artifacts)
+	// By digest, so the signature names the pushed image even if its tag moves.
+	require.Equal(t, []string{"sign", "--recursive", "${artifact}@${digest}"}, config.DockerSigns[0].Args)
 	require.Len(t, config.Builds, 2)
 	require.Len(t, config.Dockers, 2)
 	for _, build := range config.Builds {
@@ -157,25 +210,23 @@ func TestReleaseArtifacts(t *testing.T) {
 func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
 	for _, name := range []string{"build", "release"} {
 		t.Run(name, func(t *testing.T) {
-			var workflow releaseWorkflow
-			readReleaseYAML(t, ".github/workflows/"+name+".yml", &workflow)
-			checks := workflow.Jobs["checks"]
-			require.Equal(t, "./.github/workflows/test.yml", checks.Uses)
-			require.Equal(t, "read", checks.Permissions["contents"])
+			workflow := readWorkflow(t, name+".yml")
 			snapshot := name == "build"
+			gates := map[string]string{"checks": "test.yml", "lint": "lint.yml"}
 			publishID := "release"
 			refGuard := "startsWith(github.ref, 'refs/tags/v3.')"
 			if snapshot {
 				publishID = "build-snapshot"
 				refGuard = "github.ref == 'refs/heads/master'"
+			} else {
+				gates["e2e"] = "e2e.yml"
 			}
 			publish, ok := workflow.Jobs[publishID]
 			require.True(t, ok, "missing job %s", publishID)
-			require.Contains(t, publish.Needs, "checks")
-			if !snapshot {
-				require.Contains(t, publish.Needs, "e2e")
-				require.Equal(t, "./.github/workflows/e2e.yml", workflow.Jobs["e2e"].Uses)
-				require.Equal(t, "read", workflow.Jobs["e2e"].Permissions["contents"])
+			for id, file := range gates {
+				require.Equal(t, "./.github/workflows/"+file, workflow.Jobs[id].Uses, id)
+				require.Equal(t, map[string]string{"contents": "read"}, workflow.Jobs[id].permissions(t), id)
+				require.Contains(t, publish.Needs, id)
 			}
 			require.Contains(t, publish.If, "github.repository == 'falcosecurity/falcosidekick' && ",
 				"forks must never publish")
@@ -186,9 +237,12 @@ func TestReleasePublicationRequiresSameRevisionChecks(t *testing.T) {
 			}
 		})
 	}
-	for _, name := range []string{"build", "release", "test", "lint", "e2e"} {
-		var workflow releaseWorkflow
-		readReleaseYAML(t, ".github/workflows/"+name+".yml", &workflow)
+	files, err := filepath.Glob(filepath.Join("..", ".github", "workflows", "*.yml"))
+	require.NoError(t, err)
+	require.NotEmpty(t, files)
+	for _, path := range files {
+		name := filepath.Base(path)
+		workflow := readWorkflow(t, name)
 		for _, job := range workflow.Jobs {
 			for _, step := range job.Steps {
 				if strings.HasPrefix(step.Uses, "actions/checkout@") {
@@ -245,7 +299,10 @@ func TestReleaseInputsArePinnedAndUpdated(t *testing.T) {
 	dockerfile, err := os.ReadFile(filepath.Join("..", "Dockerfile"))
 	require.NoError(t, err)
 	// A static binary on distroless static: CA certificates and nothing to patch, as UID 65532.
-	require.Regexp(t, `(?m)^ARG BASE_IMAGE=gcr\.io/distroless/static-debian13:nonroot@sha256:[0-9a-f]{64}$`, string(dockerfile))
+	// A literal FROM with a digest: Dependabot reads FROM lines and does not expand ARG references.
+	require.Regexp(t, `(?m)\A(?:#.*\n|\s*\n)*FROM gcr\.io/distroless/static-debian13:nonroot@sha256:[0-9a-f]{64}\n`, string(dockerfile))
+	require.Equal(t, 1, strings.Count(string(dockerfile), "\nFROM "), "one stage")
+	require.NotRegexp(t, `(?m)^FROM .*\$`, string(dockerfile))
 	require.Regexp(t, `(?m)^USER 65532:65532$`, string(dockerfile))
 	require.Regexp(t, `(?m)^ENTRYPOINT \["/usr/bin/falcosidekick"\]$`, string(dockerfile))
 
@@ -266,13 +323,20 @@ func TestReleaseInputsArePinnedAndUpdated(t *testing.T) {
 	require.ElementsMatch(t, []string{"gomod /", "github-actions /", "docker /", "bun /ui"}, v3)
 }
 
+// Each check runs once per event: pull requests trigger test and lint, build and release call them.
 func TestReleaseChecksIncludeUITestsAndLint(t *testing.T) {
-	var tests, lint releaseWorkflow
-	readReleaseYAML(t, ".github/workflows/test.yml", &tests)
-	readReleaseYAML(t, ".github/workflows/lint.yml", &lint)
-	require.Contains(t, tests.On, "workflow_call")
-	require.Contains(t, lint.On, "workflow_call")
-	require.Equal(t, "./.github/workflows/lint.yml", tests.Jobs["lint"].Uses)
+	tests, lint := readWorkflow(t, "test.yml"), readWorkflow(t, "lint.yml")
+	for name, workflow := range map[string]releaseWorkflow{"test": tests, "lint": lint} {
+		require.Contains(t, workflow.On, "workflow_call", name)
+		require.Contains(t, workflow.On, "pull_request", name)
+		require.NotContains(t, workflow.On, "push", "%s: build and release call it on push", name)
+	}
+	for id, job := range tests.Jobs {
+		require.Empty(t, job.Uses, "test.yml job %s: build and release call lint.yml themselves", id)
+		for _, step := range job.Steps {
+			require.NotContains(t, step.Run, "bun run lint", "UI eslint in lint.yml runs it")
+		}
+	}
 	ui := releaseWorkflowStep(t, "test.yml", "unit-tests", "ui-tests")
 	require.Equal(t, "ui", ui.WorkingDirectory)
 	require.Equal(t, "bun test", strings.TrimSpace(ui.Run))
@@ -294,10 +358,146 @@ func TestPullRequestsBuildTheImages(t *testing.T) {
 	require.NotContains(t, string(raw), "login-action")
 }
 
+// A release never waits behind, or is replaced by, a snapshot or another tag.
+func TestReleaseAndSnapshotConcurrency(t *testing.T) {
+	release := readWorkflow(t, "release.yml").Jobs["release"]
+	snapshot := readWorkflow(t, "build.yml").Jobs["build-snapshot"]
+	require.NotNil(t, release.Concurrency)
+	require.NotNil(t, snapshot.Concurrency)
+	require.Equal(t, workflowConcurrency{Group: "release-${{ github.ref }}", CancelInProgress: "false"}, *release.Concurrency)
+	require.Equal(t, workflowConcurrency{Group: "snapshot-${{ github.ref }}", CancelInProgress: "false"}, *snapshot.Concurrency)
+	for _, name := range []string{"release.yml", "build.yml"} {
+		require.Nil(t, readWorkflow(t, name).Concurrency, "%s: a workflow group would also hold the called checks", name)
+	}
+}
+
+func TestReleaseRegistryLogin(t *testing.T) {
+	t.Run("snapshot logs in after the build, right before the push", func(t *testing.T) {
+		job := readWorkflow(t, "build.yml").Jobs["build-snapshot"]
+		snapshot, login := stepIndex(t, job, "snapshot"), stepIndex(t, job, "login")
+		publish, sign := stepIndex(t, job, "publish-snapshot"), stepIndex(t, job, "sign-snapshot")
+		require.Equal(t, []int{snapshot + 1, login + 1, publish + 1}, []int{login, publish, sign})
+		require.True(t, strings.HasPrefix(job.Steps[login].Uses, "docker/login-action@"))
+		require.Empty(t, job.Steps[snapshot].Env, "a snapshot publishes nothing and needs no token")
+		require.Equal(t, "release --snapshot --clean --skip=sign", job.Steps[snapshot].With["args"])
+	})
+	t.Run("release token outlives the goreleaser push", func(t *testing.T) {
+		job := readWorkflow(t, "release.yml").Jobs["release"]
+		login, release := stepIndex(t, job, "login"), stepIndex(t, job, "run-goreleaser")
+		require.Equal(t, login+1, release)
+		require.Equal(t, "3600", job.Steps[login].Env["DOCKERHUB_OIDC_EXPIREIN"])
+		require.Equal(t, "${{ secrets.GITHUB_TOKEN }}", job.Steps[release].Env["GITHUB_TOKEN"])
+	})
+}
+
+func TestReleaseSnapshotSigning(t *testing.T) {
+	step := releaseWorkflowStep(t, "build.yml", "build-snapshot", "sign-snapshot")
+	const digest = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	tools := map[string]string{
+		"docker": `
+printf 'docker %s\n' "$*" >> "$CALLS"
+[[ "$1 $2 $3" == 'buildx imagetools inspect' ]] || exit 2
+case "$SCENARIO" in
+  no-digest) echo '{}' ;;
+  *) printf '{"mediaType":"application/vnd.oci.image.index.v1+json","digest":"%s"}\n' "$DIGEST" ;;
+esac
+`,
+		"cosign": `
+printf 'cosign %s\n' "$*" >> "$CALLS"
+[[ "$SCENARIO" != cosign-failure ]] || exit 7
+`,
+	}
+	for _, scenario := range []string{scenarioSuccess, "no-digest", "cosign-failure"} {
+		t.Run(scenario, func(t *testing.T) {
+			output, dir, err := runReleaseScriptWith(t, step.Run, tools, "DIGEST="+digest, "SCENARIO="+scenario)
+			calls, readErr := os.ReadFile(filepath.Join(dir, "calls"))
+			require.NoError(t, readErr)
+			log := string(calls)
+			if scenario != scenarioSuccess {
+				require.Error(t, err, output)
+				if scenario == "no-digest" {
+					require.NotContains(t, log, "cosign ")
+				}
+				return
+			}
+			require.NoError(t, err, output)
+			for _, suffix := range []string{"", "-slim"} {
+				require.Contains(t, log, "docker buildx imagetools inspect --format {{json .Manifest}} falcosecurity/falcosidekick:v3-main"+suffix+"\n")
+			}
+			require.Equal(t, 2, strings.Count(log, "cosign sign --yes --recursive falcosecurity/falcosidekick@"+digest+"\n"), log)
+		})
+	}
+}
+
+// SLSA provenance for the release files, as v2 published it.
+func TestReleaseProvenance(t *testing.T) {
+	workflow := readWorkflow(t, "release.yml")
+	release, provenance := workflow.Jobs["release"], workflow.Jobs["provenance"]
+	require.Equal(t, "slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0", provenance.Uses)
+	require.Equal(t, []string{"release"}, provenance.Needs)
+	require.Equal(t, map[string]string{"actions": "read", "id-token": "write", "contents": "write"}, provenance.permissions(t))
+	require.Equal(t, map[string]string{
+		"base64-subjects": "${{ needs.release.outputs.hashes }}",
+		"upload-assets":   "true",
+		"upload-tag-name": "${{ needs.release.outputs.tag_name }}",
+	}, provenance.With)
+	require.Equal(t, map[string]string{
+		"hashes":   "${{ steps.hash.outputs.hashes }}",
+		"tag_name": "${{ github.ref_name }}",
+	}, release.Outputs)
+	require.Equal(t, stepIndex(t, release, "run-goreleaser")+1, stepIndex(t, release, "hash"))
+
+	step := releaseWorkflowStep(t, "release.yml", "release", "hash")
+	require.Equal(t, "${{ steps.run-goreleaser.outputs.artifacts }}", step.Env["ARTIFACTS"])
+	const checksums = "1111  falcosidekick_3.0.0_linux_amd64.tar.gz\n2222  falcosidekick_3.0.0_linux_arm64.tar.gz\n"
+	archive := `{"type":"Archive","path":"dist/release/falcosidekick_3.0.0_linux_amd64.tar.gz"}`
+	checksum := `{"type":"Checksum","path":"dist/release/falcosidekick-checksums.txt"}`
+	for _, tc := range []struct {
+		name, artifacts, content string
+		wantError                bool
+	}{
+		{name: "one checksum file", artifacts: "[" + archive + "," + checksum + "]", content: checksums},
+		{name: "no checksum file", artifacts: "[" + archive + "]", content: checksums, wantError: true},
+		{name: "two checksum files", artifacts: "[" + checksum + "," + checksum + "]", content: checksums, wantError: true},
+		{name: "empty checksum file", artifacts: "[" + checksum + "]", wantError: true},
+		{name: "no artifacts output", artifacts: "", content: checksums, wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.MkdirAll(filepath.Join(dir, "dist", "release"), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "dist", "release", "falcosidekick-checksums.txt"), []byte(tc.content), 0o600))
+			out := filepath.Join(dir, "github-output")
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			cmd := exec.CommandContext(ctx, "bash", "-c", step.Run)
+			cmd.Dir = dir
+			cmd.Env = append(os.Environ(), "ARTIFACTS="+tc.artifacts, "GITHUB_OUTPUT="+out)
+			combined, err := cmd.CombinedOutput()
+			if tc.wantError {
+				require.Error(t, err, string(combined))
+				return
+			}
+			require.NoError(t, err, string(combined))
+			written, err := os.ReadFile(out)
+			require.NoError(t, err)
+			require.Equal(t, "hashes="+base64.StdEncoding.EncodeToString([]byte(checksums))+"\n", string(written))
+		})
+	}
+}
+
 func runReleaseScript(t *testing.T, script, tool, shim string, env ...string) (output, dir string, err error) {
 	t.Helper()
+	return runReleaseScriptWith(t, script, map[string]string{tool: shim}, env...)
+}
+
+// runReleaseScriptWith runs script with each tool replaced by its shim; shims append to $CALLS.
+func runReleaseScriptWith(t *testing.T, script string, tools map[string]string, env ...string) (output, dir string, err error) {
+	t.Helper()
 	dir = t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, tool), []byte("#!/bin/bash\nset -euo pipefail\n"+shim), 0o700))
+	for tool, shim := range tools {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, tool), []byte("#!/bin/bash\nset -euo pipefail\n"+shim), 0o700))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "calls"), nil, 0o600))
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "bash", "-euo", "pipefail", "-c", script)
@@ -377,13 +577,13 @@ case "$1" in
   *) exit 2 ;;
 esac
 `
-	for _, scenario := range []string{"success", "revision-mismatch", "smoke-failure", "push-failure"} {
+	for _, scenario := range []string{scenarioSuccess, "revision-mismatch", "smoke-failure", "push-failure"} {
 		t.Run(scenario, func(t *testing.T) {
 			output, dir, err := runReleaseScript(t, step.Run, "docker", shim, "GITHUB_SHA="+sha, "SCENARIO="+scenario)
 			calls, readErr := os.ReadFile(filepath.Join(dir, "calls"))
 			require.NoError(t, readErr)
 			log := string(calls)
-			if scenario != "success" {
+			if scenario != scenarioSuccess {
 				require.Error(t, err, output)
 				require.NotContains(t, log, "buildx imagetools create")
 				if scenario != "push-failure" {
