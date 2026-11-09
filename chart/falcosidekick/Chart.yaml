@@ -1,0 +1,18 @@
+apiVersion: v2
+name: falcosidekick
+description: Connect Falco to your ecosystem
+home: https://github.com/falcosecurity/falcosidekick
+icon: https://raw.githubusercontent.com/falcosecurity/falcosidekick/master/imgs/falcosidekick_color.png
+sources:
+  - https://github.com/falcosecurity/falcosidekick
+keywords:
+  - falco
+  - security
+  - monitoring
+  - alerting
+maintainers:
+  - name: The Falco Authors
+    email: cncf-falco-dev@lists.cncf.io
+type: application
+version: 1.0.0-beta.1
+appVersion: "3.0.0-beta.1"

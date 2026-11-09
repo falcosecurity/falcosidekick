@@ -1,0 +1,147 @@
+{{- include "falcosidekick.validate" . }}
+{{- $cfg := include "falcosidekick.sidekickConfig" . | fromYaml }}
+{{- $scheme := (dig "tls" "enabled" false $cfg) | ternary "HTTPS" "HTTP" }}
+{{- $port := dig "listen_port" 2801 $cfg | int }}
+{{- $managementPort := dig "management" "listen_port" 2802 $cfg | int }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "falcosidekick.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "falcosidekick.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- if eq .Values.database.backend "sqlite" }}
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "falcosidekick.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include "falcosidekick.sidekickConfig" . | printf "%s\n" | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "falcosidekick.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "falcosidekick.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.rbac.policyReport }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ include "falcosidekick.terminationGracePeriodSeconds" . }}
+      containers:
+        - name: falcosidekick
+          image: {{ include "falcosidekick.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - -c
+            - /etc/falcosidekick/config/sidekick.yaml
+            - -o
+            - /etc/falcosidekick/config/outputs.yaml
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: {{ lower $scheme }}
+              containerPort: {{ $port }}
+              protocol: TCP
+            - name: {{ lower $scheme }}-mgmt
+              containerPort: {{ $managementPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: {{ $port }}
+              scheme: {{ $scheme }}
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ $port }}
+              scheme: {{ $scheme }}
+            periodSeconds: 5
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/falcosidekick/config
+              readOnly: true
+            {{- range $i, $name := .Values.secrets }}
+            - name: secret-{{ $i }}
+              mountPath: {{ include "falcosidekick.secretDir" $name }}
+              readOnly: true
+            {{- end }}
+            {{- if .Values.tls.secretName }}
+            - name: tls
+              mountPath: /etc/falcosidekick/tls
+              readOnly: true
+            {{- end }}
+            {{- if eq .Values.database.backend "sqlite" }}
+            - name: data
+              mountPath: /var/lib/falcosidekick
+            {{- end }}
+            {{- if and (eq .Values.database.backend "postgres") .Values.database.postgres.passwordSecret.name }}
+            - name: postgres
+              mountPath: /etc/falcosidekick/postgres
+              readOnly: true
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "falcosidekick.fullname" . }}
+        {{- range $i, $name := .Values.secrets }}
+        - name: secret-{{ $i }}
+          secret:
+            secretName: {{ $name }}
+        {{- end }}
+        {{- if .Values.tls.secretName }}
+        - name: tls
+          secret:
+            secretName: {{ .Values.tls.secretName }}
+        {{- end }}
+        {{- if eq .Values.database.backend "sqlite" }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.database.sqlite.persistence.existingClaim | default (printf "%s-data" (include "falcosidekick.fullname" .)) }}
+        {{- end }}
+        {{- if and (eq .Values.database.backend "postgres") .Values.database.postgres.passwordSecret.name }}
+        - name: postgres
+          secret:
+            secretName: {{ .Values.database.postgres.passwordSecret.name }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

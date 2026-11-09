@@ -20,6 +20,7 @@ v2 configuration is not compatible with v3.
 ## Documentation
 
 - [Install](docs/install.md)
+- [Helm chart](docs/install.md#helm): install with `helm install --devel`, or from [`chart/falcosidekick`](chart/falcosidekick/README.md)
 - [Configuration](docs/configuration.md)
 - [Outputs](docs/outputs/README.md): a page per output with its settings, an example and the tested versions
 - [Migrate from v2](docs/migration.md)
