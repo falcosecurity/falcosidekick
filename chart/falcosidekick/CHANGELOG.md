@@ -11,4 +11,7 @@ release numbering uses [semantic versioning](http://semver.org). The chart for F
 * The web UI is on and read-only by default; `image.variant: slim` with the UI is refused.
 * `database.backend`: `inmemory`, `sqlite` with a PersistentVolumeClaim and one replica, or `postgres` with a password Secret.
 * Optional management Service, ServiceMonitor, Policy Report RBAC and PodDisruptionBudget.
+* Rendering fails on credentials written in the values, on incoherent TLS or postgres settings, on `config` keys that contradict the values, and on `extraEnv` variables of the settings the chart reads.
+* `extraOutputConfigMaps` adds output files from existing ConfigMaps; a `helm test` pod calls `/readyz`; a `startupProbe` covers `database.connect_timeout`.
+* The sqlite claim is kept on uninstall; the PodDisruptionBudget defaults to `maxUnavailable: 1`; the pod requests 50m CPU and 64Mi of memory, without limits.
 * Runs as UID and GID 65532 with a read-only root filesystem, no capabilities and the `RuntimeDefault` seccomp profile.

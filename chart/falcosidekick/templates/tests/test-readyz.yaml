@@ -1,0 +1,59 @@
+{{- if .Values.test.enabled }}
+{{- $cfg := include "falcosidekick.sidekickConfig" . | fromYaml }}
+{{- $tls := dig "tls" "enabled" false $cfg }}
+{{- $image := .Values.test.image }}
+{{- $repository := $image.repository }}
+{{- if $image.registry }}
+{{- $repository = printf "%s/%s" $image.registry $repository }}
+{{- end }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "falcosidekick.suffixedName" (dict "ctx" . "suffix" "-test") }}
+  namespace: {{ .Release.Namespace }}
+  # Not the selector labels: the Services and the PodDisruptionBudget must not select this pod.
+  labels:
+    helm.sh/chart: {{ include "falcosidekick.chart" . }}
+    app.kubernetes.io/name: {{ include "falcosidekick.name" . }}-test
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  securityContext:
+    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  containers:
+    - name: readyz
+      image: {{ printf "%s:%s" $repository $image.tag | quote }}
+      imagePullPolicy: {{ $image.pullPolicy }}
+      command:
+        - curl
+      args:
+        - --fail
+        - --silent
+        - --show-error
+        - --max-time
+        - "10"
+        - --retry
+        - "5"
+        - --retry-all-errors
+        {{- if $tls }}
+        # The test checks readiness through the Service, not the server certificate.
+        - --insecure
+        {{- end }}
+        - {{ printf "%s://%s.%s.svc:%v/readyz" ($tls | ternary "https" "http") (include "falcosidekick.fullname" .) .Release.Namespace .Values.service.port }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+{{- end }}
