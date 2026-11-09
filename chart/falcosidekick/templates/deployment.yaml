@@ -3,6 +3,7 @@
 {{- $scheme := (dig "tls" "enabled" false $cfg) | ternary "HTTPS" "HTTP" }}
 {{- $port := dig "listen_port" 2801 $cfg | int }}
 {{- $managementPort := dig "management" "listen_port" 2802 $cfg | int }}
+{{- $probes := .Values.probes }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,7 +38,10 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "falcosidekick.serviceAccountName" . }}
-      automountServiceAccountToken: {{ .Values.rbac.policyReport }}
+      automountServiceAccountToken: {{ or .Values.rbac.policyReport (hasKey (.Values.outputs | default dict) "policyreport") }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       terminationGracePeriodSeconds: {{ include "falcosidekick.terminationGracePeriodSeconds" . }}
@@ -50,6 +54,10 @@ spec:
             - /etc/falcosidekick/config/sidekick.yaml
             - -o
             - /etc/falcosidekick/config/outputs.yaml
+            {{- range .Values.extraOutputConfigMaps }}
+            - -o
+            - {{ printf "%s/%s" (include "falcosidekick.extraOutputsDir" .name) (.key | default "outputs.yaml") }}
+            {{- end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
@@ -59,19 +67,30 @@ spec:
             - name: {{ lower $scheme }}-mgmt
               containerPort: {{ $managementPort }}
               protocol: TCP
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: {{ $port }}
+              scheme: {{ $scheme }}
+            periodSeconds: {{ $probes.startup.periodSeconds }}
+            timeoutSeconds: {{ $probes.startup.timeoutSeconds }}
+            failureThreshold: {{ include "falcosidekick.startupFailureThreshold" . }}
           livenessProbe:
             httpGet:
               path: /livez
               port: {{ $port }}
               scheme: {{ $scheme }}
-            periodSeconds: 10
-            failureThreshold: 3
+            periodSeconds: {{ $probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ $probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ $probes.liveness.failureThreshold }}
           readinessProbe:
             httpGet:
               path: /readyz
               port: {{ $port }}
               scheme: {{ $scheme }}
-            periodSeconds: 5
+            periodSeconds: {{ $probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ $probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ $probes.readiness.failureThreshold }}
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -84,6 +103,11 @@ spec:
             - name: config
               mountPath: /etc/falcosidekick/config
               readOnly: true
+            {{- range $i, $cm := .Values.extraOutputConfigMaps }}
+            - name: extra-outputs-{{ $i }}
+              mountPath: {{ include "falcosidekick.extraOutputsDir" $cm.name }}
+              readOnly: true
+            {{- end }}
             {{- range $i, $name := .Values.secrets }}
             - name: secret-{{ $i }}
               mountPath: {{ include "falcosidekick.secretDir" $name }}
@@ -110,6 +134,11 @@ spec:
         - name: config
           configMap:
             name: {{ include "falcosidekick.fullname" . }}
+        {{- range $i, $cm := .Values.extraOutputConfigMaps }}
+        - name: extra-outputs-{{ $i }}
+          configMap:
+            name: {{ $cm.name }}
+        {{- end }}
         {{- range $i, $name := .Values.secrets }}
         - name: secret-{{ $i }}
           secret:
@@ -123,7 +152,7 @@ spec:
         {{- if eq .Values.database.backend "sqlite" }}
         - name: data
           persistentVolumeClaim:
-            claimName: {{ .Values.database.sqlite.persistence.existingClaim | default (printf "%s-data" (include "falcosidekick.fullname" .)) }}
+            claimName: {{ .Values.database.sqlite.persistence.existingClaim | default (include "falcosidekick.suffixedName" (dict "ctx" . "suffix" "-data")) }}
         {{- end }}
         {{- if and (eq .Values.database.backend "postgres") .Values.database.postgres.passwordSecret.name }}
         - name: postgres

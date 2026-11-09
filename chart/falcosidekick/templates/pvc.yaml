@@ -1,13 +1,17 @@
 {{- $persistence := .Values.database.sqlite.persistence }}
 {{- if and (eq .Values.database.backend "sqlite") (not $persistence.existingClaim) }}
+{{- $annotations := deepCopy ($persistence.annotations | default dict) }}
+{{- if $persistence.keep }}
+{{- $_ := set $annotations "helm.sh/resource-policy" "keep" }}
+{{- end }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "falcosidekick.fullname" . }}-data
+  name: {{ include "falcosidekick.suffixedName" (dict "ctx" . "suffix" "-data") }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "falcosidekick.labels" . | nindent 4 }}
-  {{- with $persistence.annotations }}
+  {{- with $annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}

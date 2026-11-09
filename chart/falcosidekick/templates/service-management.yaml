@@ -1,25 +1,33 @@
 {{- if .Values.management.service.enabled }}
 {{- $cfg := include "falcosidekick.sidekickConfig" . | fromYaml }}
 {{- $name := (dig "tls" "enabled" false $cfg) | ternary "https-mgmt" "http-mgmt" }}
+{{- $service := .Values.management.service }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "falcosidekick.fullname" . }}-management
+  name: {{ include "falcosidekick.suffixedName" (dict "ctx" . "suffix" "-management") }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "falcosidekick.labels" . | nindent 4 }}
     app.kubernetes.io/component: management
-  {{- with .Values.management.service.annotations }}
+  {{- with $service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
   type: ClusterIP
+  {{- with $service.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ . }}
+  {{- end }}
+  {{- with $service.ipFamilies }}
+  ipFamilies:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   selector:
     {{- include "falcosidekick.selectorLabels" . | nindent 4 }}
   ports:
     - name: {{ $name }}
-      port: {{ .Values.management.service.port }}
+      port: {{ $service.port }}
       targetPort: {{ $name }}
       protocol: TCP
 {{- end }}

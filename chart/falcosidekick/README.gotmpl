@@ -39,6 +39,22 @@ Point Falco to `http://falcosidekick.falco.svc:2801/`, with `json_output: true` 
 helm uninstall falcosidekick --namespace falco
 ```
 
+With `database.backend: sqlite`, the PersistentVolumeClaim the chart created is kept (`helm.sh/resource-policy: keep`), so the stored outputs survive an uninstall; installing the same release in the same namespace reuses it. Delete it when the data is no longer needed:
+
+```bash
+kubectl --namespace falco delete pvc falcosidekick-data
+```
+
+Set `database.sqlite.persistence.keep: false` to delete the claim with the release.
+
+## Checking the release
+
+```bash
+helm test falcosidekick --namespace falco
+```
+
+The test pod calls `/readyz` through the Service. With TLS it does not verify the server certificate.
+
 ## Configuration
 
 `config` is written as `sidekick.yaml` and `outputs` under `outputs:` in `outputs.yaml`, with the v3 keys of the [configuration](https://github.com/falcosecurity/falcosidekick/blob/master/docs/configuration.md) and of each [output](https://github.com/falcosecurity/falcosidekick/blob/master/docs/outputs/README.md), without translation. A change to `config` restarts the pods; a change to `outputs` reloads the outputs without a restart, once the kubelet has updated the ConfigMap (about a minute).
@@ -53,9 +69,36 @@ secrets:
   - slack
 ```
 
+`config` cannot contradict what the chart sets from the values: `database.backend`, `ui.enabled`, `database.sqlite.path` with sqlite, and `management.listen_address` with the management Service. `extraEnv` cannot set the `FALCOSIDEKICK_*` variables of the settings the chart reads: the ports, the management address, `shutdown_delay`, `tls.*`, the database backend, `connect_timeout` and paths, `ui.enabled`, `ui.event_source` and `api.secret_dirs`. Rendering fails instead.
+
 ### Secrets
 
-Values never hold credentials. List existing Secrets in `secrets`: each is mounted read-only at `/etc/falcosidekick/secrets/<name>` and its directory is added to `api.secret_dirs`. Outputs read them through their `_file` fields.
+Values never hold credentials: rendering fails when an output's secret field (such as `password`, `api_key` or `secret_endpoint`), the `secrets` of a header or query parameter, or `config.database.postgres.password` is set, because the chart would write it into a ConfigMap. List existing Secrets in `secrets`: each is mounted read-only at `/etc/falcosidekick/secrets/<name>` and its directory is added to `api.secret_dirs`. Outputs read them through their `_file` fields, and headers through `files`:
+
+```yaml
+outputs:
+  webhook:
+    host: https://receiver.example
+    headers:
+      Authorization:
+        files: [/etc/falcosidekick/secrets/webhook/authorization]
+secrets:
+  - webhook
+```
+
+Output files reread their secret files on a change. The TLS Secret and the postgres password are read at startup: after rotating them, restart the pods with `kubectl --namespace falco rollout restart deploy/falcosidekick`.
+
+### More output files
+
+`extraOutputConfigMaps` lists existing ConfigMaps holding output files, for outputs managed apart from the release:
+
+```yaml
+extraOutputConfigMaps:
+  - name: team-outputs
+    key: outputs.yaml
+```
+
+Each is mounted at `/etc/falcosidekick/outputs/<name>` and passed as another `-o`, after the chart's own `outputs.yaml`, in list order; a change reloads the outputs like `outputs`. The same output name in two files merges, the later file winning for each setting. The chart does not check these files for credentials; the process refuses them with a persistent database.
 
 ### Web UI
 
@@ -76,23 +119,29 @@ With several replicas, each pod keeps its own recent events, so each pod's UI sh
 | `database.backend` | Use |
 | --- | --- |
 | `inmemory` | Outputs created through the API and the UI layout are lost on restart. |
-| `sqlite` | A PersistentVolumeClaim mounted at `/var/lib/falcosidekick`. One replica only: rendering fails with `replicaCount` above 1, because a ReadWriteOnce volume cannot be mounted by two pods and a sqlite file written by two processes gets corrupted. The Deployment uses the `Recreate` strategy. |
-| `postgres` | Several replicas share the outputs. Set the connection in `config.database.postgres`, and the password Secret in `database.postgres.passwordSecret`, which the chart sets as `password_file`. |
+| `sqlite` | A PersistentVolumeClaim mounted at `/var/lib/falcosidekick`. One replica only: rendering fails with `replicaCount` above 1, because the sqlite file belongs to one process, and a ReadWriteOnce volume can be mounted by pods of one node only. The Deployment uses the `Recreate` strategy, so the old pod releases the file before the new one starts. The claim is kept on uninstall and when the backend changes: see [Uninstalling the Chart](#uninstalling-the-chart). |
+| `postgres` | Several replicas share the outputs. Set `host`, `database` and `user` in `config.database.postgres`, and the password Secret in `database.postgres.passwordSecret`, which the chart sets as `password_file`, or `config.database.postgres.password_file` to a file in `secrets`. |
+
+At startup the process retries the database until `config.database.connect_timeout` (30s by default), then applies the migrations and starts the outputs before it listens. The `startupProbe` allows that time plus 30s: `probes.startup.failureThreshold` defaults to enough periods to cover it.
 
 ### TLS
 
-Set `config.tls.enabled: true` and `tls.secretName` to a Secret holding `tls.crt` and `tls.key`, and `ca.crt` with `config.tls.mutual_tls: true`. The probes then use HTTPS; with mutual TLS they need no client certificate.
+Set `config.tls.enabled: true` and `tls.secretName` to a Secret holding `tls.crt` and `tls.key`, and `ca.crt` with `config.tls.mutual_tls: true`. Without `tls.secretName`, set `config.tls.cert_file` and `key_file`, and `ca_file` with mutual TLS, to files mounted otherwise, for example from `secrets`. Rendering fails when TLS is on without a certificate, when `tls.secretName` is set with TLS off, and with mutual TLS but no CA. The probes then use HTTPS; with mutual TLS they need no client certificate.
 
 ### Shutdown
 
 `terminationGracePeriodSeconds` is `config.shutdown_delay` (5s by default) plus the 10s the process gives the server and the outputs to drain, plus 5s.
 
+### PodDisruptionBudget
+
+`podDisruptionBudget.enabled: true` creates one with `maxUnavailable: 1`, which lets a node drain move a single replica. `maxUnavailable: 0` blocks every voluntary eviction; `minAvailable`, when set, replaces `maxUnavailable`.
+
 ### Policy Report
 
-`rbac.policyReport: true` creates a ClusterRole allowing `get`, `create` and `update` on openreports.io `reports` and `clusterreports`, binds it to the ServiceAccount and mounts its token, for the `policyreport` output.
+`rbac.policyReport: true` creates a ClusterRole allowing `create` on openreports.io `reports` and `clusterreports`, and `get` and `update` on those named `falcosidekick`, the only ones the output writes, and binds it to the ServiceAccount. With `serviceAccount.create: false`, set `serviceAccount.name`. The ServiceAccount token is mounted when `rbac.policyReport` is true or `outputs.policyreport` is set, so RBAC managed outside the chart works too.
 
 ### Values
 
-The following table lists the configurable parameters of the {{ template "chart.name" . }} chart v{{ template "chart.version" . }} and their default values. See [values.yaml](values.yaml) for the full list.
+The following table lists the configurable parameters of the {{ template "chart.name" . }} chart v{{ template "chart.version" . }} and their default values. See [values.yaml](https://github.com/falcosecurity/falcosidekick/blob/master/chart/falcosidekick/values.yaml) for the full list.
 
 {{ template "chart.valuesTable" . }}

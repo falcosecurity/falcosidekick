@@ -19,25 +19,30 @@ In the Falco chart, set:
 The web UI and the API are served on the management port, read-only{{ if dig "api" "allow_writes" false $cfg }} except that api.allow_writes is true{{ end }}:
 {{- if .Values.management.service.enabled }}
 
-  {{ $scheme }}://{{ $fullname }}-management.{{ .Release.Namespace }}.svc:{{ .Values.management.service.port }}/
+  {{ $scheme }}://{{ include "falcosidekick.suffixedName" (dict "ctx" . "suffix" "-management") }}.{{ .Release.Namespace }}.svc:{{ .Values.management.service.port }}/
 
   The API has no authentication: restrict who can reach this Service.
 {{- else }}
 {{- $port := dig "management" "listen_port" 2802 $cfg | int }}
 
   kubectl --namespace {{ .Release.Namespace }} port-forward deploy/{{ $fullname }} {{ $port }}
-  open {{ $scheme }}://127.0.0.1:{{ $port }}/
+
+  then browse {{ $scheme }}://127.0.0.1:{{ $port }}/
 {{- end }}
 {{- if gt (int .Values.replicaCount) 1 }}
 
   With {{ .Values.replicaCount }} replicas, each pod's UI shows only the events that pod received.
 {{- end }}
 {{- end }}
-{{- if not .Values.outputs }}
+{{- if and (not .Values.outputs) (not .Values.extraOutputConfigMaps) }}
 
 No output is configured: set outputs in the values, for example:
 
   outputs:
     webhook:
       host: "http://receiver.example:8080"
+{{- end }}
+{{- if .Values.test.enabled }}
+
+Check the release with: helm test {{ .Release.Name }} --namespace {{ .Release.Namespace }}
 {{- end }}
