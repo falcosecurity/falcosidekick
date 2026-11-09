@@ -107,10 +107,10 @@ Sidekick reads the JSON of Falco's `http_output` (`json_output: true`).
 | Metric | Meaning |
 | --- | --- |
 | `falcosidekick_ingest_requests_total{status}` | requests to `POST /`: `accepted`, or `invalid` (not a Falco event; a misconfigured sender shows here) |
-| `falcosidekick_events_total{rule,priority,source,...}` | events accepted; `metrics.extra_labels` adds output fields as labels |
+| `falcosidekick_events_total{rule,priority,source,...}` | events accepted, with `priority` spelled as Falco does (`Warning`); `metrics.extra_labels` adds output fields as labels |
 | `falcosidekick_output_events_total{output,status}` | events per output: `ok` delivered, `error` failed for good |
 | `falcosidekick_output_dropped_events_total{output}` | events an output dropped because its queue was full |
-| `falcosidekick_output_request_duration_seconds{output}` | duration of each delivery request, a batch being one |
+| `falcosidekick_output_request_duration_seconds{output}` | duration of each delivery attempt, retries and failures included, a batch being one request |
 | `falcosidekick_output_queue_length{output}`, `falcosidekick_output_queue_capacity{output}` | events waiting, and the queue size |
 | `falcosidekick_output_status{output,status}` | 1 for the current status (`ok`, `idle`, `degraded`, `error`, `failed`), 0 for the others |
 | `falcosidekick_output_circuit_state{output,state}` | 1 for the current circuit state (`closed`, `open`, `half-open`) |

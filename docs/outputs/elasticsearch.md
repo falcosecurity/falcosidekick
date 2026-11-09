@@ -2,11 +2,11 @@
 
 Indexes each event in Elasticsearch or OpenSearch.
 
-- Each event is indexed with its UUID as document id (`create`). A retried batch does not duplicate documents; an item already indexed counts as delivered.
+- Each event is indexed with its UUID as document id (`create`). A retried batch does not duplicate documents in the same index; an item already indexed counts as delivered. A data stream checks ids only in its current backing index, so a retry after a rollover can write a duplicate.
 - In a bulk request, one item rejected for good marks the whole batch as failed.
 - By default each event goes to a dated index, `<index>-YYYY.MM.DD`, from the event time in UTC.
 - `data_stream: true` writes to `index` as a data stream instead. Every document carries `@timestamp`, and no date suffix applies: `index_suffix` must be `none` or unset. The data stream needs an index template with `data_stream` that matches its name: `create_index_template: true` creates one, or use your own.
-- `create_index_template: true` installs a template once, if none with that name exists. It sets `number_of_shards` and `number_of_replicas` only when you set them; otherwise the cluster default applies, `1` and `1`.
+- `create_index_template: true` installs a template once, if none with that name exists. Its priority is `200`, above the built-in `logs-*-*` template (`100`), so a data stream such as `logs-falco-default` takes its mappings. It sets `number_of_shards` and `number_of_replicas` only when you set them; otherwise the cluster default applies, `1` and `1`.
 - `hostname` is mapped as `keyword`. Output fields with dots, such as `proc.name`, are stored as nested objects; `flatten_fields: true` stores them as flat fields, such as `proc_name`. OpenSearch has no `subobjects` setting, so `flatten_fields` is the way that works on both.
 - Authentication: basic auth, `api_key` or a client certificate; combining `api_key` with basic auth, `bearer_token` or an `Authorization` header is rejected.
 

@@ -135,7 +135,7 @@ func TestLokiTextFormatWithLabelFields(t *testing.T) {
   host: %q
   endpoint: /loki/api/v1/push
   tenant: %s
-  log_format: text
+  format: text
   label_fields: [e2e.marker, proc.name]
 `, base, tenant))
 

@@ -18,7 +18,6 @@ package discord
 
 import (
 	"fmt"
-	"time"
 	"unicode/utf8"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -34,6 +33,9 @@ const (
 	maxFieldValueRunes  = 1024
 	maxEmbedRunes       = 6000
 	codeFence           = "```"
+
+	// timestampLayout is ISO 8601 in milliseconds, the precision of Discord timestamps.
+	timestampLayout = "2006-01-02T15:04:05.000Z07:00"
 )
 
 type payload struct {
@@ -118,7 +120,7 @@ func (d *driver) buildPayload(evt *event.Event) payload {
 		Embeds: []embed{{
 			Title:       title,
 			Description: description,
-			Timestamp:   evt.Time.UTC().Format(time.RFC3339Nano),
+			Timestamp:   evt.Time.UTC().Format(timestampLayout),
 			Color:       shared.PriorityRGB(evt.Priority),
 			Fields:      fields,
 		}},

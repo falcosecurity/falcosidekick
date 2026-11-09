@@ -56,6 +56,23 @@ func TestEveryFieldHasADescription(t *testing.T) {
 	}
 }
 
+// The UI offers "not set" for every optional enum and cannot render an empty option, so no enum
+// lists the empty value.
+func TestNoEnumListsTheEmptyValue(t *testing.T) {
+	var visit func(outputName string, fields []output.SchemaField)
+	visit = func(outputName string, fields []output.SchemaField) {
+		for _, field := range fields {
+			for _, v := range field.Values {
+				assert.NotEmpty(t, v, "%s: %s: an enum value is empty", outputName, field.Name)
+			}
+			visit(outputName, field.EntryFields)
+		}
+	}
+	for _, typ := range Types() {
+		visit(typ.Name, typ.Schema.Fields)
+	}
+}
+
 // The API checks file paths against api.secret_dirs only for fields marked File, so a path field
 // without the mark would let a request read any file.
 func TestFilePathFieldsAreMarked(t *testing.T) {

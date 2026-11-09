@@ -12,7 +12,7 @@ Stream labels are few and bounded, as Loki recommends:
 | `hostname` | Host that produced the event, when set. |
 | `k8s_ns_name` | Kubernetes namespace, when the event has `k8s.ns.name`. |
 
-The rule, tags, pod and other output fields are not labels. With `log_format: json`, the default, they are in the log line; filter on them with `| json`. `label_fields` adds other output fields as labels, named with `.` and `[` as `_`: `container.name` becomes `container_name`. Each distinct value makes a new stream, so add only fields with few values.
+The rule, tags, pod and other output fields are not labels. With `format: json`, the default, they are in the log line; filter on them with `| json`. `label_fields` adds other output fields as labels, named with `.` and `[` as `_`: `container.name` becomes `container_name`. Each distinct value makes a new stream, so add only fields with few values.
 
 Tested with Loki 3.7.9 and 2.9.17.
 
@@ -42,7 +42,7 @@ Key in the output file: `loki`. Category: Logs. UI event source: no. Batching: y
 | `endpoint` | string | `/loki/api/v1/push` | Path the events are sent to, after the base path. |
 | `secret_endpoint` | string, secret | - | Path the events are sent to, used instead of the endpoint when the path itself is a credential, as in a webhook URL; the API never returns it. Also accepted as `secret_endpoint_file`, the path of a file holding the value. |
 | `tenant` | string | - | Tenant ID sent in the `X-Scope-OrgID` header, for a multi-tenant Loki. Empty sends no header. |
-| `log_format` | one of `json`, `text` | `json` | Content of each log line: `json` is the whole event as JSON, `text` is the event output text only. |
+| `format` | one of `json`, `text` | `json` | Content of each log line: `json` is the whole event as JSON, `text` is the event output text only. |
 | `label_fields` | list of strings | - | Output field names, such as `container.name`, added as stream labels when the event has them, named with `.` and `[` as `_`: `container_name`. Every distinct value adds a stream, so list only fields with few values. A name that does not make a valid label name, or makes a built-in label, is refused. |
 
 Also takes the shared settings in [Query parameters](common.md#query-parameters), [HTTP authentication and headers](common.md#http-authentication-and-headers), [TLS](common.md#tls), [Delivery](common.md#delivery), [Batching](common.md#batching).

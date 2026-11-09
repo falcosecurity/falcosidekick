@@ -138,6 +138,7 @@ outputs:
   #   host: "http://loki:3100"
   #   # endpoint: /loki/api/v1/push      # default
   #   tenant: "security"
+  #   # format: json                     # json (the event, default) or text (the output text)
   #   # label_fields: [container.name]   # output fields as stream labels (. and [ become _)
   #   runtime:
   #     minimum_priority: notice
@@ -392,7 +393,7 @@ outputs:
   #   from: "Falco <falco@example.com>"
   #   to:
   #     - "secops@example.com"
-  #   output_format: html                # html (multipart with a text part, default) or text
+  #   format: html                       # html (multipart with a text part, default) or text
   #   # Credentials are sent only over TLS, or in clear to localhost; xoauth2
   #   # needs tls_mode starttls or implicit. The health check connects,
   #   # negotiates TLS and authenticates without sending mail: rejected

@@ -19,6 +19,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -40,6 +41,7 @@ type recordingMetrics struct {
 	core.MetricsCollector
 	statuses map[string]int
 	drops    int
+	requests int
 	mu       sync.Mutex
 }
 
@@ -47,10 +49,26 @@ func newRecordingMetrics() *recordingMetrics {
 	return &recordingMetrics{statuses: map[string]int{}}
 }
 
-func (m *recordingMetrics) RecordOutput(_ context.Context, _, status string, events int64, _ time.Duration) {
+func (m *recordingMetrics) RecordOutput(_ context.Context, _, status string, events int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.statuses[status] += int(events)
+}
+
+func (m *recordingMetrics) ObserveRequest(context.Context, string, time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.requests++
+}
+
+func (m *recordingMetrics) snapshot() (statuses map[string]int, requests int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	statuses = make(map[string]int, len(m.statuses))
+	for k, v := range m.statuses {
+		statuses[k] = v
+	}
+	return statuses, m.requests
 }
 
 func (m *recordingMetrics) RecordDrop(_ context.Context, _ string, events int64) {
@@ -292,6 +310,48 @@ func TestEveryAcceptedEventReachesExactlyOneCounter(t *testing.T) {
 				}
 				require.NoError(t, err)
 				assert.Equal(t, submitted, status.SentTotal)
+			})
+		})
+	}
+}
+
+// output_request_duration_seconds observes every attempt, while output_events_total counts each
+// event once, by its final outcome.
+func TestEveryAttemptIsObserved(t *testing.T) {
+	permanent := fmt.Errorf("rejected: %w", output.ErrPermanent)
+	tests := []struct {
+		wantStatuses map[string]int
+		name         string
+		results      []error
+		wantRequests int
+	}{
+		{name: "success", results: []error{nil}, wantRequests: 1, wantStatuses: map[string]int{"ok": 1}},
+		{name: "fails then succeeds", results: []error{errDelivery, errDelivery, nil}, wantRequests: 3, wantStatuses: map[string]int{"ok": 1}},
+		{name: "every attempt fails", results: []error{errDelivery, errDelivery, errDelivery}, wantRequests: 3, wantStatuses: map[string]int{"error": 1}},
+		{name: "permanent failure is not retried", results: []error{permanent}, wantRequests: 1, wantStatuses: map[string]int{"error": 1}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				var attempts atomic.Int64
+				metrics := newRecordingMetrics()
+				out := NewOutput(&testutil.MockDriver{
+					DriverName: "flaky",
+					SendFunc: func(context.Context, *event.Event) error {
+						return tt.results[attempts.Add(1)-1]
+					},
+				}, retryingConfig(), metrics)
+				out.Start(context.Background())
+				out.Enqueue(newTestEvent())
+
+				ctx, cancel := context.WithTimeout(context.Background(), 24*time.Hour)
+				defer cancel()
+				require.NoError(t, out.Retire(ctx))
+
+				statuses, requests := metrics.snapshot()
+				assert.EqualValues(t, len(tt.results), attempts.Load())
+				assert.Equal(t, tt.wantRequests, requests, "one duration per attempt")
+				assert.Equal(t, tt.wantStatuses, statuses, "one count per event")
 			})
 		})
 	}

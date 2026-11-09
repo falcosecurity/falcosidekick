@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -1252,6 +1253,8 @@ func TestHandlePipelineOutputPut_ApplyInitFailureReturns500(t *testing.T) {
 	}})
 	require.NoError(t, err)
 	rig := buildMutationRig(t, db, cat, true)
+	var logs bytes.Buffer
+	rig.Server.logger = slog.New(slog.NewTextHandler(&logs, nil))
 
 	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"x"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
@@ -1261,8 +1264,9 @@ func TestHandlePipelineOutputPut_ApplyInitFailureReturns500(t *testing.T) {
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
 	respBody, _ := io.ReadAll(resp.Body)
-	assert.Contains(t, string(respBody), "apply init",
-		"init failure from the real Reloader must surface under the default 500 mapping")
+	assert.JSONEq(t, `{"error":"apply output 'slack' failed; see the falcosidekick log"}`, string(respBody),
+		"the default 500 answers a fixed message")
+	assert.Contains(t, logs.String(), "init failed by test driver", "the detail goes to the log")
 }
 
 func TestHandlePipelineOutputDelete_ReloaderNotBoundReturns503(t *testing.T) {

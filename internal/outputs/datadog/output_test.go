@@ -174,8 +174,10 @@ func TestSendPostsAlertEvent(t *testing.T) {
 		"host": server.URL, "base_path": "/dd",
 		"headers": map[string]any{"X-Extra": map[string]any{"values": []string{"yes"}}},
 	}))
+	evt := testutil.CreateValidEvent()
+	d.now = func() time.Time { return evt.Time.Add(time.Minute) }
 
-	require.NoError(t, d.Send(context.Background(), testutil.CreateValidEvent()))
+	require.NoError(t, d.Send(context.Background(), evt))
 
 	reqs := rec.Received()
 	require.Len(t, reqs, 1)
@@ -198,7 +200,7 @@ func TestSendPostsAlertEvent(t *testing.T) {
 			"category":        "alert",
 			"aggregation_key": "test-uuid-001",
 			"host":            "node-1",
-			"timestamp":       "2026-04-01T10:30:00Z",
+			"timestamp":       "2026-04-01T10:30:00.000000Z",
 			"tags":            []any{"falco_source:syscall", "filesystem", "mitre_persistence"},
 			"attributes": map[string]any{
 				"status":   "error",
@@ -320,7 +322,7 @@ func TestNewPayload(t *testing.T) {
 		for priority, want := range tests {
 			evt := testutil.CreateValidEvent()
 			evt.Priority = priority
-			alert := newPayload(evt).Data.Attributes.Attributes
+			alert := newPayload(evt, evt.Time).Data.Attributes.Attributes
 			assert.Equal(t, want[0], alert.Status, priority)
 			assert.Equal(t, want[1], alert.Priority, priority)
 		}
@@ -330,7 +332,7 @@ func TestNewPayload(t *testing.T) {
 		evt := testutil.CreateValidEvent()
 		evt.Source = "k8s_audit"
 		evt.Tags = []string{"z", "a"}
-		tags := newPayload(evt).Data.Attributes.Tags
+		tags := newPayload(evt, evt.Time).Data.Attributes.Tags
 		assert.Equal(t, []string{"falco_source:k8s_audit", "a", "z"}, tags)
 		assert.Equal(t, []string{"z", "a"}, evt.Tags, "the event tags are not reordered")
 	})
@@ -338,17 +340,52 @@ func TestNewPayload(t *testing.T) {
 	t.Run("without hostname, tags and output fields", func(t *testing.T) {
 		evt := testutil.CreateValidEvent()
 		evt.Hostname, evt.Tags, evt.OutputFields = "", nil, map[string]any{}
-		body, err := json.Marshal(newPayload(evt))
+		body, err := json.Marshal(newPayload(evt, evt.Time))
 		require.NoError(t, err)
 		assert.NotContains(t, string(body), `"host"`)
 		assert.NotContains(t, string(body), `"custom"`)
 		assert.Contains(t, string(body), `"tags":["falco_source:syscall"]`)
 	})
 
-	t.Run("timestamp is the event time", func(t *testing.T) {
+	t.Run("timestamp is the event time in microseconds", func(t *testing.T) {
 		evt := testutil.CreateValidEvent()
-		evt.Time = evt.Time.Add(1500 * time.Millisecond)
-		assert.Equal(t, "2026-04-01T10:30:01.5Z", newPayload(evt).Data.Attributes.Timestamp)
+		evt.Time = evt.Time.Add(1500*time.Millisecond + 1234567*time.Nanosecond)
+		attrs := newPayload(evt, evt.Time.Add(maxTimestampAge)).Data.Attributes
+		assert.Equal(t, "2026-04-01T10:30:01.501234Z", attrs.Timestamp)
+		assert.NotContains(t, attrs.Attributes.Custom, "event_time", "a recent event has a timestamp")
+	})
+
+	t.Run("an event older than the timestamp limit keeps its time in custom", func(t *testing.T) {
+		evt := testutil.CreateValidEvent()
+		body, err := json.Marshal(newPayload(evt, evt.Time.Add(maxTimestampAge+time.Second)))
+		require.NoError(t, err)
+		assert.NotContains(t, string(body), `"timestamp"`)
+		var got request
+		require.NoError(t, json.Unmarshal(body, &got))
+		custom := got.Data.Attributes.Attributes.Custom
+		assert.Equal(t, "2026-04-01T10:30:00.000000Z", custom["event_time"])
+		assert.Contains(t, custom, "output_fields")
+
+		evt.OutputFields = nil
+		custom = newPayload(evt, evt.Time.Add(24*time.Hour)).Data.Attributes.Attributes.Custom
+		assert.Equal(t, map[string]any{"event_time": "2026-04-01T10:30:00.000000Z"}, custom)
+	})
+
+	t.Run("host and output fields within the limits", func(t *testing.T) {
+		evt := testutil.CreateValidEvent()
+		evt.Hostname = strings.Repeat("h", maxHostRunes+1)
+		evt.OutputFields = map[string]any{}
+		for i := range maxOutputFields + 1 {
+			evt.OutputFields[fmt.Sprintf("field.%03d", i)] = i
+		}
+		attrs := newPayload(evt, evt.Time).Data.Attributes
+		assert.Len(t, []rune(attrs.Host), maxHostRunes)
+		fields, ok := attrs.Attributes.Custom["output_fields"].(map[string]any)
+		require.True(t, ok)
+		assert.Len(t, fields, maxOutputFields)
+		assert.Contains(t, fields, "field.000")
+		assert.NotContains(t, fields, fmt.Sprintf("field.%03d", maxOutputFields), "the last sorted key is dropped")
+		assert.Len(t, evt.OutputFields, maxOutputFields+1, "the event is not changed")
 	})
 
 	t.Run("schema limits", func(t *testing.T) {
@@ -361,7 +398,7 @@ func TestNewPayload(t *testing.T) {
 		for i := range maxTags {
 			evt.Tags = append(evt.Tags, fmt.Sprintf("tag%03d", i)+strings.Repeat("v", maxTagRunes))
 		}
-		attrs := newPayload(evt).Data.Attributes
+		attrs := newPayload(evt, evt.Time).Data.Attributes
 		assert.Len(t, []rune(attrs.Title), maxTitleRunes)
 		assert.Len(t, []rune(attrs.Message), maxMessageRunes)
 		assert.True(t, strings.HasSuffix(attrs.Message, "..."))
@@ -376,7 +413,7 @@ func TestNewPayload(t *testing.T) {
 	t.Run("event without uuid or output omits them", func(t *testing.T) {
 		evt := testutil.CreateValidEvent()
 		evt.UUID, evt.Output = "", ""
-		body, err := json.Marshal(newPayload(evt))
+		body, err := json.Marshal(newPayload(evt, evt.Time))
 		require.NoError(t, err)
 		assert.NotContains(t, string(body), "aggregation_key")
 		assert.NotContains(t, string(body), `"message"`)

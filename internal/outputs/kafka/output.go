@@ -90,7 +90,7 @@ var OutputType = output.Type{
 				Description: "Output field whose non-empty string value is the record key. Otherwise `message_key` applies.",
 			},
 			{
-				Name: "auth.sasl", Type: "enum", Values: []string{"", saslPlain, saslSCRAMSHA256, saslSCRAMSHA512}, Label: "SASL Mechanism",
+				Name: "auth.sasl", Type: "enum", Values: []string{saslPlain, saslSCRAMSHA256, saslSCRAMSHA512}, Label: "SASL Mechanism",
 				Description: "SASL mechanism for broker authentication, spelled as Kafka does: `PLAIN`, `SCRAM-SHA-256` or `SCRAM-SHA-512`. " +
 					"Empty disables SASL; any mechanism requires username and password.",
 			},

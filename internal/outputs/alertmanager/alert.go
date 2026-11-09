@@ -17,7 +17,6 @@
 package alertmanager
 
 import (
-	"strings"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -80,11 +79,8 @@ func (d *driver) buildAlert(evt *event.Event) alertPayload {
 }
 
 func (d *driver) resolveSeverity(priority event.Priority) string {
-	p := strings.ToLower(string(priority))
-	if d.cfg.CustomSeverityMap != nil {
-		if s, ok := d.cfg.CustomSeverityMap[p]; ok {
-			return s
-		}
+	if s, ok := d.cfg.severities[priority]; ok {
+		return s
 	}
 	return severity(priority)
 }

@@ -393,7 +393,9 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 
 		start := time.Now()
 		err := sendFunc(ctx)
-		duration := time.Since(start)
+		if o.metrics != nil {
+			o.metrics.ObserveRequest(ctx, o.driver.Name(), time.Since(start))
+		}
 		permanent := err != nil && output.IsPermanent(err)
 		// A permanent rejection proves the destination answers, so it does not count against the circuit.
 		complete(err == nil || permanent)
@@ -402,7 +404,7 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 			o.outcome.Load().succeeded(count, time.Now())
 			o.healthWarning.Store("")
 			if o.metrics != nil {
-				o.metrics.RecordOutput(ctx, o.driver.Name(), "ok", count, duration)
+				o.metrics.RecordOutput(ctx, o.driver.Name(), "ok", count)
 			}
 			return
 		}
@@ -419,6 +421,6 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 func (o *Output) recordFailure(ctx context.Context, count int64, err error) {
 	o.outcome.Load().failedWith(count, err)
 	if o.metrics != nil {
-		o.metrics.RecordOutput(ctx, o.driver.Name(), "error", count, 0)
+		o.metrics.RecordOutput(ctx, o.driver.Name(), "error", count)
 	}
 }

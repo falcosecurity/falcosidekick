@@ -80,7 +80,8 @@ func TestExposedMetricNames(t *testing.T) {
 	ctx := context.Background()
 	c.RecordRequest(ctx, core.IngestAccepted)
 	c.RecordEvent(ctx, &event.Event{Rule: "r", Priority: event.PriorityWarning, Source: "syscall"})
-	c.RecordOutput(ctx, "slack", "sent", 1, time.Millisecond)
+	c.RecordOutput(ctx, "slack", "sent", 1)
+	c.ObserveRequest(ctx, "slack", time.Millisecond)
 	c.RecordDrop(ctx, "slack", 1)
 	c.WatchOutputs(func() []OutputState { return []OutputState{{Name: "slack"}} })
 
@@ -124,13 +125,24 @@ func TestRecordOutput(t *testing.T) {
 	c := newTestCollector()
 	ctx := context.Background()
 
-	c.RecordOutput(ctx, "slack", "sent", 1, 100*time.Millisecond)
-	c.RecordOutput(ctx, "slack", "error", 1, 0)
-	c.RecordOutput(ctx, "elasticsearch", "sent", 500, time.Second)
+	c.RecordOutput(ctx, "slack", "sent", 1)
+	c.RecordOutput(ctx, "slack", "error", 1)
+	c.RecordOutput(ctx, "elasticsearch", "sent", 500)
 
 	assert.Equal(t, 502.0, collectCounter(t, c.outputEvents), "a batch counts each of its events")
-	assert.Equal(t, map[string]float64{"output=slack": 1, "output=elasticsearch": 1},
-		series(t, c, "falcosidekick_output_request_duration_seconds"), "one observation per request; none without a duration")
+	assert.Empty(t, series(t, c, "falcosidekick_output_request_duration_seconds"), "counting events observes no request")
+}
+
+func TestObserveRequest(t *testing.T) {
+	c := newTestCollector()
+	ctx := context.Background()
+
+	c.ObserveRequest(ctx, "slack", 100*time.Millisecond)
+	c.ObserveRequest(ctx, "slack", 0)
+	c.ObserveRequest(ctx, "elasticsearch", time.Second)
+
+	assert.Equal(t, map[string]float64{"output=slack": 2, "output=elasticsearch": 1},
+		series(t, c, "falcosidekick_output_request_duration_seconds"), "one observation per attempt")
 }
 
 func TestRecordDrop(t *testing.T) {
@@ -152,9 +164,9 @@ func TestRecordEventExtraLabels(t *testing.T) {
 	c.RecordEvent(ctx, &event.Event{Rule: "r", Priority: event.PriorityWarning, Source: "syscall"})
 
 	assert.Equal(t, map[string]float64{
-		"k8s_ns_name=prod,priority=warning,proc_pid=42,rule=r,source=syscall": 1,
-		"k8s_ns_name=,priority=warning,proc_pid=,rule=r,source=syscall":       1,
-	}, series(t, c, "falcosidekick_events_total"))
+		"k8s_ns_name=prod,priority=Warning,proc_pid=42,rule=r,source=syscall": 1,
+		"k8s_ns_name=,priority=Warning,proc_pid=,rule=r,source=syscall":       1,
+	}, series(t, c, "falcosidekick_events_total"), "the priority is spelled as Falco does")
 }
 
 // Labels taken from events keep at most max_label_values distinct values each.
@@ -221,7 +233,8 @@ func TestNoopCollectorDoesNotPanic(t *testing.T) {
 	ctx := context.Background()
 
 	noop.RecordRequest(ctx, core.IngestAccepted)
-	noop.RecordOutput(ctx, "test", "sent", 1, time.Second)
+	noop.RecordOutput(ctx, "test", "sent", 1)
+	noop.ObserveRequest(ctx, "test", time.Second)
 	noop.RecordDrop(ctx, "test", 1)
 	noop.RecordEvent(ctx, &event.Event{Rule: "rule", Priority: event.PriorityDebug, Source: "test"})
 }

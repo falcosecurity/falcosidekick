@@ -40,6 +40,9 @@ const (
 	cefMaxMessage = 1023
 	// cefCustomStrings is the number of CEF custom string keys, cs1 to cs6.
 	cefCustomStrings = 6
+	// cefMaxCustomString and cefMaxCustomLabel are the lengths of the csN and csNLabel keys.
+	cefMaxCustomString = 4000
+	cefMaxCustomLabel  = 1023
 	// cefVendorPrefix starts vendor keys, which CEF names after the vendor and the product.
 	cefVendorPrefix = "FalcoFalcosidekick"
 	cefTagsKey      = cefVendorPrefix + "Tags"
@@ -159,8 +162,8 @@ func cefBody(evt *event.Event) string {
 		value := fmt.Sprint(evt.OutputFields[key])
 		if i < cefCustomStrings {
 			n := strconv.Itoa(i + 1)
-			add("cs"+n+"Label", key)
-			add("cs"+n, value)
+			add("cs"+n+"Label", truncateRunes(key, cefMaxCustomLabel))
+			add("cs"+n, truncateRunes(value, cefMaxCustomString))
 			continue
 		}
 		add(cefVendorKey(key, used), value)

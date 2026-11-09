@@ -47,7 +47,7 @@ Key in the output file: `kafka`. Category: Queues and streams. UI event source: 
 | `topic_field` | string | - | Output field, such as `k8s.ns.name`, whose string value names the topic. Events without a non-empty string value use `topic`. These topics are not checked at startup. |
 | `message_key` | string | - | Record key used when `message_key_field` gives no value; records with the same key go to the same partition. Empty sends records without a key, spread across partitions. |
 | `message_key_field` | string | - | Output field whose non-empty string value is the record key. Otherwise `message_key` applies. |
-| `auth.sasl` | one of ``, `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512` | - | SASL mechanism for broker authentication, spelled as Kafka does: `PLAIN`, `SCRAM-SHA-256` or `SCRAM-SHA-512`. Empty disables SASL; any mechanism requires username and password. |
+| `auth.sasl` | one of `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512` | - | SASL mechanism for broker authentication, spelled as Kafka does: `PLAIN`, `SCRAM-SHA-256` or `SCRAM-SHA-512`. Empty disables SASL; any mechanism requires username and password. |
 | `auth.username` | string | - | User for SASL authentication. |
 | `auth.password` | string, secret | - | Password for SASL authentication. Also accepted as `auth.password_file`, the path of a file holding the value. |
 | `producer.compression` | one of `none`, `gzip`, `snappy`, `lz4`, `zstd` | - | Codec for record batches sent to the brokers. Empty keeps the client default: `snappy`, or no compression for brokers that do not support it. |

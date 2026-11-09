@@ -129,7 +129,7 @@ func TestSchema(t *testing.T) {
 func TestPayload(t *testing.T) {
 	d := newDriver(t, &config{AvatarURL: "https://img.example/a.png"})
 	evt := testutil.CreateValidEvent()
-	evt.Time = time.Date(2026, 4, 1, 12, 30, 0, 5e8, time.FixedZone("CEST", 2*3600))
+	evt.Time = time.Date(2026, 4, 1, 12, 30, 0, 501234567, time.FixedZone("CEST", 2*3600))
 	p := d.buildPayload(evt)
 
 	body, err := json.Marshal(p)
@@ -139,7 +139,7 @@ func TestPayload(t *testing.T) {
 	require.Len(t, p.Embeds, 1)
 	e := p.Embeds[0]
 	assert.Equal(t, "Write below binary dir", e.Title)
-	assert.Equal(t, "2026-04-01T10:30:00.5Z", e.Timestamp, "RFC 3339 in UTC")
+	assert.Equal(t, "2026-04-01T10:30:00.501Z", e.Timestamp, "ISO 8601 in UTC, in milliseconds")
 	assert.Equal(t, evt.Output, e.Description)
 	assert.Equal(t, shared.PriorityRGB(event.PriorityError), e.Color)
 	assert.Equal(t, []field{
