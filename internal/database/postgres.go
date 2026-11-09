@@ -18,12 +18,18 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
@@ -81,9 +87,57 @@ func OpenPostgres(ctx context.Context, cfg *pgx.ConnConfig, maxConns int) (*SQL,
 	db := stdlib.OpenDB(*cfg)
 	db.SetMaxOpenConns(maxConns)
 	db.SetMaxIdleConns(maxConns)
-	if err := db.PingContext(ctx); err != nil {
+	if err := pingUntilReady(ctx, db); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("database: connect to postgres: %w", err)
 	}
 	return newSQL(ctx, db, postgresDialect)
+}
+
+// Backoff between connection attempts at startup.
+const (
+	firstRetryDelay = 250 * time.Millisecond
+	maxRetryDelay   = 5 * time.Second
+)
+
+// pingUntilReady retries until postgres answers or ctx ends, so Sidekick started together with its
+// database waits for it. A reply from postgres itself, such as a refused password or a missing
+// database, cannot change by retrying and fails at once.
+func pingUntilReady(ctx context.Context, db *sql.DB) error {
+	delay := firstRetryDelay
+	for attempt := 1; ; attempt++ {
+		err := db.PingContext(ctx)
+		if err == nil {
+			return nil
+		}
+		if _, refused := errors.AsType[*pgconn.PgError](err); refused || ctx.Err() != nil {
+			return err
+		}
+		slog.Warn("postgres not reachable yet, retrying", "attempt", attempt, "retry_in", delay, "error", errorClass(err))
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return err
+		case <-timer.C:
+		}
+		delay = min(delay*2, maxRetryDelay)
+	}
+}
+
+// errorClass names a connection failure without its message, which can carry connection details.
+func errorClass(err error) string {
+	var netErr net.Error
+	switch {
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return "connection refused"
+	case errors.As(err, &netErr) && netErr.Timeout():
+		return "timeout"
+	default:
+		var dnsErr *net.DNSError
+		if errors.As(err, &dnsErr) {
+			return "host not found"
+		}
+		return "unreachable"
+	}
 }
