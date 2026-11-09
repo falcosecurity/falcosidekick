@@ -88,7 +88,7 @@ func NewCollector(cfg core.MetricsConfig) *Collector {
 		outputDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Namespace: namespace,
 			Name:      "output_request_duration_seconds",
-			Help:      "Duration of each delivery request of an output, a batch being one request.",
+			Help:      "Duration of each delivery attempt of an output, failed or not, a batch being one request.",
 			Buckets:   prometheus.DefBuckets,
 		}, []string{"output"}),
 		outputDropped: prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -136,12 +136,14 @@ func (c *Collector) RecordRequest(_ context.Context, status string) {
 	c.ingestRequests.WithLabelValues(status).Inc()
 }
 
-// RecordOutput adds events to the output counter and observes the latency of the request.
-func (c *Collector) RecordOutput(_ context.Context, output, status string, events int64, duration time.Duration) {
+// RecordOutput adds events to the output counter.
+func (c *Collector) RecordOutput(_ context.Context, output, status string, events int64) {
 	c.outputEvents.WithLabelValues(output, status).Add(float64(events))
-	if duration > 0 {
-		c.outputDuration.WithLabelValues(output).Observe(duration.Seconds())
-	}
+}
+
+// ObserveRequest observes the duration of one delivery attempt.
+func (c *Collector) ObserveRequest(_ context.Context, output string, duration time.Duration) {
+	c.outputDuration.WithLabelValues(output).Observe(duration.Seconds())
 }
 
 // RecordDrop adds events to the drop counter for the given output.
@@ -152,7 +154,7 @@ func (c *Collector) RecordDrop(_ context.Context, output string, events int64) {
 // RecordEvent increments the event counter; every label but the validated priority is bounded.
 func (c *Collector) RecordEvent(_ context.Context, evt *event.Event) {
 	values := make([]string, 0, len(c.eventLabels))
-	values = append(values, c.labels.value("rule", evt.Rule), string(evt.Priority), c.labels.value("source", evt.Source))
+	values = append(values, c.labels.value("rule", evt.Rule), evt.Priority.String(), c.labels.value("source", evt.Source))
 	for i, field := range c.extraFields {
 		value := ""
 		if v, ok := evt.OutputFields[field]; ok && v != nil {

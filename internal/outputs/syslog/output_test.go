@@ -259,6 +259,17 @@ func TestCEFMessageIsCapped(t *testing.T) {
 	assert.NotContains(t, body, "cut")
 }
 
+func TestCEFCustomStringsAreCapped(t *testing.T) {
+	evt := testutil.CreateValidEvent()
+	label := strings.Repeat("l", 1023)
+	evt.OutputFields = map[string]any{label + "cutlabel": strings.Repeat("é", 4000) + "cutvalue"}
+	body := cefBody(evt)
+	assert.Contains(t, body, " cs1Label="+label+" ", "a label is 1023 characters")
+	assert.True(t, strings.HasSuffix(body, " cs1="+strings.Repeat("é", 4000)), "a value is 4000 characters, not bytes")
+	assert.NotContains(t, body, "cutlabel")
+	assert.NotContains(t, body, "cutvalue")
+}
+
 // Output fields beyond cs6 go in vendor keys, never in keys outside the CEF dictionary without the prefix.
 func TestCEFOutputFieldsBeyondSix(t *testing.T) {
 	evt := testutil.CreateValidEvent()

@@ -93,7 +93,7 @@ func TestLokiSendUsesGzip(t *testing.T) {
 	defer server.Close()
 
 	o := &driver{
-		cfg:    config{HTTPTargetConfig: shared.HTTPTargetConfig{Host: server.URL, Endpoint: defaultEndpoint}, LogFormat: formatJSON},
+		cfg:    config{HTTPTargetConfig: shared.HTTPTargetConfig{Host: server.URL, Endpoint: defaultEndpoint}, Format: formatJSON},
 		sender: testutil.MustNewSender(t, "loki"),
 	}
 
@@ -120,7 +120,7 @@ func TestLokiSendBatchGroupsStreams(t *testing.T) {
 	defer server.Close()
 
 	o := &driver{
-		cfg:    config{HTTPTargetConfig: shared.HTTPTargetConfig{Host: server.URL, Endpoint: defaultEndpoint}, LogFormat: formatJSON},
+		cfg:    config{HTTPTargetConfig: shared.HTTPTargetConfig{Host: server.URL, Endpoint: defaultEndpoint}, Format: formatJSON},
 		sender: testutil.MustNewSender(t, "loki"),
 	}
 
@@ -159,17 +159,45 @@ func TestLokiCreateValidation(t *testing.T) {
 }
 
 func TestLokiCreateRuntimeDefaults(t *testing.T) {
-	d, err := createOutput(map[string]any{"host": "http://localhost:3100"}, output.Deps{})
+	d, err := createOutput(map[string]any{"host": testHost}, output.Deps{})
 	require.NoError(t, err)
 
 	o := d.(*driver)
 	assert.Equal(t, defaultEndpoint, o.cfg.Endpoint)
-	assert.Equal(t, formatJSON, o.cfg.LogFormat)
+	assert.Equal(t, formatJSON, o.cfg.Format)
+}
+
+const testHost = "http://localhost:3100"
+
+func TestLokiFormat(t *testing.T) {
+	for _, tc := range []struct {
+		cfg     map[string]any
+		name    string
+		want    string
+		wantErr string
+	}{
+		{name: "text", cfg: map[string]any{"format": "text"}, want: "text"},
+		{name: "json", cfg: map[string]any{"format": "json"}, want: formatJSON},
+		{name: "unknown", cfg: map[string]any{"format": "logfmt"}, wantErr: "format: must be json/text"},
+		{name: "log_format renamed", cfg: map[string]any{"log_format": "text"}, wantErr: "unknown keys: log_format"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.cfg["host"] = testHost
+			d, err := createOutput(tc.cfg, output.Deps{})
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, d.(*driver).cfg.Format)
+		})
+	}
 }
 
 func TestLokiCreateOutputLabelFields(t *testing.T) {
 	d, err := createOutput(map[string]any{
-		"host":         "http://localhost:3100",
+		"host":         testHost,
 		"label_fields": []any{"fd.name", "container.name"},
 	}, output.Deps{})
 	require.NoError(t, err)
@@ -185,7 +213,7 @@ func TestLokiCreateOutputLabelFields(t *testing.T) {
 		{name: "built-in label", raw: map[string]any{"label_fields": []any{"k8s.ns.name"}}, want: "makes the built-in label k8s_ns_name"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.raw["host"] = "http://localhost:3100"
+			tc.raw["host"] = testHost
 			_, err := createOutput(tc.raw, output.Deps{})
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.want)

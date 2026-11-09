@@ -31,6 +31,8 @@ const (
 	maxSummaryRunes = 1024
 	maxDedupKeyLen  = 255
 	defaultSource   = "falco"
+	// hostContainerName is the container.name Falco gives an event outside a container.
+	hostContainerName = "host"
 )
 
 type eventRequest struct {
@@ -97,7 +99,7 @@ func buildEvent(evt *event.Event, routingKey string) eventRequest {
 			CustomDetails: details,
 			Class:         evt.Rule,
 			Group:         fieldString(evt, "k8s.ns.name"),
-			Component:     cmp.Or(fieldString(evt, "container.name"), fieldString(evt, "proc.name")),
+			Component:     cmp.Or(containerName(evt), fieldString(evt, "proc.name")),
 		},
 	}
 	// Retries reuse the event UUID, so PagerDuty groups them into one alert.
@@ -105,6 +107,15 @@ func buildEvent(evt *event.Event, routingKey string) eventRequest {
 		req.DedupKey = evt.UUID
 	}
 	return req
+}
+
+// containerName returns container.name, or "" for an event outside a container, which Falco names
+// "host".
+func containerName(evt *event.Event) string {
+	if v := fieldString(evt, "container.name"); v != hostContainerName {
+		return v
+	}
+	return ""
 }
 
 // fieldString returns an output field as a string, or "" when it is absent or null.

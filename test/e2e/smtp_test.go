@@ -154,7 +154,7 @@ func TestSMTPDeliversEvent(t *testing.T) {
 
 func TestSMTPTextFormat(t *testing.T) {
 	target := mailpit(t)
-	sk := startSidekick(t, target.output(target.password, target.caFile, "output_format: text\n"))
+	sk := startSidekick(t, target.output(target.password, target.caFile, "format: text\n"))
 	marker := newMarker(t)
 	sk.postEvent(t, marker)
 

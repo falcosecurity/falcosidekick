@@ -38,7 +38,7 @@ var targetOptions = shared.HTTPTargetOptions{DefaultEndpoint: defaultEndpoint}
 
 type config struct {
 	Tenant      string   `mapstructure:"tenant"`
-	LogFormat   string   `mapstructure:"log_format"`
+	Format      string   `mapstructure:"format"`
 	LabelFields []string `mapstructure:"label_fields"`
 	// labelFields is LabelFields once validated.
 	labelFields             []labelField
@@ -59,7 +59,7 @@ var OutputType = output.Type{
 				Description: "Tenant ID sent in the `X-Scope-OrgID` header, for a multi-tenant Loki. Empty sends no header.",
 			},
 			{
-				Name: "log_format", Type: "enum", Values: []string{"json", "text"}, Default: "json", Label: "Log Format",
+				Name: "format", Type: "enum", Values: []string{"json", "text"}, Default: "json", Label: "Log Line Format",
 				Description: "Content of each log line: `json` is the whole event as JSON, `text` is the event output text only.",
 			},
 			{
@@ -80,16 +80,16 @@ type driver struct {
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 
-var validLogFormats = map[string]bool{formatJSON: true, "text": true}
+var validFormats = map[string]bool{formatJSON: true, "text": true}
 
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 	errs.Merge("", c.HTTPConfig.Validate())
 	errs.Merge("", c.HTTPTargetConfig.Validate(&targetOptions))
-	if c.LogFormat == "" {
-		c.LogFormat = formatJSON
-	} else if !validLogFormats[c.LogFormat] {
-		errs.Add("log_format", "must be json/text")
+	if c.Format == "" {
+		c.Format = formatJSON
+	} else if !validFormats[c.Format] {
+		errs.Add("format", "must be json/text")
 	}
 	labelFields, labelErrs := parseLabelFields(c.LabelFields)
 	errs.Merge("", labelErrs)
@@ -133,7 +133,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	if err != nil {
 		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
-	payload := buildPayload(d.cfg.LogFormat, d.cfg.labelFields, evt)
+	payload := buildPayload(d.cfg.Format, d.cfg.labelFields, evt)
 	return d.sender.SendGzipJSON(ctx, http.MethodPost, target, payload)
 }
 
@@ -142,7 +142,7 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if err != nil {
 		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
-	payload := buildBatchPayload(d.cfg.LogFormat, d.cfg.labelFields, events)
+	payload := buildBatchPayload(d.cfg.Format, d.cfg.labelFields, events)
 	return d.sender.SendGzipJSON(ctx, http.MethodPost, target, payload)
 }
 

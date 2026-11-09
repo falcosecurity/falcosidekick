@@ -6,7 +6,7 @@ Sends each event as an RFC 5424 message over UDP or TCP; TCP uses octet-counting
 
 - Device Vendor is `Falcosecurity` and Device Product `Falcosidekick`; Device Version is the Falcosidekick version; Device Event Class ID and Name are the rule; Severity follows the priority.
 - `rt` is the event time in epoch milliseconds, `dvchost` the hostname, `msg` the output, cut at 1023 characters, `externalId` the event UUID and `cat` the Falco source.
-- The first six output fields, in name order, go in `cs1` to `cs6` with the field name in `cs1Label` to `cs6Label`. The others, and the tags, go in keys starting with `FalcoFalcosidekick`, such as `FalcoFalcosidekickK8sNsName`: receivers keep them but may not index them.
+- The first six output fields, in name order, go in `cs1` to `cs6` with the field name in `cs1Label` to `cs6Label`, cut to the CEF lengths: 4000 characters for a value, 1023 for a label. The others, and the tags, go in keys starting with `FalcoFalcosidekick`, such as `FalcoFalcosidekickK8sNsName`: receivers keep them but may not index them.
 - Values are escaped as the CEF specification asks: `\`, `=` and line breaks in the extension, `\` and `|` in the header.
 
 ## Example

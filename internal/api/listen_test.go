@@ -27,6 +27,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/big"
 	"net"
@@ -36,6 +37,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -52,6 +54,9 @@ func freePort(t *testing.T) int {
 	return l.Addr().(*net.TCPAddr).Port
 }
 
+// testMetricName is served on /metrics by every server startServer runs.
+const testMetricName = "falcosidekick_test_gauge"
+
 // startServer runs a server on free ports with cfg adjusted by tune and stops it at the end of the test.
 func startServer(t *testing.T, tune func(*core.Config)) (srv *Server, port int) {
 	t.Helper()
@@ -63,7 +68,11 @@ func startServer(t *testing.T, tune func(*core.Config)) (srv *Server, port int) 
 	p, err := pipeline.NewPipeline(enricher, pipeline.NewDispatcher(nil), nil)
 	require.NoError(t, err)
 	p.Start(context.Background(), func() {})
-	srv, err = NewServer(&ServerConfig{Pipeline: p, Catalog: newTestCatalog(t), Logger: slog.New(slog.DiscardHandler), Config: cfg})
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(prometheus.NewGauge(prometheus.GaugeOpts{Name: testMetricName, Help: "Test gauge."}))
+	srv, err = NewServer(&ServerConfig{
+		Pipeline: p, Catalog: newTestCatalog(t), Logger: slog.New(slog.DiscardHandler), Config: cfg, Registry: registry,
+	})
 	require.NoError(t, err)
 	go func() { _ = srv.Start() }()
 	t.Cleanup(func() { _ = srv.Shutdown(context.Background()) })
@@ -123,8 +132,16 @@ func TestMutualTLSExemptsProbesAndMetrics(t *testing.T) {
 		assert.Equal(t, want, resp.StatusCode, path)
 	}
 
+	resp, err := anonymous.Get(base + "/metrics") //nolint:noctx // test scrape
+	require.NoError(t, err)
+	scrape, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode, "a scrape needs no client certificate")
+	assert.Contains(t, string(scrape), testMetricName)
+
 	event := []byte(`{"rule":"r","priority":"Warning","output":"o","time":"2026-01-01T00:00:00Z","output_fields":{"a":"b"}}`)
-	resp, err := anonymous.Post(base+"/", "application/json", bytes.NewReader(event)) //nolint:noctx // test request
+	resp, err = anonymous.Post(base+"/", "application/json", bytes.NewReader(event)) //nolint:noctx // test request
 	require.NoError(t, err)
 	_ = resp.Body.Close()
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode, "events need a client certificate")

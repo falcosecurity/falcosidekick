@@ -96,7 +96,7 @@ func (d *driver) message(evt *event.Event) (*mail.Msg, error) {
 	if err := msg.SetBodyTextTemplate(textTemplate, data); err != nil {
 		return nil, err
 	}
-	if d.cfg.OutputFormat == formatHTML {
+	if d.cfg.Format == formatHTML {
 		if err := msg.AddAlternativeHTMLTemplate(htmlTemplate, data); err != nil {
 			return nil, err
 		}

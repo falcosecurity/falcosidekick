@@ -134,6 +134,7 @@ func TestMaxLenDefault(t *testing.T) {
 	}{
 		{name: "stream default", raw: map[string]any{}, want: 100000},
 		{name: "explicit stream", raw: map[string]any{"storage_type": "stream"}, want: 100000},
+		{name: "null is unset", raw: map[string]any{"max_len": nil}, want: 100000},
 		{name: "unbounded", raw: map[string]any{"max_len": 0}, want: 0},
 		{name: "explicit", raw: map[string]any{"max_len": 50}, want: 50},
 		{name: "list", raw: map[string]any{"storage_type": "list"}, want: 0},

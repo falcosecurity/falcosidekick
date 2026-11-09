@@ -192,12 +192,17 @@ func TestResolveSeverityDefault(t *testing.T) {
 	}
 }
 
+// Keys are Falco priorities in any case Falco accepts, info included.
 func TestResolveSeverityCustomMapOverride(t *testing.T) {
-	o := &driver{cfg: config{
-		CustomSeverityMap: map[string]string{"critical": "P1", "warning": "P3"},
-	}}
+	d, err := createOutput(map[string]any{
+		"hosts":               []string{"http://am:9093"},
+		"custom_severity_map": map[string]any{"Critical": "P1", "warning": "P3", "info": "P5"},
+	}, output.Deps{})
+	require.NoError(t, err)
+	o := d.(*driver)
 	assert.Equal(t, "P1", o.resolveSeverity(event.PriorityCritical))
 	assert.Equal(t, "P3", o.resolveSeverity(event.PriorityWarning))
+	assert.Equal(t, "P5", o.resolveSeverity(event.PriorityInformational))
 	assert.Equal(t, "info", o.resolveSeverity(event.PriorityDebug))
 }
 
@@ -216,6 +221,11 @@ func TestConfigValidation(t *testing.T) {
 		{name: "dotted label name", cfg: map[string]any{"extra_labels": map[string]any{"k8s.ns": "a"}}, wantErr: `extra_labels["k8s.ns"]: name must match`},
 		{name: "label name with digit first", cfg: map[string]any{"extra_labels": map[string]any{"1env": "a"}}, wantErr: `extra_labels["1env"]: name must match`},
 		{name: "label name with dash", cfg: map[string]any{"extra_labels": map[string]any{"team-name": "a"}}, wantErr: `extra_labels["team-name"]: name must match`},
+		{name: "severity map by priority", cfg: map[string]any{"custom_severity_map": map[string]any{"Emergency": "P1", "informational": "P5"}}},
+		{name: "unknown severity map key", cfg: map[string]any{"custom_severity_map": map[string]any{"crit": "P1"}},
+			wantErr: `custom_severity_map["crit"]: must be a Falco priority`},
+		{name: "priority mapped twice", cfg: map[string]any{"custom_severity_map": map[string]any{"info": "P5", "informational": "P4"}},
+			wantErr: `custom_severity_map["informational"]: names a priority already mapped`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

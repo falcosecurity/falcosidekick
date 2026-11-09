@@ -169,6 +169,8 @@ func TestBuildEventGroupAndComponent(t *testing.T) {
 			wantGroup: "prod", wantComponent: "nginx",
 		},
 		{name: "empty container falls back to process", fields: map[string]any{"container.name": "", "proc.name": "bash"}, wantComponent: "bash"},
+		{name: "host is no container", fields: map[string]any{"container.name": "host", "proc.name": "sshd"}, wantComponent: "sshd"},
+		{name: "host without process sends no component", fields: map[string]any{"container.name": "host"}},
 		{name: "non-string values become strings", fields: map[string]any{"k8s.ns.name": float64(7), "proc.name": true}, wantGroup: "7", wantComponent: "true"},
 	}
 	for _, tt := range tests {

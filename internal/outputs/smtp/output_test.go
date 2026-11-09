@@ -129,7 +129,8 @@ func TestValidation(t *testing.T) {
 		{name: "tls block with none", config: with(base, "tls_mode", "none", "auth_mechanism", "none", "username", nil, "password", nil,
 			"tls", map[string]any{"insecure_skip_verify": true}), want: "tls: is not used with tls_mode none"},
 		{name: "missing ca", config: with(base, "tls", map[string]any{"ca_file": "/does/not/exist"}), want: "tls.ca_file"},
-		{name: "bad format", config: with(base, "output_format", "markdown"), want: `output_format: must be html/text`},
+		{name: "bad format", config: with(base, "format", "markdown"), want: `format: must be html/text`},
+		{name: "output_format renamed", config: with(base, "output_format", "text"), want: "unknown keys: output_format"},
 		{name: "identity removed", config: with(base, "identity", "admin"), want: "identity"},
 		{name: "v2 hostport", config: with(base, "hostport", "mail:25"), want: "hostport"},
 		{name: "v2 tls bool", config: with(base, "tls", false), want: "tls"},
@@ -166,7 +167,7 @@ func TestDefaults(t *testing.T) {
 	d := newTestDriver(t, with(baseConfig(), "runtime", map[string]any{"workers": 3}))
 	assert.Equal(t, "starttls", d.cfg.TLSMode)
 	assert.Equal(t, "plain", d.cfg.AuthMechanism)
-	assert.Equal(t, "html", d.cfg.OutputFormat)
+	assert.Equal(t, "html", d.cfg.Format)
 	assert.Equal(t, "mail.example", d.tlsConfig.ServerName)
 	assert.Equal(t, 3, d.RuntimeConfig().Workers)
 	require.Len(t, d.to, 2)
@@ -281,7 +282,7 @@ func TestHTMLMessage(t *testing.T) {
 }
 
 func TestTextMessage(t *testing.T) {
-	d := newTestDriver(t, with(baseConfig(), "output_format", "text"))
+	d := newTestDriver(t, with(baseConfig(), "format", "text"))
 	evt := testutil.CreateValidEvent()
 	evt.Hostname = ""
 	evt.Tags = nil

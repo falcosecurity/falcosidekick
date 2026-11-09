@@ -1,6 +1,6 @@
 # Email (SMTP)
 
-Sends one email per event, HTML or text. The subject is `[Priority] rule on hostname`, without `on hostname` when the event has none.
+Sends one email per event, HTML or text (`format`). The subject is `[Priority] rule on hostname`, without `on hostname` when the event has none.
 
 - `tls_mode` is `starttls` (required), `implicit`, `opportunistic` or `none`. Credentials are sent only over TLS or to localhost.
 - Startup connects, negotiates TLS and authenticates without sending mail: rejected credentials, a missing STARTTLS or an untrusted certificate stop startup.
@@ -41,7 +41,7 @@ Key in the output file: `smtp`. Category: Email. UI event source: no. Batching: 
 | `token` | string, secret | - | OAuth 2.0 access token for `xoauth2` authentication. Also accepted as `token_file`, the path of a file holding the value. |
 | `from` | string, **required** | - | One RFC 5322 address for the `From` header and envelope sender, such as `Falco <falco@example.com>`. |
 | `to` | list of strings, **required** | - | Recipients, one RFC 5322 address per entry. All receive the same message. |
-| `output_format` | one of `html`, `text` | `html` | `html` sends a multipart message with text and HTML parts; `text` sends plain text only. |
+| `format` | one of `html`, `text` | `html` | `html` sends a multipart message with text and HTML parts; `text` sends plain text only. |
 
 Also takes the shared settings in [TLS](common.md#tls), [Delivery](common.md#delivery).
 

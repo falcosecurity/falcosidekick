@@ -75,7 +75,7 @@ type config struct {
 	Password      string                 `mapstructure:"password"`
 	Token         string                 `mapstructure:"token"`
 	From          string                 `mapstructure:"from"`
-	OutputFormat  string                 `mapstructure:"output_format"`
+	Format        string                 `mapstructure:"format"`
 	To            []string               `mapstructure:"to"`
 	Runtime       output.RuntimeConfig   `mapstructure:"runtime"`
 	Port          int                    `mapstructure:"port"`
@@ -128,7 +128,7 @@ var OutputType = output.Type{
 				Description: "Recipients, one RFC 5322 address per entry. All receive the same message.",
 			},
 			{
-				Name: "output_format", Type: "enum", Values: []string{formatHTML, formatText}, Default: formatHTML, Label: "Output Format",
+				Name: "format", Type: "enum", Values: []string{formatHTML, formatText}, Default: formatHTML, Label: "Message Format",
 				Description: "`html` sends a multipart message with text and HTML parts; `text` sends plain text only.",
 			},
 		}, append(shared.TLSClientSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
@@ -176,10 +176,10 @@ func (c *config) validate() utils.ValidationErrors {
 	}
 	errs.Merge("", c.validateAuth())
 	errs.Merge("", c.validateAddresses())
-	if c.OutputFormat == "" {
-		c.OutputFormat = formatHTML
-	} else if c.OutputFormat != formatHTML && c.OutputFormat != formatText {
-		errs.Add("output_format", "must be html/text")
+	if c.Format == "" {
+		c.Format = formatHTML
+	} else if c.Format != formatHTML && c.Format != formatText {
+		errs.Add("format", "must be html/text")
 	}
 	errs.Merge("tls", c.TLS.Validate())
 	if len(errs) > 0 {

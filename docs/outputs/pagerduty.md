@@ -3,7 +3,7 @@
 Sends each event as an Events API v2 `trigger` event to `/v2/enqueue` on the `us` or `eu` host (`region`). The event UUID is the `dedup_key` and the severity follows the Falco priority. Not probed at startup: the Events API has no read route, so any request would open an alert.
 
 - `summary` is the output, `source` the hostname and `class` the rule.
-- `group` is the `k8s.ns.name` output field and `component` the `container.name` field, else `proc.name`; each is left out when the event lacks the field.
+- `group` is the `k8s.ns.name` output field and `component` the `container.name` field, else `proc.name` (also when `container.name` is `host`, Falco's name for an event outside a container); each is left out when the event lacks the field.
 - `custom_details` holds the output fields, plus `rule`, `priority`, `source`, `hostname` and `tags`, a sorted list.
 
 ## Example

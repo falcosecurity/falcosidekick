@@ -23,6 +23,10 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
+// templatePriority is above the built-in logs-*-* template (100), which would otherwise win for a
+// data stream such as logs-falco-default.
+const templatePriority = 200
+
 // createIndexTemplate uses the composable _index_template API, available since Elasticsearch 7.8.
 func (d *driver) createIndexTemplate(ctx context.Context) error {
 	templateURL, err := d.cfg.URL(d.cfg.Host, "/_index_template/"+d.cfg.Index, nil)
@@ -54,6 +58,7 @@ func (d *driver) createIndexTemplate(ctx context.Context) error {
 	}
 	tmpl := map[string]any{
 		"index_patterns": []string{pattern},
+		"priority":       templatePriority,
 		"template":       template,
 	}
 	if d.cfg.DataStream {

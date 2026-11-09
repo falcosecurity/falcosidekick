@@ -31,6 +31,13 @@ const (
 	maxTags         = 100
 	maxTagRunes     = 200
 	maxKeyRunes     = 100
+	maxHostRunes    = 255
+	// maxOutputFields bounds the custom attributes, which Datadog limits to 100 keys.
+	maxOutputFields = 100
+
+	// Datadog refuses a timestamp older than 18 hours; 17 leaves room for retries and clock skew.
+	maxTimestampAge = 17 * time.Hour
+	timestampLayout = "2006-01-02T15:04:05.000000Z07:00"
 
 	// source is a reserved tag in Datadog, so the Falco source gets its own key.
 	sourceTag = "falco_source:"
@@ -53,7 +60,7 @@ type attributes struct {
 	Category       string   `json:"category"`
 	AggregationKey string   `json:"aggregation_key,omitempty"`
 	Host           string   `json:"host,omitempty"`
-	Timestamp      string   `json:"timestamp"`
+	Timestamp      string   `json:"timestamp,omitempty"`
 	Tags           []string `json:"tags"`
 }
 
@@ -64,11 +71,21 @@ type alert struct {
 	Priority string         `json:"priority"`
 }
 
-// newPayload uses the event UUID as aggregation key so a retried event is deduplicated.
-func newPayload(evt *event.Event) request {
-	var custom map[string]any
+// newPayload uses the event UUID as aggregation key so a retried event is deduplicated. An event
+// older than maxTimestampAge at now has no timestamp, so Datadog accepts it at receive time, and
+// carries its time in custom.event_time.
+func newPayload(evt *event.Event, now time.Time) request {
+	custom := make(map[string]any, 2)
 	if len(evt.OutputFields) > 0 {
-		custom = map[string]any{"output_fields": evt.OutputFields}
+		custom["output_fields"] = capOutputFields(evt.OutputFields)
+	}
+	timestamp := evt.Time.UTC().Format(timestampLayout)
+	if now.Sub(evt.Time) > maxTimestampAge {
+		custom["event_time"] = timestamp
+		timestamp = ""
+	}
+	if len(custom) == 0 {
+		custom = nil
 	}
 	return request{Data: data{
 		Type: "event",
@@ -77,12 +94,24 @@ func newPayload(evt *event.Event) request {
 			Message:        shared.TruncateRunes(evt.Output, maxMessageRunes),
 			Category:       "alert",
 			AggregationKey: shared.TruncateRunes(evt.UUID, maxKeyRunes),
-			Host:           evt.Hostname,
-			Timestamp:      evt.Time.UTC().Format(time.RFC3339Nano),
+			Host:           shared.TruncateRunes(evt.Hostname, maxHostRunes),
+			Timestamp:      timestamp,
 			Tags:           eventTags(evt),
 			Attributes:     alert{Status: alertStatus(evt.Priority), Priority: alertPriority(evt.Priority), Custom: custom},
 		},
 	}}
+}
+
+// capOutputFields keeps the first maxOutputFields keys in sorted order.
+func capOutputFields(fields map[string]any) map[string]any {
+	if len(fields) <= maxOutputFields {
+		return fields
+	}
+	kept := make(map[string]any, maxOutputFields)
+	for _, k := range shared.SortMapKeys(fields)[:maxOutputFields] {
+		kept[k] = fields[k]
+	}
+	return kept
 }
 
 // eventTags returns falco_source and the sorted rule tags within the per-event and per-tag limits.

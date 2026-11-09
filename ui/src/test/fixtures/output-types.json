@@ -98,7 +98,7 @@
             "type": "map"
           },
           {
-            "description": "Value of the `severity` label by lowercase Falco priority, such as `critical: P1`. Priorities not listed get `critical`, `warning` or `info`.",
+            "description": "Value of the `severity` label by Falco priority, in any case, such as `critical: P1`; other keys are refused. Priorities not listed get `critical`, `warning` or `info`.",
             "label": "Custom Severity Map",
             "name": "custom_severity_map",
             "required": false,
@@ -2801,7 +2801,6 @@
             "required": false,
             "type": "enum",
             "values": [
-              "",
               "PLAIN",
               "SCRAM-SHA-256",
               "SCRAM-SHA-512"
@@ -3122,8 +3121,8 @@
           {
             "default": "json",
             "description": "Content of each log line: `json` is the whole event as JSON, `text` is the event output text only.",
-            "label": "Log Format",
-            "name": "log_format",
+            "label": "Log Line Format",
+            "name": "format",
             "required": false,
             "type": "enum",
             "values": [
@@ -4988,8 +4987,8 @@
           {
             "default": "html",
             "description": "`html` sends a multipart message with text and HTML parts; `text` sends plain text only.",
-            "label": "Output Format",
-            "name": "output_format",
+            "label": "Message Format",
+            "name": "format",
             "required": false,
             "type": "enum",
             "values": [

@@ -43,10 +43,11 @@ const (
 var targetOptions = shared.HTTPTargetOptions{DefaultEndpoint: defaultEndpoint, ExternalHosts: true}
 
 type config struct {
-	ExtraLabels             map[string]string `mapstructure:"extra_labels"`
-	ExtraAnnotations        map[string]string `mapstructure:"extra_annotations"`
-	CustomSeverityMap       map[string]string `mapstructure:"custom_severity_map"`
-	GeneratorURL            string            `mapstructure:"generator_url"`
+	ExtraLabels             map[string]string         `mapstructure:"extra_labels"`
+	ExtraAnnotations        map[string]string         `mapstructure:"extra_annotations"`
+	CustomSeverityMap       map[string]string         `mapstructure:"custom_severity_map"`
+	severities              map[event.Priority]string // CustomSeverityMap by parsed priority, set by validate
+	GeneratorURL            string                    `mapstructure:"generator_url"`
 	shared.HTTPTargetConfig `mapstructure:",squash"`
 	shared.HTTPConfig       `mapstructure:",squash"`
 	Hosts                   []string             `mapstructure:"hosts"`
@@ -89,7 +90,7 @@ var OutputType = output.Type{
 			},
 			{
 				Name: "custom_severity_map", Type: "map", Label: "Custom Severity Map",
-				Description: "Value of the `severity` label by lowercase Falco priority, such as `critical: P1`. " +
+				Description: "Value of the `severity` label by Falco priority, in any case, such as `critical: P1`; other keys are refused. " +
 					"Priorities not listed get `critical`, `warning` or `info`.",
 			},
 		}...), append(shared.HTTPConfigSchemaFields(), shared.RuntimeConfigSchemaFields()...)...),
@@ -117,6 +118,19 @@ func (c *config) validate() utils.ValidationErrors {
 	for _, key := range shared.SortMapKeys(c.ExtraLabels) {
 		if !labelName.MatchString(key) {
 			errs.Add(fmt.Sprintf("extra_labels[%q]", key), "name must match [a-zA-Z_][a-zA-Z0-9_]*")
+		}
+	}
+	c.severities = make(map[event.Priority]string, len(c.CustomSeverityMap))
+	for _, key := range shared.SortMapKeys(c.CustomSeverityMap) {
+		p, err := event.ParsePriority(key)
+		_, mapped := c.severities[p]
+		switch {
+		case err != nil:
+			errs.Add(fmt.Sprintf("custom_severity_map[%q]", key), "must be a Falco priority, such as critical")
+		case mapped:
+			errs.Add(fmt.Sprintf("custom_severity_map[%q]", key), "names a priority already mapped")
+		default:
+			c.severities[p] = c.CustomSeverityMap[key]
 		}
 	}
 	if len(errs) > 0 {

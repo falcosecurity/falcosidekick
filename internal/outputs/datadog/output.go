@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -107,6 +108,7 @@ func intakeHost(site string) string { return "https://event-management-intake." 
 
 type driver struct {
 	sender *shared.Sender
+	now    func() time.Time
 	cfg    config
 }
 
@@ -150,7 +152,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	}
 	sender.SetHeader(apiKeyName, cfg.APIKey)
 	sender.SetHeader(appKeyName, cfg.AppKey)
-	return &driver{sender: sender, cfg: cfg}, nil
+	return &driver{sender: sender, now: time.Now, cfg: cfg}, nil
 }
 
 func (d *driver) Name() string { return name }
@@ -162,7 +164,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	if err != nil {
 		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
-	return d.sender.SendJSON(ctx, http.MethodPost, target, newPayload(evt))
+	return d.sender.SendJSON(ctx, http.MethodPost, target, newPayload(evt, d.now()))
 }
 
 // HealthCheck validates both keys without posting an event.

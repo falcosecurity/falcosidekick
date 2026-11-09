@@ -350,7 +350,11 @@ func (s *Server) writeMutationError(c fiber.Ctx, name, verb string, err error) e
 	case errors.Is(err, reload.ErrDatabaseUnavailable):
 		return s.databaseUnavailable(c, name, err)
 	default:
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": verb + " output: " + err.Error()})
+		// The error can carry destination or backend details a client must not see.
+		s.logger.Error("output change failed", "output", name, "operation", verb, "error", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": verb + " output '" + name + "' failed; see the falcosidekick log",
+		})
 	}
 }
 

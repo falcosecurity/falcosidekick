@@ -385,6 +385,7 @@ func TestInitTemplateDataStream(t *testing.T) {
 
 			assert.Equal(t, tc.wantTemplate, path)
 			assert.Equal(t, []any{tc.wantPattern}, tmpl["index_patterns"])
+			assert.EqualValues(t, 200, tmpl["priority"], "above the built-in logs-*-* template")
 			stream, has := tmpl["data_stream"]
 			assert.Equal(t, tc.wantStream, has)
 			if tc.wantStream {

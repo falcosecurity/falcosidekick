@@ -28,7 +28,9 @@ import (
 type MetricsCollector interface {
 	// RecordRequest counts a request to the ingestion endpoint: IngestAccepted or IngestInvalid.
 	RecordRequest(ctx context.Context, status string)
-	RecordOutput(ctx context.Context, output string, status string, events int64, duration time.Duration)
+	RecordOutput(ctx context.Context, output string, status string, events int64)
+	// ObserveRequest records the duration of one delivery attempt, failed or not.
+	ObserveRequest(ctx context.Context, output string, duration time.Duration)
 	RecordDrop(ctx context.Context, output string, events int64)
 	RecordEvent(ctx context.Context, evt *event.Event)
 }

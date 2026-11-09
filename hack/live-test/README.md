@@ -66,4 +66,4 @@ Every criterion is a hard blocker: any failure exits the script non-zero.
 
 - If `kind load docker-image` fails, run `make image` and retry.
 - If the pod doesn't become Ready, check `kubectl -n falco describe pod <falcosidekick-pod>` and `kubectl -n falco logs <falcosidekick-pod>`.
-- If criterion 6 fails, inspect `kubectl -n falco logs deploy/falco -c falco` for the `Read sensitive file untrusted` rule firing; if Falco logs the rule but falcosidekick never sees it, check the `Config` CR's `http_output.url` and DNS resolution from the Falco pod (`curl http://falcosidekick.falco.svc:2801/healthz` from inside a Falco pod).
+- If criterion 6 fails, inspect `kubectl -n falco logs deploy/falco -c falco` for the `Read sensitive file untrusted` rule firing; if Falco logs the rule but falcosidekick never sees it, check the `Config` CR's `http_output.url` and DNS resolution from the Falco pod (`curl http://falcosidekick.falco.svc:2801/readyz` from inside a Falco pod).

@@ -146,7 +146,8 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
 		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
-	if _, set := raw["max_len"]; !set && cfg.StorageType == storageStream {
+	// A null max_len, as the UI sends on reset, is unset like a missing key.
+	if v, set := raw["max_len"]; (!set || v == nil) && cfg.StorageType == storageStream {
 		cfg.MaxLen = defaultMaxLen
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
