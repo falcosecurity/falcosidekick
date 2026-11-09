@@ -330,13 +330,22 @@ func newMarker(t *testing.T) string {
 	return hex.EncodeToString(b)
 }
 
-func requireEnv(t *testing.T, name string) string {
+// requireSwitch makes a missing service variable fail the test; CI sets it in every service job.
+const requireSwitch = "FALCOSIDEKICK_E2E_REQUIRE"
+
+// requireEnv skips the test when the service variable is unset, or fails it when requireSwitch is "1".
+func requireEnv(t testing.TB, name string) string {
 	t.Helper()
 	value := os.Getenv(name)
-	if value == "" {
+	if value != "" {
+		return value
+	}
+	if os.Getenv(requireSwitch) == "1" {
+		t.Fatalf("%s not set and %s=1", name, requireSwitch)
+	} else {
 		t.Skipf("%s not set", name)
 	}
-	return value
+	return ""
 }
 
 // httpClient has a timeout so a stuck destination fails the test instead of hanging it.

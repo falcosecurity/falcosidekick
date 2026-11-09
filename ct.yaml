@@ -1,0 +1,9 @@
+# chart-testing configuration, as in falcosecurity/charts with the chart under chart/.
+remote: origin
+validate-maintainers: false
+target-branch: master
+chart-repos:
+  - falcosecurity=https://falcosecurity.github.io/charts
+helm-extra-args: --timeout 800s
+chart-dirs:
+  - chart

@@ -16,26 +16,29 @@ concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Each service job sets FALCOSIDEKICK_E2E_REQUIRE: a test whose service variable is missing fails instead of skipping.
 jobs:
   self-contained:
     name: e2e self-contained outputs
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Run end-to-end tests without external services
         run: go test -count=1 -v -tags e2e ./test/e2e/
 
   postgres:
     name: e2e postgres ${{ matrix.postgres }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     strategy:
@@ -57,13 +60,13 @@ jobs:
           --health-timeout 5s
           --health-retries 30
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Run database, replica and startup tests on postgres
         env:
           FALCOSIDEKICK_E2E_POSTGRES_DSN: postgres://fsk:fsk@127.0.0.1:5432/fsk?sslmode=disable
@@ -73,6 +76,7 @@ jobs:
   loki:
     name: e2e loki ${{ matrix.loki }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     strategy:
@@ -84,14 +88,16 @@ jobs:
         image: grafana/loki:${{ matrix.loki }}
         ports:
           - 3100:3100
+    env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Start multi-tenant Loki
         env:
           LOKI_VERSION: ${{ matrix.loki }}
@@ -118,6 +124,7 @@ jobs:
   alertmanager:
     name: e2e alertmanager ${{ matrix.version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     strategy:
@@ -133,21 +140,23 @@ jobs:
           --health-cmd "wget -q -O- http://127.0.0.1:9093/-/ready || exit 1"
           --health-interval 5s --health-timeout 3s --health-retries 20
     env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
       FALCOSIDEKICK_E2E_ALERTMANAGER_URL: http://127.0.0.1:9093
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Run Alertmanager tests
         run: go test -count=1 -v -tags e2e -run Alertmanager ./test/e2e/
 
   kafka:
     name: e2e kafka ${{ matrix.kafka }}
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
     strategy:
@@ -155,19 +164,20 @@ jobs:
       matrix:
         kafka: ['4.4.0', '3.9.2']
     env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
       FALCOSIDEKICK_E2E_KAFKA_BROKERS: 127.0.0.1:19094
       FALCOSIDEKICK_E2E_KAFKA_SASL_BROKERS: 127.0.0.1:19095
       FALCOSIDEKICK_E2E_KAFKA_SASL_USER: e2e
       FALCOSIDEKICK_E2E_KAFKA_SASL_PASSWORD: e2e-secret
       FALCOSIDEKICK_E2E_KAFKA_TLS_BROKERS: 127.0.0.1:19096
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Generate broker TLS material
         run: |
           d="$RUNNER_TEMP/kafka-tls"; mkdir -p "$d"; cd "$d" || exit 1
@@ -221,6 +231,7 @@ jobs:
   elasticsearch:
     name: e2e ${{ matrix.name }}
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
     strategy:
@@ -233,15 +244,16 @@ jobs:
           - { name: opensearch-2, image: "docker.io/opensearchproject/opensearch:2.19.7", flavor: os }
           - { name: opensearch-3, image: "docker.io/opensearchproject/opensearch:3.9.0", flavor: os }
     env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
       ES_PASSWORD: "Falcosidekick-E2E-2026!"
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Start server
         env:
           IMAGE: ${{ matrix.image }}
@@ -295,18 +307,20 @@ jobs:
   aws:
     name: e2e aws s3, sqs, sns (localstack)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
       FALCOSIDEKICK_E2E_AWS_ENDPOINT: http://127.0.0.1:4566
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Start LocalStack
         run: |
           docker run -d --name fsk-e2e-localstack -p 127.0.0.1:4566:4566 -e SERVICES=s3,sqs,sns,sts localstack/localstack:4.14.0
@@ -323,18 +337,20 @@ jobs:
   gcppubsub:
     name: e2e gcp pub/sub (emulator)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
     env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
       FALCOSIDEKICK_E2E_PUBSUB_EMULATOR: 127.0.0.1:8085
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Start Pub/Sub emulator
         run: |
           docker run -d --name fsk-e2e-pubsub -p 127.0.0.1:8085:8085 \
@@ -350,21 +366,23 @@ jobs:
   smtp:
     name: e2e smtp (mailpit)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
       FALCOSIDEKICK_E2E_SMTP_ADDR: localhost:11025
       FALCOSIDEKICK_E2E_SMTP_USER: fsk
       FALCOSIDEKICK_E2E_SMTP_PASSWORD: fsk-e2e-password
       FALCOSIDEKICK_E2E_MAILPIT_API: http://127.0.0.1:18025
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Start Mailpit
         run: |
           docker run -d --name fsk-e2e-mailpit -p 127.0.0.1:11025:1025 -p 127.0.0.1:18025:8025 \
@@ -381,23 +399,25 @@ jobs:
   redis:
     name: e2e redis 7.4 and 8
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
       FALCOSIDEKICK_E2E_REDIS_ADDR: 127.0.0.1:16379,127.0.0.1:16380
       FALCOSIDEKICK_E2E_REDIS_PASSWORD: fsk-e2e-redis
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Start Redis
         run: |
-          docker run -d --name fsk-e2e-redis7 -p 127.0.0.1:16379:6379 redis:7.4 redis-server --requirepass "$FALCOSIDEKICK_E2E_REDIS_PASSWORD"
-          docker run -d --name fsk-e2e-redis8 -p 127.0.0.1:16380:6379 redis:8 redis-server --requirepass "$FALCOSIDEKICK_E2E_REDIS_PASSWORD"
+          docker run -d --name fsk-e2e-redis7 -p 127.0.0.1:16379:6379 redis:7.4.12 redis-server --requirepass "$FALCOSIDEKICK_E2E_REDIS_PASSWORD"
+          docker run -d --name fsk-e2e-redis8 -p 127.0.0.1:16380:6379 redis:8.10.3 redis-server --requirepass "$FALCOSIDEKICK_E2E_REDIS_PASSWORD"
           for c in fsk-e2e-redis7 fsk-e2e-redis8; do
             timeout 60 bash -c "until docker exec $c redis-cli -a \"\$FALCOSIDEKICK_E2E_REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG; do sleep 1; done"
           done
@@ -410,19 +430,21 @@ jobs:
   otlp:
     name: e2e otlp (collector)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
       FALCOSIDEKICK_E2E_OTLP_GRPC: http://127.0.0.1:14317
       FALCOSIDEKICK_E2E_OTLP_HTTP: http://127.0.0.1:14318
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - name: Start collector
         run: |
           out="$RUNNER_TEMP/otel-out"; mkdir -p "$out"; chmod 777 "$out"
@@ -443,16 +465,19 @@ jobs:
   policyreport:
     name: e2e policyreport (kind, openreports)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
+    env:
+      FALCOSIDEKICK_E2E_REQUIRE: '1'
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
         with:
           version: v0.30.0
