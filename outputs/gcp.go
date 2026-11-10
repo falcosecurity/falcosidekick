@@ -157,7 +157,7 @@ func (c *Client) GCPCallCloudFunction(falcopayload types.FalcoPayload) {
 	}, gax.WithGRPCOptions())
 	if err != nil {
 		utils.Log(utils.ErrorLvl, c.OutputType+" CloudFunctions", fmt.Sprintf("Error while calling CloudFunction: %v", err))
-		c.Stats.GCPPubSub.Add(Error, 1)
+		c.Stats.GCPCloudFunctions.Add(Error, 1)
 		go c.CountMetric("outputs", 1, []string{"output:gcpcloudfunctions", "status:error"})
 		c.PromStats.Outputs.With(map[string]string{"destination": "gcpcloudfunctions", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpcloudfunctions"),
@@ -165,9 +165,12 @@ func (c *Client) GCPCallCloudFunction(falcopayload types.FalcoPayload) {
 		return
 	}
 
-	utils.Log(utils.ErrorLvl, c.OutputType+" CloudFunctions", fmt.Sprintf("Call CloudFunction OK (%v)", result.ExecutionId))
+	utils.Log(utils.InfoLvl, c.OutputType+" CloudFunctions", fmt.Sprintf("Call CloudFunction OK (%v)", result.ExecutionId))
 	c.Stats.GCPCloudFunctions.Add(OK, 1)
 	go c.CountMetric("outputs", 1, []string{"output:gcpcloudfunctions", "status:ok"})
+	c.PromStats.Outputs.With(map[string]string{"destination": "gcpcloudfunctions", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "gcpcloudfunctions"),
+		attribute.String("status", OK)).Inc()
 }
 
 // GCPPublishTopic sends a message to a GCP PubSub Topic
