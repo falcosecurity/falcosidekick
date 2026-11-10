@@ -101,6 +101,8 @@ type OCSFProduct struct {
 	Name       string `json:"name" parquet:"name=name, type=BYTE_ARRAY, convertedtype=UTF8"`
 }
 
+const awsSecurityLakeDestination = "awssecuritylake"
+
 func NewOCSFSecurityFinding(falcopayload types.FalcoPayload) OCSFSecurityFinding {
 	ocsfsf := OCSFSecurityFinding{
 		ActivityID:   1,
@@ -202,10 +204,10 @@ func getAWSSecurityLakeSeverity(priority types.PriorityType) (int32, string) {
 func (c *Client) EnqueueSecurityLake(falcopayload types.FalcoPayload) {
 	offset, err := c.Config.AWS.SecurityLake.Memlog.Write(c.Config.AWS.SecurityLake.Ctx, []byte(falcopayload.String()))
 	if err != nil {
-		go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
+		go c.CountMetric(Outputs, 1, []string{"output:" + awsSecurityLakeDestination, "status:" + Error})
 		c.Stats.AWSSecurityLake.Add(Error, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
-		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+		c.PromStats.Outputs.With(map[string]string{"destination": awsSecurityLakeDestination, "status": Error}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", awsSecurityLakeDestination),
 			attribute.String("status", Error)).Inc()
 		utils.Log(utils.ErrorLvl, c.OutputType+" SecurityLake", err.Error())
 		return
@@ -234,10 +236,10 @@ func (c *Client) processNextBatch() error {
 	count, err := ml.ReadBatch(ctx, *awslake.ReadOffset+1, batch)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
+			go c.CountMetric(Outputs, 1, []string{"output:" + awsSecurityLakeDestination, "status:" + Error})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
-			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
-			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+			c.PromStats.Outputs.With(map[string]string{"destination": awsSecurityLakeDestination, "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", awsSecurityLakeDestination),
 				attribute.String("status", Error)).Inc()
 			utils.Log(utils.ErrorLvl, c.OutputType+" SecurityLake", err.Error())
 			// ctx currently not handled in main
@@ -248,10 +250,10 @@ func (c *Client) processNextBatch() error {
 		if errors.Is(err, memlog.ErrOutOfRange) {
 			earliest, _ := ml.Range(ctx)
 
-			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
+			go c.CountMetric(Outputs, 1, []string{"output:" + awsSecurityLakeDestination, "status:" + Error})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
-			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
-			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+			c.PromStats.Outputs.With(map[string]string{"destination": awsSecurityLakeDestination, "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", awsSecurityLakeDestination),
 				attribute.String("status", Error)).Inc()
 
 			earliest = earliest - 1 // to ensure next batch includes earliest as we read from ReadOffset+1
@@ -267,10 +269,10 @@ func (c *Client) processNextBatch() error {
 
 		// catch all other errors besides ErrFutureOffset which could contain a partial batch
 		if !errors.Is(err, memlog.ErrFutureOffset) {
-			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
+			go c.CountMetric(Outputs, 1, []string{"output:" + awsSecurityLakeDestination, "status:" + Error})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
-			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
-			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+			c.PromStats.Outputs.With(map[string]string{"destination": awsSecurityLakeDestination, "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", awsSecurityLakeDestination),
 				attribute.String("status", Error)).Inc()
 			utils.Log(utils.ErrorLvl, c.OutputType+" SecurityLake", err.Error())
 			return err
@@ -281,19 +283,19 @@ func (c *Client) processNextBatch() error {
 		uid := uuid.New().String()
 
 		if err := c.writeParquet(uid, batch[:count]); err != nil {
-			go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:error"})
+			go c.CountMetric(Outputs, 1, []string{"output:" + awsSecurityLakeDestination, "status:" + Error})
 			c.Stats.AWSSecurityLake.Add(Error, 1)
-			c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": Error}).Inc()
-			c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+			c.PromStats.Outputs.With(map[string]string{"destination": awsSecurityLakeDestination, "status": Error}).Inc()
+			c.OTLPMetrics.Outputs.With(attribute.String("destination", awsSecurityLakeDestination),
 				attribute.String("status", Error)).Inc()
 			// we don't update ReadOffset to retry and not skip records
 			return err
 		}
 
-		go c.CountMetric(Outputs, 1, []string{"output:awssecuritylake.", "status:ok"})
+		go c.CountMetric(Outputs, 1, []string{"output:" + awsSecurityLakeDestination, "status:" + OK})
 		c.Stats.AWSSecurityLake.Add(OK, 1)
-		c.PromStats.Outputs.With(map[string]string{"destination": "awssecuritylake.", "status": "ok"}).Inc()
-		c.OTLPMetrics.Outputs.With(attribute.String("destination", "awssecuritylake"),
+		c.PromStats.Outputs.With(map[string]string{"destination": awsSecurityLakeDestination, "status": OK}).Inc()
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", awsSecurityLakeDestination),
 			attribute.String("status", OK)).Inc()
 
 		// update offset
