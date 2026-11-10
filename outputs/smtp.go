@@ -151,6 +151,11 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 		c.ReportErr("Client error", err)
 		return
 	}
+	defer func() {
+		if err := smtpClient.Quit(); err != nil {
+			_ = smtpClient.Close()
+		}
+	}()
 
 	if c.Config.SMTP.AuthMechanism != None {
 		auth, err := c.GetAuth()
