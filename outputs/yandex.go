@@ -53,6 +53,7 @@ func NewYandexClient(config *types.Configuration, stats *types.Statistics, promS
 
 // UploadYandexS3 uploads payload to Yandex S3
 func (c *Client) UploadYandexS3(falcopayload types.FalcoPayload) {
+	c.Stats.YandexS3.Add(Total, 1)
 	f, _ := json.Marshal(falcopayload)
 	prefix := ""
 	t := time.Now()
@@ -72,6 +73,7 @@ func (c *Client) UploadYandexS3(falcopayload types.FalcoPayload) {
 	})
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:yandexs3", "status:error"})
+		c.Stats.YandexS3.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": Error}).Inc()
 		c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
 			attribute.String("status", Error)).Inc()
@@ -82,13 +84,15 @@ func (c *Client) UploadYandexS3(falcopayload types.FalcoPayload) {
 	utils.Log(utils.InfoLvl, c.OutputType+" S3", "Upload payload OK")
 
 	go c.CountMetric("outputs", 1, []string{"output:yandexs3", "status:ok"})
-	c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": "ok"}).Inc()
+	c.Stats.YandexS3.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": "yandexs3", "status": OK}).Inc()
 	c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
 		attribute.String("status", OK)).Inc()
 }
 
 // UploadYandexDataStreams uploads payload to Yandex Data Streams
 func (c *Client) UploadYandexDataStreams(falcoPayLoad types.FalcoPayload) {
+	c.Stats.YandexDataStreams.Add(Total, 1)
 	svc := kinesis.NewFromConfig(*c.AWSConfig, func(o *kinesis.Options) {
 		o.BaseEndpoint = aws.String(c.Config.Yandex.DataStreams.Endpoint)
 		o.Region = c.Config.Yandex.Region
@@ -105,17 +109,18 @@ func (c *Client) UploadYandexDataStreams(falcoPayLoad types.FalcoPayload) {
 	resp, err := svc.PutRecord(context.Background(), input)
 	if err != nil {
 		go c.CountMetric("outputs", 1, []string{"output:yandexdatastreams", "status:error"})
+		c.Stats.YandexDataStreams.Add(Error, 1)
 		c.PromStats.Outputs.With(map[string]string{"destination": "yandexdatastreams", "status": Error}).Inc()
-		c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
+		c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexdatastreams"),
 			attribute.String("status", Error)).Inc()
 		utils.Log(utils.ErrorLvl, c.OutputType+" Data Streams", err.Error())
 		return
 	}
 
-	utils.Log(utils.InfoLvl, c.OutputType+"Data Streams", fmt.Sprintf("Put Record OK (%v)", resp.SequenceNumber))
+	utils.Log(utils.InfoLvl, c.OutputType+" Data Streams", fmt.Sprintf("Put Record OK (%v)", resp.SequenceNumber))
 	go c.CountMetric("outputs", 1, []string{"output:yandexdatastreams", "status:ok"})
 	c.Stats.YandexDataStreams.Add(OK, 1)
-	c.PromStats.Outputs.With(map[string]string{"destination": "yandexdatastreams", "status": "ok"}).Inc()
-	c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexs3"),
+	c.PromStats.Outputs.With(map[string]string{"destination": "yandexdatastreams", "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", "yandexdatastreams"),
 		attribute.String("status", OK)).Inc()
 }
