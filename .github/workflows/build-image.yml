@@ -41,6 +41,5 @@ jobs:
           make goreleaser-snapshot
           docker images
           docker run falcosecurity/falcosidekick:latest-amd64 --version
-          docker run public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 --version
         env:
           GOPATH: /home/runner/go

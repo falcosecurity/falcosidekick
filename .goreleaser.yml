@@ -56,7 +56,6 @@ dockers_v2:
 
     images:
       - "falcosecurity/falcosidekick"
-      - "public.ecr.aws/falcosecurity/falcosidekick"
     tags:
       - stable
       - "{{ .Version }}"
