@@ -206,7 +206,7 @@ func TestElasticsearchReportsRejectedEvent(t *testing.T) {
 		{
 			name:    "bulk",
 			runtime: "  runtime:\n    batching:\n      enabled: true\n      batch_size: 1\n      flush_interval: 100ms\n",
-			error:   "bulk indexed 0/1, 1 failed",
+			error:   "bulk indexed 0/1, 1 rejected",
 		},
 	}
 	for _, tt := range tests {
