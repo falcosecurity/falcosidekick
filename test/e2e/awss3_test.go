@@ -210,8 +210,6 @@ func TestAWSS3MissingBucketStartsDegraded(t *testing.T) {
 	assert.NotContains(t, logs, target.secret)
 }
 
-// LocalStack community accepts any credentials, so a rejected key cannot be
-// produced here; the unit tests cover the classification.
 func TestAWSS3RejectedCredentialsStartDegraded(t *testing.T) {
 	localstack(t)
 	t.Skip("LocalStack community does not validate credentials")

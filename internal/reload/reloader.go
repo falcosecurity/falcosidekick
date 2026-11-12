@@ -54,9 +54,8 @@ type ReloaderConfig struct {
 	APIOutputs map[string]map[string]any
 	// StoredAPIOutputs are APIOutputs as stored, secret and File field files unresolved.
 	StoredAPIOutputs map[string]map[string]any
-	// InitialDigests and APIDigests are the FileDigests of InitialOutputs and APIOutputs, read before
-	// they were built so they describe the files the running drivers read. An output without one is
-	// rebuilt once by the next reload.
+	// InitialDigests and APIDigests are the FileDigests of InitialOutputs and APIOutputs, read before they were built so they describe
+	// the files the running drivers read. An output without one is rebuilt once by the next reload.
 	InitialDigests map[string]string
 	APIDigests     map[string]string
 	// APIVersions are the stored versions of APIOutputs; FailedAPIVersions those that did not build at startup.
@@ -169,9 +168,8 @@ func copyRunningConfigs(dst, src, running map[string]map[string]any) {
 	}
 }
 
-// FileDigests returns the digest of the File field files of each of configs, to be read before the
-// outputs are built and passed to NewReloader. A config whose files cannot be read gets none, so the
-// first reload that reads them rebuilds the output once.
+// FileDigests returns the digest of the File field files of each of configs, to be read before the outputs are built and passed to
+// NewReloader. A config whose files cannot be read gets none, so the first reload that reads them rebuilds the output once.
 func FileDigests(cat *catalog.Catalog, configs map[string]map[string]any) map[string]string {
 	digests := make(map[string]string, len(configs))
 	for name, cfg := range configs {
@@ -249,9 +247,8 @@ func (r *Reloader) FilePaths() []string {
 	return slices.Compact(files)
 }
 
-// ApplyOutput applies one UI-driven output config to the dispatcher and persists it, returning the
-// stored version. version is the stored version cfg was built from, 0 for an output not stored yet;
-// with a database, any other stored version returns core.ErrVersionConflict.
+// ApplyOutput applies one UI-driven output config to the dispatcher and persists it, returning the stored version. version is the
+// stored version cfg was built from, 0 for one not stored yet; with a database, any other stored version is core.ErrVersionConflict.
 func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, cfg map[string]any) (int64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -643,10 +640,8 @@ func (r *Reloader) forgetAPIOutput(name string) {
 	delete(r.rotationFailed, name)
 }
 
-// Reconcile applies the API outputs other instances changed in the database: it starts, replaces or
-// stops them without writing back. A change that does not build here leaves the previous output
-// running, reported with the version it could not apply, and is tried again at the next reconcile.
-// Outputs from files, and names the files define, are left to file reloads.
+// Reconcile starts, replaces or stops the API outputs other instances changed in the database, without writing back; names the files
+// define are left to file reloads. A change that does not build keeps the previous output running, reports its version and is retried next time.
 func (r *Reloader) Reconcile(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -29,11 +29,7 @@ import type {
   VersionInfo,
 } from "./types"
 
-/**
- * Single HTTP boundary for the UI. Every backend call in the app goes through
- * the helpers exported from this module. See the ESLint restricted-imports
- * rule that forbids direct `fetch` / `axios.*` usage elsewhere.
- */
+// Every backend call goes through this module; an ESLint restricted-imports rule forbids direct fetch and axios use elsewhere.
 
 const BASE_URL = "/api/v1"
 

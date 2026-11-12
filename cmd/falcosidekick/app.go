@@ -262,9 +262,8 @@ func (a *app) serve(errCh chan<- error) {
 	}()
 }
 
-// startReplicaSync keeps the API outputs of this instance in step with the shared postgres database:
-// a reconcile runs on each change notification, after each (re)connection of the listener, and every
-// poll_interval, since notifications can be lost. Other backends have a single instance.
+// startReplicaSync keeps the API outputs of this instance in step with the shared postgres database: a reconcile runs on each change
+// notification, after each (re)connection of the listener, and every poll_interval, since notifications can be lost.
 func (a *app) startReplicaSync(appCtx context.Context, cfg *core.DatabaseConfig) error {
 	if cfg.Backend != core.DatabasePostgres {
 		return nil

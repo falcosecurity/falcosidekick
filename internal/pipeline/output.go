@@ -298,9 +298,8 @@ func (o *Output) Close() error {
 	return o.driver.Close()
 }
 
-// Retire closes the queue, drains, then closes the driver, all bounded by ctx; call it once.
-// On deadline it cancels the workers; the driver is closed only after they exit, never during Send,
-// and Retired reports when that happened.
+// Retire closes the queue, drains, then closes the driver, all bounded by ctx; call it once. On deadline it cancels the workers; the
+// driver is closed only after they exit, never during Send, and Retired reports when that happened.
 func (o *Output) Retire(ctx context.Context) error {
 	close(o.queue)
 	go func() {

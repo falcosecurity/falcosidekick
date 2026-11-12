@@ -284,9 +284,8 @@ func (d *driver) Close() error {
 	return nil
 }
 
-// replyPrefixes are the error prefixes Redis documents, mapped to whether the same command can never succeed:
-// a key of another type or rejected credentials. Every other reply, BUSY or LOADING included, is retried.
-// The rest of a reply can echo submitted values.
+// replyPrefixes are the error prefixes Redis documents, mapped to whether the same command can never succeed: a key of another type or
+// rejected credentials. Every other reply, BUSY or LOADING included, is retried; the rest of a reply can echo submitted values.
 // https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-errors
 var replyPrefixes = map[string]bool{
 	"WRONGTYPE": true, "WRONGPASS": true, "NOAUTH": true, "NOPERM": true,

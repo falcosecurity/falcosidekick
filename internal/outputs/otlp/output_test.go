@@ -467,7 +467,7 @@ func TestHTTPRedirectPolicy(t *testing.T) {
 	assert.Empty(t, r.snapshot().logs)
 }
 
-// With the INSECURE variables set, an https endpoint used to get plain HTTP, its headers in clear.
+// The INSECURE variables must not turn an https endpoint into plain HTTP, with its headers in clear.
 func TestInsecureVariablesNeverDowngradeHTTPS(t *testing.T) {
 	for _, key := range []string{"OTEL_EXPORTER_OTLP_INSECURE", "OTEL_EXPORTER_OTLP_LOGS_INSECURE", "OTEL_EXPORTER_OTLP_METRICS_INSECURE"} {
 		t.Setenv(key, "true")

@@ -29,9 +29,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// Load reads configuration from a YAML file and environment variables.
-// When configPath is empty, only defaults and environment variables apply.
-// Prefix: FALCOSIDEKICK_.
+// Load reads the configuration from the YAML file at configPath, if any, and from FALCOSIDEKICK_ environment variables over the defaults.
 func Load(configPath string) (*Config, error) {
 	v := viper.New()
 

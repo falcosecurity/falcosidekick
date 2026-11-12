@@ -341,7 +341,7 @@ func TestKafkaRequiredAcks(t *testing.T) {
 	}
 }
 
-// producer.async is gone: the pipeline already queues, and a record is counted once the brokers answer.
+// producer.async is refused: the pipeline queues, and a record is counted once the brokers answer.
 func TestKafkaAsyncIsRefused(t *testing.T) {
 	target := plaintextKafka(t)
 	logs := startSidekickFails(t, kafkaOutput(target, kafkaTopic(newMarker(t)), "producer:\n  async: true\n"))

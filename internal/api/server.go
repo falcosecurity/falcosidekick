@@ -252,9 +252,8 @@ func (s *Server) GetReadableStore() output.ReadableStore {
 	return rs
 }
 
-// Start listens on both addresses, IPv4 and IPv6, and blocks until one listener stops; TLS applies
-// to both. With mutual TLS the management listener requires a client certificate in the handshake;
-// ingestion verifies one when sent and requireClientCertificate enforces it per route.
+// Start listens on both addresses, IPv4 and IPv6, with TLS on both, and blocks until one listener stops. With mutual TLS the management
+// listener requires a client certificate in the handshake; ingestion verifies one when sent and requireClientCertificate enforces it per route.
 func (s *Server) Start() error {
 	management := fiber.ListenConfig{DisableStartupMessage: true, ListenerNetwork: fiber.NetworkTCP}
 	if s.tls != nil && s.tls.Enabled {
@@ -279,10 +278,8 @@ func (s *Server) Start() error {
 // SetReady sets what /readyz answers: ready once the pipeline runs, not ready from SIGTERM on.
 func (s *Server) SetReady(ready bool) { s.ready.Store(ready) }
 
-// Shutdown gracefully stops both listeners, bounded by the caller's context.
-// The management listener stops first, so no API change starts while ingestion drains. An API
-// request still running when ctx ends is canceled: a database call it waits on returns, and the
-// reloader it holds is released.
+// Shutdown stops both listeners, bounded by ctx: the management listener first, so no API change starts while ingestion drains. An API
+// request still running when ctx ends is canceled, so a database call it waits on returns and the reloader it holds is released.
 func (s *Server) Shutdown(ctx context.Context) error {
 	err := s.app.ShutdownWithContext(ctx)
 	s.cancelOperations()
