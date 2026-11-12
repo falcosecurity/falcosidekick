@@ -74,9 +74,8 @@ func quoteParam(value string) string {
 	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(value) + "'"
 }
 
-// OpenPostgres connects to postgres, which several Sidekick instances can share, using at most
-// maxConns connections. The connection settings come built, never as a connection string, so no
-// parse error can carry the password.
+// OpenPostgres connects to postgres with at most maxConns connections. The settings come built,
+// never as a connection string, so no parse error can carry the password.
 func OpenPostgres(ctx context.Context, cfg *pgx.ConnConfig, maxConns int) (*SQL, error) {
 	if cfg == nil {
 		return nil, errors.New("database: postgres settings are missing")
@@ -100,9 +99,8 @@ const (
 	maxRetryDelay   = 5 * time.Second
 )
 
-// pingUntilReady retries until postgres answers or ctx ends, so Sidekick started together with its
-// database waits for it. A reply from postgres itself, such as a refused password or a missing
-// database, cannot change by retrying and fails at once.
+// pingUntilReady retries until postgres answers or ctx ends. A reply from postgres itself, such as
+// a refused password or a missing database, cannot change by retrying and fails at once.
 func pingUntilReady(ctx context.Context, db *sql.DB) error {
 	delay := firstRetryDelay
 	for attempt := 1; ; attempt++ {

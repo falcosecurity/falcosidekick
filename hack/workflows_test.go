@@ -42,11 +42,11 @@ func workflowFiles(t *testing.T) []string {
 	return names
 }
 
-// slsaGenerator verifies its own ref, so it is the one reference by tag instead of commit.
+// slsaGenerator verifies its own ref, so it is the one action referenced by tag.
 const slsaGenerator = "slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml"
 
-// actionFloors are the versions falcosecurity/falcosidekick master used on 2026-11-09, and for
-// setup-bun, which master does not use, the release that replaced the mislabeled pin. Pins never go below them.
+// actionFloors are the lowest versions a pin may use, from upstream master on 2026-11-09; setup-bun,
+// which master does not use, has its own.
 var actionFloors = map[string]string{
 	"actions/checkout":                  "v7.0.1",
 	"actions/setup-go":                  "v7.0.0",
@@ -60,7 +60,7 @@ var actionFloors = map[string]string{
 	"sigstore/cosign-installer":         "v4.1.2",
 }
 
-// mislabeledPins are commits once pinned under the wrong version comment.
+// mislabeledPins are commits whose version label is wrong; no pin may use them.
 var mislabeledPins = map[string]string{
 	"4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5": "oven-sh/setup-bun v2.0.1, once commented as v2.0.2",
 }
@@ -152,7 +152,7 @@ func TestWorkflowJobsHaveTimeoutsAndPermissions(t *testing.T) {
 	}
 }
 
-// requiredChecks are the contexts falcosecurity/test-infra requires on master (test-infra PR #2110).
+// requiredChecks are the contexts falcosecurity/test-infra requires on master.
 var requiredChecks = map[string]map[string]string{
 	"test.yml":        {"unit-tests": "Go + UI tests"},
 	"lint.yml":        {"golangci": "golangci-lint", "ui-lint": "UI eslint"},

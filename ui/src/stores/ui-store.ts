@@ -3,7 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware"
 
 export type ThemeMode = "system" | "light" | "dark"
 
-// Global auto-refresh cadence presets. 0 means "off" (manual only).
+// Auto-refresh presets; 0 is off.
 export const REFRESH_OPTIONS: Array<{ label: string; value: number }> = [
   { label: "Off", value: 0 },
   { label: "5s", value: 5_000 },

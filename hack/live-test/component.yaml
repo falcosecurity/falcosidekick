@@ -34,9 +34,7 @@ data:
         success_threshold: 2
         reset_timeout: 30s
     reload:
-      # Content-hash poll interval. fsnotify alone misses K8s ConfigMap
-      # symlink-swap updates (kubelet's atomic ..data/..timestamp swap), so
-      # enabling polling is required for hot-reload in-cluster.
+      # fsnotify misses the kubelet symlink swap of a ConfigMap update; polling catches it.
       poll_interval: 15s
   outputs.yaml: |
     outputs:

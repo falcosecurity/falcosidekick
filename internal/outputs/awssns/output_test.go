@@ -182,7 +182,7 @@ func TestPublishAttributes(t *testing.T) {
 	}, attributes(form))
 }
 
-// D5: by default only the five event attributes; listed output fields are sent only when the event has them.
+// By default only the five event attributes; listed output fields are sent only when the event has them.
 func TestMessageAttributesDefaultAndValidation(t *testing.T) {
 	awstest.Isolate(t)
 	fake := &fakeSNS{}

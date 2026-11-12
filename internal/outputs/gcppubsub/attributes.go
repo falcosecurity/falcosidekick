@@ -27,8 +27,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// eventAttributes are the event fields message_attributes can name, as in the awssns output;
-// any other name is an output field.
+// eventAttributes are the event fields message_attributes can name; any other name is an output field.
 var eventAttributes = map[string]func(*event.Event) string{
 	"priority": func(e *event.Event) string { return e.Priority.String() },
 	"rule":     func(e *event.Event) string { return e.Rule },

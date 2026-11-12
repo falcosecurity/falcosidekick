@@ -30,10 +30,9 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// fileFieldsDigest returns a digest of the contents of the files the File fields of cfg name, or ""
-// when they name none. Paths inside map entries and <name>_file of secret strings are left out: the
-// former are read at every request, the latter are resolved into cfg. Errors name the location, not
-// the path or the OS error.
+// fileFieldsDigest digests the contents of the files the File fields of cfg name, or returns ""
+// when they name none. Paths inside map entries are read at every request and <name>_file secrets
+// are resolved into cfg, so both are left out. Errors name the location, not the path or the OS error.
 func fileFieldsDigest(name string, cfg map[string]any, fields []output.SchemaField) (string, error) {
 	var fileFields []output.SchemaField
 	for i := range fields {
@@ -65,8 +64,7 @@ func fileFieldsDigest(name string, cfg map[string]any, fields []output.SchemaFie
 
 // SecretPaths lists where the secret files of running outputs live: the api.secret_dirs roots, the
 // directories directly below them, such as Kubernetes Secret mounts, and the files the running file
-// outputs reference. Entries named ..* are kubelet internals and are skipped; their swap is seen in
-// the directory that holds them.
+// outputs reference. Entries named ..* are kubelet internals; their swap is seen in the parent directory.
 type SecretPaths struct {
 	referenced func() []string
 	roots      []string

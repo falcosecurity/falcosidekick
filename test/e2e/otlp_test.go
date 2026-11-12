@@ -211,7 +211,7 @@ func TestOTLPReportsUnreachableCollector(t *testing.T) {
 	assert.NotContains(t, sk.logs.String(), token)
 }
 
-// The traces signal was removed: a configuration that still has it does not start.
+// A configuration with a traces signal does not start.
 func TestOTLPRefusesTraces(t *testing.T) {
 	logs := startSidekickFails(t, "otlp:\n  traces:\n    endpoint: http://127.0.0.1:4318\n")
 	assert.Contains(t, logs, "unknown keys: traces")

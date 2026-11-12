@@ -9,8 +9,7 @@ const SINK_GAP = 32
 const STORE_GAP = 72
 
 // centerOnCore puts the source on the Sidekick line and spreads the output centers evenly around
-// it, keeping the columns and the order the layout gave them. The event source ("store") goes under
-// Sidekick. heightOf gives each node's height, which follows its content.
+// it, keeping the columns and the order the layout gave them. heightOf gives each node's height.
 export function centerOnCore<T extends PlacedNode>(nodes: T[], heightOf: (node: T) => number): T[] {
   const core = nodes.find((n) => n.type === "core")
   if (!core) return nodes
