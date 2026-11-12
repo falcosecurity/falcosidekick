@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0-beta.1
+## 3.0.0-beta.1 - 2026-11-12
 #### New
 - First beta of Falcosidekick v3, a rewrite with a new configuration that v2 files do not load into: see [Migrate from v2](docs/migration.md)
 - Core file (`-c`) and output files (`-o`), with output files reloaded on change, `SIGHUP` or poll
