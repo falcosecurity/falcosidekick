@@ -229,23 +229,27 @@ func TestHandleGetConfigServesThisReplicaConfiguration(t *testing.T) {
 			body, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
 			var got struct {
-				Config core.Config `json:"config"`
+				Config map[string]any `json:"config"`
 			}
 			require.NoError(t, json.Unmarshal(body, &got))
-			assert.Equal(t, 2999, got.Config.ListenPort)
-			assert.Equal(t, "inmemory", string(got.Config.Database.Backend))
+			assert.InDelta(t, 2999, got.Config["listen_port"], 0)
+			assert.Equal(t, "5s", got.Config["shutdown_delay"], "durations are Go duration strings")
+			database, _ := got.Config["database"].(map[string]any)
+			assert.Equal(t, "inmemory", database["backend"])
+			assert.Equal(t, "30s", database["connect_timeout"])
+			assert.Equal(t, map[string]any{"poll_interval": "30s", "retire_timeout": "10s"}, got.Config["reload"])
 
-			var gotDefaults struct {
-				Config struct {
-					RuntimeDefaults output.RuntimeConfig `json:"runtime_defaults"`
-				} `json:"config"`
-			}
-			require.NoError(t, json.Unmarshal(body, &gotDefaults))
-			want := testutil.DefaultRuntimeConfig()
-			want.Workers = 4
-			want.QueueSize = 2048
-			want.MinPriority = event.PriorityWarning
-			assert.Equal(t, want, gotDefaults.Config.RuntimeDefaults, "the server keeps its own copy of the runtime defaults")
+			assert.Equal(t, map[string]any{
+				"minimum_priority": "Warning",
+				"queue_size":       float64(2048),
+				"workers":          float64(4),
+				"retry": map[string]any{
+					"initial_interval": "10ms", "max_interval": "100ms", "max_attempts": float64(1), "multiplier": float64(2),
+				},
+				"circuit_breaker": map[string]any{
+					"reset_timeout": "30s", "failure_threshold": float64(5), "success_threshold": float64(2),
+				},
+			}, got.Config["runtime_defaults"], "the server keeps its own copy of the runtime defaults")
 			cfg.ListenPort = 2999
 		})
 	}

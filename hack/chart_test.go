@@ -707,7 +707,7 @@ func (c *chartCase) check(r chartRender, appVersion string, fixture *runtimeFixt
 	}
 	ch.equal("image", wantImage, container.Image)
 	ch.equal("resources.requests", map[string]string{"cpu": "50m", "memory": "64Mi"}, container.Resources.Requests)
-	ch.equal("resources.limits", map[string]string(nil), container.Resources.Limits)
+	ch.equal("resources.limits", map[string]string{"memory": "512Mi"}, container.Resources.Limits)
 	ch.equal("priorityClassName", "", pod.PriorityClassName)
 	grace := int64(-1)
 	if pod.TerminationGracePeriodSeconds != nil {
@@ -1159,7 +1159,12 @@ func TestChartRefusals(t *testing.T) {
 			[]string{"tls.secretName is set but config.tls.enabled is not true"}},
 		{with(with(with(tlsOn(), "config.tls.mutual_tls", true), "config.tls.cert_file", "/c"), "config.tls.key_file", "/k"),
 			"mutual TLS without CA", []string{"config.tls.mutual_tls needs a CA"}},
-		{with(chartBase(), "config.tls.mutual_tls", true), "mutual TLS without TLS", []string{"config.tls.mutual_tls needs config.tls.enabled"}},
+		{with(chartBase(), "config.tls.mutual_tls", true), "mutual TLS without TLS", []string{"config.tls.mutual_tls: needs config.tls.enabled"}},
+		{with(chartBase(), "config.tls.cert_file", "/c"), "certificate without TLS", []string{"config.tls.cert_file: needs config.tls.enabled"}},
+		{with(chartBase(), "config.tls.key_file", "/k"), "key without TLS", []string{"config.tls.key_file: needs config.tls.enabled"}},
+		{with(chartBase(), "config.tls.ca_file", "/ca"), "CA without TLS", []string{"config.tls.ca_file: needs config.tls.enabled"}},
+		{with(with(chartBase(), "config.tls.enabled", false), "config.tls.cert_file", "/c"), "certificate with TLS off",
+			[]string{"config.tls.cert_file: needs config.tls.enabled"}},
 
 		{with(postgresValues(), "config.database.postgres", map[string]any{}), "postgres without connection", []string{
 			"database.backend postgres needs config.database.postgres.host",

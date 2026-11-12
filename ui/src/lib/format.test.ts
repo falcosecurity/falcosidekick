@@ -1,20 +1,25 @@
 import { describe, expect, test } from "bun:test"
 
-import { formatAbsoluteTime, formatClock, formatGoDuration, formatNumber, formatTimeAgo, truncate } from "./format"
+import { formatAbsoluteTime, formatClock, formatNumber, formatTimeAgo, parseGoDuration, truncate } from "./format"
 
-describe("formatGoDuration", () => {
+describe("parseGoDuration", () => {
   test.each([
-    [0, "0s"],
-    [30_000_000_000, "30s"],
-    [90_000_000_000, "1m30s"],
-    [3_600_000_000_000, "1h"],
-    [5_400_000_000_000, "1h30m"],
-    [1_500_000_000, "1s500ms"],
-    [250_000, "250µs"],
-    [-2_000_000_000, "-2s"],
-    [Number.NaN, "-"],
-  ])("%d ns is %s", (ns, text) => {
-    expect(formatGoDuration(ns)).toBe(text)
+    ["0", 0],
+    ["0s", 0],
+    ["30s", 30_000_000_000],
+    ["1m30s", 90_000_000_000],
+    ["1h", 3_600_000_000_000],
+    ["1.5s", 1_500_000_000],
+    ["10ms", 10_000_000],
+    ["250µs", 250_000],
+    ["250us", 250_000],
+    ["-2s", -2_000_000_000],
+  ])("%s is %d ns", (text, ns) => {
+    expect(parseGoDuration(text)).toBe(ns)
+  })
+
+  test.each(["", " ", "30", "abc", "1d", "s", "1 s", "1s2", "1s x"])("%p is not a duration", (text) => {
+    expect(parseGoDuration(text)).toBeNull()
   })
 })
 

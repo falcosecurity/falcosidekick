@@ -305,6 +305,31 @@ func TestCreateOutputSASLVariants(t *testing.T) {
 	}
 }
 
+func TestCreateOutputCredentialsRequireSASL(t *testing.T) {
+	for _, tc := range []struct {
+		auth    map[string]any
+		name    string
+		wantErr string
+	}{
+		{name: "username only", auth: map[string]any{"username": "user"}, wantErr: "auth.sasl: is required when username or password is set"},
+		{name: "password only", auth: map[string]any{"password": "SECRET_PW"}, wantErr: "auth.sasl: is required when username or password is set"},
+		{name: "both without sasl", auth: map[string]any{"username": "user", "password": "SECRET_PW"}, wantErr: "auth.sasl: is required when username or password is set"},
+		{name: "sasl without password", auth: map[string]any{"sasl": "PLAIN", "username": "user"}, wantErr: "auth.username: username and password are required when sasl is set"},
+		{name: "empty", auth: map[string]any{}},
+		{name: "complete", auth: map[string]any{"sasl": "PLAIN", "username": "user", "password": "SECRET_PW"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := createOutput(map[string]any{"brokers": []string{"localhost:9092"}, "topic": "events", "auth": tc.auth}, output.Deps{})
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
+			assert.NotContains(t, err.Error(), "SECRET_PW")
+		})
+	}
+}
+
 func TestCreateOutputAcceptsRuntimeOverrides(t *testing.T) {
 	d, err := createOutput(map[string]any{
 		"brokers": []string{"localhost:9092"},
@@ -326,7 +351,7 @@ func TestCreateOutputAcceptsRuntimeOverrides(t *testing.T) {
 	assert.Equal(t, 8, pCfg.Workers)
 	assert.Equal(t, event.PriorityError, pCfg.MinPriority)
 	require.NotNil(t, pCfg.Batching)
-	assert.True(t, pCfg.Batching.Enabled)
+	assert.True(t, pCfg.Batching.IsEnabled())
 }
 
 func TestCreateOutputRejectsUnknownKeys(t *testing.T) {
@@ -676,6 +701,7 @@ func TestDeliveryErrorPermanence(t *testing.T) {
 		{name: "not leader", err: kerr.NotLeaderForPartition},
 		{name: "unknown topic", err: kerr.UnknownTopicOrPartition},
 		{name: "record timeout", err: kgo.ErrRecordTimeout},
+		{name: "record timeout after a refused login", err: fmt.Errorf("%w, last err: %w", kgo.ErrRecordTimeout, kerr.SaslAuthenticationFailed)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -686,6 +712,13 @@ func TestDeliveryErrorPermanence(t *testing.T) {
 	}
 }
 
+func TestRecordTimeoutDropsTheLastBrokerError(t *testing.T) {
+	err := newDeliveryError(shared.OpSend, fmt.Errorf("%w, last err: %w", kgo.ErrRecordTimeout, kerr.SaslAuthenticationFailed))
+	assert.Equal(t, "kafka send: "+codeTimeout, err.Error())
+	assert.NotErrorIs(t, err, output.ErrMisconfigured)
+	assert.ErrorIs(t, err, kerr.SaslAuthenticationFailed, "the cause stays inspectable")
+}
+
 func TestProducedBatchIsPermanentOnlyWhenEveryRecordIs(t *testing.T) {
 	record := func() *kgo.Record { return &kgo.Record{Topic: "events"} }
 	tooLarge := kgo.ProduceResult{Record: record(), Err: kerr.MessageTooLarge}
@@ -693,10 +726,15 @@ func TestProducedBatchIsPermanentOnlyWhenEveryRecordIs(t *testing.T) {
 	delivered := kgo.ProduceResult{Record: record()}
 	d := &driver{purged: make(map[string]time.Time)}
 
+	attempt, cancel := context.WithTimeout(context.Background(), 0)
+	defer cancel()
+	timeout := timedOut(context.Background(), attempt)
+
 	for _, tc := range []struct {
 		name      string
 		want      string
 		results   kgo.ProduceResults
+		pending   int
 		permanent bool
 	}{
 		{name: "delivered", results: kgo.ProduceResults{delivered, delivered}},
@@ -708,9 +746,12 @@ func TestProducedBatchIsPermanentOnlyWhenEveryRecordIs(t *testing.T) {
 			want: "kafka send: 2 of 2 records failed, first: NOT_ENOUGH_REPLICAS"},
 		{name: "every record permanent", results: kgo.ProduceResults{tooLarge, tooLarge},
 			want: "kafka send: 2 of 2 records failed, first: MESSAGE_TOO_LARGE", permanent: true},
+		{name: "every record pending at the deadline", pending: 2, want: "kafka send: " + codeTimeout},
+		{name: "permanent and pending", results: kgo.ProduceResults{tooLarge, delivered}, pending: 2,
+			want: "kafka send: 3 of 4 records failed, first: MESSAGE_TOO_LARGE"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := d.produced(context.Background(), tc.results)
+			err := d.produced(context.Background(), tc.results, tc.pending, timeout)
 			if tc.want == "" {
 				assert.NoError(t, err)
 				return

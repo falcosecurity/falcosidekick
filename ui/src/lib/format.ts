@@ -31,30 +31,40 @@ export function formatAbsoluteTime(input: string | Date | number): string {
   })
 }
 
-const DURATION_UNITS: readonly [string, number][] = [
-  ["h", 3_600_000_000_000],
-  ["m", 60_000_000_000],
-  ["s", 1_000_000_000],
-  ["ms", 1_000_000],
-  ["µs", 1_000],
-  ["ns", 1],
-]
+const DURATION_UNITS: Record<string, number> = {
+  h: 3_600_000_000_000,
+  m: 60_000_000_000,
+  s: 1_000_000_000,
+  ms: 1_000_000,
+  us: 1_000,
+  "µs": 1_000,
+  "μs": 1_000,
+  ns: 1,
+}
 
-// formatGoDuration renders a Go time.Duration (integer nanoseconds) the way Go's String does,
-// without the trailing zero units: 30000000000 is "30s", 90000000000 is "1m30s".
-export function formatGoDuration(ns: number): string {
-  if (!Number.isFinite(ns)) return "-"
-  if (ns === 0) return "0s"
-  let rest = Math.abs(Math.trunc(ns))
-  let out = ns < 0 ? "-" : ""
-  for (const [unit, size] of DURATION_UNITS) {
-    const count = Math.floor(rest / size)
-    if (count > 0) {
-      out += `${count}${unit}`
-      rest -= count * size
-    }
+const DURATION_PART = /(\d+(?:\.\d*)?|\.\d+)(ns|us|µs|μs|ms|s|m|h)/y
+
+/**
+ * Parses a Go duration string ("30s", "1m30s", "1.5s", "0") into nanoseconds, as time.ParseDuration
+ * does; null when the text is not a duration.
+ */
+export function parseGoDuration(text: string): number | null {
+  let rest = text.trim()
+  let sign = 1
+  if (rest.startsWith("-") || rest.startsWith("+")) {
+    sign = rest.startsWith("-") ? -1 : 1
+    rest = rest.slice(1)
   }
-  return out
+  if (rest === "0") return 0
+  if (rest === "") return null
+  let total = 0
+  DURATION_PART.lastIndex = 0
+  while (DURATION_PART.lastIndex < rest.length) {
+    const match = DURATION_PART.exec(rest)
+    if (!match) return null
+    total += Number(match[1]) * DURATION_UNITS[match[2]!]!
+  }
+  return sign * total
 }
 
 /** Clock time of an instant: seconds for today, with the day otherwise. */

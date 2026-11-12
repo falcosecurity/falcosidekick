@@ -44,6 +44,14 @@ type Config struct {
 	ShutdownDelay time.Duration `json:"shutdown_delay" mapstructure:"shutdown_delay"`
 }
 
+// Core bounds.
+var (
+	// MaxLabelValuesRange bounds the values kept per event label, so the series count stays bounded.
+	MaxLabelValuesRange = utils.IntRange{Min: 1, Max: 10_000}
+	// PostgresConnectionsRange bounds the connection pool of one instance.
+	PostgresConnectionsRange = utils.IntRange{Min: 1, Max: 1000}
+)
+
 // MetricsConfig controls the Prometheus metrics on /metrics.
 type MetricsConfig struct {
 	ExtraLabels []string `json:"extra_labels" mapstructure:"extra_labels"`
@@ -54,9 +62,7 @@ type MetricsConfig struct {
 // Validate rejects extra labels that are invalid Prometheus label names or collide with another label.
 func (c MetricsConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
-	if c.MaxLabelValues < 1 {
-		errs.Add("max_label_values", "must be at least 1")
-	}
+	MaxLabelValuesRange.Check(&errs, "max_label_values", c.MaxLabelValues)
 	seen := map[string]string{"rule": "", "priority": "", "source": ""}
 	for _, field := range c.ExtraLabels {
 		label := MetricLabelName(field)
@@ -361,9 +367,7 @@ func (c *PostgresConfig) Validate() utils.ValidationErrors {
 	default:
 		errs.Add("sslmode", "must be disable/require/verify-ca/verify-full")
 	}
-	if c.MaxConnections < 1 {
-		errs.Add("max_connections", "must be >= 1")
-	}
+	PostgresConnectionsRange.Check(&errs, "max_connections", c.MaxConnections)
 	if c.PollInterval <= 0 {
 		errs.Add("poll_interval", "must be > 0")
 	}

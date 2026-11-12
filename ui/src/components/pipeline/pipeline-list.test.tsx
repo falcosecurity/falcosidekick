@@ -35,6 +35,35 @@ describe("PipelineList", () => {
     expect(screen.queryByRole("button", { name: "Add output" })).toBeNull()
   })
 
+  test("each failing or degraded output shows its reason in its row, file and API provisioned alike", () => {
+    renderWithProviders(
+      <PipelineList
+        composite={composite}
+        statusByName={{
+          webhook: { ...statusNamed("alertmanager"), name: "webhook" },
+          slack: { ...statusNamed("inmemory"), name: "slack", status: "degraded", last_warning: "slack: 404 no_service", warning_kind: "update" },
+        }}
+        selection={null}
+        onSelect={mock()}
+      />,
+    )
+    const outputs = screen.getByRole("group", { name: "Outputs" })
+    const webhook = within(outputs).getByRole("button", { name: /webhook/ })
+    expect(webhook).toHaveTextContent("File provisioned")
+    expect(within(webhook).getByText("Not running: build output alertmanager: hosts: must be a valid URL")).toBeInTheDocument()
+    const slack = within(outputs).getByRole("button", { name: /slack/ })
+    expect(slack).toHaveTextContent("API provisioned")
+    const line = within(slack).getByText("Update not applied: slack: 404 no_service")
+    expect(line).toHaveAttribute("title", "Update not applied: slack: 404 no_service")
+  })
+
+  test("a healthy output has no reason line", () => {
+    renderWithProviders(
+      <PipelineList composite={composite} statusByName={{ slack: { ...statusNamed("inmemory"), name: "slack" } }} selection={null} onSelect={mock()} />,
+    )
+    expect(within(screen.getByRole("button", { name: /slack/ })).queryByText(/:/)).toBeNull()
+  })
+
   test("offers Add output when writes are allowed", () => {
     const onAdd = mock()
     renderWithProviders(<PipelineList composite={composite} statusByName={{}} selection={null} onSelect={mock()} onAdd={onAdd} />)

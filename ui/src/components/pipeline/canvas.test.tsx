@@ -341,6 +341,26 @@ describe("PipelineCanvas", () => {
     expect(layoutSpy.mock.calls.at(-1)![0].children?.map((n) => n.id)).toContain("sink:inmemory")
   })
 
+  test("a degraded output node shows its reason on one line, the whole text in its tooltip", async () => {
+    const reason = "dial tcp: connection refused"
+    const { container } = renderWithProviders(
+      <PipelineCanvas
+        composite={composite}
+        statusByName={{ alerts: { ...status("degraded"), last_warning: `health check failed before start: ${reason}`, warning_kind: "destination" } }}
+        selection={null}
+        onSelect={mock()}
+      />,
+    )
+    const node = await waitFor(() => {
+      const found = container.querySelector<HTMLElement>('[data-testid="rf__node-sink:alerts"]')
+      expect(found).not.toBeNull()
+      return found!
+    })
+    const line = await waitFor(() => within(node).getByText(`Destination not verified: ${reason}`))
+    expect(line).toHaveClass("truncate")
+    expect(line).toHaveAttribute("title", `Destination not verified: ${reason}`)
+  })
+
   test("each node is a single tab stop: the wrapper is not focusable, the card button is", async () => {
     const { container } = renderWithProviders(
       <PipelineCanvas composite={composite} statusByName={{}} selection={null} onSelect={mock()} />,

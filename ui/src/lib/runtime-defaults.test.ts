@@ -28,6 +28,29 @@ describe("withRuntimeDefaults", () => {
     })
   })
 
+  test("durations arrive as Go duration strings and are kept as written", () => {
+    const defaults = { minimum_priority: "", queue_size: 1, workers: 1, retry: { initial_interval: "1.5s", max_interval: "1m", max_attempts: 3, multiplier: 2 } } as RuntimeConfig
+    const byName = Object.fromEntries(withRuntimeDefaults(FIELDS, defaults).map((f) => [f.name, f.default]))
+    expect(byName["runtime.retry.initial_interval"]).toBe("1.5s")
+  })
+
+  test("a default the output owns is kept, whatever runtime_defaults says", () => {
+    // policyreport batches by default; runtime_defaults turns batching off for every other output.
+    const own = FIELDS.map((f) => (f.name === "runtime.batching.enabled" ? { ...f, default: true, output_default: true } : f))
+    const defaults = { minimum_priority: "", queue_size: 1, workers: 4, batching: { enabled: false, batch_size: 100, flush_interval: "1s" } } as RuntimeConfig
+    const byName = Object.fromEntries(withRuntimeDefaults(own, defaults).map((f) => [f.name, f.default]))
+    expect(byName["runtime.batching.enabled"]).toBe(true)
+    expect(byName["runtime.workers"]).toBe(4)
+  })
+
+  test("the policyreport schema from the API keeps batching on by default", () => {
+    const policyreport = fixtures.outputTypes.types?.find((t) => t.name === "policyreport")
+    expect(policyreport).toBeDefined()
+    const defaults = { minimum_priority: "", queue_size: 1, workers: 1, batching: { enabled: false, batch_size: 500, flush_interval: "1s" } } as RuntimeConfig
+    const enabled = withRuntimeDefaults(policyreport?.schema.fields ?? [], defaults).find((f) => f.name === "runtime.batching.enabled")
+    expect(enabled?.default).toBe(true)
+  })
+
   test("without the running configuration, or for a value it leaves empty, the catalog default stays", () => {
     expect(withRuntimeDefaults(FIELDS, undefined)).toEqual(FIELDS)
     const empty = { minimum_priority: "", queue_size: 0, workers: 4 } as RuntimeConfig

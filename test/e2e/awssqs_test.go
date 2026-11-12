@@ -116,11 +116,11 @@ func TestAWSSQSDeliversBatch(t *testing.T) {
 	assert.Zero(t, st.FailedTotal)
 }
 
-func TestAWSSQSMissingQueueFailsStartup(t *testing.T) {
+func TestAWSSQSMissingQueueStartsDegraded(t *testing.T) {
 	target := localstack(t)
 	queueURL := fmt.Sprintf("%s/000000000000/fsk-e2e-absent-%s", target.endpoint, newMarker(t))
-	logs := startSidekickFails(t, target.output("awssqs", fmt.Sprintf("queue_url: %q\n", queueURL)))
-	assert.Contains(t, logs, "health check: awssqs GetQueueAttributes: HTTP 400 Bad Request: QueueDoesNotExist")
+	_, logs := startSidekickDegraded(t, "awssqs", target.output("awssqs", fmt.Sprintf("queue_url: %q\n", queueURL)))
+	assert.Contains(t, logs, "health check failed before start: awssqs GetQueueAttributes: HTTP 400 Bad Request: QueueDoesNotExist")
 	assert.NotContains(t, logs, target.secret)
 }
 

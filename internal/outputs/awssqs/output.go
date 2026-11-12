@@ -100,7 +100,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+		return nil, fmt.Errorf("%s: %w", name, errs)
 	}
 	awsCfg, err := cfg.Load(context.Background(), queueRegion(cfg.QueueURL))
 	if err != nil {

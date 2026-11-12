@@ -131,13 +131,14 @@ func TestGCPPubSubRefusesRemovedSettings(t *testing.T) {
 	assert.NotContains(t, logs, encoded)
 }
 
-func TestGCPPubSubMissingTopicFailsStartup(t *testing.T) {
+func TestGCPPubSubMissingTopicStartsDegraded(t *testing.T) {
 	host := requireEnv(t, envPubSubEmulator)
 	topic := "fsk-e2e-missing-" + newMarker(t)
-	logs := startSidekickFails(t, pubsubOutput(host, topic, ""))
+	_, logs := startSidekickDegraded(t, "gcppubsub", pubsubOutput(host, topic, ""))
 	assert.Contains(t, logs, "gcppubsub topic check: NotFound")
 }
 
+// Credentials that do not load are local: they still stop startup.
 func TestGCPPubSubRejectedCredentialsFailStartup(t *testing.T) {
 	requireEnv(t, envPubSubEmulator)
 	key := fmt.Sprintf(`{"type":"service_account","project_id":"p","private_key_id":"k",`+

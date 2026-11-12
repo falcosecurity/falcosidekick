@@ -35,37 +35,37 @@ func TestValidatorsNeverEchoValues(t *testing.T) {
 		{
 			name: "url parse failure",
 			run:  func() string { return ValidateOrigin("https://u:" + sentinel + "@ho st/x").Error() },
-			want: ": invalid URL",
+			want: "invalid URL",
 		},
 		{
 			name: "url without host",
 			run:  func() string { return ValidateOrigin("nohost?token=" + sentinel).Error() },
-			want: ": must include scheme and host (e.g. https://host:port)",
+			want: "must include scheme and host (e.g. https://host:port)",
 		},
 		{
 			name: "url with unsupported scheme",
 			run:  func() string { return ValidateOrigin("ftp://u:" + sentinel + "@host/x").Error() },
-			want: ": scheme must be http or https",
+			want: "scheme must be http or https",
 		},
 		{
 			name: "endpoint",
 			run:  func() string { return ValidateEndpoint("/a b/" + sentinel).Error() },
-			want: ": must be a valid path starting with / (e.g. /api/v1)",
+			want: "must be a valid path starting with / (e.g. /api/v1)",
 		},
 		{
 			name: "origins parse failure keeps index",
 			run:  func() string { return ValidateOrigins([]string{"http://ok", "http://[" + sentinel}).Error() },
-			want: ": entry [1] invalid URL",
+			want: "entry [1] invalid URL",
 		},
 		{
 			name: "brokers without port keep index",
 			run:  func() string { return ValidateBrokers([]string{sentinel}).Error() },
-			want: ": entry [0] must be host:port without a scheme (e.g. server.example:9092)",
+			want: "entry [0] must be host:port without a scheme (e.g. server.example:9092)",
 		},
 		{
 			name: "http hosts unsupported scheme keeps index",
 			run:  func() string { return ValidateOrigins([]string{"ftp://" + sentinel}).Error() },
-			want: ": entry [0] scheme must be http or https",
+			want: "entry [0] scheme must be http or https",
 		},
 	}
 	for _, tc := range tests {
@@ -119,9 +119,9 @@ func TestDecodeDriverConfigErrorsNeverEchoValues(t *testing.T) {
 		want string
 	}{
 		{name: "map into string", raw: map[string]any{"name": map[string]any{"a": sentinel}}, want: "name: invalid type, expected string"},
-		{name: "invalid duration", raw: map[string]any{"timeout": sentinel}, want: "timeout: invalid value"},
-		{name: "invalid number", raw: map[string]any{"count": sentinel}, want: "count: invalid value"},
-		{name: "invalid bool", raw: map[string]any{"enabled": sentinel}, want: "enabled: invalid value"},
+		{name: "invalid duration", raw: map[string]any{"timeout": sentinel}, want: "timeout: must be a duration such as 30s or 1m"},
+		{name: "invalid number", raw: map[string]any{"count": sentinel}, want: "count: must be an integer"},
+		{name: "invalid bool", raw: map[string]any{"enabled": sentinel}, want: "enabled: must be true or false"},
 		{name: "string into struct", raw: map[string]any{"nested": sentinel}, want: "nested: invalid type, expected map"},
 		{name: "unknown property", raw: map[string]any{"headers": map[string]any{"X-A": map[string]any{"oops": sentinel}}}, want: "headers[X-A]: unknown property"},
 		{name: "header values wrong shape", raw: map[string]any{"headers": map[string]any{"X-A": map[string]any{"secrets": sentinel}}}, want: "headers[X-A]: secrets: must be a list of strings"},
@@ -143,5 +143,5 @@ func TestDecodeDriverConfigReportsEveryFieldInStableOrder(t *testing.T) {
 	var target decodeTarget
 	err := DecodeDriverConfig(map[string]any{"timeout": sentinel, "count": sentinel}, &target)
 	require.Error(t, err)
-	assert.Equal(t, "count: invalid value; timeout: invalid value", err.Error())
+	assert.Equal(t, "count: must be an integer; timeout: must be a duration such as 30s or 1m", err.Error())
 }

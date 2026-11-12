@@ -58,15 +58,24 @@ func (d *Dispatcher) MarkFailed(name, reason string) {
 }
 
 // ReportUpdateFailure reports a change of name that could not be applied: a running output keeps
-// running with reason as its warning until it is replaced, an output not running is failed.
-func (d *Dispatcher) ReportUpdateFailure(name, reason string) {
+// running with reason as its warning of kind until it is replaced, an output not running is failed.
+func (d *Dispatcher) ReportUpdateFailure(name string, kind WarningKind, reason string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if out, running := d.outputs[name]; running {
-		out.updateWarning.Store(reason)
+		out.setUpdateWarning(kind, reason)
 		return
 	}
 	d.failed[name] = reason
+}
+
+// ClearUpdateFailure removes the warning ReportUpdateFailure set on the running output name.
+func (d *Dispatcher) ClearUpdateFailure(name string) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if out, running := d.outputs[name]; running {
+		out.setUpdateWarning("", "")
+	}
 }
 
 // Start launches all output worker pools with the given context.

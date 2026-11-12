@@ -60,7 +60,9 @@ func newFakeDriver(t *testing.T, mutate func(*config)) (*driver, *fake.FakeDynam
 		mutate(&cfg)
 	}
 	client := newFakeClient()
-	return newDriver(&cfg, client, nil, nil), client
+	d := newDriver(&cfg, client, nil)
+	d.sleep = func(context.Context, time.Duration) error { return nil }
+	return d, client
 }
 
 var eventSeq atomic.Int64
@@ -203,7 +205,8 @@ func TestSendRetriesWhenCreatedConcurrently(t *testing.T) {
 		if creates.Add(1) == 1 {
 			// Another writer creates the report between our read and create.
 			other := newReport(target{})
-			addResult(other, map[string]any{"policy": "other", "rule": "other"}, 10, false)
+			_, err := merge(other, []map[string]any{{"policy": "other", "rule": "other"}}, 10, false)
+			require.NoError(t, err)
 			require.NoError(t, client.Tracker().Create(clusterReportsGVR, other, ""))
 			return true, nil, apierrors.NewAlreadyExists(clusterReportsGVR.GroupResource(), reportName)
 		}
@@ -223,7 +226,7 @@ func TestSendGivesUpAfterRepeatedConflicts(t *testing.T) {
 	})
 	err := d.Send(context.Background(), eventIn("", "second", event.PriorityError))
 	require.Error(t, err)
-	assert.Equal(t, int32(maxAttempts), updates.Load())
+	assert.Equal(t, int32(conflictBackoff.Steps+1), updates.Load())
 	assert.Equal(t, "policyreport write report: HTTP 409 Conflict", err.Error())
 	assert.True(t, apierrors.IsConflict(err), "the cause stays inspectable")
 	assert.NotContains(t, fmt.Sprintf("%v %+v %q", err, err, err), "secret detail")
@@ -332,7 +335,7 @@ func TestWriteWaitFollowsTheContext(t *testing.T) {
 	assert.Same(t, stripe, d.stripe(target{namespace: "falco"}), "a report always maps to one stripe")
 
 	err := testutil.RequireReturnsOnCancel(t, "apply", func(ctx context.Context) error {
-		return d.apply(ctx, busy, map[string]any{})
+		return d.apply(ctx, busy, []map[string]any{{}})
 	})
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.Len(t, d.stripes, writeStripes, "namespaces taken from events never grow the locks")
@@ -348,7 +351,7 @@ func TestRequestTimeoutBoundsAnUnansweredRequest(t *testing.T) {
 	cfg.Timeout = testutil.CancelAfter
 	client, err := dynamic.NewForConfig(cfg)
 	require.NoError(t, err)
-	d := newDriver(&config{MaxResults: defaultMaxResults}, client, nil, nil)
+	d := newDriver(&config{MaxResults: defaultMaxResults}, client, nil)
 	start := time.Now()
 	err = d.Send(context.Background(), testutil.CreateValidEvent())
 	require.Error(t, err)
@@ -389,8 +392,44 @@ func TestCreateOutputConfig(t *testing.T) {
 				assert.Equal(t, event.PriorityWarning, d.RuntimeConfig().MinPriority)
 			},
 		},
-		{name: "zero max_results", raw: map[string]any{"kubeconfig": kubeconfig, "max_results": 0}, wantErr: "max_results: must be at least 1"},
-		{name: "negative max_results", raw: map[string]any{"kubeconfig": kubeconfig, "max_results": -1}, wantErr: "max_results"},
+		{name: "zero max_results", raw: map[string]any{"kubeconfig": kubeconfig, "max_results": 0}, wantErr: "max_results: must be an integer between 1 and 1000"},
+		{name: "negative max_results", raw: map[string]any{"kubeconfig": kubeconfig, "max_results": -1}, wantErr: "max_results: must be an integer between 1 and 1000"},
+		{name: "max_results above 1000", raw: map[string]any{"kubeconfig": kubeconfig, "max_results": 1001}, wantErr: "max_results: must be an integer between 1 and 1000"},
+		{
+			name: "null max_results",
+			raw:  map[string]any{"kubeconfig": kubeconfig, "max_results": nil},
+			check: func(t *testing.T, d *driver) {
+				assert.Equal(t, defaultMaxResults, d.cfg.MaxResults, "null means omitted")
+			},
+		},
+		{
+			name: "batching on by default, sizes inherited",
+			raw:  map[string]any{"kubeconfig": kubeconfig},
+			check: func(t *testing.T, d *driver) {
+				assert.Equal(t, &output.BatchingConfig{Enabled: new(true)}, d.RuntimeConfig().Batching)
+			},
+		},
+		{
+			name: "batching on with an explicit size",
+			raw:  map[string]any{"kubeconfig": kubeconfig, "runtime": map[string]any{"batching": map[string]any{"batch_size": 50}}},
+			check: func(t *testing.T, d *driver) {
+				assert.Equal(t, &output.BatchingConfig{Enabled: new(true), BatchSize: 50}, d.RuntimeConfig().Batching)
+			},
+		},
+		{
+			name: "batching enabled null is omitted",
+			raw:  map[string]any{"kubeconfig": kubeconfig, "runtime": map[string]any{"batching": map[string]any{"enabled": nil}}},
+			check: func(t *testing.T, d *driver) {
+				assert.True(t, d.RuntimeConfig().Batching.IsEnabled())
+			},
+		},
+		{
+			name: "batching disabled explicitly",
+			raw:  map[string]any{"kubeconfig": kubeconfig, "runtime": map[string]any{"batching": map[string]any{"enabled": false}}},
+			check: func(t *testing.T, d *driver) {
+				assert.Equal(t, new(false), d.RuntimeConfig().Batching.Enabled, "false is a value")
+			},
+		},
 		{name: "invalid fallback_namespace", raw: map[string]any{"kubeconfig": kubeconfig, "fallback_namespace": "Not_Valid"}, wantErr: "fallback_namespace: must be a valid namespace name"},
 		{name: "max_events is refused", raw: map[string]any{"kubeconfig": kubeconfig, "max_events": 5}, wantErr: "unknown keys: max_events"},
 		{name: "falco_namespace is refused", raw: map[string]any{"kubeconfig": kubeconfig, "falco_namespace": "falco"}, wantErr: "unknown keys: falco_namespace"},

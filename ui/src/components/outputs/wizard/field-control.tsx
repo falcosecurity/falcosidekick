@@ -11,7 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { SchemaField } from "@/lib/types"
 
 import { FilePathInput } from "./file-path-input"
-import { ENTRY_KINDS, newRow, type EntryKind, type FieldValue, type MapRow, type SecretState } from "./form-model"
+import { ENTRY_KINDS, fieldInputId, newRow, type EntryKind, type FieldValue, type MapRow, type SecretState } from "./form-model"
 import { fieldHint } from "./sections"
 
 const DEFAULT_ENUM = "__default__"
@@ -27,12 +27,8 @@ interface FieldControlProps {
   filesOnly: boolean
 }
 
-function inputId(field: SchemaField): string {
-  return `field-${field.name.replace(/[^\w-]/g, "-")}`
-}
-
 export function FieldControl({ field, value, onChange, error, filesOnly }: FieldControlProps) {
-  const id = inputId(field)
+  const id = fieldInputId(field.name)
   const hint = fieldHint(field)
   const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined
   const label = (
@@ -82,7 +78,7 @@ export function FieldControl({ field, value, onChange, error, filesOnly }: Field
 
   if (value.kind === "map") {
     return (
-      <Field data-invalid={error ? true : undefined}>
+      <Field id={`${id}-entries`} data-invalid={error ? true : undefined}>
         <FieldLabel htmlFor={`${id}-add`}>{field.label}</FieldLabel>
         <MapEditor id={id} field={field} rows={value.rows} filesOnly={filesOnly} onChange={(rows) => onChange({ kind: "map", rows })} />
         {error && <FieldError id={`${id}-error`}>{error}</FieldError>}

@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -384,9 +385,32 @@ func TestKafkaCompression(t *testing.T) {
 
 func TestKafkaReportsMissingTopic(t *testing.T) {
 	target := plaintextKafka(t)
-	t.Run("default topic stops startup", func(t *testing.T) {
-		logs := startSidekickFails(t, kafkaOutput(target, kafkaTopic(newMarker(t)), ""))
+	t.Run("default topic starts degraded and recovers", func(t *testing.T) {
+		marker := newMarker(t)
+		topic := kafkaTopic(marker)
+		received := make(chan struct{}, 4)
+		sibling := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			received <- struct{}{}
+			w.WriteHeader(http.StatusOK)
+		}))
+		t.Cleanup(sibling.Close)
+		outputs := kafkaOutput(target, topic, "producer:\n  delivery_timeout: 2s\n") +
+			fmt.Sprintf("webhook:\n  host: %q\n", sibling.URL)
+		sk, logs := startSidekickDegraded(t, "kafka", outputs)
 		assert.Contains(t, logs, "UNKNOWN_TOPIC_OR_PARTITION")
+
+		sk.postEvent(t, marker)
+		select {
+		case <-received:
+		case <-time.After(10 * time.Second):
+			t.Fatal("the sibling did not deliver while the topic is missing")
+		}
+
+		createTopic(t, target, topic)
+		eventuallyf(t, func() bool {
+			sk.postEvent(t, newMarker(t))
+			return sk.status(t, "kafka").SentTotal > 0
+		}, "kafka did not deliver after the topic was created")
 	})
 	t.Run("default topic with auto creation starts", func(t *testing.T) {
 		sk := startSidekick(t, kafkaOutput(target, kafkaTopic(newMarker(t)), "producer:\n  auto_create_topic: true\n"))
@@ -479,9 +503,9 @@ func TestKafkaSASL(t *testing.T) {
 				assert.Zero(t, st.FailedTotal)
 			})
 
-			t.Run("wrong password stops startup without leaking it", func(t *testing.T) {
+			t.Run("wrong password starts degraded without leaking it", func(t *testing.T) {
 				wrong := "wrong-" + newMarker(t)
-				logs := startSidekickFails(t, kafkaOutput(target(mechanism, wrong), topic, "producer:\n  delivery_timeout: 2s\n"))
+				_, logs := startSidekickDegraded(t, "kafka", kafkaOutput(target(mechanism, wrong), topic, "producer:\n  delivery_timeout: 2s\n"))
 				assert.Contains(t, logs, "health check")
 				assert.Contains(t, logs, "SASL_AUTHENTICATION_FAILED")
 				assert.NotContains(t, logs, wrong)
@@ -521,9 +545,12 @@ func TestKafkaTLS(t *testing.T) {
 		assert.Zero(t, st.FailedTotal)
 	})
 
-	t.Run("unknown CA stops startup", func(t *testing.T) {
-		logs := startSidekickFails(t, kafkaOutput(target(writeUnknownCA(t)), topic, "producer:\n  delivery_timeout: 2s\n"))
+	t.Run("unknown CA starts degraded and never delivers", func(t *testing.T) {
+		sk, logs := startSidekickDegraded(t, "kafka", kafkaOutput(target(writeUnknownCA(t)), topic, "producer:\n  delivery_timeout: 2s\n"))
 		assert.Contains(t, logs, "kafka healthcheck: TLS certificate verification failed")
+		sk.postEvent(t, newMarker(t))
+		st := sk.waitStatus(t, "kafka", func(st outputStatus) bool { return st.FailedTotal == 1 })
+		assert.Zero(t, st.SentTotal, "verification still refuses the connection")
 	})
 }
 

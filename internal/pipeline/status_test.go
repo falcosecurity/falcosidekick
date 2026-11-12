@@ -155,7 +155,7 @@ func TestOutputEventsPerMinuteDelivery(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
 				cfg := defaultRuntimeDefaults()
 				cfg.Batching = &output.BatchingConfig{
-					Enabled:       tt.batchSize > 1,
+					Enabled:       new(tt.batchSize > 1),
 					BatchSize:     tt.batchSize,
 					FlushInterval: time.Minute,
 				}
@@ -275,8 +275,8 @@ func TestStatusCountersComeWithTheirOutcome(t *testing.T) {
 				}
 			})
 		}
-		out.executeWithRetry(context.Background(), 1, func(context.Context) error { return errDelivery })
-		out.executeWithRetry(context.Background(), 1, func(context.Context) error { return nil })
+		out.executeWithRetry(context.Background(), []*event.Event{newTestEvent()}, func(context.Context, []*event.Event) error { return errDelivery })
+		out.executeWithRetry(context.Background(), []*event.Event{newTestEvent()}, func(context.Context, []*event.Event) error { return nil })
 		close(stop)
 		readers.Wait()
 	}
@@ -310,7 +310,7 @@ func TestHealthWarningClearsOnFirstDelivery(t *testing.T) {
 	out.SetHealthWarning("health check failed before start: connection refused")
 	assert.Equal(t, HealthDegraded, out.GetStatus().Status)
 
-	out.executeWithRetry(context.Background(), 1, func(context.Context) error { return nil })
+	out.executeWithRetry(context.Background(), []*event.Event{newTestEvent()}, func(context.Context, []*event.Event) error { return nil })
 
 	status := out.GetStatus()
 	assert.Equal(t, HealthOK, status.Status)
@@ -320,7 +320,7 @@ func TestHealthWarningClearsOnFirstDelivery(t *testing.T) {
 func TestHealthWarningSurvivesFailedDelivery(t *testing.T) {
 	out := NewOutput(&testutil.MockDriver{DriverName: "late"}, defaultRuntimeDefaults(), nil)
 	out.SetHealthWarning("not reachable")
-	out.executeWithRetry(context.Background(), 1, func(context.Context) error { return errDelivery })
+	out.executeWithRetry(context.Background(), []*event.Event{newTestEvent()}, func(context.Context, []*event.Event) error { return errDelivery })
 	status := out.GetStatus()
 	assert.Equal(t, HealthError, status.Status)
 	assert.Equal(t, "not reachable", status.LastWarning)
@@ -363,20 +363,62 @@ func TestDispatcherReportsUpdateFailuresOnRunningAndStoppedOutputs(t *testing.T)
 	d.Start(ctx)
 	t.Cleanup(func() { _ = d.Shutdown(context.Background(), cancel) })
 
-	d.ReportUpdateFailure("slack", "version 7 not applied: invalid host")
-	d.ReportUpdateFailure("loki", "version 3 not applied: invalid host")
+	d.ReportUpdateFailure("slack", WarningUpdate, "version 7 not applied: invalid host")
+	d.ReportUpdateFailure("loki", WarningUpdate, "version 3 not applied: invalid host")
 	byName := map[string]OutputStatus{}
 	for _, s := range d.CollectStatus() {
 		byName[s.Name] = s
 	}
 	assert.Equal(t, HealthDegraded, byName["slack"].Status, "the previous output keeps running")
 	assert.Equal(t, "version 7 not applied: invalid host", byName["slack"].LastWarning)
+	assert.Equal(t, WarningUpdate, byName["slack"].WarningKind)
 	assert.Equal(t, HealthFailed, byName["loki"].Status)
 
-	require.NoError(t, d.ReplaceOutput(ctx, ctx, "slack", NewOutput(&testutil.MockDriver{DriverName: "slack"}, defaultRuntimeDefaults(), nil)))
+	d.ClearUpdateFailure("slack")
+	d.ClearUpdateFailure("loki")
+	byName = map[string]OutputStatus{}
 	for _, s := range d.CollectStatus() {
-		if s.Name == "slack" {
-			assert.Empty(t, s.LastWarning, "the replacement clears it")
+		byName[s.Name] = s
+	}
+	assert.Empty(t, byName["slack"].LastWarning)
+	assert.Empty(t, byName["slack"].WarningKind)
+	assert.Equal(t, HealthIdle, byName["slack"].Status, "the running output is back to its normal state")
+	assert.Equal(t, HealthFailed, byName["loki"].Status, "an output that is not running stays failed")
+
+	d.ReportUpdateFailure("slack", WarningRotation, "secret rotation not applied: password_file: file does not exist")
+	assert.Equal(t, WarningRotation, statusOf(t, d, "slack").WarningKind)
+	require.NoError(t, d.ReplaceOutput(ctx, ctx, "slack", NewOutput(&testutil.MockDriver{DriverName: "slack"}, defaultRuntimeDefaults(), nil)))
+	assert.Empty(t, statusOf(t, d, "slack").LastWarning, "the replacement clears it")
+}
+
+func statusOf(t *testing.T, d *Dispatcher, name string) OutputStatus {
+	t.Helper()
+	statuses := d.CollectStatus()
+	for i := range statuses {
+		if statuses[i].Name == name {
+			return statuses[i]
 		}
 	}
+	t.Fatalf("no status for %s", name)
+	return OutputStatus{}
+}
+
+// An update warning shows before a destination warning.
+func TestWarningKinds(t *testing.T) {
+	out := NewOutput(&testutil.MockDriver{DriverName: "slack"}, defaultRuntimeDefaults(), nil)
+	assert.Empty(t, out.GetStatus().WarningKind)
+
+	out.SetHealthWarning("health check failed before start: connection refused")
+	assert.Equal(t, WarningDestination, out.GetStatus().WarningKind)
+
+	out.setUpdateWarning(WarningUpdate, "version 2 not applied: invalid host")
+	assert.Equal(t, WarningUpdate, out.GetStatus().WarningKind)
+	assert.Equal(t, "version 2 not applied: invalid host", out.GetStatus().LastWarning)
+
+	out.setUpdateWarning(WarningUpdate, "")
+	assert.Equal(t, WarningDestination, out.GetStatus().WarningKind, "the destination warning shows again")
+
+	out.driverWarning.Store("1 of 2 hosts unreachable")
+	out.SetHealthWarning("")
+	assert.Equal(t, WarningDestination, out.GetStatus().WarningKind, "a partial destination failure")
 }

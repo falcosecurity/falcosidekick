@@ -25,13 +25,60 @@
   },
   "validation": {
     "body": {
-      "error": "apply output: apply create: catalog: create \"slack\": slack: secret_endpoint: is required"
+      "error": "apply output: apply create: catalog: create \"slack\": slack: secret_endpoint: is required",
+      "fields": [
+        {
+          "message": "is required",
+          "path": "secret_endpoint"
+        }
+      ],
+      "phase": "validate"
+    },
+    "status": 400
+  },
+  "validation_duration": {
+    "body": {
+      "error": "apply output: apply create: catalog: create \"slack\": slack config: runtime.retry.initial_interval: must be a duration such as 30s or 1m",
+      "fields": [
+        {
+          "message": "must be a duration such as 30s or 1m",
+          "path": "runtime.retry.initial_interval"
+        }
+      ],
+      "phase": "validate"
+    },
+    "status": 400
+  },
+  "validation_range": {
+    "body": {
+      "error": "apply output: apply create: catalog: create \"slack\": slack config: runtime.workers: must be an integer between 1 and 256",
+      "fields": [
+        {
+          "message": "must be an integer between 1 and 256",
+          "path": "runtime.workers"
+        }
+      ],
+      "phase": "validate"
+    },
+    "status": 400
+  },
+  "validation_type": {
+    "body": {
+      "error": "apply output: apply create: catalog: create \"slack\": slack config: runtime.queue_size: must be an integer",
+      "fields": [
+        {
+          "message": "must be an integer",
+          "path": "runtime.queue_size"
+        }
+      ],
+      "phase": "validate"
     },
     "status": 400
   },
   "version_conflict": {
     "body": {
-      "error": "output 'webhook' changed since the version sent; read it again and retry"
+      "error": "output 'webhook' changed since the version sent; read it again and retry",
+      "phase": "store"
     },
     "status": 409
   },

@@ -162,6 +162,7 @@ func NewApp(
 		InitialDigests:      digests,
 		FileOutputs:         outsCfg.Outputs,
 		APIOutputs:          restored.resolved,
+		StoredAPIOutputs:    restored.stored,
 		APIDigests:          restored.digests,
 		APIVersions:         restored.builtVersions(),
 		FailedAPIVersions:   restored.failedVersions(),
@@ -193,7 +194,7 @@ func NewApp(
 }
 
 // startReloadWatchers binds the worker context so UI-driven applies share the file reload lifetime.
-// Output files, secret directories and SIGHUP trigger a reload, which rebuilds only what changed.
+// Output files, secret directories and SIGHUP wake one coordinator, which retries a transient failure on a timer.
 func (a *app) startReloadWatchers(
 	appCtx, workerRunCtx context.Context,
 	outputPaths, secretDirs []string,
@@ -207,16 +208,19 @@ func (a *app) startReloadWatchers(
 
 	// A reload can change the files the file outputs read, so the watcher syncs its directories after it.
 	var watcher *reload.Watcher
-	reloadFn := func() error {
-		err := a.reloader.Reload(appCtx, workerRunCtx, reloadCfg.RetireTimeout)
+	coordinator := reload.NewCoordinator(func(ctx context.Context, trigger reload.Trigger) (reload.Outcome, error) {
+		outcome, err := a.reloader.ReconcileFiles(ctx, workerRunCtx, reloadCfg.RetireTimeout, trigger)
 		if watcher != nil {
 			watcher.Refresh()
 		}
-		return err
-	}
+		return outcome, err
+	}, slog.Default())
 
 	if watch {
-		watcher = reload.NewWatcher(outputPaths, secrets.Dirs, 100*time.Millisecond, reloadFn, slog.Default())
+		watcher = reload.NewWatcher(outputPaths, secrets.Dirs, 100*time.Millisecond, coordinator.Notify, slog.Default())
+	}
+	a.background.Go(func() { coordinator.Run(appCtx) })
+	if watch {
 		a.background.Go(func() {
 			if err := watcher.Run(appCtx); err != nil && !errors.Is(err, context.Canceled) {
 				slog.Error("watcher stopped", "error", err)
@@ -225,7 +229,7 @@ func (a *app) startReloadWatchers(
 	}
 
 	if watch && reloadCfg.PollInterval > 0 {
-		poller := reload.NewPoller(outputPaths, secrets.Files, reloadCfg.PollInterval, reloadFn, slog.Default())
+		poller := reload.NewPoller(outputPaths, secrets.Files, reloadCfg.PollInterval, coordinator.Notify, slog.Default())
 		a.background.Go(func() {
 			if err := poller.Run(appCtx); err != nil && !errors.Is(err, context.Canceled) {
 				slog.Error("poller stopped", "error", err)
@@ -244,9 +248,7 @@ func (a *app) startReloadWatchers(
 				return
 			case <-sigHUP:
 				slog.Info("received SIGHUP, reloading output config")
-				if err := reloadFn(); err != nil {
-					slog.Error("reload failed (SIGHUP)", "error", err)
-				}
+				coordinator.Force()
 			}
 		}
 	})
@@ -388,8 +390,9 @@ func createOutputs(
 
 // restoredOutputs are the stored API outputs rebuilt at startup.
 type restoredOutputs struct {
-	// resolved holds the configs of the outputs that built, with secret files read.
+	// resolved holds the configs of the outputs that built, secret files read; stored holds them as stored.
 	resolved map[string]map[string]any
+	stored   map[string]map[string]any
 	// digests holds the File field digests of resolved, read before the build.
 	digests  map[string]string
 	failures map[string]error
@@ -454,6 +457,7 @@ func restoreFromDB(
 	maps.Copy(failures, buildFailures)
 	restored := &restoredOutputs{
 		resolved: make(map[string]map[string]any, len(built)),
+		stored:   make(map[string]map[string]any, len(built)),
 		digests:  make(map[string]string, len(built)),
 		failures: failures,
 		versions: versions,
@@ -461,6 +465,7 @@ func restoreFromDB(
 	for _, name := range slices.Sorted(maps.Keys(built)) {
 		restored.outputs = append(restored.outputs, built[name])
 		restored.resolved[name] = resolved[name]
+		restored.stored[name] = entries[name].Config
 		if digest, ok := digests[name]; ok {
 			restored.digests[name] = digest
 		}

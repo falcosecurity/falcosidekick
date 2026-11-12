@@ -6,7 +6,9 @@ import type { OutputConfigEntry, OutputStatus, OutputType } from "@/lib/types"
 import { fixtures, outputNamed, statusNamed } from "@/test/fixtures"
 import { cleanup, fireEvent, renderWithProviders, screen, within } from "@/test/test-utils"
 
-import { falcoSnippet, PipelineDetailPanel, problemOf } from "./detail-panel"
+import { problemOf } from "@/lib/output-problem"
+
+import { falcoSnippet, PipelineDetailPanel } from "./detail-panel"
 
 const entry: OutputConfigEntry = outputNamed("webhook")
 const delivering: OutputStatus = { ...statusNamed("inmemory"), name: "webhook" }
@@ -50,20 +52,68 @@ function mockOutputTypes() {
 describe("problemOf", () => {
   test.each([
     { error: "", warning: "", want: null },
-    { error: "loki send: connection refused", warning: "", want: { main: "loki send: connection refused" } },
+    { error: "loki send: connection refused", warning: "", want: { tone: "error", title: "Not delivering", main: "loki send: connection refused" } },
     {
       error: "loki send: connection refused",
       warning: "health check failed before start: loki send: connection refused",
-      want: { main: "loki send: connection refused" },
+      want: { tone: "error", title: "Not delivering", main: "loki send: connection refused" },
     },
     {
       error: "loki send: 429 too many requests",
       warning: "health check failed before start: dial tcp: lookup loki: no such host",
-      want: { main: "loki send: 429 too many requests", extra: "health check failed before start: dial tcp: lookup loki: no such host" },
+      want: {
+        tone: "error",
+        title: "Not delivering",
+        main: "loki send: 429 too many requests",
+        extra: "dial tcp: lookup loki: no such host",
+      },
     },
-    { error: "", warning: "version 4 not applied: hosts: must be a valid URL", want: { main: "version 4 not applied: hosts: must be a valid URL" } },
+    {
+      error: "",
+      warning: "health check failed before start: dial tcp: lookup loki: no such host",
+      want: { tone: "warning", title: "Destination not verified", main: "dial tcp: lookup loki: no such host" },
+    },
   ])("error $error, warning $warning", ({ error, warning, want }) => {
-    expect(problemOf({ ...delivering, last_error: error, last_warning: warning })).toEqual(want)
+    expect(problemOf({ ...delivering, last_error: error, last_warning: warning, warning_kind: "destination" })).toEqual(want)
+  })
+
+  test.each([
+    { kind: "destination", warning: "health check failed before start: dial tcp: connection refused", title: "Destination not verified", main: "dial tcp: connection refused" },
+    { kind: "destination", warning: "elasticsearch response: bulk indexed 7/10, 3 rejected", title: "Destination failing in part", main: "elasticsearch response: bulk indexed 7/10, 3 rejected" },
+    { kind: "destination", warning: "2 of 3 hosts failed, last: connection refused", title: "Destination failing in part", main: "2 of 3 hosts failed, last: connection refused" },
+    { kind: "update", warning: "version 4 not applied: hosts: must be a valid URL", title: "Update not applied", main: "version 4 not applied: hosts: must be a valid URL" },
+    { kind: "rotation", warning: "password_file: permission denied; previous secret kept", title: "Secret rotation not applied", main: "password_file: permission denied; previous secret kept" },
+  ] as const)("a $kind warning is titled $title", ({ kind, warning, title, main }) => {
+    expect(problemOf({ ...delivering, status: "degraded", last_warning: warning, warning_kind: kind })).toEqual({ tone: "warning", title, main })
+  })
+
+  test("an output that did not build is not running; an open circuit without text pauses deliveries", () => {
+    expect(problemOf(statusNamed("alertmanager"))).toEqual({
+      tone: "error",
+      title: "Not running",
+      main: "build output alertmanager: hosts: must be a valid URL",
+    })
+    expect(problemOf({ ...delivering, status: "degraded", circuit_state: "open" })).toEqual({
+      tone: "warning",
+      title: "Deliveries paused",
+      main: "The circuit breaker is open after repeated failures.",
+    })
+  })
+})
+
+describe("the reason of a degraded output, whatever its origin", () => {
+  test.each([
+    { provisioned: true, origin: "File provisioned" },
+    { provisioned: false, origin: "API provisioned" },
+  ])("$origin", ({ provisioned, origin }) => {
+    // The degraded status the PUT fixture answers with, as /pipeline/status reports it later.
+    const status = { ...fixtures.outputPutDegraded.status!, name: "webhook" }
+    const reason = "alertmanager healthcheck: 1 of 1 hosts unreachable"
+    renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={{ ...entry, provisioned }} status={status} />)
+    expect(screen.getByText(origin)).toBeInTheDocument()
+    const problem = screen.getByRole("alert")
+    expect(within(problem).getByText("Destination not verified")).toBeInTheDocument()
+    expect(within(problem).getByText(reason)).toBeInTheDocument()
   })
 })
 
@@ -130,12 +180,12 @@ describe("PipelineDetailPanel", () => {
   test("a degraded output that still delivers shows its warning as the problem, not an error", () => {
     renderWithProviders(<PipelineDetailPanel selection={sink("webhook")} entry={entry} status={{
       ...delivering, status: "degraded",
-      last_warning: "health check failed before start: connection refused",
+      last_warning: "health check failed before start: connection refused", warning_kind: "destination",
     }} />)
     expect(statusBadge("degraded")).toBeInTheDocument()
     const problem = screen.getByRole("alert")
-    expect(within(problem).getByText("Needs a look")).toBeInTheDocument()
-    expect(within(problem).getByText("health check failed before start: connection refused")).toBeInTheDocument()
+    expect(within(problem).getByText("Destination not verified")).toBeInTheDocument()
+    expect(within(problem).getByText("connection refused")).toBeInTheDocument()
     expect(within(problem).queryByText("Not delivering")).toBeNull()
   })
 

@@ -18,11 +18,15 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
+
+	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
 const configNone = "none"
@@ -32,6 +36,7 @@ func buildClientOpts(cfg *config, logger *slog.Logger) ([]kgo.Opt, error) {
 		kgo.SeedBrokers(cfg.Brokers...),
 		kgo.DefaultProduceTopic(cfg.Topic),
 		kgo.RecordDeliveryTimeout(cfg.Producer.DeliveryTimeout),
+		kgo.ProduceRequestTimeout(cfg.Producer.DeliveryTimeout),
 		kgo.ClientID(cfg.Producer.ClientID),
 		kgo.WithLogger(clientLogger{logger: logger}),
 	}
@@ -62,10 +67,13 @@ func buildClientOpts(cfg *config, logger *slog.Logger) ([]kgo.Opt, error) {
 		opts = append(opts, saslOpt)
 	}
 
-	// Idempotent writes require acks=all. With them the client keeps a record it already sent until
-	// the broker answers, so a canceled delivery cannot be reported as failed after it was written.
+	// Idempotent writes require acks=all. Without AllowIdempotentProduceCancellation the client keeps a
+	// sent record until the broker answers, ignoring the delivery timeout and the context; with it a
+	// record sent without an answer can fail after Kafka wrote it, and the retry writes it again.
 	if acks != kgo.AllISRAcks() {
 		opts = append(opts, kgo.DisableIdempotentWrite())
+	} else {
+		opts = append(opts, kgo.AllowIdempotentProduceCancellation())
 	}
 
 	return opts, nil
@@ -117,12 +125,21 @@ func (l clientLogger) Log(level kgo.LogLevel, msg string, keyvals ...any) {
 	for i := 0; i+1 < len(keyvals); i += 2 {
 		key, _ := keyvals[i].(string)
 		if err, ok := keyvals[i+1].(error); ok {
-			safe = append(safe, key, newDeliveryError(opClient, err))
+			safe = append(safe, key, logError(err))
 		} else if logFields[key] {
 			safe = append(safe, key, keyvals[i+1])
 		}
 	}
 	l.logger.Log(context.Background(), slogLevel(level), msg, safe...)
+}
+
+// logError keeps the broker code a record timeout wraps, which the Send error leaves out.
+func logError(err error) *shared.DeliveryError {
+	diagnostic := newDeliveryError(opClient, err)
+	if code, ok := errors.AsType[*kerr.Error](err); ok && errors.Is(err, kgo.ErrRecordTimeout) {
+		diagnostic.Code = codeTimeout + ": " + code.Message
+	}
+	return diagnostic
 }
 
 func slogLevel(level kgo.LogLevel) slog.Level {

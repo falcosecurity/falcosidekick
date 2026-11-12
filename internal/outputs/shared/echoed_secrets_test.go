@@ -57,8 +57,17 @@ type echoedSecretCase struct {
 	name        string
 	typ         string // output type when it differs from name
 	want        string // text of the Send error proving the destination answered, not a timeout
-	noProbe     bool   // HealthCheck does not contact the destination
+	// probeWant, when set, is the text of the HealthCheck error, which must also report a misconfiguration.
+	probeWant string
+	// logWant, when set, is the text the logs must hold: the destination's answer, without its text.
+	logWant string
+	// sendTimeout, when set, is the delivery timeout at which Send and SendBatch fail, retryable.
+	sendTimeout time.Duration
+	noProbe     bool // HealthCheck does not contact the destination
 }
+
+// sendTimeoutSlack is how late a Send bounded by its delivery timeout may return.
+const sendTimeoutSlack = 500 * time.Millisecond
 
 var hostileAnswers = []struct {
 	name   string
@@ -160,7 +169,8 @@ func TestEveryOutputKeepsEchoedSecretsOut(t *testing.T) {
 		}, config: func(h string) map[string]any {
 			return map[string]any{"project_id": "p", "topic": "falco", "emulator_host": h}
 		}},
-		{name: "kafka", want: "SASL_AUTHENTICATION_FAILED", destination: hostileSASLBroker, config: func(h string) map[string]any {
+		// The refused login fails every attempt at the delivery timeout; HealthCheck and the logs report why.
+		{name: "kafka", want: "kafka send: timeout", sendTimeout: time.Second, probeWant: "SASL_AUTHENTICATION_FAILED", logWant: "SASL_AUTHENTICATION_FAILED", destination: hostileSASLBroker, config: func(h string) map[string]any {
 			return map[string]any{
 				"brokers": []string{h}, "topic": "falco",
 				"auth":     map[string]any{"sasl": "PLAIN", "username": "u", "password": echoedSecret},
@@ -243,21 +253,43 @@ func runEchoedSecretCase(t *testing.T, tt *echoedSecretCase, host, want string) 
 	ctx, cancel := context.WithTimeout(context.Background(), echoedSecretTimeout)
 	defer cancel()
 
+	start := time.Now()
 	err = driver.Send(ctx, testutil.CreateValidEvent())
 	require.Error(t, err, "Send")
 	assert.Contains(t, err.Error(), want, "Send")
 	assertNoEchoedSecret(t, "Send", err)
+	tt.assertSendTimeout(t, "Send", start, err)
 	if batch, ok := driver.(output.BatchSender); ok {
+		start = time.Now()
 		err = batch.SendBatch(ctx, []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent()})
 		require.Error(t, err, "SendBatch")
 		assertNoEchoedSecret(t, "SendBatch", err)
+		tt.assertSendTimeout(t, "SendBatch", start, err)
 	}
 	if !tt.noProbe {
 		err = driver.HealthCheck(ctx)
 		require.Error(t, err, "HealthCheck")
 		assertNoEchoedSecret(t, "HealthCheck", err)
+		if tt.probeWant != "" {
+			assert.Contains(t, err.Error(), tt.probeWant, "HealthCheck")
+			assert.ErrorIs(t, err, output.ErrMisconfigured, "HealthCheck")
+		}
+	}
+	if tt.logWant != "" {
+		assert.Contains(t, logs.String(), tt.logWant, "logs")
 	}
 	assert.NotContains(t, logs.String(), echoedSecret, "logs")
+}
+
+func (c *echoedSecretCase) assertSendTimeout(t *testing.T, call string, start time.Time, err error) {
+	t.Helper()
+	if c.sendTimeout == 0 {
+		return
+	}
+	took := time.Since(start)
+	assert.GreaterOrEqual(t, took, c.sendTimeout, call)
+	assert.LessOrEqual(t, took, c.sendTimeout+sendTimeoutSlack, call)
+	assert.False(t, output.IsPermanent(err), "%s: %v", call, err)
 }
 
 func assertNoEchoedSecret(t *testing.T, call string, err error) {

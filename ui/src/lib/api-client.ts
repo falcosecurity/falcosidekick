@@ -5,7 +5,7 @@ import axios, {
   type AxiosResponse,
 } from "axios"
 
-import { ApiError } from "./api-error"
+import { ApiError, errorDetails } from "./api-error"
 import type {
   AuthLoginResponse,
   CountByResponse,
@@ -21,6 +21,7 @@ import type {
   OutputType,
   PipelineComposite,
   PipelineLayout,
+  SavedOutput,
   SchemaField,
   SearchQuery,
   SearchResult,
@@ -54,7 +55,7 @@ function toApiError(error: AxiosError): ApiError {
     body && typeof body === "object" && typeof (body as { error?: unknown }).error === "string"
       ? (body as { error: string }).error
       : null
-  if (text) return new ApiError(status, text)
+  if (text) return new ApiError(status, text, errorDetails(body))
   if (status > 0) return new ApiError(status, `Request failed with status ${status}`)
   return new ApiError(0, "Unable to reach the server")
 }
@@ -268,10 +269,13 @@ export const api = {
       .then((r) => normalizeOutputTypes(r.data))
   },
 
-  /** Creates (version 0) or updates an output; config is a patch, `null` clears a key. */
-  putOutput(name: string, version: number, config: Record<string, unknown>): Promise<OutputConfigEntry> {
+  /**
+   * Creates (version 0) or updates an output; config is a patch, `null` clears a key. A saved output
+   * whose destination did not answer comes back with a status that says why.
+   */
+  putOutput(name: string, version: number, config: Record<string, unknown>): Promise<SavedOutput> {
     return http
-      .put<OutputConfigEntry>(`/pipeline/outputs/${encodeURIComponent(name)}`, { version, config })
+      .put<SavedOutput>(`/pipeline/outputs/${encodeURIComponent(name)}`, { version, config })
       .then(unwrap)
   },
 

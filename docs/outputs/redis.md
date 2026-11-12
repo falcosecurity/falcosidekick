@@ -5,7 +5,7 @@ Stores the event JSON under `key` with `storage_type` `stream` (`XADD`, the defa
 - `key` has no default: pick one per Falcosidekick, such as `falco`, so two instances do not share it by accident.
 - The stream keeps about `max_len` entries, 100000 unless set, with `XADD MAXLEN ~`: Redis trims whole nodes, so the length can briefly exceed it. `max_len: 0` keeps every entry. Lists and hashes are not trimmed.
 
-- Startup sends `PING`: rejected credentials, a missing ACL permission or an unknown database stop startup.
+- Startup sends `PING`: rejected credentials, a missing ACL permission or an unknown database start the output degraded with the reason.
 - A `WRONGTYPE`, `WRONGPASS`, `NOAUTH` or `NOPERM` reply fails the event for good; every other reply, such as `BUSY`, `LOADING` or `OOM`, is retried.
 - A retry sends the whole batch again, so with `stream` and `list` an event whose command went through is written twice; `hash` overwrites the same field.
 - `tls.enabled: true` connects over TLS; the other `tls` settings without it are refused at startup.

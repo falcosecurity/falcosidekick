@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -1088,7 +1087,7 @@ func TestHandlePipelineOutputPut_DBSaveErrorReturns503(t *testing.T) {
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	respBody, _ := io.ReadAll(resp.Body)
-	assert.Equal(t, `{"error":"database unavailable"}`, string(respBody))
+	assert.Equal(t, `{"error":"database unavailable","phase":"store"}`, string(respBody))
 	assert.NotContains(t, string(respBody), "boom", "the database error text stays out of the answer")
 }
 
@@ -1157,7 +1156,7 @@ func TestHandlePipelineOutputDelete_DBDeleteErrorReturns503(t *testing.T) {
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 	respBody, _ := io.ReadAll(resp.Body)
-	assert.Equal(t, `{"error":"database unavailable"}`, string(respBody))
+	assert.Equal(t, `{"error":"database unavailable","phase":"store"}`, string(respBody))
 	assert.NotContains(t, string(respBody), "boom")
 }
 
@@ -1236,7 +1235,7 @@ func TestHandlePipelineOutputDelete_NoDatabaseReturns503(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 }
 
-func TestHandlePipelineOutputPut_ApplyInitFailureReturns500(t *testing.T) {
+func TestHandlePipelineOutputPut_ApplyInitFailureReturns400(t *testing.T) {
 	db := database.NewMemory()
 	// A driver that fails Init makes the real Reloader return an apply error.
 	cat, err := catalog.New([]output.Type{{
@@ -1253,8 +1252,6 @@ func TestHandlePipelineOutputPut_ApplyInitFailureReturns500(t *testing.T) {
 	}})
 	require.NoError(t, err)
 	rig := buildMutationRig(t, db, cat, true)
-	var logs bytes.Buffer
-	rig.Server.logger = slog.New(slog.NewTextHandler(&logs, nil))
 
 	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"x"}}`))
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/pipeline/outputs/slack", body)
@@ -1262,11 +1259,12 @@ func TestHandlePipelineOutputPut_ApplyInitFailureReturns500(t *testing.T) {
 	resp, err := rig.Server.app.Test(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "Init reads only local state: its failure is the configuration's")
 	respBody, _ := io.ReadAll(resp.Body)
-	assert.JSONEq(t, `{"error":"apply output 'slack' failed; see the falcosidekick log"}`, string(respBody),
-		"the default 500 answers a fixed message")
-	assert.Contains(t, logs.String(), "init failed by test driver", "the detail goes to the log")
+	assert.JSONEq(t, `{"error":"apply output: apply init: init failed by test driver","phase":"build"}`, string(respBody))
+	stored, err := db.GetOutputConfig(t.Context(), "slack")
+	require.NoError(t, err)
+	assert.Nil(t, stored, "nothing is saved")
 }
 
 func TestHandlePipelineOutputDelete_ReloaderNotBoundReturns503(t *testing.T) {

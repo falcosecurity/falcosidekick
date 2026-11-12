@@ -189,6 +189,24 @@ describe("api-client errors", () => {
     expect((error as ApiError).message).toBe(body.error)
   })
 
+  test("keeps the phase and the field problems of a refusal, dropping entries of the wrong shape", async () => {
+    useFailingAdapter(400, {
+      error: "invalid configuration",
+      phase: "validate",
+      fields: [{ path: "runtime.workers", message: "must be an integer between 1 and 256" }, { path: 3 }, null],
+    })
+    const error = (await api.getVersion().catch((e: unknown) => e)) as ApiError
+    expect(error.phase).toBe("validate")
+    expect(error.fields).toEqual([{ path: "runtime.workers", message: "must be an integer between 1 and 256" }])
+  })
+
+  test("an old error body has neither phase nor fields", async () => {
+    useFailingAdapter(400, { error: "host: must be a valid URL", phase: "elsewhere" })
+    const error = (await api.getVersion().catch((e: unknown) => e)) as ApiError
+    expect(error.phase).toBeUndefined()
+    expect(error.fields).toBeUndefined()
+  })
+
   test("describes answers without an error envelope by their status", async () => {
     useFailingAdapter(502, "<html>bad gateway</html>")
     const error = await api.getVersion().catch((e: unknown) => e)

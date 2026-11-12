@@ -1,5 +1,5 @@
 import { AlertCircle, ArrowLeft, ArrowRight, Check, RefreshCw } from "lucide-react"
-import { useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { toast } from "sonner"
 
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
@@ -14,14 +14,25 @@ import { MEDIA_LG, useMediaQuery } from "@/hooks/use-media-query"
 import { useReturnFocus } from "@/hooks/use-return-focus"
 import { useOutputTypes, useSaveOutput, useStoredOutput } from "@/hooks/use-output-writes"
 import { usePipelineComposite } from "@/hooks/use-pipeline"
-import { errorMessage, isApiError } from "@/lib/api-error"
+import { errorMessage, isApiError, type ErrorPhase } from "@/lib/api-error"
+import { problemLine, saveProblemOf } from "@/lib/output-problem"
 import { withRuntimeDefaults } from "@/lib/runtime-defaults"
 import type { OutputConfigEntry } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 import { ConfigureStep } from "./configure-step"
 import { DriverStep } from "./driver-step"
-import { buildPatch, fieldOfError, initialState, validate, type FieldValue, type FormState } from "./form-model"
+import {
+  buildPatch,
+  conciseError,
+  erroredInOrder,
+  fieldInputId,
+  initialState,
+  refusedSave,
+  validate,
+  type FieldValue,
+  type FormState,
+} from "./form-model"
 import { reviewRows, ReviewStep } from "./review-step"
 import { driverTitle, sectionsFor } from "./sections"
 
@@ -34,6 +45,25 @@ interface OutputWizardProps {
 }
 
 const STEPS = ["Driver", "Configure", "Review"] as const
+
+const PHASE_TEXT: Record<ErrorPhase, string> = {
+  validate: "The configuration was refused.",
+  build: "The output could not be built from this configuration.",
+  store: "The database did not store the change.",
+}
+
+interface SubmitError {
+  phase?: ErrorPhase
+  lines: string[]
+}
+
+/** Moves the focus to a field's control, or to the first control of a list of entries. */
+function focusField(name: string) {
+  const id = fieldInputId(name)
+  const target = document.getElementById(id) ?? document.getElementById(`${id}-entries`)?.querySelector<HTMLElement>("input, textarea, button")
+  target?.focus()
+  target?.scrollIntoView?.({ block: "center" })
+}
 
 function Stepper({ step, editing }: { step: number; editing: boolean }) {
   const steps = editing ? STEPS.slice(1) : STEPS
@@ -120,7 +150,9 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
   // newer copy read meanwhile cannot slip old values under a new version and bypass the 409.
   const [baseline, setBaseline] = useState<OutputConfigEntry | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<SubmitError | null>(null)
+  // The field to focus once Configure shows it, after a refused Next or save.
+  const pendingFocus = useRef<string | null>(null)
   const [conflict, setConflict] = useState(false)
   const [openSections, setOpenSections] = useState<string[]>([])
 
@@ -128,6 +160,7 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
   const runtimeDefaults = config.data?.config.runtime_defaults
   const fields = useMemo(() => withRuntimeDefaults(type?.schema.fields ?? [], runtimeDefaults), [type, runtimeDefaults])
   const sections = useMemo(() => sectionsFor(fields), [fields])
+  const fieldOrder = useMemo(() => sections.flatMap((s) => s.fields.map((f) => f.name)), [sections])
   const filesOnly = config.data ? config.data.config.database.backend !== "inmemory" : true
   const configured = useMemo(() => new Set((composite.data?.outputs ?? []).map((o) => o.name)), [composite.data])
 
@@ -163,13 +196,29 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
     setOpenSections((prev) => [...new Set([...prev, ...keys])])
   }
 
+  /** Shows the errors on Configure, its sections open, the focus on the first errored field. */
+  const showFieldErrors = (found: Record<string, string>) => {
+    const names = erroredInOrder(fieldOrder, found)
+    setErrors(found)
+    openFor(names)
+    pendingFocus.current = names[0] ?? null
+    setStep(1)
+  }
+
+  useEffect(() => {
+    if (step !== 1 || !pendingFocus.current) return
+    const name = pendingFocus.current
+    pendingFocus.current = null
+    focusField(name)
+  })
+
   const next = () => {
     setSubmitError(null)
     if (step === 0 && driver) return setStep(1)
     if (step === 1 && state) {
       const found = validate(fields, state, { filesOnly })
-      setErrors(found)
-      if (Object.keys(found).length > 0) return openFor(Object.keys(found))
+      if (Object.keys(found).length > 0) return showFieldErrors(found)
+      setErrors({})
       setStep(2)
     }
   }
@@ -181,21 +230,23 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
       { name: driver, version: base?.version ?? 0, config: patch },
       {
         onSuccess: (entry) => {
-          toast.success(editing ? `${driverTitle(entry.name)} updated` : `${driverTitle(entry.name)} added to the pipeline`)
+          const done = editing ? `${driverTitle(entry.name)} updated` : `${driverTitle(entry.name)} added to the pipeline`
+          // Saved and running, but the destination did not answer the check: say why, not "done".
+          const problem = saveProblemOf(entry)
+          if (problem) toast.warning(`Saved. ${problemLine(problem)}`, { description: `${done}.`, duration: 15_000 })
+          else toast.success(done)
           onSaved?.(entry.name)
           onClose()
         },
         onError: (error) => {
           if (isApiError(error) && error.status === 409) return setConflict(true)
-          const message = errorMessage(error)
-          const field = isApiError(error) && error.status === 400 ? fieldOfError(fields, message) : null
-          if (field) {
-            setErrors({ [field]: message.slice(message.indexOf(":") + 1).trim() || message })
-            openFor([field])
-            setStep(1)
+          if (isApiError(error) && error.status === 400) {
+            const refused = refusedSave(fields, driver, error.message, error.fields)
+            setSubmitError(refused.other.length > 0 ? { phase: error.phase, lines: refused.other } : null)
+            if (Object.keys(refused.byField).length > 0) showFieldErrors(refused.byField)
             return
           }
-          setSubmitError(message)
+          setSubmitError({ phase: isApiError(error) ? error.phase : undefined, lines: [conciseError(errorMessage(error), driver)] })
         },
       },
     )
@@ -281,7 +332,18 @@ export function OutputWizard({ target, onClose, onSaved }: OutputWizardProps) {
           <Alert variant="destructive" className="mb-5">
             <AlertCircle aria-hidden />
             <AlertTitle>{editing ? "Not updated" : "Not added"}</AlertTitle>
-            <AlertDescription>{submitError}</AlertDescription>
+            <AlertDescription>
+              {submitError.phase && <p>{PHASE_TEXT[submitError.phase]}</p>}
+              {submitError.lines.length === 1 ? (
+                <p className="[overflow-wrap:anywhere]">{submitError.lines[0]}</p>
+              ) : (
+                <ul className="list-disc pl-4 [overflow-wrap:anywhere]">
+                  {submitError.lines.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              )}
+            </AlertDescription>
           </Alert>
         )}
         {content}

@@ -31,11 +31,12 @@ func TestBatchingConfigValidation(t *testing.T) {
 		cfg     output.BatchingConfig
 		wantErr bool
 	}{
-		{"disabled skips validation", output.BatchingConfig{Enabled: false}, false},
-		{"valid enabled", output.BatchingConfig{Enabled: true, BatchSize: 100, FlushInterval: time.Second}, false},
-		{"zero batch size", output.BatchingConfig{Enabled: true, BatchSize: 0, FlushInterval: time.Second}, true},
-		{"negative batch size", output.BatchingConfig{Enabled: true, BatchSize: -1, FlushInterval: time.Second}, true},
-		{"zero flush interval", output.BatchingConfig{Enabled: true, BatchSize: 100, FlushInterval: 0}, true},
+		{"disabled is validated too", output.BatchingConfig{Enabled: new(false)}, true},
+		{"disabled valid", output.BatchingConfig{Enabled: new(false), BatchSize: 100, FlushInterval: time.Second}, false},
+		{"valid enabled", output.BatchingConfig{Enabled: new(true), BatchSize: 100, FlushInterval: time.Second}, false},
+		{"zero batch size", output.BatchingConfig{Enabled: new(true), BatchSize: 0, FlushInterval: time.Second}, true},
+		{"negative batch size", output.BatchingConfig{Enabled: new(true), BatchSize: -1, FlushInterval: time.Second}, true},
+		{"zero flush interval", output.BatchingConfig{Enabled: new(true), BatchSize: 100, FlushInterval: 0}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

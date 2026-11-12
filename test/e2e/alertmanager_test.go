@@ -152,11 +152,11 @@ func TestAlertmanagerFanOutFailsWhenAllHostsFail(t *testing.T) {
 	assert.Contains(t, st.LastError, "all 2 hosts failed")
 }
 
-// A wrong base path fails the health probe at startup; a wrong endpoint fails only on delivery.
+// A wrong base path fails the probe at startup; a wrong endpoint fails only on delivery.
 func TestAlertmanagerReportsWrongRoute(t *testing.T) {
 	amURL := requireEnv(t, "FALCOSIDEKICK_E2E_ALERTMANAGER_URL")
 	t.Run("base_path", func(t *testing.T) {
-		logs := startSidekickFails(t, fmt.Sprintf("alertmanager:\n  hosts:\n    - %q\n  base_path: /missing\n", amURL))
+		_, logs := startSidekickDegraded(t, "alertmanager", fmt.Sprintf("alertmanager:\n  hosts:\n    - %q\n  base_path: /missing\n", amURL))
 		assert.Contains(t, logs, "health check")
 		assert.Contains(t, logs, "HTTP 404")
 	})

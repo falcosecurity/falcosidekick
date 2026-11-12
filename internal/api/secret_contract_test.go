@@ -184,7 +184,7 @@ func TestSecretContractPUT(t *testing.T) {
 		{"empty maps retain credentials", `{"headers":{"X-Key":{}}}`, `["stored-one","stored-two"]`, "stored-password", `["visible"]`, false},
 		{"arrays replace", `{"headers":{"X-Key":{"secrets":["replacement-private"]}}}`, `["replacement-private"]`, "stored-password", `["visible"]`, false},
 		{"empty arrays clear", `{"headers":{"X-Key":{"secrets":[]}}}`, `[]`, "stored-password", `["visible"]`, false},
-		{"null clears", `{"headers":{"X-Key":{"secrets":null}},"password":null}`, `null`, nil, `["visible"]`, false},
+		{"null removes", `{"headers":{"X-Key":{"secrets":null}},"password":null}`, `null`, nil, `["visible"]`, false},
 		{"empty scalar clears", `{"password":""}`, `["stored-one","stored-two"]`, "", `["visible"]`, false},
 		{"case aliases replace and preserve siblings", `{"HEADERS":{"X-Key":{"SeCrEtS":["replacement-private"],"VaLuEs":["new-public"]}},"PASSword":"replacement-password"}`, `["replacement-private"]`, "replacement-password", `["new-public"]`, false},
 		{"public sentinel is literal", `{"headers":{"X-Key":{"values":["****"]}}}`, `["stored-one","stored-two"]`, "stored-password", `["****"]`, false},
@@ -208,8 +208,17 @@ func TestSecretContractPUT(t *testing.T) {
 			want["headers"].(map[string]any)["X-Key"].(map[string]any)["files"] = []any{headerFile}
 			public, err := json.Marshal(want)
 			require.NoError(t, err)
-			fields := map[string]bool{"/password": tt.password != nil && tt.password != "",
-				"/headers/X-Key/secrets": tt.secrets != "[]" && tt.secrets != "null"}
+			// A null removes the key (RFC 7386), so the field is not reported at all.
+			fields := map[string]bool{}
+			if tt.password != nil {
+				fields["/password"] = tt.password != ""
+			}
+			if tt.secrets != "null" {
+				fields["/headers/X-Key/secrets"] = tt.secrets != "[]"
+			}
+			if len(fields) == 0 {
+				fields = nil
+			}
 			hidden := []string{"stored-password", "stored-one", "stored-two", "replacement-private", "replacement-password", "file-private"}
 			if tt.legacy {
 				hidden = append(hidden, "****")
@@ -218,8 +227,12 @@ func TestSecretContractPUT(t *testing.T) {
 
 			var secrets any
 			require.NoError(t, json.Unmarshal([]byte(tt.secrets), &secrets))
-			want["password"] = tt.password
-			want["headers"].(map[string]any)["X-Key"].(map[string]any)["secrets"] = secrets
+			if tt.password != nil {
+				want["password"] = tt.password
+			}
+			if secrets != nil {
+				want["headers"].(map[string]any)["X-Key"].(map[string]any)["secrets"] = secrets
+			}
 			stored, err := db.GetOutputConfig(t.Context(), "webhook")
 			require.NoError(t, err)
 			require.NotNil(t, stored)
@@ -306,11 +319,14 @@ func TestSecretContractNestedScalarAliases(t *testing.T) {
 				assert.Empty(t, rig.Server.pipeline.CollectOutputStatus())
 				return
 			}
-			assert.Equal(t, map[string]any{"topic": "events", "auth": map[string]any{
-				"sasl": "plain", "username": "bob", "password": tt.password,
-			}}, stored.Config)
+			auth := map[string]any{"sasl": "plain", "username": "bob"}
+			fields := map[string]bool(nil)
+			if tt.password != nil { // a null removes the key
+				auth["password"] = tt.password
+				fields = map[string]bool{"/auth/password": tt.password != ""}
+			}
+			assert.Equal(t, map[string]any{"topic": "events", "auth": auth}, stored.Config)
 			public := `{"topic":"events","auth":{"sasl":"plain","username":"bob"}}`
-			fields := map[string]bool{"/auth/password": tt.password != nil && tt.password != ""}
 			hidden := []string{"nested-private", "replacement-private"}
 			assertSecretContractResponse(t, raw, public, fields, hidden)
 			assertSecretContractReads(t, rig.Server, db, "kafka", public, fields, hidden)

@@ -1,6 +1,6 @@
 # Discord
 
-Posts each event as an embed to a Discord webhook. `host` defaults to `https://discord.com`; the webhook path with its token goes in `secret_endpoint`. Startup reads the webhook with `GET`, which posts nothing: a wrong token or a deleted webhook stops startup.
+Posts each event as an embed to a Discord webhook. `host` defaults to `https://discord.com`; the webhook path with its token goes in `secret_endpoint`. Startup reads the webhook with `GET`, which posts nothing: a wrong token or a deleted webhook starts the output degraded.
 
 - The embed title is the rule, its timestamp the event time, its color the priority's.
 - Embeds stay within the documented limits: title 256 characters, description 4096, 25 fields of up to 1024, 6000 in all. Output fields are dropped first.

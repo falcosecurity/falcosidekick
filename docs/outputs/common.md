@@ -49,7 +49,7 @@ Header names are case-insensitive and a name may appear once. `Authorization` se
 
 - Credentials: static keys when set, otherwise the AWS SDK default chain (environment, shared files, EKS IRSA and Pod Identity, ECS and EC2 roles); `role_arn` is then assumed through STS. Instance metadata is not used to find the region.
 - `endpoint` replaces the service endpoint (LocalStack, S3-compatible stores, VPC endpoints). `tls` applies to that service only; the credential calls (STS for `role_arn`, IRSA, profiles) trust the system CAs. Each call is attempted once and bounded to 30s; the pipeline retries.
-- Startup stops when AWS rejects the credentials or the bucket, queue or topic does not exist. The probe reads the resource (`s3:ListBucket`, `sqs:GetQueueAttributes`, `sns:GetTopicAttributes`); without that permission the output starts degraded. STS refusing `role_arn` stops startup.
+- The output starts degraded, with the reason, when AWS rejects the credentials, STS refuses `role_arn`, or the bucket, queue or topic does not exist. The probe reads the resource (`s3:ListBucket`, `sqs:GetQueueAttributes`, `sns:GetTopicAttributes`); without that permission the output starts degraded too.
 - AWS errors follow the SDK's retry rules, not the HTTP status: throttling answered with HTTP 400 is retried.
 
 <!-- BEGIN GENERATED: aws -->
@@ -57,7 +57,7 @@ Header names are case-insensitive and a name may appear once. `Authorization` se
 
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
-| `region` | string | - | AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`) or from the resource. |
+| `region` | string | - | AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`); SNS and SQS then use the region of the topic ARN or the queue URL, while S3 has no fallback and needs one. |
 | `access_key_id` | string, secret | - | Static access key, set with the secret access key. Empty uses the default credential chain: environment, shared files, web identity or instance role. Also accepted as `access_key_id_file`, the path of a file holding the value. |
 | `secret_access_key` | string, secret | - | Secret of the static access key. Also accepted as `secret_access_key_file`, the path of a file holding the value. |
 | `session_token` | string, secret | - | Session token of temporary static credentials; needs the access key and its secret. Also accepted as `session_token_file`, the path of a file holding the value. |
@@ -88,6 +88,8 @@ TLS 1.2 is the minimum version.
 
 The `runtime:` settings of an output. The defaults below are the built-in ones: `runtime_defaults` in the core configuration replaces them for every output, and an output's own `runtime:` replaces those.
 
+An omitted or `null` setting uses the default; an explicit `0` is refused where a positive value is required; `""` on a setting with a default uses the default. `workers` × `batch_size` is at most 100000 when batching is on. The ranges are in [configuration](../configuration.md#output-runtime).
+
 <!-- BEGIN GENERATED: delivery -->
 <!-- Generated from the output schema by `make docs`. Do not edit. -->
 
@@ -103,7 +105,7 @@ The `runtime:` settings of an output. The defaults below are the built-in ones: 
 | `runtime.circuit_breaker.failure_threshold` | integer | `5` | Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue. |
 | `runtime.circuit_breaker.success_threshold` | integer | `2` | Successful deliveries in a row that close the circuit again after the reset timeout. |
 | `runtime.circuit_breaker.reset_timeout` | string | `30s` | Time the circuit stays open before a trial delivery, as a duration. |
-| `runtime.health_check` | boolean | `true` | Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change. |
+| `runtime.health_check` | boolean | `true` | Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts. |
 
 <!-- END GENERATED: delivery -->
 

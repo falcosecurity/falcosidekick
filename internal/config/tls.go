@@ -21,8 +21,25 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
+// validateTLS refuses TLS settings while TLS is disabled: the listener would serve plain HTTP and ignore
+// them. The chart refuses the same contradiction at render with the same message.
 func validateTLS(ts *core.TLSConfig) utils.ValidationErrors {
 	var errs utils.ValidationErrors
+	if !ts.Enabled {
+		for _, setting := range []struct {
+			field string
+			set   bool
+		}{
+			{"mutual_tls", ts.MutualTLS},
+			{"cert_file", ts.CertFile != ""},
+			{"key_file", ts.KeyFile != ""},
+			{"ca_file", ts.CACertFile != ""},
+		} {
+			if setting.set {
+				errs.Add(setting.field, "needs tls.enabled")
+			}
+		}
+	}
 	if ts.Enabled {
 		if ts.CertFile == "" {
 			errs.Add("cert_file", "must be specified when TLS is enabled")

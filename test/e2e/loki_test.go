@@ -188,9 +188,9 @@ func TestLokiMissingTenantIsRejected(t *testing.T) {
 	assert.Contains(t, st.LastError, "HTTP 401")
 }
 
-func TestLokiWrongBasePathFailsStartup(t *testing.T) {
+func TestLokiWrongBasePathStartsDegraded(t *testing.T) {
 	base := requireEnv(t, lokiURLEnv)
-	logs := startSidekickFails(t, fmt.Sprintf("loki:\n  host: %q\n  base_path: /e2e-missing\n  tenant: e2e-falco\n", base))
+	_, logs := startSidekickDegraded(t, "loki", fmt.Sprintf("loki:\n  host: %q\n  base_path: /e2e-missing\n  tenant: e2e-falco\n", base))
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "HTTP 404")
 }

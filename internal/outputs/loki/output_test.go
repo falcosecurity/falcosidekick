@@ -209,7 +209,7 @@ func TestLokiCreateOutputLabelFields(t *testing.T) {
 		want string
 	}{
 		{name: "extra_labels is gone", raw: map[string]any{"extra_labels": "fd.name"}, want: "unknown keys"},
-		{name: "comma string", raw: map[string]any{"label_fields": "fd.name,user.name"}, want: "does not make a valid label name"},
+		{name: "comma string", raw: map[string]any{"label_fields": "fd.name,user.name"}, want: "label_fields: must be a list"},
 		{name: "built-in label", raw: map[string]any{"label_fields": []any{"k8s.ns.name"}}, want: "makes the built-in label k8s_ns_name"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

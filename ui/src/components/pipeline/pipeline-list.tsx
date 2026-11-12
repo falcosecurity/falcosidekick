@@ -7,7 +7,9 @@ import { OriginMark } from "@/components/common/origin-mark"
 import { OutputTypeIcon } from "@/components/common/output-type-icon"
 import { StatusBadge } from "@/components/common/status-badge"
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item"
+import { problemLine, problemOf } from "@/lib/output-problem"
 import { statusOf, type OutputStatus, type PipelineComposite } from "@/lib/types"
+import { cn } from "@/lib/utils"
 
 import type { PipelineSelection } from "./canvas"
 
@@ -42,7 +44,7 @@ function Row({
         <ItemMedia>{media}</ItemMedia>
         <ItemContent className="min-w-0 text-left">
           <ItemTitle className="w-full">{title}</ItemTitle>
-          {description && <ItemDescription>{description}</ItemDescription>}
+          {description}
         </ItemContent>
         <ItemActions>
           {actions}
@@ -65,7 +67,7 @@ export function PipelineList({ composite, statusByName, selection, onSelect, onA
           </span>
         }
         title="Falco"
-        description="event source"
+        description={<ItemDescription>event source</ItemDescription>}
         selected={selection?.kind === "source"}
         onClick={() => onSelect({ kind: "source" })}
       />
@@ -76,13 +78,14 @@ export function PipelineList({ composite, statusByName, selection, onSelect, onA
           </span>
         }
         title="Falco Sidekick"
-        description="event pipeline"
+        description={<ItemDescription>event pipeline</ItemDescription>}
         selected={selection?.kind === "core"}
         onClick={() => onSelect({ kind: "core" })}
       />
       <ItemGroup role="group" className="ml-4 gap-2 border-l pl-3" aria-label="Outputs">
         {composite.outputs.map((out) => {
           const status = statusByName[out.name]
+          const problem = status ? problemOf(status) : null
           return (
             <Row
               key={out.name}
@@ -93,6 +96,16 @@ export function PipelineList({ composite, statusByName, selection, onSelect, onA
                   <OriginMark provisioned={out.provisioned} />
                   {out.name === eventSource && <EventSourceMark />}
                 </span>
+              }
+              description={
+                problem && (
+                  <ItemDescription
+                    className={cn("truncate", problem.tone === "error" ? "text-status-error-foreground" : "text-status-degraded-foreground")}
+                    title={problemLine(problem)}
+                  >
+                    {problemLine(problem)}
+                  </ItemDescription>
+                )
               }
               actions={status && <StatusBadge status={statusOf(status)} />}
               selected={selection?.kind === "sink" && selection.name === out.name}

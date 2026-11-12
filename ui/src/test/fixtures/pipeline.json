@@ -84,7 +84,8 @@
       "queue_capacity": 0,
       "queue_depth": 0,
       "sent_total": 0,
-      "status": "failed"
+      "status": "failed",
+      "warning_kind": ""
     },
     {
       "circuit_state": "closed",
@@ -98,7 +99,8 @@
       "queue_capacity": 100,
       "queue_depth": 0,
       "sent_total": 3,
-      "status": "ok"
+      "status": "ok",
+      "warning_kind": ""
     },
     {
       "circuit_state": "closed",
@@ -112,7 +114,8 @@
       "queue_capacity": 100,
       "queue_depth": 0,
       "sent_total": 0,
-      "status": "error"
+      "status": "error",
+      "warning_kind": ""
     }
   ]
 }

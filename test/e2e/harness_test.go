@@ -163,6 +163,18 @@ func startSidekickWith(t *testing.T, core launchOptions, outputs string) *sideki
 	}
 }
 
+// startSidekickDegraded runs the binary with an output whose destination fails its probe and returns
+// the output's warning followed by the logs.
+func startSidekickDegraded(t *testing.T, name, outputs string) (s *sidekick, warningAndLogs string) {
+	t.Helper()
+	s = startSidekick(t, outputs)
+	st := s.status(t, name)
+	require.Equal(t, "degraded", st.Status, "%+v\n%s", st, s.logs.String())
+	require.Equal(t, "destination", st.WarningKind, "%+v", st)
+	require.Contains(t, st.LastWarning, "health check failed before start: ")
+	return s, st.LastWarning + "\n" + s.logs.String()
+}
+
 func startSidekickFails(t *testing.T, outputs string) string {
 	t.Helper()
 	return startSidekickFailsWith(t, defaultLaunch, outputs)
@@ -280,6 +292,7 @@ type outputStatus struct {
 	Status       string `json:"status"`
 	LastError    string `json:"last_error"`
 	LastWarning  string `json:"last_warning"`
+	WarningKind  string `json:"warning_kind"`
 	SentTotal    int    `json:"sent_total"`
 	FailedTotal  int    `json:"failed_total"`
 	DroppedTotal int    `json:"dropped_total"`

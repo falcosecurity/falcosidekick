@@ -158,10 +158,9 @@ func TestTalonReportsDestinationFailure(t *testing.T) {
 	assert.Len(t, events, 1, "max_attempts 1 sends exactly once")
 }
 
-// A wrong base path makes /healthz answer 404, which stops startup.
-func TestTalonWrongBasePathFailsStartup(t *testing.T) {
+func TestTalonWrongBasePathStartsDegraded(t *testing.T) {
 	_, url := startTalon(t, http.StatusOK)
-	logs := startSidekickFails(t, fmt.Sprintf("talon:\n  host: %q\n  base_path: /missing\n", url))
+	_, logs := startSidekickDegraded(t, "talon", fmt.Sprintf("talon:\n  host: %q\n  base_path: /missing\n", url))
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "HTTP 404")
 }

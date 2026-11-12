@@ -79,10 +79,10 @@ type configResponse struct {
 	RuntimeDefaults output.RuntimeConfig `json:"runtime_defaults"`
 }
 
-// handleGetConfig serves the configuration this replica runs with, read from its files.
+// handleGetConfig serves the configuration this replica runs with, durations written as in its files ("30s").
 func (s *Server) handleGetConfig(c fiber.Ctx) error {
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"config": configResponse{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"config": durationsAsStrings(configResponse{
 		Config:          maskCoreConfig(s.coreConfig),
 		RuntimeDefaults: s.runtimeDefaults.DeepCopy(),
-	}})
+	})})
 }

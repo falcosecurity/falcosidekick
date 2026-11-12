@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 // Catalog holds all known output types.
@@ -78,6 +79,11 @@ func (c *Catalog) Create(name string, cfg map[string]any, deps output.Deps) (out
 	t, ok := c.Get(name)
 	if !ok {
 		return nil, fmt.Errorf("catalog: unknown output type %q", name)
+	}
+	// The driver reads a normalized copy: the caller keeps the config as written.
+	cfg = utils.DeepCopyMap(cfg)
+	if errs := t.Schema.NormalizeConfig(cfg); len(errs) > 0 {
+		return nil, fmt.Errorf("catalog: create %q: %s config: %w", name, name, errs)
 	}
 	driver, err := t.New(cfg, deps)
 	if err != nil {

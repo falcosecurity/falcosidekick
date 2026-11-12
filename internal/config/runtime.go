@@ -24,13 +24,10 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// MergeRuntimeConfig overlays the non-zero per-output runtime fields on the defaults.
-// Zero leaves the default; a negative value is rejected rather than replaced by the default.
+// MergeRuntimeConfig overlays the positive per-output runtime fields on the defaults and validates the
+// result; a zero field is an omitted one. Schema.NormalizeConfig ranges the raw values before decoding.
 func MergeRuntimeConfig(defaults output.RuntimeConfig, name string, perOutput output.RuntimeConfig) (output.RuntimeConfig, error) {
 	resolved := defaults.DeepCopy()
-	if errs := negativeOverrides(perOutput); len(errs) > 0 {
-		return resolved, fmt.Errorf("output %q: %s", name, errs.Error())
-	}
 
 	if perOutput.QueueSize > 0 {
 		resolved.QueueSize = perOutput.QueueSize
@@ -79,10 +76,13 @@ func MergeRuntimeConfig(defaults output.RuntimeConfig, name string, perOutput ou
 		resolved.CircuitBreaker = &merged
 	}
 	if perOutput.Batching != nil {
-		merged := output.BatchingConfig{
-			Enabled:       perOutput.Batching.Enabled,
-			BatchSize:     resolved.Batching.BatchSize,
-			FlushInterval: resolved.Batching.FlushInterval,
+		var merged output.BatchingConfig
+		if resolved.Batching != nil {
+			merged = *resolved.Batching
+		}
+		// An omitted enabled inherits the default; an explicit false disables.
+		if perOutput.Batching.Enabled != nil {
+			merged.Enabled = new(*perOutput.Batching.Enabled)
 		}
 		if perOutput.Batching.BatchSize > 0 {
 			merged.BatchSize = perOutput.Batching.BatchSize
@@ -98,36 +98,10 @@ func MergeRuntimeConfig(defaults output.RuntimeConfig, name string, perOutput ou
 	}
 
 	if errs := resolved.Validate(); len(errs) > 0 {
-		return resolved, fmt.Errorf("output %q: %s", name, errs.Error())
+		var prefixed utils.ValidationErrors
+		prefixed.Merge("runtime", errs)
+		return resolved, fmt.Errorf("output %q: %w", name, prefixed)
 	}
 
 	return resolved, nil
-}
-
-// negativeOverrides reports the per-output fields set below zero.
-func negativeOverrides(c output.RuntimeConfig) utils.ValidationErrors {
-	var errs utils.ValidationErrors
-	check := func(field string, negative bool) {
-		if negative {
-			errs.Add("runtime."+field, "must not be negative")
-		}
-	}
-	check("queue_size", c.QueueSize < 0)
-	check("workers", c.Workers < 0)
-	if r := c.Retry; r != nil {
-		check("retry.max_attempts", r.MaxAttempts < 0)
-		check("retry.initial_interval", r.InitialInterval < 0)
-		check("retry.max_interval", r.MaxInterval < 0)
-		check("retry.multiplier", r.Multiplier < 0)
-	}
-	if cb := c.CircuitBreaker; cb != nil {
-		check("circuit_breaker.failure_threshold", cb.FailureThreshold < 0)
-		check("circuit_breaker.success_threshold", cb.SuccessThreshold < 0)
-		check("circuit_breaker.reset_timeout", cb.ResetTimeout < 0)
-	}
-	if b := c.Batching; b != nil {
-		check("batching.batch_size", b.BatchSize < 0)
-		check("batching.flush_interval", b.FlushInterval < 0)
-	}
-	return errs
 }

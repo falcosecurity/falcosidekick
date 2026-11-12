@@ -27,12 +27,15 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
 
@@ -60,14 +63,19 @@ func TestInitAcceptsEveryAcksMode(t *testing.T) {
 			d, err := createOutput(map[string]any{
 				"brokers":  []string{"127.0.0.1:1"},
 				"topic":    "falco",
-				"producer": map[string]any{"required_acks": acks},
+				"producer": map[string]any{"required_acks": acks, "delivery_timeout": "3s"},
 			}, output.Deps{})
 			require.NoError(t, err)
 			require.NoError(t, d.Init(context.Background()))
 			drv := d.(*driver)
+			assert.Equal(t, 3*time.Second, drv.client.OptValue(kgo.RecordDeliveryTimeout))
+			assert.Equal(t, 3*time.Second, drv.client.OptValue(kgo.ProduceRequestTimeout),
+				"a produce request must not outlive the delivery timeout")
 			assert.Equal(t, resolveACKs(acks), drv.client.OptValue(kgo.RequiredAcks))
 			wantIdempotent := acks == "" || acks == "all"
 			assert.Equal(t, !wantIdempotent, drv.client.OptValue(kgo.DisableIdempotentWrite))
+			assert.Equal(t, wantIdempotent, drv.client.OptValue(kgo.AllowIdempotentProduceCancellation),
+				"an idempotent send must be cancellable by the delivery deadline")
 			drv.client.Close()
 		})
 	}
@@ -118,6 +126,19 @@ func TestClientLoggerKeepsOnlyIdentifyingFields(t *testing.T) {
 	assert.NotContains(t, record, "req")
 	assert.NotContains(t, record, "skipped")
 	assert.NotContains(t, buf.String(), sentinel)
+}
+
+func TestClientLoggerKeepsBrokerCodeUnderRecordTimeout(t *testing.T) {
+	err := fmt.Errorf("%w, last err: %w", kgo.ErrRecordTimeout, kerr.SaslAuthenticationFailed)
+	var buf bytes.Buffer
+	clientLogger{logger: slog.New(slog.NewJSONHandler(&buf, nil))}.Log(kgo.LogLevelError, "records timed out", "err", err)
+	var record map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &record))
+	assert.Equal(t, "kafka client: timeout (delivery timeout exceeded): SASL_AUTHENTICATION_FAILED", record["err"])
+
+	sent := newDeliveryError(shared.OpSend, err)
+	assert.Equal(t, "kafka send: timeout (delivery timeout exceeded)", sent.Error())
+	assert.False(t, output.IsPermanent(sent))
 }
 
 func TestClientLogsDialFailureWithoutSecrets(t *testing.T) {

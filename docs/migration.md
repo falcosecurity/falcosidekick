@@ -13,7 +13,7 @@ v2 configuration does not load in v3: unknown keys are rejected. Rewrite it with
 | Outputs | many, see the `2.x` README | see [outputs](outputs/README.md) |
 | Reload | restart | output files reload on change, `SIGHUP` or poll |
 | Delivery | - | per-output queue, retry, circuit breaker, optional batching |
-| Image tags | `2.*`, `stable` (latest release), `latest` (master build) | `3.*`, `3`, `v3-latest` (latest release), `v3-main` (master build), `-slim` variants |
+| Image tags | `2.*`, `stable` (latest release), `latest` (master build) | `3.*`, `3`, `v3-latest` (latest release, from 3.0.0 on; a pre-release gets only its version tag), `v3-main` (master build), `-slim` variants |
 | Port | 2801 | 2801 for events, `/livez`, `/readyz` and `/metrics`, IPv4 and IPv6; 2802 on `127.0.0.1` for the API and the UI |
 | Probes | `/ping`, `/healthz` | `/livez`, `/readyz`; the version is `/api/v1/version` on the management port |
 | Container | alpine, user 1234 | distroless static, user and group 65532, no shell; a volume for sqlite needs `fsGroup: 65532` |
@@ -87,7 +87,7 @@ v2 also added hostname, Kubernetes namespace and pod, custom fields and template
 - Discord: the embed color is an integer and payloads are trimmed to Discord limits.
 - CloudEvents: any non-2xx answer counts as failed.
 - AWS: `accesskeyid`, `rolearn` and `externalid` now take effect, and `session_token` is new. S3 keys use the event time in UTC plus the UUID (v2 used the local receive time). SNS sends the attributes in `message_attributes`, by default priority, rule, source, tags and hostname; v2 also sent every output field, so list the ones subscriptions filter on (at most 10 in all). FIFO queues and topics are refused at startup. `checkidentity` is replaced by the startup probe.
-- Pub/Sub: a missing topic stops startup; `workloadidentity` is gone, Application Default Credentials cover it.
+- Pub/Sub: a missing topic starts the output degraded; `workloadidentity` is gone, Application Default Credentials cover it.
 - Syslog: messages follow RFC 5424 with octet counting on TCP (v2 sent RFC 3164 lines). v2 sent facility 0 (`kern`), reserved for the kernel; v3 defaults to `local0`. Set `facility` when receivers filter on the old value.
 - SMTP: STARTTLS is required by default; credentials are never sent in clear text to a remote server. `auth_mechanism` accepts `plain`, `xoauth2` and `none`; `oauthbearer`, `external` and `anonymous` are not available (use `xoauth2` for OAuth 2.0 tokens, `none` instead of `anonymous`).
 - OTLP: resource `service.name` is `falcosidekick` (v2: `falco`); attributes are `falco.rule`, `falco.priority`, `falco.source` and so on; spans are `INTERNAL` and zero length by default (v2: `SERVER`, 1s). The metric keeps its Prometheus name, `falcosecurity_falco_rules_matches_total`, with `falco_*` labels. `http/json` is not supported.

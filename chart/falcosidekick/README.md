@@ -126,7 +126,17 @@ At startup the process retries the database until `config.database.connect_timeo
 
 ### TLS
 
-Set `config.tls.enabled: true` and `tls.secretName` to a Secret holding `tls.crt` and `tls.key`, and `ca.crt` with `config.tls.mutual_tls: true`. Without `tls.secretName`, set `config.tls.cert_file` and `key_file`, and `ca_file` with mutual TLS, to files mounted otherwise, for example from `secrets`. Rendering fails when TLS is on without a certificate, when `tls.secretName` is set with TLS off, and with mutual TLS but no CA. The probes then use HTTPS; with mutual TLS they need no client certificate.
+Set `config.tls.enabled: true` and `tls.secretName` to a Secret holding `tls.crt` and `tls.key`, and `ca.crt` with `config.tls.mutual_tls: true`. Without `tls.secretName`, set `config.tls.cert_file` and `key_file`, and `ca_file` with mutual TLS, to files mounted otherwise, for example from `secrets`. Rendering fails when TLS is on without a certificate, when `tls.secretName`, `config.tls.mutual_tls`, `cert_file`, `key_file` or `ca_file` is set with TLS off, and with mutual TLS but no CA. The probes then use HTTPS; with mutual TLS they need no client certificate.
+
+### Resources
+
+The pod requests 50m CPU and 64Mi of memory, with a 512Mi memory limit and no CPU limit, so a fault exhausts the pod and not the node. Each event an output queues or holds takes about 2 KiB, so per output:
+
+```
+memory ≈ 2 KiB × (queue_size + workers × batch_size)
+```
+
+plus about 150 MiB for the process at 1000 events per second, as measured on a test cluster. The defaults (`queue_size: 1000`, `workers: 2` and, with batching, `batch_size: 500`) take about 4 MiB per output. Raise `resources.limits.memory` for larger queues or batches, or for a large `inmemory` capacity.
 
 ### Shutdown
 
@@ -195,7 +205,7 @@ The following table lists the configurable parameters of the falcosidekick chart
 | probes.startup.timeoutSeconds | int | `3` | startupProbe timeout. |
 | rbac.policyReport | bool | `false` | Create a ClusterRole allowing `create` on openreports.io `reports` and `clusterreports`, and `get` and `update` on those named `falcosidekick`, bound to the ServiceAccount, for the `policyreport` output. |
 | replicaCount | int | `1` | Number of pods. More than 1 is refused with `database.backend: sqlite`. With the UI on, each pod's UI shows only the events that pod received. |
-| resources | object | `{"requests":{"cpu":"50m","memory":"64Mi"}}` | Container resources. A pod with the UI and two outputs used under 3m CPU and 13 to 30Mi of memory; the `inmemory` output grows with its `capacity`. No limits by default. |
+| resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"50m","memory":"64Mi"}}` | Container resources. A pod with the UI and two outputs used under 3m CPU and 13 to 30Mi of memory at rest. The memory limit bounds a fault to the pod; raise it for larger queues, see [Resources](#resources). No CPU limit. |
 | secrets | list | `[]` | Names of existing Secrets. Each is mounted read-only at `/etc/falcosidekick/secrets/<name>` and its directory is added to `api.secret_dirs`. |
 | securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532}` | Container security context. |
 | service.annotations | object | `{}` | Service annotations. |

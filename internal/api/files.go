@@ -18,7 +18,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -53,7 +52,7 @@ func checkFilePaths(stored, merged map[string]any, fields []output.SchemaField, 
 	slices.Sort(locations)
 	for _, location := range locations {
 		if err := allowedFile(after[location], secretDirs); err != nil {
-			return fmt.Errorf("%s: %w", location, err)
+			return utils.ValidationErrors{{Field: location, Message: err.Error()}}
 		}
 	}
 	return nil

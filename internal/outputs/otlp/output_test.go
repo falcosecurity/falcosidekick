@@ -44,6 +44,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 const (
@@ -512,33 +513,58 @@ func TestGRPCWithTLS(t *testing.T) {
 	assert.Error(t, d.Send(ctx, testutil.CreateValidEvent()))
 }
 
-func TestInitFailsWhenHeaderFileDisappears(t *testing.T) {
+func TestCreateReadsHeaderFiles(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "token")
 	require.NoError(t, os.WriteFile(path, []byte(secret), 0o600))
-	drv, err := OutputType.New(map[string]any{"metrics": map[string]any{
+	raw := map[string]any{"metrics": map[string]any{
 		"endpoint": "http://c:4318", "headers": map[string]any{"X-Token": map[string]any{"files": []string{path}}},
-	}}, output.Deps{})
+	}}
+	drv, err := OutputType.New(raw, output.Deps{})
 	require.NoError(t, err)
 	require.NoError(t, os.Remove(path))
-	err = drv.Init(context.Background())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "otlp metrics")
+	require.NoError(t, drv.Init(context.Background()), "the header was read at create")
+	t.Cleanup(func() { _ = drv.Close() })
+
+	_, err = OutputType.New(raw, output.Deps{})
+	require.Error(t, err, "a missing header file refuses the configuration")
+	assert.Equal(t, `otlp: metrics.headers["X-Token"]: files[0]: file does not exist`, err.Error())
 	assert.NotContains(t, err.Error(), secret)
-	assert.ErrorIs(t, drv.Send(context.Background(), testutil.CreateValidEvent()), core.ErrNotReady)
 }
 
-func TestInitFailsOnBadCAFile(t *testing.T) {
+func TestCreateFailsOnBadCAFile(t *testing.T) {
 	ca := filepath.Join(t.TempDir(), "ca.pem")
 	require.NoError(t, os.WriteFile(ca, []byte("not a certificate"), 0o600))
-	drv, err := OutputType.New(map[string]any{
-		"logs":    map[string]any{"endpoint": "http://c:4318"},
-		"metrics": map[string]any{"endpoint": "https://c:4318", "tls": map[string]any{"ca_file": ca}},
-	}, output.Deps{})
-	require.NoError(t, err)
-	err = drv.Init(context.Background())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "otlp metrics")
-	assert.Empty(t, drv.(*driver).signals, "signals created before the failure are closed")
+	for _, signal := range []string{signalLogs, signalMetrics} {
+		for _, alone := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/alone=%t", signal, alone), func(t *testing.T) {
+				raw := map[string]any{}
+				if !alone {
+					raw[signalLogs] = map[string]any{"endpoint": "http://c:4318"}
+				}
+				raw[signal] = map[string]any{"endpoint": "https://c:4318", "tls": map[string]any{"ca_file": ca}}
+				_, err := OutputType.New(raw, output.Deps{})
+				require.EqualError(t, err, "otlp: "+signal+".tls.ca_file: no valid PEM certificate")
+				fields, ok := errors.AsType[utils.ValidationErrors](err)
+				require.True(t, ok)
+				assert.Equal(t, signal+".tls.ca_file", fields[0].Field)
+				assert.NotContains(t, err.Error(), ca)
+			})
+		}
+	}
+}
+
+func TestCreateFailsOnMissingHeaderFileOfASingleSignal(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "absent")
+	for _, signal := range []string{signalLogs, signalMetrics} {
+		t.Run(signal, func(t *testing.T) {
+			raw := map[string]any{signal: map[string]any{
+				"endpoint": "http://c:4318", "headers": map[string]any{"X-Token": map[string]any{"files": []string{missing}}},
+			}}
+			_, err := OutputType.New(raw, output.Deps{})
+			require.EqualError(t, err, `otlp: `+signal+`.headers["X-Token"]: files[0]: file does not exist`)
+			assert.NotContains(t, err.Error(), missing)
+		})
+	}
 }
 
 func TestNotReadyAndClose(t *testing.T) {

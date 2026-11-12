@@ -39,16 +39,15 @@ const testDebounce = 100 * time.Millisecond
 func startWatcher(t *testing.T, paths []string) *atomic.Int64 {
 	t.Helper()
 	var calls atomic.Int64
-	startWatcherWith(t, paths, nil, func() error {
+	startWatcherWith(t, paths, nil, func() {
 		calls.Add(1)
-		return nil
 	})
 	return &calls
 }
 
-func startWatcherWith(t *testing.T, paths []string, dirs func() []string, reloadFn func() error) {
+func startWatcherWith(t *testing.T, paths []string, dirs func() []string, notify func()) {
 	t.Helper()
-	w := NewWatcher(paths, dirs, testDebounce, reloadFn, slog.Default())
+	w := NewWatcher(paths, dirs, testDebounce, notify, slog.Default())
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
@@ -123,7 +122,7 @@ func TestWatcherTriggersReloadOnConfigMapSwap(t *testing.T) {
 func TestWatcherStopsOnContextCancel(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "outputs.yaml")
 	writeFile(t, path, "outputs: {}")
-	w := NewWatcher([]string{path}, nil, testDebounce, func() error { return nil }, slog.Default())
+	w := NewWatcher([]string{path}, nil, testDebounce, func() {}, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -140,7 +139,7 @@ func TestWatcherStopsOnContextCancel(t *testing.T) {
 }
 
 func TestWatcherFailsOnMissingDirectory(t *testing.T) {
-	w := NewWatcher([]string{filepath.Join(t.TempDir(), "missing", "outputs.yaml")}, nil, testDebounce, func() error { return nil }, slog.Default())
+	w := NewWatcher([]string{filepath.Join(t.TempDir(), "missing", "outputs.yaml")}, nil, testDebounce, func() {}, slog.Default())
 	require.Error(t, w.Run(context.Background()))
 	select {
 	case <-w.Ready():
@@ -237,15 +236,14 @@ type contentRecorder struct {
 	mu     sync.Mutex
 }
 
-func (r *contentRecorder) reload() error {
+func (r *contentRecorder) reload() {
 	data, err := os.ReadFile(r.file)
 	if err != nil {
-		return err
+		return
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.values = append(r.values, string(data))
-	return nil
 }
 
 func (r *contentRecorder) seen() []string {
@@ -303,9 +301,8 @@ func TestWatcherReloadsOnKubeletLinkRenameAlone(t *testing.T) {
 func TestWatcherWatchesANewSecretMount(t *testing.T) {
 	root := t.TempDir()
 	var calls atomic.Int64
-	startWatcherWith(t, nil, NewSecretPaths([]string{root}, nil).Dirs, func() error {
+	startWatcherWith(t, nil, NewSecretPaths([]string{root}, nil).Dirs, func() {
 		calls.Add(1)
-		return nil
 	})
 
 	mount := filepath.Join(root, "slack")
@@ -322,7 +319,7 @@ func TestWatcherWatchesANewSecretMount(t *testing.T) {
 func TestWatcherStopsOnContextCancelWithSecretDirsOnly(t *testing.T) {
 	root := t.TempDir()
 	missing := filepath.Join(t.TempDir(), "missing")
-	w := NewWatcher(nil, func() []string { return []string{root, missing} }, testDebounce, func() error { return nil }, slog.Default())
+	w := NewWatcher(nil, func() []string { return []string{root, missing} }, testDebounce, func() {}, slog.Default())
 	w.Refresh()
 	w.Refresh()
 
@@ -436,9 +433,8 @@ func runLoop(t *testing.T, paths []string) (*loopHarness, context.CancelFunc) {
 func runSecretLoop(t *testing.T, paths []string, dirs func() []string) (*loopHarness, context.CancelFunc) {
 	t.Helper()
 	h := &loopHarness{events: make(chan fsnotify.Event), fs: &fakeDirWatcher{}}
-	w := NewWatcher(paths, dirs, testDebounce, func() error {
+	w := NewWatcher(paths, dirs, testDebounce, func() {
 		h.calls.Add(1)
-		return nil
 	}, slog.Default())
 	h.w = w
 	w.syncDirs(h.fs)

@@ -167,11 +167,11 @@ func TestRedisRefusesRemovedSettings(t *testing.T) {
 	}
 }
 
-func TestRedisWrongPasswordStopsStartup(t *testing.T) {
+func TestRedisWrongPasswordStartsDegraded(t *testing.T) {
 	for _, target := range redisTargets(t) {
 		t.Run(target.addr, func(t *testing.T) {
 			wrong := "wrong-" + newMarker(t)
-			logs := startSidekickFails(t, target.output(wrong, "key: falco\n"))
+			_, logs := startSidekickDegraded(t, "redis", target.output(wrong, "key: falco\n"))
 			assert.Contains(t, logs, "health check")
 			assert.Contains(t, logs, "WRONGPASS")
 			assert.NotContains(t, logs, wrong)

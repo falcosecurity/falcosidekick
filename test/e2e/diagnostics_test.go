@@ -41,6 +41,12 @@ func outputYAML(name, body string) string {
 	return name + ":\n  " + strings.Join(lines, "\n  ") + "\n"
 }
 
+func withEnv(env ...string) launchOptions {
+	opts := defaultLaunch
+	opts.env = env
+	return opts
+}
+
 func withExtra(extra string) launchOptions {
 	opts := defaultLaunch
 	opts.extra = extra
@@ -69,7 +75,27 @@ func TestInvalidConfigIsRejectedWithoutEchoingValues(t *testing.T) {
 		{name: "minimum_priority", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  minimum_priority: $V"),
 			want: "minimum_priority: must be a Falco priority"},
 		{name: "negative runtime override", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  queue_size: -1"),
-			want: "runtime.queue_size: must not be negative"},
+			want: "runtime.queue_size: must be an integer between 1 and 100000"},
+		{name: "null unknown key", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\ntypo: null"),
+			want: "unknown keys: typo"},
+		{name: "explicit zero runtime override", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  workers: 0"),
+			want: "runtime.workers: must be an integer between 1 and 256"},
+		{name: "huge runtime override", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  workers: 99999999999999999999"),
+			want: "runtime.workers: is out of range"},
+		{name: "wrapping runtime override", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  queue_size: 9223372036854775808"),
+			want: "runtime.queue_size: is out of range"},
+		{name: "fractional runtime override", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  queue_size: 1.9"),
+			want: "runtime.queue_size: must be an integer"},
+		{name: "infinite multiplier", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nruntime:\n  retry:\n    multiplier: .inf"),
+			want: "runtime.retry.multiplier: must be a finite number"},
+		{name: "inmemory capacity above max", outputs: outputYAML("inmemory", "capacity: 1000000"),
+			want: "capacity: must be an integer between 1 and 100000"},
+		{name: "runtime_defaults above max", core: withEnv("FALCOSIDEKICK_RUNTIME_DEFAULTS_WORKERS=2000"), outputs: webhook,
+			want: "runtime_defaults.workers: must be an integer between 1 and 256"},
+		{name: "runtime_defaults zero batch size while batching is off", core: withEnv("FALCOSIDEKICK_RUNTIME_DEFAULTS_BATCHING_BATCH_SIZE=0"),
+			outputs: webhook, want: "runtime_defaults.batching.batch_size: must be an integer between 1 and 10000"},
+		{name: "mutual tls without tls", core: withExtra("tls:\n  mutual_tls: true\n"), outputs: webhook,
+			want: "tls.mutual_tls: needs tls.enabled"},
 		{name: "webhook method", outputs: outputYAML("webhook", "host: http://127.0.0.1:1\nmethod: $V"),
 			want: "method: must be POST or PUT"},
 		{name: "tls ca_file", outputs: outputYAML("webhook", "host: https://127.0.0.1:1\ntls:\n  ca_file: /nonexistent-$V/ca.pem"),

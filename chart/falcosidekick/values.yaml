@@ -202,11 +202,14 @@ securityContext:
       - ALL
 
 # -- Container resources. A pod with the UI and two outputs used under 3m CPU and 13 to 30Mi of
-# memory; the `inmemory` output grows with its `capacity`. No limits by default.
+# memory at rest. The memory limit bounds a fault to the pod; raise it for larger queues, see
+# [Resources](#resources). No CPU limit.
 resources:
   requests:
     cpu: 50m
     memory: 64Mi
+  limits:
+    memory: 512Mi
 
 # -- Node selector.
 nodeSelector: {}

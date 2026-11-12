@@ -73,7 +73,7 @@ var OutputType = output.Type{
 			},
 			{
 				Name: "topic", Type: "string", Required: true, Label: "Default topic",
-				Description: "Topic for events without a `topic_field` value. Startup checks that it exists and is writable.",
+				Description: "Topic for events without a `topic_field` value. Startup checks that it exists, not that the client may write to it.",
 			},
 			{
 				Name: "topic_field", Type: "string", Label: "Topic from event field (overrides default)",
@@ -96,11 +96,11 @@ var OutputType = output.Type{
 			},
 			{
 				Name: "auth.username", Type: "string", Label: "SASL Username",
-				Description: "User for SASL authentication.",
+				Description: "User for SASL authentication. Requires `auth.sasl`.",
 			},
 			{
 				Name: "auth.password", Type: "string", Secret: true, Label: "SASL Password",
-				Description: "Password for SASL authentication.",
+				Description: "Password for SASL authentication. Requires `auth.sasl`.",
 			},
 			{
 				Name: "producer.compression", Type: "enum", Values: []string{"none", "gzip", "snappy", "lz4", "zstd"}, Label: "Compression",
@@ -122,7 +122,7 @@ var OutputType = output.Type{
 			},
 			{
 				Name: "producer.delivery_timeout", Type: "string", Default: defaultDeliveryTimeout.String(), Label: "Delivery Timeout",
-				Description: "Go duration, such as `10s`, bounding the delivery of each record, client retries included, and the flush on shutdown. " +
+				Description: "Go duration, such as `10s`, bounding each delivery attempt, client retries included, and the flush on shutdown. " +
 					"At least `1s`.",
 			},
 		}, append(shared.OptionalTLSSchemaFields(), shared.BatchRuntimeConfigSchemaFields()...)...),
@@ -159,6 +159,8 @@ const (
 	defaultDeliveryTimeout = 10 * time.Second
 	// minDeliveryTimeout is the lowest record timeout franz-go accepts.
 	minDeliveryTimeout = time.Second
+	// codeTimeout reports an attempt that ran out of time, whatever the broker last answered.
+	codeTimeout = "timeout (delivery timeout exceeded)"
 )
 
 func (a *kafkaAuth) validate() utils.ValidationErrors {
@@ -168,6 +170,9 @@ func (a *kafkaAuth) validate() utils.ValidationErrors {
 	}
 	if a.SASL != "" && (a.Username == "" || a.Password == "") {
 		errs.Add("username", "username and password are required when sasl is set")
+	}
+	if a.SASL == "" && (a.Username != "" || a.Password != "") {
+		errs.Add("sasl", "is required when username or password is set")
 	}
 	return errs
 }
@@ -213,7 +218,7 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 		cfg.Producer.ClientID = defaultClientID
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+		return nil, fmt.Errorf("%s: %w", name, errs)
 	}
 
 	opts, err := buildClientOpts(&cfg, shared.ResolveLogger(deps.Logger, name))
@@ -247,7 +252,7 @@ func (d *driver) Send(ctx context.Context, evt *event.Event) error {
 	if err != nil {
 		return err
 	}
-	return d.produced(ctx, d.client.ProduceSync(ctx, record))
+	return d.produce(ctx, record)
 }
 
 func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
@@ -262,11 +267,50 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 		}
 		records = append(records, record)
 	}
-	return d.produced(ctx, d.client.ProduceSync(ctx, records...))
+	return d.produce(ctx, records...)
 }
 
-// produced reports the failed records; a batch is permanent only when every failed record is.
-func (d *driver) produced(ctx context.Context, results kgo.ProduceResults) error {
+// produce bounds one attempt by the delivery timeout, or by ctx when it ends earlier, waiting for the
+// records' results rather than for the client: franz-go fails a buffered record whose context ended
+// only on its next produce attempt or metadata update, a cycle that outlives the deadline with the
+// broker gone. It never sends a batch whose context ended; a batch in flight at the deadline may be duplicated.
+func (d *driver) produce(ctx context.Context, records ...*kgo.Record) error {
+	attempt, cancel := context.WithTimeout(ctx, d.cfg.Producer.DeliveryTimeout)
+	defer cancel()
+	results := make(chan kgo.ProduceResult, len(records))
+	for _, record := range records {
+		d.client.Produce(attempt, record, func(r *kgo.Record, err error) { results <- kgo.ProduceResult{Record: r, Err: err} })
+	}
+	collected := make(kgo.ProduceResults, 0, len(records))
+	for len(collected) < len(records) {
+		select {
+		case result := <-results:
+			collected = append(collected, result)
+		case <-attempt.Done():
+			// Count what arrived meanwhile; the rest is reported timed out and left to the client.
+			for len(collected) < len(records) {
+				select {
+				case result := <-results:
+					collected = append(collected, result)
+				default:
+					return d.produced(ctx, collected, len(records)-len(collected), timedOut(ctx, attempt))
+				}
+			}
+		}
+	}
+	return d.produced(ctx, collected, 0, nil)
+}
+
+// timedOut is the retryable failure of the records pending when attempt ended, by the delivery timeout or ctx.
+func timedOut(ctx, attempt context.Context) *shared.DeliveryError {
+	if ctx.Err() != nil {
+		return shared.NewDeliveryError(name, shared.OpSend, ctx.Err())
+	}
+	return &shared.DeliveryError{Cause: attempt.Err(), Output: name, Operation: shared.OpSend, Code: codeTimeout}
+}
+
+// produced reports the failed and the pending records; a batch is permanent only when every failed record is.
+func (d *driver) produced(ctx context.Context, results kgo.ProduceResults, pending int, timeout *shared.DeliveryError) error {
 	var failures []*shared.DeliveryError
 	for _, result := range results {
 		d.forgetRecreatedTopic(result.Record, result.Err)
@@ -274,12 +318,21 @@ func (d *driver) produced(ctx context.Context, results kgo.ProduceResults) error
 			failures = append(failures, newDeliveryError(shared.OpSend, result.Err))
 		}
 	}
-	return shared.JoinDeliveryErrors(ctx, name, shared.OpSend, failures, len(failures), len(results), "records")
+	failed := len(failures)
+	if pending > 0 {
+		failures = append(failures, timeout)
+		failed += pending
+	}
+	return shared.JoinDeliveryErrors(ctx, name, shared.OpSend, failures, failed, len(results)+pending, "records")
 }
 
 // newDeliveryError names a protocol failure by its kerr code: franz-go appends broker text that can echo values.
 // UNKNOWN_SERVER_ERROR is declared non-retriable but is a server failure.
+// A record timeout is retryable and drops the last broker error it wraps; HealthCheck and the logs report that error.
 func newDeliveryError(operation string, err error) *shared.DeliveryError {
+	if errors.Is(err, kgo.ErrRecordTimeout) {
+		return &shared.DeliveryError{Cause: err, Output: name, Operation: operation, Code: codeTimeout}
+	}
 	if code, ok := errors.AsType[*kerr.Error](err); ok {
 		return &shared.DeliveryError{
 			Cause: err, Output: name, Operation: operation, Code: code.Message,
@@ -321,7 +374,7 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 }
 
 // describeTopic asks the brokers for the default topic: a missing topic, or one the client may not
-// write, fails every delivery while the brokers answer. It returns when ctx ends: franz-go ignores ctx
+// describe, fails every delivery while the brokers answer. Write permission is not checked. It returns when ctx ends: franz-go ignores ctx
 // while the connection opens, and the abandoned request ends on the client's own timeouts or on Close.
 func (d *driver) describeTopic(ctx context.Context) error {
 	done := make(chan error, 1)
@@ -359,7 +412,7 @@ func isMisconfiguration(err error) bool {
 		shared.IsTLSVerificationError(err)
 }
 
-// Close flushes for at most the delivery timeout; records still pending fail their ProduceSync call.
+// Close flushes for at most the delivery timeout; records still pending then fail and their sends return.
 func (d *driver) Close() error {
 	if d.client == nil {
 		return nil

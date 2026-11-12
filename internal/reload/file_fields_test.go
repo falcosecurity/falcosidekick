@@ -136,10 +136,10 @@ func TestReloadRebuildsTheFileOutputWhoseFileFieldChanged(t *testing.T) {
 				RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
 			})
 			ctx := t.Context()
-			require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+			require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 
 			tt.change(t, ca)
-			err = r.Reload(ctx, env.workerRunCtx, time.Second)
+			err = reconcileNow(r, ctx, env.workerRunCtx, time.Second)
 			if tt.wantErr != "" {
 				require.EqualError(t, err, tt.wantErr)
 				assert.NotContains(t, err.Error(), dir)
@@ -181,12 +181,12 @@ func TestReloadComparesWithTheFilesReadAtStartup(t *testing.T) {
 	})
 	ctx := t.Context()
 
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	assert.Empty(t, rec.builds("webhook"), "the startup build is not repeated")
 
 	writeFile(t, ca, "renewed")
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	assert.Equal(t, []string{"renewed"}, rec.builds("webhook"))
 }
 
@@ -229,6 +229,7 @@ func TestReloadRebuildsAFileRenewedBetweenStartupBuildAndReloader(t *testing.T) 
 				version, err := db.SaveOutputConfig(ctx, "webhook", 0, running["webhook"])
 				require.NoError(t, err)
 				reloaderCfg.APIOutputs = running
+				reloaderCfg.StoredAPIOutputs = running
 				reloaderCfg.APIDigests = digests
 				reloaderCfg.APIVersions = map[string]int64{"webhook": version}
 			} else {
@@ -239,8 +240,8 @@ func TestReloadRebuildsAFileRenewedBetweenStartupBuildAndReloader(t *testing.T) 
 			}
 			r := NewReloader(reloaderCfg)
 
-			require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
-			require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+			require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
+			require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 			assert.Equal(t, []string{"renewed"}, rec.builds("webhook"), "rebuilt once with the renewed file")
 		})
 	}
@@ -281,16 +282,17 @@ func TestReloaderRebuildsAPIOutputsWhoseFileFieldChanged(t *testing.T) {
 	version, err := r.ApplyOutput(ctx, "webhook", 0, cfg)
 	require.NoError(t, err)
 
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	assert.Equal(t, []string{"first"}, rec.builds("webhook"), "an unchanged file rebuilds nothing")
 
 	writeFile(t, ca, "renewed")
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	assert.Equal(t, []string{"first", "renewed"}, rec.builds("webhook"), "rebuilt once")
 
 	require.NoError(t, os.Remove(ca))
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second), "an unreadable file keeps the running output")
+	require.ErrorContains(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second), "rotation not applied",
+		"an unreadable file keeps the running output and fails the reload")
 	assert.Equal(t, []string{"first", "renewed"}, rec.builds("webhook"))
 	assert.Equal(t, []string{"webhook"}, env.d.OutputNames())
 
@@ -348,12 +350,12 @@ func TestReconcileThenRenewedFileFieldRebuildsOnce(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, r.Reconcile(ctx))
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	assert.Equal(t, []string{"first"}, rec.builds("webhook"))
 
 	writeFile(t, ca, "renewed")
 	for range 2 {
-		require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+		require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 		require.NoError(t, r.Reconcile(ctx))
 	}
 	assert.Equal(t, []string{"first", "renewed"}, rec.builds("webhook"))
@@ -427,7 +429,7 @@ func TestRenewedCAFileRebuildsOnlyItsOutputWithoutSIGHUP(t *testing.T) {
 			r.BindWorkerContext(env.workerRunCtx, 10*time.Second)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			require.NoError(t, r.Reload(ctx, env.workerRunCtx, 10*time.Second))
+			require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, 10*time.Second))
 			if tt.api {
 				_, err := r.ApplyOutput(ctx, "webhook", 0, webhookCfg)
 				require.NoError(t, err)
@@ -439,20 +441,18 @@ func TestRenewedCAFileRebuildsOnlyItsOutputWithoutSIGHUP(t *testing.T) {
 				roots = []string{root}
 			}
 			var w *Watcher
-			reloadFn := func() error {
-				err := r.Reload(ctx, env.workerRunCtx, 10*time.Second)
+			c := NewCoordinator(func(ctx context.Context, trigger Trigger) (Outcome, error) {
+				outcome, err := r.ReconcileFiles(ctx, env.workerRunCtx, 10*time.Second, trigger)
 				w.Refresh()
-				return err
-			}
-			w = NewWatcher([]string{path}, NewSecretPaths(roots, r.FilePaths).Dirs, testDebounce, reloadFn, slog.Default())
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
-				_ = w.Run(ctx)
-			}()
+				return outcome, err
+			}, slog.Default())
+			w = NewWatcher([]string{path}, NewSecretPaths(roots, r.FilePaths).Dirs, testDebounce, c.Notify, slog.Default())
+			var wg sync.WaitGroup
+			wg.Go(func() { c.Run(ctx) })
+			wg.Go(func() { _ = w.Run(ctx) })
 			defer func() {
 				cancel()
-				<-done
+				wg.Wait()
 			}()
 			<-w.Ready()
 

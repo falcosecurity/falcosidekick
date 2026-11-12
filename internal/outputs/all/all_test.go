@@ -17,12 +17,15 @@
 package all
 
 import (
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
 // The UI groups drivers by category: every registered driver picks one of output.Categories.
@@ -71,6 +74,42 @@ func TestNoEnumListsTheEmptyValue(t *testing.T) {
 	for _, typ := range Types() {
 		visit(typ.Name, typ.Schema.Fields)
 	}
+}
+
+func TestEveryOutputBoundsItsRuntimeFields(t *testing.T) {
+	for _, typ := range Types() {
+		for _, want := range shared.RuntimeConfigSchemaFields() {
+			i := slices.IndexFunc(typ.Schema.Fields, func(f output.SchemaField) bool { return f.Name == want.Name })
+			if assert.GreaterOrEqual(t, i, 0, "%s: %s is missing", typ.Name, want.Name) {
+				got := typ.Schema.Fields[i]
+				assert.Equal(t, want.Min, got.Min, "%s: %s", typ.Name, want.Name)
+				assert.Equal(t, want.Max, got.Max, "%s: %s", typ.Name, want.Name)
+			}
+		}
+	}
+}
+
+// Exactly the runtime fields whose default differs from the shared one carry OutputDefault.
+func TestOwnRuntimeDefaultsAreMarked(t *testing.T) {
+	sharedDefaults := make(map[string]any)
+	for _, field := range shared.BatchRuntimeConfigSchemaFields() {
+		sharedDefaults[field.Name] = field.Default
+	}
+	marked := 0
+	for _, typ := range Types() {
+		for _, field := range typ.Schema.Fields {
+			base, ok := sharedDefaults[field.Name]
+			if !ok {
+				assert.False(t, field.OutputDefault, "%s: %s: not a runtime field", typ.Name, field.Name)
+				continue
+			}
+			assert.Equal(t, !reflect.DeepEqual(base, field.Default), field.OutputDefault, "%s: %s", typ.Name, field.Name)
+			if field.OutputDefault {
+				marked++
+			}
+		}
+	}
+	assert.Positive(t, marked, "policyreport batches by default")
 }
 
 // The API checks file paths against api.secret_dirs only for fields marked File, so a path field

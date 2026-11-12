@@ -20,7 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"time"
@@ -30,17 +32,62 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
-// ErrInvalidOutputConfig matches BuildOutput failures caused by the configuration, not by driver startup.
+// ErrInvalidOutputConfig matches BuildOutput failures caused by the configuration itself, never by the destination probe.
 var ErrInvalidOutputConfig = errors.New("invalid output config")
 
-type invalidOutputConfigError struct{ cause error }
+// Phases of a refused output configuration, as the API reports them.
+const (
+	// PhaseValidate is a refusal by decoding, validation or the runtime merge.
+	PhaseValidate = "validate"
+	// PhaseBuild is a refusal by the driver's Init, which reads only local state.
+	PhaseBuild = "build"
+)
+
+type invalidOutputConfigError struct {
+	cause error
+	phase string
+}
 
 func (e invalidOutputConfigError) Error() string        { return e.cause.Error() }
 func (e invalidOutputConfigError) Unwrap() error        { return e.cause }
 func (e invalidOutputConfigError) Is(target error) bool { return target == ErrInvalidOutputConfig }
 
+// ConfigPhase returns the phase that refused err: PhaseBuild for an Init failure, PhaseValidate otherwise.
+func ConfigPhase(err error) string {
+	if invalid, ok := errors.AsType[invalidOutputConfigError](err); ok {
+		return invalid.phase
+	}
+	return PhaseValidate
+}
+
+// ErrBuildPanicked replaces a driver panic during build; the panic value is logged, never returned.
+var ErrBuildPanicked = errors.New("output build failed: internal error; see the falcosidekick log")
+
 // BuildOutput constructs a live *Output, closing the driver on failure; the caller resolves secrets.
+// A failed destination probe never refuses the configuration: the output starts degraded with the
+// reason as its warning. A panic in the driver returns ErrBuildPanicked and leaves the driver unclosed.
 func BuildOutput(
+	ctx context.Context,
+	cat *catalog.Catalog,
+	name string,
+	cfg map[string]any,
+	defaults output.RuntimeConfig,
+	deps output.Deps,
+) (out *Output, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			logger := deps.Logger
+			if logger == nil {
+				logger = slog.Default()
+			}
+			logger.Error("output build panicked", "output", name, "panic", p, "stack", string(debug.Stack()))
+			out, err = nil, ErrBuildPanicked
+		}
+	}()
+	return buildOutput(ctx, cat, name, cfg, defaults, deps)
+}
+
+func buildOutput(
 	ctx context.Context,
 	cat *catalog.Catalog,
 	name string,
@@ -50,21 +97,19 @@ func BuildOutput(
 ) (*Output, error) {
 	driver, err := cat.Create(name, cfg, deps)
 	if err != nil {
-		return nil, fmt.Errorf("create: %w", invalidOutputConfigError{cause: err})
+		return nil, fmt.Errorf("create: %w", invalidOutputConfigError{cause: err, phase: PhaseValidate})
+	}
+
+	// Merged before Init, so an invalid runtime section is refused before the driver allocates.
+	merged, err := config.MergeRuntimeConfig(runtimeDefaultsFor(driver, defaults), name, driver.RuntimeConfig())
+	if err != nil {
+		_ = driver.Close()
+		return nil, fmt.Errorf("runtime merge: %w", invalidOutputConfigError{cause: err, phase: PhaseValidate})
 	}
 
 	if err := driver.Init(ctx); err != nil {
 		_ = driver.Close()
-		if errors.Is(err, output.ErrMisconfigured) {
-			err = invalidOutputConfigError{cause: err}
-		}
-		return nil, fmt.Errorf("init: %w", err)
-	}
-
-	merged, err := config.MergeRuntimeConfig(defaults, name, driver.RuntimeConfig())
-	if err != nil {
-		_ = driver.Close()
-		return nil, fmt.Errorf("runtime merge: %w", invalidOutputConfigError{cause: err})
+		return nil, fmt.Errorf("init: %w", invalidOutputConfigError{cause: err, phase: PhaseBuild})
 	}
 
 	var healthErr error
@@ -72,10 +117,6 @@ func BuildOutput(
 		healthCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
 		healthErr = driver.HealthCheck(healthCtx)
 		cancel()
-	}
-	if errors.Is(healthErr, output.ErrMisconfigured) {
-		_ = driver.Close()
-		return nil, fmt.Errorf("health check: %w", invalidOutputConfigError{cause: healthErr})
 	}
 
 	out := NewOutput(driver, &merged, deps.Metrics)
@@ -87,6 +128,16 @@ func BuildOutput(
 		}
 	}
 	return out, nil
+}
+
+// runtimeDefaultsFor turns inherited batching off for a driver that does not send batches.
+func runtimeDefaultsFor(driver output.Driver, defaults output.RuntimeConfig) output.RuntimeConfig {
+	if _, batches := driver.(output.BatchSender); batches || !defaults.Batching.IsEnabled() {
+		return defaults
+	}
+	defaults = defaults.DeepCopy()
+	defaults.Batching.Enabled = new(false)
+	return defaults
 }
 
 // BuildOutputs builds outputs concurrently; on any failure it closes them all.

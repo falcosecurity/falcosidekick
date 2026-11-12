@@ -68,14 +68,17 @@ func newExporterSettings(cfg *signalConfig, defaultPath string) (*exporterSettin
 }
 
 // closeIdleConnections releases the idle connections of the HTTP client; the exporters' Shutdown does not.
+// A nil receiver is a signal that is not configured.
 func (s *exporterSettings) closeIdleConnections() {
-	if s.httpClient != nil {
+	if s != nil && s.httpClient != nil {
 		s.httpClient.CloseIdleConnections()
 	}
 }
 
 // recordResult lets newDeliveryError see a gRPC partial success.
 var recordResult = grpc.WithUnaryInterceptor(recordPartialSuccess)
+
+var grpcDialOptions = []grpc.DialOption{recordResult, shared.GRPCReconnect}
 
 func (s *exporterSettings) grpc() bool { return s.cfg.Protocol == protocolGRPC }
 
@@ -89,7 +92,7 @@ func newLogExporter(ctx context.Context, s *exporterSettings) (sdklog.Exporter, 
 			otlploggrpc.WithTimeout(s.cfg.Timeout),
 			otlploggrpc.WithCompressor(s.cfg.Compression),
 			otlploggrpc.WithRetry(otlploggrpc.RetryConfig{Enabled: false}),
-			otlploggrpc.WithDialOption(recordResult),
+			otlploggrpc.WithDialOption(grpcDialOptions...),
 		}
 		if s.target.secure {
 			opts = append(opts, otlploggrpc.WithTLSCredentials(credentials.NewTLS(s.tls)))
@@ -121,7 +124,7 @@ func newMetricExporter(ctx context.Context, s *exporterSettings) (sdkmetric.Expo
 			otlpmetricgrpc.WithTimeout(s.cfg.Timeout),
 			otlpmetricgrpc.WithCompressor(s.cfg.Compression),
 			otlpmetricgrpc.WithRetry(otlpmetricgrpc.RetryConfig{Enabled: false}),
-			otlpmetricgrpc.WithDialOption(recordResult),
+			otlpmetricgrpc.WithDialOption(grpcDialOptions...),
 			temporality,
 		}
 		if s.target.secure {

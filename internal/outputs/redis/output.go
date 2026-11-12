@@ -151,7 +151,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 		cfg.MaxLen = defaultMaxLen
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+		return nil, fmt.Errorf("%s: %w", name, errs)
 	}
 	opts := &goredis.Options{
 		Addr:     cfg.Address,

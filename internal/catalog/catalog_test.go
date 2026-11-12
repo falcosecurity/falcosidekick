@@ -234,3 +234,45 @@ func TestNames(t *testing.T) {
 	assert.Contains(t, names, "slack")
 	assert.Contains(t, names, "webhook")
 }
+
+// Normalization runs on a copy; the caller's config is unchanged.
+func TestCreateNormalizesBeforeTheConstructor(t *testing.T) {
+	var received map[string]any
+	calls := 0
+	typ := output.Type{
+		Name: "probe",
+		Schema: output.Schema{Fields: []output.SchemaField{
+			{Name: "mode", Type: "enum", Values: []string{"a", "b"}, Default: "a"},
+			output.SchemaField{Name: "runtime.queue_size", Type: "int", Default: 1000}.WithIntRange(output.QueueSizeRange),
+		}},
+		New: func(raw map[string]any, _ output.Deps) (output.Driver, error) {
+			calls++
+			received = raw
+			return &testutil.MockDriver{DriverName: "probe"}, nil
+		},
+	}
+	cat, err := New([]output.Type{typ})
+	require.NoError(t, err)
+
+	written := map[string]any{"mode": "", "token": nil, "runtime": map[string]any{"queue_size": 100_000}}
+	_, err = cat.Create("probe", written, output.Deps{})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"token": nil, "runtime": map[string]any{"queue_size": 100_000}}, received,
+		"a null is left for the decoder, which refuses it under an unknown key")
+	assert.Equal(t, map[string]any{"mode": "", "token": nil, "runtime": map[string]any{"queue_size": 100_000}}, written,
+		"the caller keeps the config as written")
+
+	for _, tt := range []struct {
+		value any
+		want  string
+	}{
+		{0, `catalog: create "probe": probe config: runtime.queue_size: must be an integer between 1 and 100000`},
+		{100_001, `catalog: create "probe": probe config: runtime.queue_size: must be an integer between 1 and 100000`},
+		{1e20, `catalog: create "probe": probe config: runtime.queue_size: is out of range`},
+	} {
+		calls = 0
+		_, err = cat.Create("probe", map[string]any{"runtime": map[string]any{"queue_size": tt.value}}, output.Deps{})
+		require.EqualError(t, err, tt.want)
+		assert.Zero(t, calls, "nothing is built for a value out of range")
+	}
+}

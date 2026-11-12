@@ -18,7 +18,7 @@ package api
 
 import (
 	"errors"
-	"maps"
+	"slices"
 	"strings"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
@@ -33,6 +33,11 @@ func mergeOutputConfigForSchema(existing, patch map[string]any, schema output.Sc
 		if err := normalizeSchemaKeys(cfg, schema.Fields); err != nil {
 			return nil, nil, err
 		}
+	}
+	// A null on an absent key never reaches the decoder, so an unknown one is refused here as the decoder would.
+	if unknown := unknownNullKeys(base, update, nil, schema.Fields); len(unknown) > 0 {
+		slices.Sort(unknown)
+		return nil, nil, errors.New("unknown keys: " + strings.Join(unknown, ", "))
 	}
 	merged = mergeOutputConfig(base, update)
 	dropReplacedSecrets(merged, update, schema.Fields)
@@ -52,8 +57,9 @@ func dropReplacedSecrets(merged, update map[string]any, fields []output.SchemaFi
 		if patch == nil || target == nil {
 			continue
 		}
-		_, setsFile := patch[leaf+"_file"]
-		_, setsValue := patch[leaf]
+		// A null or empty source in the patch clears that source; it replaces nothing.
+		setsFile := utils.IsSet(patch[leaf+"_file"])
+		setsValue := utils.IsSet(patch[leaf])
 		switch {
 		case setsFile && !setsValue:
 			delete(target, leaf)
@@ -80,8 +86,7 @@ func normalizeSchemaKeys(cfg map[string]any, fields []output.SchemaField) error 
 	return nil
 }
 
-// normalizeSchemaPath gives the field at parts the schema key spelling and turns a map field
-// written as a list into the object the output decoder makes of it.
+// normalizeSchemaPath gives the field at parts the schema key spelling; a list for a map field is left for the decoder to refuse.
 func normalizeSchemaPath(cfg map[string]any, parts []string, field *output.SchemaField) error {
 	var matched string
 	var found bool
@@ -98,11 +103,6 @@ func normalizeSchemaPath(cfg map[string]any, parts []string, field *output.Schem
 	}
 	value := cfg[matched]
 	delete(cfg, matched)
-	if list, isList := value.([]any); isList && len(parts) == 1 && field.IsMap() {
-		if object, ok := mapFromList(list); ok {
-			value = object
-		}
-	}
 	cfg[parts[0]] = value
 	child, ok := value.(map[string]any)
 	if !ok {
@@ -123,25 +123,59 @@ func normalizeSchemaPath(cfg map[string]any, parts []string, field *output.Schem
 	return nil
 }
 
-// mapFromList merges a list into one object as the output decoder does with a list given for a
-// map: elements in order, later keys win, nested lists flattened, nil elements skipped. ok is false
-// for any other element, which the decoder rejects.
-func mapFromList(list []any) (object map[string]any, ok bool) {
-	object = make(map[string]any)
-	for _, item := range list {
-		switch item := item.(type) {
+// unknownNullKeys returns the dotted paths of the patch's nulls that neither base holds nor the schema names.
+func unknownNullKeys(base, patch map[string]any, path []string, fields []output.SchemaField) []string {
+	var unknown []string
+	for key, value := range patch {
+		at := append(slices.Clone(path), key)
+		stored, present := base[key]
+		switch child := value.(type) {
 		case nil:
-		case map[string]any:
-			maps.Copy(object, item)
-		case []any:
-			nested, ok := mapFromList(item)
-			if !ok {
-				return nil, false
+			if !present && !schemaNames(fields, at) {
+				unknown = append(unknown, strings.Join(at, "."))
 			}
-			maps.Copy(object, nested)
-		default:
-			return nil, false
+		case map[string]any:
+			storedMap, _ := stored.(map[string]any)
+			unknown = append(unknown, unknownNullKeys(storedMap, child, at, fields)...)
 		}
 	}
-	return object, true
+	return unknown
+}
+
+// schemaNames reports whether the schema names path: a field, a secret's <name>_file, an object of fields, or a map entry.
+func schemaNames(fields []output.SchemaField, path []string) bool {
+	for i := range fields {
+		field := &fields[i]
+		parts := strings.Split(field.Name, ".")
+		if field.HasFileVariant() && len(path) == len(parts) && hasPrefixFold(path[:len(path)-1], parts[:len(parts)-1]) &&
+			strings.EqualFold(path[len(path)-1], parts[len(parts)-1]+"_file") {
+			return true
+		}
+		if len(path) <= len(parts) {
+			if hasPrefixFold(parts, path) {
+				return true
+			}
+			continue
+		}
+		if !field.IsMap() || !hasPrefixFold(path, parts) {
+			continue
+		}
+		rest := path[len(parts)+1:]
+		if len(rest) == 0 || schemaNames(field.EntryFields, rest) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasPrefixFold(s, prefix []string) bool {
+	if len(prefix) > len(s) {
+		return false
+	}
+	for i := range prefix {
+		if !strings.EqualFold(s[i], prefix[i]) {
+			return false
+		}
+	}
+	return true
 }

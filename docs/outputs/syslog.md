@@ -1,6 +1,6 @@
 # Syslog
 
-Sends each event as an RFC 5424 message over UDP or TCP; TCP uses octet-counting framing (RFC 6587), and `tls.enabled: true` runs it over TLS (RFC 5425, port 6514 by default). The severity follows the Falco priority. TCP keeps one connection and reconnects when the receiver closes it. Startup dials TCP receivers; an untrusted certificate stops startup. Syslog connects directly, without a proxy.
+Sends each event as an RFC 5424 message over UDP or TCP; TCP uses octet-counting framing (RFC 6587), and `tls.enabled: true` runs it over TLS (RFC 5425, port 6514 by default). The severity follows the Falco priority. TCP keeps one connection and reconnects when the receiver closes it. Startup dials TCP receivers; an untrusted certificate starts the output degraded and every connection is refused until the certificate is trusted. Syslog connects directly, without a proxy.
 
 `format` is `json`, the event, or `cef`, ArcSight CEF:
 
