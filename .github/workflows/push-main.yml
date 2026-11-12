@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - master
+      - 2.x
 
 permissions: {}
 
@@ -47,7 +47,6 @@ jobs:
           make goreleaser-snapshot
           docker images
           docker run falcosecurity/falcosidekick:latest-amd64 --version
-          docker run public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 --version
         env:
           GOPATH: /home/runner/go
 
@@ -68,24 +67,3 @@ jobs:
           docker manifest create --amend falcosecurity/falcosidekick:latest falcosecurity/falcosidekick:latest-amd64 \
             falcosecurity/falcosidekick:latest-arm64 falcosecurity/falcosidekick:latest-armv7
           docker manifest push --purge falcosecurity/falcosidekick:latest
-
-      # Push images to AWS Public ECR
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
-        with:
-          role-to-assume: arn:aws:iam::292999226676:role/github_actions-falcosidekick-ecr
-          aws-region: us-east-1
-
-      - name: Login to Amazon ECR
-        id: login-ecr-public
-        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
-        with:
-          registry-type: public
-
-      - run: |
-          docker push public.ecr.aws/falcosecurity/falcosidekick:latest-amd64
-          docker push public.ecr.aws/falcosecurity/falcosidekick:latest-arm64
-          docker push public.ecr.aws/falcosecurity/falcosidekick:latest-armv7
-          docker manifest create --amend public.ecr.aws/falcosecurity/falcosidekick:latest public.ecr.aws/falcosecurity/falcosidekick:latest-amd64 \
-            public.ecr.aws/falcosecurity/falcosidekick:latest-arm64 public.ecr.aws/falcosecurity/falcosidekick:latest-armv7
-          docker manifest push --purge public.ecr.aws/falcosecurity/falcosidekick:latest
