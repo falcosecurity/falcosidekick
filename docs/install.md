@@ -11,13 +11,13 @@ Start from [`config_example_sidekick.yaml`](../config_example_sidekick.yaml) and
 
 | Image | Content |
 | --- | --- |
-| `falcosecurity/falcosidekick:<version>` | binary with the built-in web UI, for example `3.1.2` |
+| `falcosecurity/falcosidekick:<version>` | binary with the built-in web UI, for example `3.0.0-beta.1` |
 | `falcosecurity/falcosidekick:<version>-slim` | binary without the UI |
-| `3.1`, `3`, `v3-latest` (and `-slim`) | latest stable release of that minor, of v3, of v3; not moved by pre-releases |
+| `3.1`, `3`, `v3-latest` (and `-slim`) | latest stable release of that minor, of v3, of v3; set from 3.0.0 on, never by a pre-release |
 | `v3-main`, `v3-main-slim` | latest `master` build, not a release |
 | `v3-main-<commit>-amd64`, `v3-main-<commit>-arm64` (and `-slim-amd64`, `-slim-arm64`) | one architecture of the `master` build of that full commit SHA; never moved |
 
-Images are published to Docker Hub only. `latest` is still v2.
+Images are published to Docker Hub only. A pre-release such as `3.0.0-beta.1` gets only its own `<version>` and `<version>-slim` tags: until 3.0.0 there is no `3`, `3.0` or `v3-latest`. `latest` is still v2.
 
 Release and `master` images are signed with cosign, keyless, by digest; the signature covers the multi-architecture index and each architecture. Verify one with:
 
@@ -48,7 +48,7 @@ Run:
 docker run -d --name falcosidekick -p 2801:2801 \
   -v "$PWD/sidekick.yaml:/etc/falcosidekick/sidekick.yaml:ro" \
   -v "$PWD/outputs.yaml:/etc/falcosidekick/outputs.yaml:ro" \
-  falcosecurity/falcosidekick:v3-latest \
+  falcosecurity/falcosidekick:3.0.0-beta.1 \
   -c /etc/falcosidekick/sidekick.yaml -o /etc/falcosidekick/outputs.yaml
 ```
 
@@ -71,7 +71,7 @@ docker run ... -p 2801:2801 -p 127.0.0.1:2802:2802 ...
 curl -s localhost:2802/api/v1/pipeline/status
 ```
 
-At startup each output probes its destination. A configuration error (rejected credentials, wrong path, untrusted certificate) in an output file stops the process with the reason in the log; in an output created through the API it leaves that output `failed` and the others start. An unreachable destination does not: the output starts as `degraded` (see [configuration](configuration.md#output-status)).
+At startup each output probes its destination. An invalid configuration (a malformed value, a missing local file, a certificate file that does not load) in an output file stops the process with the reason in the log; in an output created through the API it leaves that output `failed` and the others start. A destination that fails the probe (unreachable, rejected credentials, a missing topic or bucket, an untrusted certificate) does not: the output starts as `degraded` with the reason, and delivers once the destination accepts (see [configuration](configuration.md#destination-health-check)).
 
 ## Helm
 
@@ -125,7 +125,7 @@ spec:
     spec:
       containers:
         - name: falcosidekick
-          image: falcosecurity/falcosidekick:v3-latest
+          image: falcosecurity/falcosidekick:3.0.0-beta.1
           args: ["-c", "/etc/falcosidekick/sidekick.yaml", "-o", "/etc/falcosidekick/outputs.yaml"]
           ports:
             - containerPort: 2801
