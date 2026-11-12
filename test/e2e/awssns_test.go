@@ -130,11 +130,11 @@ func TestAWSSNSRefusesRawJSON(t *testing.T) {
 	assert.Contains(t, logs, "unknown keys: raw_json")
 }
 
-func TestAWSSNSMissingTopicFailsStartup(t *testing.T) {
+func TestAWSSNSMissingTopicStartsDegraded(t *testing.T) {
 	target := localstack(t)
 	topicARN := fmt.Sprintf("arn:aws:sns:%s:000000000000:fsk-e2e-absent-%s", awsRegion, newMarker(t))
-	logs := startSidekickFails(t, target.output("awssns", fmt.Sprintf("topic_arn: %q\n", topicARN)))
-	assert.Contains(t, logs, "health check: awssns GetTopicAttributes: HTTP 404 Not Found: NotFoundException")
+	_, logs := startSidekickDegraded(t, "awssns", target.output("awssns", fmt.Sprintf("topic_arn: %q\n", topicARN)))
+	assert.Contains(t, logs, "health check failed before start: awssns GetTopicAttributes: HTTP 404 Not Found: NotFoundException")
 	assert.NotContains(t, logs, target.secret)
 }
 

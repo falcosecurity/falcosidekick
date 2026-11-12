@@ -24,14 +24,18 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 func TestBuildTLSConfigDefaults(t *testing.T) {
@@ -70,11 +74,14 @@ func TestBuildTLSConfigInvalidCertKey(t *testing.T) {
 		{name: "missing cert", cert: "/nonexistent/cert.pem", key: notPEM, want: "tls.cert_file: file does not exist"},
 		{name: "missing key", cert: notPEM, key: "/nonexistent/key.pem", want: "tls.key_file: file does not exist"},
 		{name: "directory", cert: dir, key: notPEM, want: "tls.cert_file: not a regular file"},
-		{name: "invalid pair", cert: notPEM, key: notPEM, want: "tls.cert_file, tls.key_file: cannot load the key pair"},
+		{name: "invalid pair", cert: notPEM, key: notPEM, want: "tls.cert_file: cannot load the key pair with tls.key_file"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := BuildTLSConfig(&TLSClientConfig{CertFile: tc.cert, KeyFile: tc.key})
 			require.EqualError(t, err, tc.want, "the paths and the OS error stay out")
+			fields, ok := errors.AsType[utils.ValidationErrors](err)
+			require.True(t, ok, "the field reaches the API error")
+			assert.Equal(t, strings.SplitN(tc.want, ":", 2)[0], fields[0].Field)
 		})
 	}
 }

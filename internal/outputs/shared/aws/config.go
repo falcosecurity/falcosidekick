@@ -66,7 +66,7 @@ func SchemaFields() []output.SchemaField {
 	return append([]output.SchemaField{
 		{
 			Name: "region", Type: "string", Label: "AWS Region (default from the environment or the resource)",
-			Description: "AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`) or from the resource.",
+			Description: "AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`); SNS and SQS then use the region of the topic ARN or the queue URL, while S3 has no fallback and needs one.",
 		},
 		{
 			Name: "access_key_id", Type: "string", Secret: true, Label: "Access Key ID (default credential chain when empty)",

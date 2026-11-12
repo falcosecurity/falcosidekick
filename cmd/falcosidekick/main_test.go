@@ -54,6 +54,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/metrics"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/inmemory"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 	"github.com/falcosecurity/falcosidekick/internal/pipeline"
 	"github.com/falcosecurity/falcosidekick/internal/version"
@@ -296,6 +297,42 @@ func TestRunRejectsRemovedTargetFields(t *testing.T) {
 	err := run(context.Background(), "", []string{outputs})
 	require.ErrorContains(t, err, "unknown keys: url")
 	assert.NotContains(t, err.Error(), sentinel)
+}
+
+// The integer 0 is "0s": refused with the range where a minimum applies, so startup fails before serving.
+func TestRunReadsAZeroDurationAsTheAPIDoes(t *testing.T) {
+	const webhookRuntime = "outputs:\n  webhook:\n    host: http://127.0.0.1:1\n    runtime:\n"
+	for _, tt := range []struct {
+		name, file, want string
+	}{
+		{name: "integer zero interval", file: webhookRuntime + "      retry:\n        initial_interval: 0\n",
+			want: "runtime.retry.initial_interval: must be a duration between 1ms and 1h"},
+		{name: "zero text interval", file: webhookRuntime + "      retry:\n        initial_interval: \"0s\"\n",
+			want: "runtime.retry.initial_interval: must be a duration between 1ms and 1h"},
+		{name: "integer zero reset timeout", file: webhookRuntime + "      circuit_breaker:\n        reset_timeout: 0\n",
+			want: "runtime.circuit_breaker.reset_timeout: must be a duration between 1s and 1h"},
+		{name: "integer zero ttl is no expiry", file: "outputs:\n  inmemory:\n    capacity: 10\n    ttl: 0\n"},
+		{name: "zero text ttl is no expiry", file: "outputs:\n  inmemory:\n    capacity: 10\n    ttl: \"0s\"\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			outputs := writeTestOutputs(t, tt.file)
+			if tt.want != "" {
+				err := run(context.Background(), "", []string{outputs})
+				require.ErrorContains(t, err, tt.want)
+				return
+			}
+			outs, err := config.LoadOutputs([]string{outputs})
+			require.NoError(t, err)
+			cat, err := catalog.New([]output.Type{inmemory.OutputType})
+			require.NoError(t, err)
+			built, err := createOutputs(context.Background(), loadDefaultConfigForCmdTest(t), outs.Outputs, cat,
+				metrics.NewCollector(core.MetricsConfig{MaxLabelValues: 1000}))
+			require.NoError(t, err)
+			require.Len(t, built, 1)
+			t.Cleanup(func() { _ = built[0].Close() })
+			assert.Equal(t, "inmemory", built[0].Name())
+		})
+	}
 }
 
 func TestRunInvalidConfigPath(t *testing.T) {

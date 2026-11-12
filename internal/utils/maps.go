@@ -115,3 +115,50 @@ func DeepMergeMap(dst, src map[string]any) {
 		}
 	}
 }
+
+// DropNulls removes the nil-valued keys of m at every depth, in place; lists are kept as they are.
+func DropNulls(m map[string]any) {
+	for key, value := range m {
+		if value == nil {
+			delete(m, key)
+			continue
+		}
+		dropNullsIn(value)
+	}
+}
+
+func dropNullsIn(value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		DropNulls(typed)
+	case []any:
+		for _, item := range typed {
+			dropNullsIn(item)
+		}
+	}
+}
+
+// MergePatch applies patch to dst in place as an RFC 7386 JSON merge patch; patch is not retained.
+func MergePatch(dst, patch map[string]any) {
+	for key, value := range patch {
+		if value == nil {
+			delete(dst, key)
+			continue
+		}
+		if object, ok := value.(map[string]any); ok {
+			target, isMap := dst[key].(map[string]any)
+			if !isMap {
+				target = make(map[string]any, len(object))
+				dst[key] = target
+			}
+			MergePatch(target, object)
+			continue
+		}
+		copied := deepCopyValue(value)
+		dropNullsIn(copied)
+		dst[key] = copied
+	}
+}
+
+// IsSet reports whether a raw config value counts as set: not null and not the empty string.
+func IsSet(value any) bool { return value != nil && value != "" }

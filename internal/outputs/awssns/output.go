@@ -119,7 +119,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	}
 	topic, errs := cfg.validate()
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+		return nil, fmt.Errorf("%s: %w", name, errs)
 	}
 	awsCfg, err := cfg.Load(context.Background(), topic.Region)
 	if err != nil {

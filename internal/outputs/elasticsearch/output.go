@@ -19,7 +19,6 @@ package elasticsearch
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -180,7 +179,7 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+		return nil, fmt.Errorf("%s: %w", name, errs)
 	}
 
 	sender, err := shared.NewSender(name, &cfg.HTTPConfig)
@@ -201,19 +200,8 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 
 func (d *driver) Name() string { return name }
 
-// Init fails only on a misconfiguration; otherwise the first delivery retries the template.
-func (d *driver) Init(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, templateInitTimeout)
-	defer cancel()
-	err := d.ensureTemplate(ctx)
-	if err == nil || errors.Is(err, output.ErrMisconfigured) {
-		return err
-	}
-	d.logger.Warn("index template not created yet, retried before the first delivery", "error", err)
-	return nil
-}
-
-const templateInitTimeout = 5 * time.Second
+// Init does not contact the cluster; the health check and every delivery create the index template until it exists.
+func (d *driver) Init(context.Context) error { return nil }
 
 // ensureTemplate blocks deliveries: an index created without the template keeps the wrong mapping.
 func (d *driver) ensureTemplate(ctx context.Context) error {
@@ -296,7 +284,13 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 		return shared.WrapDeliveryError(name, shared.OpTarget, err)
 	}
 	// GET / needs the cluster monitor privilege an index-only user can lack, so 403 is transient.
-	return d.sender.HealthCheck(ctx, target, http.StatusForbidden)
+	probeErr := d.sender.HealthCheck(ctx, target, http.StatusForbidden)
+	// Tried even when GET / is refused, which an index-only user sees; deliveries keep trying it.
+	templateErr := d.ensureTemplate(ctx)
+	if probeErr != nil {
+		return probeErr
+	}
+	return templateErr
 }
 
 func (d *driver) Close() error {

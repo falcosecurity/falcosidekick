@@ -36,7 +36,7 @@ import (
 func batchRuntimeDefaults(batchSize int, flushInterval time.Duration) *output.RuntimeConfig {
 	cfg := defaultRuntimeDefaults()
 	cfg.Batching = &output.BatchingConfig{
-		Enabled:       true,
+		Enabled:       new(true),
 		BatchSize:     batchSize,
 		FlushInterval: flushInterval,
 	}
@@ -196,7 +196,7 @@ func TestBatchWorkerDisabledFallsBackToSingle(t *testing.T) {
 	var batchCalls atomic.Int64
 
 	cfg := defaultRuntimeDefaults()
-	cfg.Batching = &output.BatchingConfig{Enabled: false, BatchSize: 5, FlushInterval: time.Second}
+	cfg.Batching = &output.BatchingConfig{Enabled: new(false), BatchSize: 5, FlushInterval: time.Second}
 
 	out := NewOutput(&testutil.MockBatchDriver{
 		MockDriver: testutil.MockDriver{
@@ -232,7 +232,7 @@ func TestBatchWorkerNonBatchDriver(t *testing.T) {
 	var singleCalls atomic.Int64
 
 	cfg := defaultRuntimeDefaults()
-	cfg.Batching = &output.BatchingConfig{Enabled: true, BatchSize: 5, FlushInterval: time.Second}
+	cfg.Batching = &output.BatchingConfig{Enabled: new(true), BatchSize: 5, FlushInterval: time.Second}
 
 	out := NewOutput(&testutil.MockDriver{
 		DriverName: "non-batch",
@@ -509,7 +509,7 @@ func TestWorkerRetriesRequireCircuitAdmission(t *testing.T) {
 			t.Run(fmt.Sprintf("batch_%d_threshold_%d", batchSize, threshold), func(t *testing.T) {
 				synctest.Test(t, func(t *testing.T) {
 					cfg := batchRuntimeDefaults(batchSize, time.Second)
-					cfg.Batching.Enabled = batchSize > 1
+					cfg.Batching.Enabled = new(batchSize > 1)
 					cfg.Retry.MaxAttempts = 3
 					cfg.CircuitBreaker.FailureThreshold = threshold
 					var attempts atomic.Int64

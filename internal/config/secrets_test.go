@@ -106,13 +106,27 @@ func TestResolveSecrets(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "empty file path ignored",
+			name: "empty file path is not set",
 			cfg: map[string]any{
+				"password":      "inline",
 				"password_file": "",
 			},
-			want: map[string]any{
-				"password_file": "",
-			},
+			want: map[string]any{"password": "inline"},
+		},
+		{
+			name: "empty file path alone is not set",
+			cfg:  map[string]any{"password_file": ""},
+			want: map[string]any{},
+		},
+		{
+			name: "null file path is not set",
+			cfg:  map[string]any{"password_file": nil},
+			want: map[string]any{},
+		},
+		{
+			name: "non-string file path left to the decoder",
+			cfg:  map[string]any{"password_file": 3},
+			want: map[string]any{"password_file": 3},
 		},
 	}
 

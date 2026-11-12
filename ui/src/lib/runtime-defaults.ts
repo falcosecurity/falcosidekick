@@ -1,4 +1,3 @@
-import { formatGoDuration } from "@/lib/format"
 import type { RuntimeConfig, SchemaField } from "@/lib/types"
 
 const RUNTIME_PREFIX = "runtime."
@@ -6,17 +5,16 @@ const RUNTIME_PREFIX = "runtime."
 /**
  * The schema with the defaults an output really inherits: Sidekick merges each output's runtime
  * over runtime_defaults from its configuration, so the catalog default of a runtime field is only
- * the default of that default.
+ * the default of that default. A field marked output_default keeps its own: the output applies it
+ * whatever runtime_defaults says.
  */
 export function withRuntimeDefaults(fields: readonly SchemaField[], defaults: RuntimeConfig | undefined): SchemaField[] {
   if (!defaults) return [...fields]
   return fields.map((field) => {
-    if (!field.name.startsWith(RUNTIME_PREFIX)) return field
+    if (!field.name.startsWith(RUNTIME_PREFIX) || field.output_default) return field
     const inherited = inheritedValue(defaults, field.name.slice(RUNTIME_PREFIX.length))
     if (inherited === undefined) return field
-    // Durations travel as nanoseconds; the schema writes them as Go duration text.
-    const value = typeof inherited === "number" && typeof field.default === "string" ? formatGoDuration(inherited) : inherited
-    return { ...field, default: value }
+    return { ...field, default: inherited }
   })
 }
 

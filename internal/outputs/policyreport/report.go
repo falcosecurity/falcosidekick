@@ -17,6 +17,8 @@
 package policyreport
 
 import (
+	"encoding/json"
+	"reflect"
 	"slices"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -32,6 +34,9 @@ const (
 
 	// reportName names both the Report of each namespace and the ClusterReport.
 	reportName = "falcosidekick"
+
+	// maxReportBytes bounds the encoded report; etcd refuses a request above its 1.5 MiB default.
+	maxReportBytes = 512 << 10
 
 	managedByLabel = "app.kubernetes.io/managed-by"
 	managedByValue = "falcosidekick"
@@ -61,35 +66,115 @@ func newReport(t target) *unstructured.Unstructured {
 	return obj
 }
 
-// addResult prunes results beyond maxEvents and declares it as configuration.limits.maxResults.
-func addResult(obj *unstructured.Unstructured, result map[string]any, maxEvents int, pruneByPriority bool) {
-	_ = unstructured.SetNestedField(obj.Object, int64(maxEvents), "configuration", "limits", "maxResults")
-	results, _ := obj.Object["results"].([]any)
-	// A retry after a write whose answer was lost finds the result already there.
-	if id := property(result, "uuid"); id != "" && slices.ContainsFunc(results, func(r any) bool { return property(r, "uuid") == id }) {
-		return
-	}
-	results = append(results, result)
-	for len(results) > maxEvents {
-		i := 0
-		if pruneByPriority {
-			i = lowestSeverity(results)
-		}
-		results = append(results[:i], results[i+1:]...)
-	}
-	obj.Object["results"] = results
-	obj.Object["summary"] = summarize(results)
+type merged struct {
+	// budgetPruned counts the results removed to keep the encoded report within maxReportBytes.
+	budgetPruned int
+	kept         int
+	changed      bool
 }
 
-// lowestSeverity returns the index of the oldest result with the lowest severity.
-func lowestSeverity(results []any) int {
-	lowest, rank := 0, -1
-	for i, r := range results {
-		if n := severityRank[field(r, "severity")]; rank < 0 || n < rank {
-			lowest, rank = i, n
+// merge appends the results whose uuid the report does not hold, prunes by count then by encoded size,
+// and recomputes the summary; a result that alone exceeds maxReportBytes is refused.
+func merge(obj *unstructured.Unstructured, add []map[string]any, maxResults int, pruneByPriority bool) (merged, error) {
+	oldLimit, _, _ := unstructured.NestedFieldNoCopy(obj.Object, "configuration", "limits", "maxResults")
+	oldSummary := obj.Object["summary"]
+	results, _ := obj.Object["results"].([]any)
+	before := len(results)
+
+	// A retry after a write whose answer was lost finds its results already there.
+	seen := make(map[string]struct{}, len(results)+len(add))
+	for _, r := range results {
+		if id := property(r, "uuid"); id != "" {
+			seen[id] = struct{}{}
 		}
 	}
-	return lowest
+	for _, r := range add {
+		if id := property(r, "uuid"); id != "" {
+			if _, dup := seen[id]; dup {
+				continue
+			}
+			seen[id] = struct{}{}
+		}
+		results = append(results, r)
+	}
+	added := len(results) - before
+
+	order := pruneOrder(results, pruneByPriority)
+	dropped := make([]bool, len(results))
+	removed := 0
+	for ; removed < len(results)-maxResults; removed++ {
+		dropped[order[removed]] = true
+	}
+	_ = unstructured.SetNestedField(obj.Object, int64(maxResults), "configuration", "limits", "maxResults")
+	setResults(obj, results, dropped)
+
+	out := merged{}
+	var sizes []int
+	for {
+		encoded, err := json.Marshal(obj.Object)
+		if err != nil {
+			return out, err
+		}
+		excess := len(encoded) - maxReportBytes
+		if excess <= 0 {
+			break
+		}
+		if removed >= len(results)-1 {
+			return out, errResultTooLarge
+		}
+		if sizes == nil {
+			sizes = resultSizes(results)
+		}
+		// Each removed result also takes its separating comma; the loop re-measures the summary.
+		for freed := 0; freed < excess && removed < len(results)-1; removed++ {
+			i := order[removed]
+			dropped[i] = true
+			freed += sizes[i] + 1
+			out.budgetPruned++
+		}
+		setResults(obj, results, dropped)
+	}
+
+	out.kept = len(results) - removed
+	out.changed = added > 0 || removed > 0 || !reflect.DeepEqual(oldLimit, int64(maxResults)) ||
+		!reflect.DeepEqual(oldSummary, obj.Object["summary"])
+	return out, nil
+}
+
+func setResults(obj *unstructured.Unstructured, results []any, dropped []bool) {
+	kept := make([]any, 0, len(results))
+	for i, r := range results {
+		if !dropped[i] {
+			kept = append(kept, r)
+		}
+	}
+	obj.Object["results"] = kept
+	obj.Object["summary"] = summarize(kept)
+}
+
+// resultSizes returns the encoded size of each result; an unencodable one counts as zero.
+func resultSizes(results []any) []int {
+	sizes := make([]int, len(results))
+	for i, r := range results {
+		if b, err := json.Marshal(r); err == nil {
+			sizes[i] = len(b)
+		}
+	}
+	return sizes
+}
+
+// pruneOrder returns the result indexes oldest first, or with pruneByPriority lowest severity first.
+func pruneOrder(results []any, pruneByPriority bool) []int {
+	order := make([]int, len(results))
+	for i := range order {
+		order[i] = i
+	}
+	if pruneByPriority {
+		slices.SortStableFunc(order, func(a, b int) int {
+			return severityRank[field(results[a], "severity")] - severityRank[field(results[b], "severity")]
+		})
+	}
+	return order
 }
 
 func summarize(results []any) map[string]any {

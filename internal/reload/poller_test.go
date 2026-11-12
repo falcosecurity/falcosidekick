@@ -36,9 +36,8 @@ func TestPollerDetectsContentChange(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
 
 	var calls atomic.Int64
-	p := NewPoller([]string{path}, nil, 100*time.Millisecond, func() error {
+	p := NewPoller([]string{path}, nil, 100*time.Millisecond, func() {
 		calls.Add(1)
-		return nil
 	}, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -62,9 +61,8 @@ func TestPollerSkipsWhenUnchanged(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
 
 	var calls atomic.Int64
-	p := NewPoller([]string{path}, nil, 100*time.Millisecond, func() error {
+	p := NewPoller([]string{path}, nil, 100*time.Millisecond, func() {
 		calls.Add(1)
-		return nil
 	}, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -82,7 +80,7 @@ func TestPollerStopsOnContextCancel(t *testing.T) {
 	path := filepath.Join(dir, "outputs.yaml")
 	require.NoError(t, os.WriteFile(path, []byte("outputs: {}"), 0o644))
 
-	p := NewPoller([]string{path}, nil, 100*time.Millisecond, func() error { return nil }, slog.Default())
+	p := NewPoller([]string{path}, nil, 100*time.Millisecond, func() {}, slog.Default())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -131,9 +129,8 @@ func TestPollerSecretFiles(t *testing.T) {
 			list := &dirList{dirs: []string{filepath.Join(dir, "token")}}
 			synctest.Test(t, func(t *testing.T) {
 				var calls atomic.Int64
-				p := NewPoller(nil, list.get, interval, func() error {
+				p := NewPoller(nil, list.get, interval, func() {
 					calls.Add(1)
-					return nil
 				}, slog.Default())
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -162,9 +159,8 @@ func TestPollerForgetsUnlistedSecretFiles(t *testing.T) {
 	writeFile(t, config, "outputs: {}")
 	list := &dirList{dirs: []string{token, config}}
 	var calls atomic.Int64
-	p := NewPoller([]string{config}, list.get, time.Second, func() error {
+	p := NewPoller([]string{config}, list.get, time.Second, func() {
 		calls.Add(1)
-		return nil
 	}, slog.Default())
 	p.hashes[config], _ = hashFile(config)
 	p.hashes[token], _ = hashSecretFile(token)

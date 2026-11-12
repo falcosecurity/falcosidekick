@@ -330,11 +330,10 @@ func TestElasticsearchWritesToDataStream(t *testing.T) {
 	}
 }
 
-// A wrong base path or rejected credentials stop startup.
-func TestElasticsearchMisconfigurationFailsStartup(t *testing.T) {
+func TestElasticsearchMisconfigurationStartsDegraded(t *testing.T) {
 	es := newESServer(t)
 	t.Run("base_path", func(t *testing.T) {
-		logs := startSidekickFails(t, es.outputs("fsk-e2e-es-unused", "  base_path: /e2e-missing\n"))
+		_, logs := startSidekickDegraded(t, "elasticsearch", es.outputs("fsk-e2e-es-unused", "  base_path: /e2e-missing\n"))
 		assert.Contains(t, logs, "health check")
 	})
 	t.Run("password", func(t *testing.T) {
@@ -343,7 +342,7 @@ func TestElasticsearchMisconfigurationFailsStartup(t *testing.T) {
 		}
 		wrong := *es
 		wrong.password = "wrong-" + newMarker(t)
-		logs := startSidekickFails(t, wrong.outputs("fsk-e2e-es-unused", ""))
+		_, logs := startSidekickDegraded(t, "elasticsearch", wrong.outputs("fsk-e2e-es-unused", ""))
 		assert.Contains(t, logs, "HTTP 401")
 		assert.NotContains(t, logs, wrong.password)
 	})

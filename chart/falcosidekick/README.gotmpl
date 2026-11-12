@@ -126,7 +126,17 @@ At startup the process retries the database until `config.database.connect_timeo
 
 ### TLS
 
-Set `config.tls.enabled: true` and `tls.secretName` to a Secret holding `tls.crt` and `tls.key`, and `ca.crt` with `config.tls.mutual_tls: true`. Without `tls.secretName`, set `config.tls.cert_file` and `key_file`, and `ca_file` with mutual TLS, to files mounted otherwise, for example from `secrets`. Rendering fails when TLS is on without a certificate, when `tls.secretName` is set with TLS off, and with mutual TLS but no CA. The probes then use HTTPS; with mutual TLS they need no client certificate.
+Set `config.tls.enabled: true` and `tls.secretName` to a Secret holding `tls.crt` and `tls.key`, and `ca.crt` with `config.tls.mutual_tls: true`. Without `tls.secretName`, set `config.tls.cert_file` and `key_file`, and `ca_file` with mutual TLS, to files mounted otherwise, for example from `secrets`. Rendering fails when TLS is on without a certificate, when `tls.secretName`, `config.tls.mutual_tls`, `cert_file`, `key_file` or `ca_file` is set with TLS off, and with mutual TLS but no CA. The probes then use HTTPS; with mutual TLS they need no client certificate.
+
+### Resources
+
+The pod requests 50m CPU and 64Mi of memory, with a 512Mi memory limit and no CPU limit, so a fault exhausts the pod and not the node. Each event an output queues or holds takes about 2 KiB, so per output:
+
+```
+memory ≈ 2 KiB × (queue_size + workers × batch_size)
+```
+
+plus about 150 MiB for the process at 1000 events per second, as measured on a test cluster. The defaults (`queue_size: 1000`, `workers: 2` and, with batching, `batch_size: 500`) take about 4 MiB per output. Raise `resources.limits.memory` for larger queues or batches, or for a large `inmemory` capacity.
 
 ### Shutdown
 

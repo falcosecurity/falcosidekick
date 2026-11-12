@@ -194,7 +194,7 @@ func TestCreateOutputAcceptsRuntimeOverrides(t *testing.T) {
 	require.NotNil(t, pCfg.Retry)
 	assert.Equal(t, 5, pCfg.Retry.MaxAttempts)
 	require.NotNil(t, pCfg.Batching)
-	assert.True(t, pCfg.Batching.Enabled)
+	assert.True(t, pCfg.Batching.IsEnabled())
 	assert.Equal(t, 1000, pCfg.Batching.BatchSize)
 }
 

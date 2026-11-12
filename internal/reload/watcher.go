@@ -35,11 +35,11 @@ type dirWatcher interface {
 // Watcher triggers a debounced reload when fsnotify reports an output config change or any change
 // in a secret directory. It watches parent directories so atomic renames and ..data swaps are seen.
 type Watcher struct {
-	reloadFn func() error
-	dirs     func() []string
-	logger   *slog.Logger
-	ready    chan struct{}
-	refresh  chan struct{}
+	notify  func()
+	dirs    func() []string
+	logger  *slog.Logger
+	ready   chan struct{}
+	refresh chan struct{}
 	// targets, watched, secretDirs and failed are owned by the Run goroutine.
 	targets    map[string]string
 	watched    map[string]bool
@@ -52,7 +52,7 @@ type Watcher struct {
 
 // NewWatcher creates a watcher for the given output config paths and, when dirs is not nil, for
 // the secret directories it returns. dirs is called again after each debounced reload and on Refresh.
-func NewWatcher(paths []string, dirs func() []string, debounce time.Duration, reloadFn func() error, logger *slog.Logger) *Watcher {
+func NewWatcher(paths []string, dirs func() []string, debounce time.Duration, notify func(), logger *slog.Logger) *Watcher {
 	cleaned := make([]string, len(paths))
 	for i, p := range paths {
 		cleaned[i] = filepath.Clean(p)
@@ -65,7 +65,7 @@ func NewWatcher(paths []string, dirs func() []string, debounce time.Duration, re
 		watched:    make(map[string]bool),
 		secretDirs: make(map[string]bool),
 		failed:     make(map[string]bool),
-		reloadFn:   reloadFn,
+		notify:     notify,
 		debounce:   debounce,
 		logger:     logger,
 		ready:      make(chan struct{}),
@@ -165,9 +165,7 @@ func (w *Watcher) loop(ctx context.Context, fsw dirWatcher, events <-chan fsnoti
 				} else {
 					w.logger.Info("secret directory changed, reloading")
 				}
-				if err := w.reloadFn(); err != nil {
-					w.logger.Error("reload failed", "error", err)
-				}
+				w.notify()
 			}
 			direct = false
 			secret = false

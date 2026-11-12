@@ -38,6 +38,7 @@ function status(name: string, change: Partial<OutputStatus> = {}): OutputStatus 
     last_success: "2026-11-08T11:00:00Z",
     last_error: "",
     last_warning: "",
+    warning_kind: "",
     queue_depth: 0,
     queue_capacity: 100,
     sent_total: 10,

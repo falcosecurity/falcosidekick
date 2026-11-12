@@ -26,9 +26,10 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// Poller compares content hashes of output config files and secret files to catch changes fsnotify misses.
+// Poller compares content hashes of output config files and secret files to catch changes fsnotify
+// misses; it only notifies the coordinator.
 type Poller struct {
-	reloadFn func() error
+	notify   func()
 	files    func() []string
 	hashes   map[string][sha256.Size]byte
 	logger   *slog.Logger
@@ -39,12 +40,12 @@ type Poller struct {
 // NewPoller creates a content-hash poller for the given output config paths and, when files is not
 // nil, for the secret files it returns at each tick. A secret file seen for the first time after
 // the first tick counts as a change.
-func NewPoller(paths []string, files func() []string, interval time.Duration, reloadFn func() error, logger *slog.Logger) *Poller {
+func NewPoller(paths []string, files func() []string, interval time.Duration, notify func(), logger *slog.Logger) *Poller {
 	return &Poller{
 		paths:    paths,
 		files:    files,
 		interval: interval,
-		reloadFn: reloadFn,
+		notify:   notify,
 		hashes:   make(map[string][sha256.Size]byte),
 		logger:   logger,
 	}
@@ -76,9 +77,7 @@ func (p *Poller) Run(ctx context.Context) error {
 		case <-ticker.C:
 			if p.checkForChanges() {
 				p.logger.Info("output config or secret content changed (poll), reloading")
-				if err := p.reloadFn(); err != nil {
-					p.logger.Error("reload failed (poll)", "error", err)
-				}
+				p.notify()
 			}
 		}
 	}

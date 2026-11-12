@@ -214,7 +214,8 @@ func TestConfigValidation(t *testing.T) {
 	}{
 		{name: "duration", cfg: map[string]any{"expires_after": "30m"}},
 		{name: "zero", cfg: map[string]any{"expires_after": "0"}},
-		{name: "integer seconds", cfg: map[string]any{"expires_after": 300}, wantErr: "expires_after: must be 0 or a Go duration of at least 1s"},
+		{name: "integer seconds", cfg: map[string]any{"expires_after": 300}, wantErr: "expires_after: must be a duration such as 30s or 1m"},
+		{name: "integer zero", cfg: map[string]any{"expires_after": 0}},
 		{name: "number without unit", cfg: map[string]any{"expires_after": "300"}, wantErr: "expires_after"},
 		{name: "negative", cfg: map[string]any{"expires_after": "-1m"}, wantErr: "expires_after: must be 0 or a Go duration"},
 		{name: "valid label names", cfg: map[string]any{"extra_labels": map[string]any{"_team": "a", "env2": "b"}}},

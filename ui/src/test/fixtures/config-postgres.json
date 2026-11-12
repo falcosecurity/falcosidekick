@@ -8,13 +8,13 @@
     },
     "database": {
       "backend": "postgres",
-      "connect_timeout": 30000000000,
+      "connect_timeout": "30s",
       "postgres": {
         "database": "falcosidekick",
         "host": "postgres.falco.svc",
         "max_connections": 4,
         "password": "****",
-        "poll_interval": 10000000000,
+        "poll_interval": "10s",
         "port": 5432,
         "sslmode": "verify-full",
         "tls": {
@@ -44,32 +44,32 @@
       "allow_ui_updates": false
     },
     "reload": {
-      "poll_interval": 30000000000,
-      "retire_timeout": 10000000000
+      "poll_interval": "30s",
+      "retire_timeout": "10s"
     },
     "runtime_defaults": {
       "batching": {
         "batch_size": 50,
         "enabled": true,
-        "flush_interval": 1000000000
+        "flush_interval": "1s"
       },
       "circuit_breaker": {
         "failure_threshold": 5,
-        "reset_timeout": 30000000000,
+        "reset_timeout": "30s",
         "success_threshold": 2
       },
       "health_check": true,
       "minimum_priority": "Warning",
       "queue_size": 100,
       "retry": {
-        "initial_interval": 10000000,
+        "initial_interval": "10ms",
         "max_attempts": 1,
-        "max_interval": 100000000,
+        "max_interval": "100ms",
         "multiplier": 2
       },
       "workers": 1
     },
-    "shutdown_delay": 5000000000,
+    "shutdown_delay": "5s",
     "tls": {
       "ca_file": "",
       "cert_file": "/etc/falcosidekick/certs/tls.crt",

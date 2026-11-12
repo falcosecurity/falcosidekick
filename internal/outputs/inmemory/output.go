@@ -41,6 +41,9 @@ const (
 	defaultGCInterval = 10 * time.Second
 )
 
+// capacityRange bounds the ring, which is allocated in full when the output is created.
+var capacityRange = utils.IntRange{Min: 1, Max: 100_000}
+
 // OutputType describes the in-memory event store for the output catalog.
 var OutputType = output.Type{
 	New:         createOutput,
@@ -49,10 +52,10 @@ var OutputType = output.Type{
 	EventSource: true,
 	Schema: output.Schema{
 		Fields: append([]output.SchemaField{
-			{
-				Name: "capacity", Type: "int", Default: 10000, Required: true, Label: "Max Events",
-				Description: "Number of events kept in memory; once full, each new event replaces the oldest. `0` uses the default.",
-			},
+			output.SchemaField{
+				Name: "capacity", Type: "int", Default: defaultCapacity, Required: true, Label: "Max Events",
+				Description: "Number of events kept in memory; once full, each new event replaces the oldest.",
+			}.WithIntRange(capacityRange),
 			{
 				Name: "ttl", Type: "string", Default: "0", Label: "Event TTL (0 = no expiry)",
 				Description: "Go duration, such as `24h`, after which an event is removed, measured from the event time. `0` keeps events until replaced.",
@@ -96,10 +99,11 @@ func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.runtime }
 
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
+	// Zero is an omitted capacity: NormalizeConfig refuses an explicit 0 before decoding.
 	if c.Capacity == 0 {
 		c.Capacity = defaultCapacity
-	} else if c.Capacity < 0 {
-		errs.Add("capacity", "must be > 0")
+	} else {
+		capacityRange.Check(&errs, "capacity", c.Capacity)
 	}
 	if c.TTL < 0 {
 		errs.Add("ttl", "must be >= 0 (0 = no expiry)")
@@ -124,7 +128,7 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+		return nil, fmt.Errorf("%s: %w", name, errs)
 	}
 
 	return &driver{

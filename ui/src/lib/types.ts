@@ -67,6 +67,9 @@ export type CircuitState = "closed" | "open" | "half-open" | "unknown"
 
 export const CIRCUIT_STATES: readonly CircuitState[] = ["closed", "open", "half-open", "unknown"] as const
 
+/** What last_warning is about: a destination failing its probe or in part, a refused update or secret rotation. */
+export type WarningKind = "destination" | "update" | "rotation" | ""
+
 export interface OutputStatus {
   name: string
   status: OutputStatusState
@@ -76,6 +79,7 @@ export interface OutputStatus {
   last_success: string
   last_error: string
   last_warning: string
+  warning_kind: WarningKind
   queue_depth: number
   queue_capacity: number
   sent_total: number
@@ -122,12 +126,20 @@ export interface SchemaField {
   description?: string
   required: boolean
   default?: unknown
+  /** The runtime default is this output's own: runtime_defaults does not replace it. */
+  output_default?: boolean
   /** A value the UI proposes for a field without a default, such as the Falco icon. */
   suggested?: string
   values?: string[]
   secret?: boolean
   file?: boolean
   entry_fields?: SchemaField[]
+  /**
+   * Inclusive bounds of a present value: numbers for int and float fields, Go duration strings
+   * ("1ms", "1h") for a duration, which is a string field.
+   */
+  min?: number | string
+  max?: number | string
 }
 
 export interface OutputType {
@@ -148,6 +160,11 @@ export interface OutputConfigEntry {
   provisioned: boolean
   version: number
   updated_at: string
+}
+
+/** A PUT answer: the saved output and, once it runs, its status, degraded when the destination did not answer. */
+export interface SavedOutput extends OutputConfigEntry {
+  status?: OutputStatus | null
 }
 
 /** GET /api/v1/secrets: names of the files under api.secret_dirs, never their contents. */
@@ -228,8 +245,8 @@ export interface VersionInfo {
   go_version: string
 }
 
-// Durations are Go time.Duration values: integer nanoseconds.
-export type GoDuration = number
+// Durations are Go duration strings, as the configuration files write them: "5s", "1m30s", "1.5s".
+export type GoDuration = string
 
 export interface ListenerTLSConfig {
   enabled: boolean
@@ -259,7 +276,7 @@ export interface CoreConfig {
   // "" listens on every interface, IPv4 and IPv6.
   listen_address: string
   listen_port: number
-  // Go duration in nanoseconds: how long ingestion keeps accepting events after SIGTERM.
+  // How long ingestion keeps accepting events after SIGTERM; "0s" when off.
   shutdown_delay: GoDuration
   tls?: ListenerTLSConfig
   management: { listen_address: string; listen_port: number }

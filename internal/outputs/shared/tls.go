@@ -19,7 +19,6 @@ package shared
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
@@ -84,6 +83,10 @@ func TLSClientSchemaFields() []output.SchemaField {
 	}
 }
 
+func tlsFieldError(field, message string) error {
+	return utils.ValidationErrors{{Field: field, Message: message}}
+}
+
 // BuildTLSConfig creates a *tls.Config from per-output TLS settings.
 // Its errors name the field, not the path or the OS error.
 func BuildTLSConfig(cfg *TLSClientConfig) (*tls.Config, error) {
@@ -99,11 +102,11 @@ func BuildTLSConfig(cfg *TLSClientConfig) (*tls.Config, error) {
 	if cfg.CAFile != "" {
 		caCert, err := utils.ReadRegularFile(cfg.CAFile)
 		if err != nil {
-			return nil, errors.New("tls.ca_file: " + utils.FileProblem(err))
+			return nil, tlsFieldError("tls.ca_file", utils.FileProblem(err))
 		}
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM(caCert) {
-			return nil, errors.New("tls.ca_file: no valid PEM certificate")
+			return nil, tlsFieldError("tls.ca_file", "no valid PEM certificate")
 		}
 		tlsCfg.RootCAs = pool
 	}
@@ -111,15 +114,15 @@ func BuildTLSConfig(cfg *TLSClientConfig) (*tls.Config, error) {
 	if cfg.CertFile != "" && cfg.KeyFile != "" {
 		certPEM, err := utils.ReadRegularFile(cfg.CertFile)
 		if err != nil {
-			return nil, errors.New("tls.cert_file: " + utils.FileProblem(err))
+			return nil, tlsFieldError("tls.cert_file", utils.FileProblem(err))
 		}
 		keyPEM, err := utils.ReadRegularFile(cfg.KeyFile)
 		if err != nil {
-			return nil, errors.New("tls.key_file: " + utils.FileProblem(err))
+			return nil, tlsFieldError("tls.key_file", utils.FileProblem(err))
 		}
 		cert, err := tls.X509KeyPair(certPEM, keyPEM)
 		if err != nil {
-			return nil, errors.New("tls.cert_file, tls.key_file: cannot load the key pair")
+			return nil, tlsFieldError("tls.cert_file", "cannot load the key pair with tls.key_file")
 		}
 		tlsCfg.Certificates = []tls.Certificate{cert}
 	}

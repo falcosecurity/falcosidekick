@@ -125,12 +125,12 @@ func TestLiveElasticsearch(t *testing.T) {
 			"host": base, "index": "fsk-live-tpl", "create_index_template": true,
 			"number_of_shards": 1, "number_of_replicas": 0,
 		}
-		require.NoError(t, liveDriver(t, cfg).Init(ctx))
+		require.NoError(t, provision(liveDriver(t, cfg)))
 		status, _ := liveRequest(t, base, http.MethodHead, "/_index_template/fsk-live-tpl", "")
 		require.Equal(t, http.StatusOK, status)
 
 		cfg["number_of_shards"] = 7
-		require.NoError(t, liveDriver(t, cfg).Init(ctx))
+		require.NoError(t, provision(liveDriver(t, cfg)))
 		_, body := liveRequest(t, base, http.MethodGet, "/_index_template/fsk-live-tpl", "")
 		assert.Contains(t, mustJSON(t, body), `"number_of_shards":"1"`)
 	})
@@ -186,8 +186,8 @@ func TestLiveElasticsearch(t *testing.T) {
 		batch := liveDriver(t, map[string]any{"host": base, "index": "fsk-live", "index_suffix": "none"}).(output.BatchSender)
 
 		events := []*event.Event{liveEvent("a", 1), liveEvent("b", "not-a-number"), liveEvent("c", 3)}
-		require.EqualError(t, batch.SendBatch(ctx, events), "elasticsearch response: bulk indexed 2/3, 1 failed")
-		require.EqualError(t, batch.SendBatch(ctx, events), "elasticsearch response: bulk indexed 2/3, 1 failed")
+		require.EqualError(t, batch.SendBatch(ctx, events), "elasticsearch response: bulk indexed 2/3, 1 rejected")
+		require.EqualError(t, batch.SendBatch(ctx, events), "elasticsearch response: bulk indexed 2/3, 1 rejected")
 		assert.Equal(t, 2.0, liveCount(t, base, "fsk-live"))
 
 		require.NoError(t, batch.SendBatch(ctx, []*event.Event{liveEvent("a", 1), liveEvent("c", 3), liveEvent("d", 4)}))
@@ -291,7 +291,8 @@ func TestLiveElasticsearchAuthentication(t *testing.T) {
 		}
 		d, err := createOutput(cfg, output.Deps{Logger: slog.New(slog.DiscardHandler)})
 		require.NoError(t, err)
-		require.ErrorContains(t, d.Init(ctx), "elasticsearch index template check: HTTP 401 Unauthorized")
+		require.NoError(t, d.Init(ctx))
+		require.ErrorContains(t, provision(d), "elasticsearch index template check: HTTP 401 Unauthorized")
 		require.ErrorContains(t, d.(output.BatchSender).SendBatch(ctx, events("denied")), "HTTP 401")
 		status, _ := liveRequest(t, base, http.MethodHead, "/_index_template/fsk-live-denied", "")
 		assert.Equal(t, http.StatusNotFound, status)

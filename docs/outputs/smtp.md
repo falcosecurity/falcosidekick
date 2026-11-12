@@ -3,7 +3,7 @@
 Sends one email per event, HTML or text (`format`). The subject is `[Priority] rule on hostname`, without `on hostname` when the event has none.
 
 - `tls_mode` is `starttls` (required), `implicit`, `opportunistic` or `none`. Credentials are sent only over TLS or to localhost.
-- Startup connects, negotiates TLS and authenticates without sending mail: rejected credentials, a missing STARTTLS or an untrusted certificate stop startup.
+- Startup connects, negotiates TLS and authenticates without sending mail: rejected credentials, a missing STARTTLS or an untrusted certificate start the output degraded with the reason; mail is never sent without the TLS the configuration asks for.
 - A 5yz reply fails the event for good, a 4yz reply is retried. With several recipients a refused recipient is retried: the client library reports only the last recipient's reply.
 - SMTP connects directly, without a proxy.
 

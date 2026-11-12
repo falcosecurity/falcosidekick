@@ -45,6 +45,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 	"github.com/falcosecurity/falcosidekick/internal/pipeline"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 func stubOutputType(name string, sendFunc func(context.Context, *event.Event) error) output.Type {
@@ -82,6 +83,12 @@ func failingInitOutputType(name string) output.Type {
 func writeOutputsYAML(t *testing.T, path, content string) {
 	t.Helper()
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+}
+
+// reconcileNow forces one file reconcile, as SIGHUP does, and returns its error.
+func reconcileNow(r *Reloader, ctx, workerRunCtx context.Context, retireTimeout time.Duration) error {
+	_, err := r.ReconcileFiles(ctx, workerRunCtx, retireTimeout, TriggerForce)
+	return err
 }
 
 type reloaderTestEnv struct {
@@ -134,7 +141,7 @@ func TestReloaderSuccessAddOutput(t *testing.T) {
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second))
 
 	env.d.DispatchEvent(&event.Event{
 		Priority: event.PriorityError,
@@ -177,7 +184,7 @@ func TestReloaderSuccessRemoveOutput(t *testing.T) {
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second))
 
 	names := env.d.OutputNames()
 	assert.Empty(t, names, "slack must be removed")
@@ -208,7 +215,7 @@ func TestReloaderNoChangeIsNoop(t *testing.T) {
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second))
 }
 
 func TestReloaderParseErrorKeepsOldConfig(t *testing.T) {
@@ -235,7 +242,7 @@ func TestReloaderParseErrorKeepsOldConfig(t *testing.T) {
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err = r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second)
+	err = reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "reload parse")
 }
@@ -263,7 +270,7 @@ func TestReloaderUnknownOutputKeepsOldConfig(t *testing.T) {
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err = r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second)
+	err = reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown output type")
 }
@@ -297,7 +304,7 @@ func TestReloaderConcurrentReloadsSerialized(t *testing.T) {
 			defer wg.Done()
 			reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			if err := r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second); err != nil {
+			if err := reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second); err != nil {
 				errCount.Add(1)
 			}
 		}()
@@ -339,10 +346,10 @@ func TestReloaderChangedOutputTriggersReplace(t *testing.T) {
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second))
 
 	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: new\n")
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second))
 
 	env.d.DispatchEvent(&event.Event{
 		Priority: event.PriorityError,
@@ -396,14 +403,55 @@ func TestReloaderInitFailureClosesPartialOutputs(t *testing.T) {
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	err = r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second)
+	err = reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second)
 	assert.Error(t, err, "reload must fail when any output Init fails")
 	assert.Contains(t, err.Error(), "init")
 
 	assert.Empty(t, env.d.OutputNames(), "no outputs must be added on partial failure")
 }
 
-func TestReloaderMisconfiguredDestinationKeepsOldOutput(t *testing.T) {
+// The panic value must not reach the error; the running output stays up.
+func TestReloaderPanickingConstructorRefusesTheReload(t *testing.T) {
+	const canary = "PANIC-CANARY-77d2"
+	dir := t.TempDir()
+	path := filepath.Join(dir, "outputs.yaml")
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: x\n")
+
+	boom := output.Type{
+		Name:   "boom",
+		Schema: output.Schema{Fields: []output.SchemaField{}},
+		New:    func(map[string]any, output.Deps) (output.Driver, error) { panic(canary) },
+	}
+	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil), boom})
+	require.NoError(t, err)
+
+	slack, err := pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{"secret_endpoint": "x"},
+		testutil.DefaultRuntimeConfig(), output.Deps{})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, []*pipeline.Output{slack})
+	defer env.shutdown(t)
+
+	r := NewReloader(&ReloaderConfig{
+		OutputPaths:     []string{path},
+		Catalog:         cat,
+		Dispatcher:      env.d,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
+		Deps:            output.Deps{Logger: slog.Default()},
+		Logger:          slog.Default(),
+		InitialOutputs:  map[string]map[string]any{"slack": {"secret_endpoint": "x"}},
+	})
+
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: x\n  boom: {}\n")
+	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second)
+	require.ErrorIs(t, err, pipeline.ErrBuildPanicked)
+	assert.NotContains(t, err.Error(), canary)
+	assert.Equal(t, []string{"slack"}, env.d.OutputNames(), "the running output is kept")
+}
+
+// The degraded warning clears at the first delivery; a locally invalid reload is refused instead.
+func TestReloaderMisconfiguredDestinationIsApplied(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
 
@@ -412,6 +460,9 @@ func TestReloaderMisconfiguredDestinationKeepsOldOutput(t *testing.T) {
 		Name:   "slack",
 		Schema: output.Schema{Fields: []output.SchemaField{{Name: "secret_endpoint", Type: "string"}}},
 		New: func(cfg map[string]any, _ output.Deps) (output.Driver, error) {
+			if cfg["secret_endpoint"] == "invalid" {
+				return nil, utils.ValidationErrors{{Field: "secret_endpoint", Message: "must be a URL"}}
+			}
 			wrong := cfg["secret_endpoint"] == "wrong"
 			return &testutil.MockDriver{
 				DriverName: "slack",
@@ -452,17 +503,27 @@ func TestReloaderMisconfiguredDestinationKeepsOldOutput(t *testing.T) {
 	})
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second))
 
-	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: wrong\n")
-	err = r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "health check")
-	assert.Equal(t, int64(1), closedRejected.Load(), "the rejected driver is closed")
-
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: invalid\n")
+	require.Error(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second), "a locally invalid file is refused")
 	env.d.DispatchEvent(&event.Event{Priority: event.PriorityError, Rule: "test", Source: "test"})
 	assert.Eventually(t, func() bool { return delivered.Load() == 1 }, 5*time.Second, 10*time.Millisecond,
 		"the previous output still delivers")
+
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: wrong\n")
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second))
+	assert.Zero(t, closedRejected.Load(), "the new output runs")
+	status := env.d.CollectStatus()
+	require.Len(t, status, 1)
+	assert.Equal(t, pipeline.HealthDegraded, status[0].Status)
+	assert.Equal(t, pipeline.WarningDestination, status[0].WarningKind)
+	assert.Contains(t, status[0].LastWarning, "HTTP 404 Not Found")
+
+	env.d.DispatchEvent(&event.Event{Priority: event.PriorityError, Rule: "test", Source: "test"})
+	assert.Eventually(t, func() bool { return delivered.Load() == 2 }, 5*time.Second, 10*time.Millisecond,
+		"the new output delivers once the destination accepts")
+	assert.Eventually(t, func() bool { return env.d.CollectStatus()[0].LastWarning == "" }, 5*time.Second, 10*time.Millisecond)
 }
 
 // Views of falcosidekick_reloads_total: every attempt, or the attempts with one result.
@@ -564,7 +625,7 @@ func TestReloaderReplaceRetireTimeoutKeepsLiveReplacement(t *testing.T) {
 	// The short retireTimeout makes the old output's retire time out.
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer reloadCancel()
-	err = r.Reload(reloadCtx, env.workerRunCtx, 100*time.Millisecond)
+	err = reconcileNow(r, reloadCtx, env.workerRunCtx, 100*time.Millisecond)
 
 	require.NoError(t, err, "Reload must succeed: replacement is live, retire timeout is a warning")
 
@@ -580,6 +641,13 @@ func TestReloaderReplaceRetireTimeoutKeepsLiveReplacement(t *testing.T) {
 	assert.Equal(t, float64(0), getMetricValue(gathered, metricReloadFailures), "reload_failures_total must be 0")
 	assert.Equal(t, float64(1), getMetricValue(gathered, metricReloadPartial), "reload_partial_total must be 1")
 	assert.Equal(t, float64(0), getLastSuccessTimestamp(gathered), "reload_last_success_timestamp must NOT be updated on partial")
+
+	outcome, err := r.ReconcileFiles(reloadCtx, env.workerRunCtx, 100*time.Millisecond, TriggerChange)
+	require.NoError(t, err)
+	assert.Equal(t, OutcomeSkipped, outcome, "an input applied with a retire timeout is not applied again")
+	gathered, gatherErr = reg.Gather()
+	require.NoError(t, gatherErr)
+	assert.Equal(t, float64(1), getMetricValue(gathered, metricReloadTotal))
 }
 
 func TestReloaderRemoveRetireTimeoutIsWarning(t *testing.T) {
@@ -622,7 +690,7 @@ func TestReloaderRemoveRetireTimeoutIsWarning(t *testing.T) {
 
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer reloadCancel()
-	err = r.Reload(reloadCtx, env.workerRunCtx, 100*time.Millisecond)
+	err = reconcileNow(r, reloadCtx, env.workerRunCtx, 100*time.Millisecond)
 
 	require.NoError(t, err, "Reload must succeed: retire timeout is a warning")
 	assert.Empty(t, env.d.OutputNames(), "output must be removed from dispatcher")
@@ -671,10 +739,9 @@ func TestReloaderRejectsDuringShutdown(t *testing.T) {
 
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), time.Second)
 	defer reloadCancel()
-	err = r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second)
+	err = reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "dispatcher stopped")
+	require.ErrorIs(t, err, pipeline.ErrDispatcherStopped)
 
 	assert.True(t, closeCalled.Load(), "orphaned output must be closed on rejection")
 	assert.Empty(t, r.fileState, "file state must not be updated on rejected reload")
@@ -717,7 +784,7 @@ func TestReloadNoOpCountsAsAttempt(t *testing.T) {
 	})
 
 	reloadCtx := context.Background()
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second))
 
 	gathered, gatherErr := reg.Gather()
 	require.NoError(t, gatherErr)
@@ -754,7 +821,7 @@ func TestReloaderSuccessWithDBSync(t *testing.T) {
 
 	reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second))
 
 	assert.Contains(t, r.fileState, "slack", "file state must include new output")
 
@@ -797,14 +864,14 @@ func TestReloaderProvisionFailureChangesNothingAndIsRetried(t *testing.T) {
 	})
 	ctx := t.Context()
 
-	err = r.Reload(ctx, env.workerRunCtx, 10*time.Second)
+	err = reconcileNow(r, ctx, env.workerRunCtx, 10*time.Second)
 	require.ErrorIs(t, err, ErrDatabaseUnavailable)
 	assert.Empty(t, env.d.OutputNames(), "nothing swapped in")
 	assert.Equal(t, int32(1), closed.Load(), "the built output is closed")
 	assert.NotContains(t, r.fileState, "slack")
 
 	db.ProvisionErr = nil
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, 10*time.Second))
 	assert.Equal(t, []string{"slack"}, env.d.OutputNames(), "the same files apply once the database accepts them")
 
 	gathered, gatherErr := reg.Gather()
@@ -839,10 +906,10 @@ func TestReloaderProvisionsANewSecretPathWithTheSameContent(t *testing.T) {
 		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
 	})
 	ctx := t.Context()
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 
 	writeOutputsYAML(t, path, "outputs:\n  slack:\n    token_file: "+second+"\n")
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 
 	stored, err := db.GetOutputConfig(ctx, "slack")
 	require.NoError(t, err)
@@ -1012,13 +1079,13 @@ func TestReloaderStoresSecretReferencesAndBuildsFromTheirContent(t *testing.T) {
 	r.BindWorkerContext(env.workerRunCtx, time.Second)
 	ctx := context.Background()
 
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	stored, err := db.GetOutputConfig(ctx, "slack")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"token_file": secret}, stored.Config)
 
 	require.NoError(t, os.WriteFile(secret, []byte("rotated"), 0o600))
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	assert.Equal(t, []string{"first", "rotated"}, seen)
 	after, err := db.GetOutputConfig(ctx, "slack")
 	require.NoError(t, err)
@@ -1124,7 +1191,7 @@ func TestReloaderFileReloadNeverEchoesValues(t *testing.T) {
 
 			reloadCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			err = r.Reload(reloadCtx, env.workerRunCtx, 10*time.Second)
+			err = reconcileNow(r, reloadCtx, env.workerRunCtx, 10*time.Second)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.want)
 			assert.NotContains(t, err.Error(), "s3cret")
@@ -1201,7 +1268,7 @@ func TestReloaderApplyThenReload_FileWinsOverUIEdit(t *testing.T) {
 
 	reloadCtx, reloadCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer reloadCancel()
-	require.NoError(t, r.Reload(reloadCtx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, reloadCtx, env.workerRunCtx, time.Second))
 
 	assert.Contains(t, env.d.OutputNames(), "slack")
 	assert.Equal(t, map[string]any{"secret_endpoint": "file-value"}, r.fileState["slack"],
@@ -1235,11 +1302,11 @@ func TestReloaderReload_RetiresOutputsDroppedFromTheFiles(t *testing.T) {
 		InitialOutputs:  map[string]map[string]any{},
 	})
 
-	require.NoError(t, r.Reload(context.Background(), env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, context.Background(), env.workerRunCtx, time.Second))
 	require.ElementsMatch(t, []string{"slack", "webhook"}, env.d.OutputNames())
 
 	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: slack-cfg\n")
-	require.NoError(t, r.Reload(context.Background(), env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, context.Background(), env.workerRunCtx, time.Second))
 
 	assert.ElementsMatch(t, []string{"slack"}, env.d.OutputNames(),
 		"orphaned webhook must be retired")
@@ -1278,7 +1345,7 @@ func TestReloaderReload_ReAddsNameAlreadyLiveAsReplace(t *testing.T) {
 	require.NotContains(t, r.fileState, "slack",
 		"UI-only apply must not write to the file-view")
 
-	require.NoError(t, r.Reload(context.Background(), env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, context.Background(), env.workerRunCtx, time.Second))
 
 	count := 0
 	for _, n := range env.d.OutputNames() {
@@ -1417,6 +1484,52 @@ func TestReloaderUIWriteRefusedByTheDatabaseLeavesTheRuntimeUntouched(t *testing
 	}
 }
 
+func TestReloaderApplyOutput_AnyFileReloadRestoresTheFileVersion(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "outputs.yaml")
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: file\n  webhook:\n    host: one\n")
+
+	var lastBuilt atomic.Value
+	slack := stubOutputType("slack", nil)
+	newSlack := slack.New
+	slack.New = func(raw map[string]any, deps output.Deps) (output.Driver, error) {
+		lastBuilt.Store(raw["secret_endpoint"])
+		return newSlack(raw, deps)
+	}
+	cat, err := catalog.New([]output.Type{slack, stubOutputType("webhook", nil)})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		OutputPaths:     []string{path},
+		Catalog:         cat,
+		Dispatcher:      env.d,
+		Database:        db,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(),
+		Deps:            output.Deps{Logger: slog.Default()},
+		Logger:          slog.Default(),
+		InitialOutputs:  map[string]map[string]any{},
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, 10*time.Second))
+
+	stored, err := db.GetOutputConfig(ctx, "slack")
+	require.NoError(t, err)
+	require.NotNil(t, stored)
+	_, err = r.ApplyOutput(ctx, "slack", stored.Version, map[string]any{"secret_endpoint": "api"})
+	require.NoError(t, err)
+	require.Equal(t, "api", lastBuilt.Load())
+
+	writeOutputsYAML(t, path, "outputs:\n  slack:\n    secret_endpoint: file\n  webhook:\n    host: two\n")
+	outcome, err := r.ReconcileFiles(ctx, env.workerRunCtx, 10*time.Second, TriggerChange)
+	require.NoError(t, err)
+	assert.Equal(t, OutcomeApplied, outcome)
+	assert.Equal(t, "file", lastBuilt.Load(), "slack is built again from the file")
+}
+
 func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "outputs.yaml")
@@ -1445,7 +1558,7 @@ func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, 10*time.Second))
 	require.Contains(t, env.d.OutputNames(), "slack", "initial file reload must add slack")
 	require.Contains(t, r.fileState, "slack", "file state must track file-provisioned name")
 
@@ -1454,7 +1567,7 @@ func TestReloaderRemoveOutput_FileReloadRestoresFileProvisioned(t *testing.T) {
 	assert.NotContains(t, r.fileState, "slack",
 		"UI DELETE must drop the name from fileState so the next file reload re-adds it")
 
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, 10*time.Second))
 	assert.Contains(t, env.d.OutputNames(), "slack",
 		"unchanged file reload after UI DELETE must restore the file-provisioned output")
 	assert.Contains(t, r.fileState, "slack", "fileState must track the restored name")
@@ -1507,7 +1620,7 @@ func TestReloaderRejectsInlineSecretsForAPersistentDatabase(t *testing.T) {
 		RejectInlineSecrets: true,
 	})
 
-	err = r.Reload(t.Context(), env.workerRunCtx, time.Second)
+	err = reconcileNow(r, t.Context(), env.workerRunCtx, time.Second)
 	require.ErrorContains(t, err, `output "slack": token: secrets cannot be stored; use token_file`)
 	assert.NotContains(t, err.Error(), "private-value")
 	assert.Empty(t, env.d.OutputNames())
@@ -1543,16 +1656,17 @@ func TestReloaderRebuildsAPIOutputsWhoseSecretFileChanged(t *testing.T) {
 	version, err := r.ApplyOutput(ctx, "slack", 0, map[string]any{"token_file": secret})
 	require.NoError(t, err)
 
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	assert.Equal(t, []string{"first"}, seen, "an unchanged secret file rebuilds nothing")
 
 	require.NoError(t, os.WriteFile(secret, []byte("rotated"), 0o600))
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	assert.Equal(t, []string{"first", "rotated"}, seen)
 	assert.Equal(t, []string{"slack"}, env.d.OutputNames())
 
 	require.NoError(t, os.Remove(secret))
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second), "an unreadable secret file keeps the running output")
+	require.ErrorContains(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second), "secret rotation not applied",
+		"an unreadable secret file keeps the running output and fails the reload")
 	assert.Equal(t, []string{"first", "rotated"}, seen)
 	assert.Equal(t, []string{"slack"}, env.d.OutputNames())
 
@@ -1610,6 +1724,7 @@ func TestReloaderReconcileAppliesChangesFromOtherInstances(t *testing.T) {
 	assert.Equal(t, []string{"one"}, builds, "the secret file is missing here")
 	assert.Equal(t, pipeline.HealthDegraded, status("slack").Status, "the previous output keeps running")
 	assert.Contains(t, status("slack").LastWarning, fmt.Sprintf("version %d not applied", other))
+	assert.Equal(t, pipeline.WarningUpdate, status("slack").WarningKind)
 	assert.NotContains(t, status("slack").LastWarning, secret)
 
 	require.NoError(t, os.WriteFile(secret, []byte("two"), 0o600))
@@ -1691,7 +1806,7 @@ func TestReloaderReloadLeavesRemoteVersionsToReconcile(t *testing.T) {
 	_, err = db.SaveOutputConfig(ctx, "slack", version, map[string]any{"secret_endpoint": "two"})
 	require.NoError(t, err)
 
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, time.Second))
 	require.NoError(t, r.Reconcile(ctx))
 	require.NoError(t, r.Reconcile(ctx))
 	assert.Equal(t, []string{"one", "two"}, builds)
@@ -1725,4 +1840,31 @@ func TestReloaderReconcileMetrics(t *testing.T) {
 	assert.Equal(t, float64(3), getMetricValueBySource(gathered, metricReloadTotal, SourceReplica))
 	assert.Equal(t, float64(1), getMetricValueBySource(gathered, metricReloadFailures, SourceReplica))
 	assert.Equal(t, float64(0), getMetricValueBySource(gathered, metricReloadPartial, SourceReplica))
+}
+
+func TestReloaderReconcileNeverReportsSuccessOverAFailure(t *testing.T) {
+	cat, err := catalog.New([]output.Type{stubOutputType("slack", nil)})
+	require.NoError(t, err)
+	env := newReloaderTestEnv(t, nil)
+	defer env.shutdown(t)
+	reg := prometheus.NewRegistry()
+	db := database.NewMemory()
+	r := NewReloader(&ReloaderConfig{
+		Catalog: cat, Dispatcher: env.d, Database: db, Registry: reg,
+		RuntimeDefaults: testutil.DefaultRuntimeConfig(), Deps: output.Deps{Logger: slog.Default()}, Logger: slog.Default(),
+	})
+	r.BindWorkerContext(env.workerRunCtx, time.Second)
+	ctx := t.Context()
+	_, err = db.SaveOutputConfig(ctx, "slack", 0, map[string]any{})
+	require.NoError(t, err)
+	_, err = db.SaveOutputConfig(ctx, "unknown", 0, map[string]any{})
+	require.NoError(t, err)
+
+	require.NoError(t, r.Reconcile(ctx))
+	assert.Equal(t, []string{"slack"}, env.d.OutputNames())
+	gathered, err := reg.Gather()
+	require.NoError(t, err)
+	assert.Equal(t, float64(1), getMetricValueBySource(gathered, metricReloadFailures, SourceReplica))
+	assert.Equal(t, float64(0), getMetricValueBySource(gathered, resultSuccess, SourceReplica))
+	assert.Equal(t, float64(0), getLastSuccessTimestamp(gathered))
 }

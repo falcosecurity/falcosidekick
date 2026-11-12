@@ -27,15 +27,15 @@ import (
 
 // DecodeDriverConfig decodes a raw config map into a typed driver config struct.
 // The target struct should include a Runtime output.RuntimeConfig field to receive runtime override fields.
-// Rejects unknown keys, handles duration strings, and squashes embedded structs.
+// Rejects unknown keys, squashes embedded structs, and reads each value with utils.TypeHooks. A null
+// is an omitted setting: an unknown key is refused even when null, and nulls are removed from raw after a successful decode.
 // Returned decode errors name fields and reasons, never submitted values.
 func DecodeDriverConfig(raw map[string]any, result any) error {
 	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		ErrorUnused:      true,
-		WeaklyTypedInput: true,
-		Squash:           true,
+		ErrorUnused: true,
+		Squash:      true,
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			mapstructure.StringToTimeDurationHookFunc(),
+			utils.TypeHooks(),
 			decodeValueSourcesHook,
 		),
 		Result: result,
@@ -46,5 +46,6 @@ func DecodeDriverConfig(raw map[string]any, result any) error {
 	if err := dec.Decode(raw); err != nil {
 		return utils.SafeDecodeError(err, reflect.TypeOf(result))
 	}
+	utils.DropNulls(raw)
 	return nil
 }

@@ -101,11 +101,11 @@ func TestReloaderFilePathsFollowTheOutputFiles(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	writeOutputsYAML(t, path, fmt.Sprintf("outputs:\n  webhook:\n    token_file: %s\n    tls:\n      ca_file: %s\n  other:\n    token_file: %s\n", token, ca, token))
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, 10*time.Second))
 	assert.Equal(t, []string{ca, token}, r.FilePaths())
 
 	writeOutputsYAML(t, path, "outputs:\n  webhook:\n    token: inline\n")
-	require.NoError(t, r.Reload(ctx, env.workerRunCtx, 10*time.Second))
+	require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, 10*time.Second))
 	assert.Empty(t, r.FilePaths())
 }
 
@@ -135,7 +135,7 @@ func TestRotatedSecretFileRebuildsOnlyItsOutputWithoutSIGHUP(t *testing.T) {
 			r := newFileReloader(t, env, cat, path, nil)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			require.NoError(t, r.Reload(ctx, env.workerRunCtx, 10*time.Second))
+			require.NoError(t, reconcileNow(r, ctx, env.workerRunCtx, 10*time.Second))
 			require.Equal(t, []string{"first"}, rec.builds("webhook"))
 
 			var roots []string
@@ -143,20 +143,18 @@ func TestRotatedSecretFileRebuildsOnlyItsOutputWithoutSIGHUP(t *testing.T) {
 				roots = []string{root}
 			}
 			var w *Watcher
-			reloadFn := func() error {
-				err := r.Reload(ctx, env.workerRunCtx, 10*time.Second)
+			c := NewCoordinator(func(ctx context.Context, trigger Trigger) (Outcome, error) {
+				outcome, err := r.ReconcileFiles(ctx, env.workerRunCtx, 10*time.Second, trigger)
 				w.Refresh()
-				return err
-			}
-			w = NewWatcher([]string{path}, NewSecretPaths(roots, r.FilePaths).Dirs, testDebounce, reloadFn, slog.Default())
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
-				_ = w.Run(ctx)
-			}()
+				return outcome, err
+			}, slog.Default())
+			w = NewWatcher([]string{path}, NewSecretPaths(roots, r.FilePaths).Dirs, testDebounce, c.Notify, slog.Default())
+			var wg sync.WaitGroup
+			wg.Go(func() { c.Run(ctx) })
+			wg.Go(func() { _ = w.Run(ctx) })
 			defer func() {
 				cancel()
-				<-done
+				wg.Wait()
 			}()
 			<-w.Ready()
 

@@ -24,6 +24,7 @@ import (
 	"maps"
 	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -37,7 +38,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
-// ReloaderConfig holds the Reloader dependencies; contexts are passed to Reload and BindWorkerContext.
+// ReloaderConfig holds the Reloader dependencies; contexts are passed to ReconcileFiles and BindWorkerContext.
 type ReloaderConfig struct {
 	Deps       output.Deps
 	Database   core.Database
@@ -51,6 +52,8 @@ type ReloaderConfig struct {
 	FileOutputs map[string]map[string]any
 	// APIOutputs are the stored API outputs running at startup, built from resolved secret files.
 	APIOutputs map[string]map[string]any
+	// StoredAPIOutputs are APIOutputs as stored, secret and File field files unresolved.
+	StoredAPIOutputs map[string]map[string]any
 	// InitialDigests and APIDigests are the FileDigests of InitialOutputs and APIOutputs, read before
 	// they were built so they describe the files the running drivers read. An output without one is
 	// rebuilt once by the next reload.
@@ -89,16 +92,24 @@ type Reloader struct {
 	// fileState holds the file outputs with resolved secrets, fileRaw the same outputs as written.
 	fileState map[string]map[string]any
 	fileRaw   map[string]map[string]any
-	// apiState holds the running API outputs with resolved secrets, to see a rotated secret file.
+	// apiState holds the running API outputs with resolved secrets, apiRaw the same as stored; resolving
+	// apiRaw again and comparing with apiState shows a rotated secret file without reading the database.
 	apiState map[string]map[string]any
+	apiRaw   map[string]map[string]any
 	// fileDigests and apiDigests hold, per running output, the fileFieldsDigest it was built with:
 	// a renewed certificate is a change even though its path is not.
 	fileDigests map[string]string
 	apiDigests  map[string]string
 	// apiVersions holds the stored version each running API output was built from, apiFailed the
 	// version of each API output change that did not build here.
-	apiVersions     map[string]int64
-	apiFailed       map[string]int64
+	apiVersions map[string]int64
+	apiFailed   map[string]int64
+	// rotationFailed holds the running API outputs whose status warns of a rotation that did not apply.
+	rotationFailed map[string]bool
+	// Snapshot keys of the input last applied, last rejected, and left pending by a transient failure.
+	applied         string
+	rejected        string
+	pending         string
 	logger          *slog.Logger
 	workerRunCtx    context.Context
 	outputPaths     []string
@@ -126,8 +137,10 @@ func NewReloader(cfg *ReloaderConfig) *Reloader {
 		fileState:       copyConfigs(cfg.InitialOutputs),
 		fileRaw:         copyConfigs(cfg.FileOutputs),
 		apiState:        copyConfigs(cfg.APIOutputs),
+		apiRaw:          make(map[string]map[string]any, len(cfg.APIOutputs)),
 		apiVersions:     copyVersions(cfg.APIVersions),
 		apiFailed:       copyVersions(cfg.FailedAPIVersions),
+		rotationFailed:  make(map[string]bool),
 		rejectInline:    cfg.RejectInlineSecrets,
 		logger:          cfg.Logger,
 		fileDigests:     make(map[string]string),
@@ -135,6 +148,7 @@ func NewReloader(cfg *ReloaderConfig) *Reloader {
 	}
 	copyDigests(r.fileDigests, cfg.InitialDigests, r.fileState)
 	copyDigests(r.apiDigests, cfg.APIDigests, r.apiState)
+	copyRunningConfigs(r.apiRaw, cfg.StoredAPIOutputs, r.apiState)
 	return r
 }
 
@@ -143,6 +157,14 @@ func copyDigests(dst, src map[string]string, running map[string]map[string]any) 
 	for name, digest := range src {
 		if _, ok := running[name]; ok {
 			dst[name] = digest
+		}
+	}
+}
+
+func copyRunningConfigs(dst, src, running map[string]map[string]any) {
+	for name, cfg := range src {
+		if _, ok := running[name]; ok {
+			dst[name] = utils.DeepCopyMap(cfg)
 		}
 	}
 }
@@ -290,13 +312,17 @@ func (r *Reloader) ApplyOutput(ctx context.Context, name string, version int64, 
 	}
 
 	if _, fileOwned := r.fileState[name]; fileOwned {
+		// The running set no longer matches the last applied files.
+		r.applied = ""
 		r.fileState[name] = resolved
 		r.fileDigests[name] = digest
 	} else {
 		r.apiState[name] = resolved
+		r.apiRaw[name] = stored
 		r.apiDigests[name] = digest
 		r.apiVersions[name] = newVersion
 		delete(r.apiFailed, name)
+		delete(r.rotationFailed, name)
 	}
 	r.recordUI(start, retireWarning)
 	return newVersion, nil
@@ -337,6 +363,9 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 	}
 
 	// The next file reload then sees the name as added and restores a file-provisioned output.
+	if _, fileOwned := r.fileState[name]; fileOwned {
+		r.applied = ""
+	}
 	delete(r.fileState, name)
 	delete(r.fileDigests, name)
 	r.forgetAPIOutput(name)
@@ -345,75 +374,89 @@ func (r *Reloader) RemoveOutput(ctx context.Context, name string, version int64)
 	return nil
 }
 
-// Reload applies the delta between the output files and the running file outputs, in the order of
-// API writes: build, provision, then swap. A failed provision changes nothing and the next reload
-// tries again. ctx bounds parse, Init and Provision; new workers run on workerRunCtx so they outlive ctx.
-func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.Duration) error {
+// Trigger says what asks for a file reconcile.
+type Trigger int
+
+const (
+	// TriggerChange is a change the watcher or the poller saw.
+	TriggerChange Trigger = iota
+	// TriggerRetry retries the input a transient failure left pending.
+	TriggerRetry
+	// TriggerForce attempts the input even if it was applied or rejected before, as SIGHUP does.
+	TriggerForce
+)
+
+// Outcome is what a file reconcile did.
+type Outcome int
+
+const (
+	// OutcomeSkipped means the input was already applied, rejected or waiting for its retry; nothing was recorded.
+	OutcomeSkipped Outcome = iota
+	// OutcomeApplied means the input is active; a retire timeout or a rotation that did not build is reported.
+	OutcomeApplied
+	// OutcomeRejected means the input is invalid; it is attempted again when it changes or when forced.
+	OutcomeRejected
+	// OutcomeRetry means the database was unavailable; the input stays pending.
+	OutcomeRetry
+	// OutcomeStopped means the reloader, the dispatcher or the context is shutting down.
+	OutcomeStopped
+)
+
+// ReconcileFiles applies the delta between the output files and the running file outputs: build,
+// provision, then swap. The input read is keyed; a key already applied or rejected is skipped unless
+// trigger is TriggerForce, and one a transient failure left pending waits for TriggerRetry. ctx
+// bounds parse, Init and Provision; new workers run on workerRunCtx and outlive ctx.
+func (r *Reloader) ReconcileFiles(ctx, workerRunCtx context.Context, retireTimeout time.Duration, trigger Trigger) (Outcome, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if r.closed {
-		return ErrReloaderClosed
+		return OutcomeStopped, ErrReloaderClosed
 	}
 
 	start := time.Now()
+	snap := newSnapshot()
+	snap.addFiles(r.outputPaths)
 
-	outsCfg, err := config.LoadOutputs(r.outputPaths)
+	outsCfg, resolved, digests, err := r.loadFiles()
 	if err != nil {
-		return r.fail(start, SourceFile, "reload parse: %w", err)
+		snap.add(err.Error())
+		key := snap.key()
+		return r.inputFailed(ctx, start, trigger, key, key, err)
 	}
-	if r.rejectInline {
-		if err := config.CheckNoInlineSecrets(outsCfg.Outputs, r.catalog); err != nil {
-			return r.fail(start, SourceFile, "reload secrets: %w", err)
-		}
-	}
-
-	// fileState and the builds use resolved copies, so a rotated secret file is a change;
-	// the database gets the configs as written.
-	resolved, err := config.ResolvedOutputs(outsCfg.Outputs, r.catalog)
-	if err != nil {
-		return r.fail(start, SourceFile, "reload secrets: %w", err)
-	}
-
-	// Drivers read File field files at build, so their contents are compared too; they are read before
-	// the build, so a file renewed during it is seen by the next reload.
-	digests := make(map[string]string, len(resolved))
 	for _, name := range slices.Sorted(maps.Keys(resolved)) {
-		digest, err := r.digest(name, resolved[name])
-		if err != nil {
-			return r.fail(start, SourceFile, "reload files: %w", err)
-		}
-		digests[name] = digest
+		snap.add(name, resolved[name], digests[name])
+	}
+	filesKey := snap.key()
+	if trigger == TriggerChange && filesKey == r.pending {
+		return OutcomeSkipped, nil
 	}
 
-	diff := DiffOutputConfigs(r.fileState, resolved)
-	for name, cfg := range resolved {
-		_, running := r.fileState[name]
-		if _, changed := diff.Changed[name]; running && !changed && digests[name] != r.fileDigests[name] {
-			diff.Changed[name] = cfg
-		}
-	}
-
-	// A name added to the files but already running, from the API, is a change: Apply replaces it.
-	for _, name := range r.dispatcher.OutputNames() {
-		if cfg, added := diff.Added[name]; added {
-			diff.Changed[name] = cfg
-			delete(diff.Added, name)
+	rotated, rotatedDigests, rotationFailures := r.rotatedAPIOutputs(resolved, snap)
+	key := snap.key()
+	if trigger != TriggerForce {
+		switch key {
+		case r.applied:
+			r.rejected, r.pending = "", ""
+			return OutcomeSkipped, nil
+		case r.rejected:
+			r.pending = ""
+			return OutcomeSkipped, nil
 		}
 	}
 
+	diff := r.fileDiff(resolved, digests)
 	// A new secret path whose file holds the same value changes nothing at runtime but must reach the store.
 	rawChanged := !reflect.DeepEqual(r.fileRaw, outsCfg.Outputs)
 
-	rotated, rotatedDigests, err := r.rotatedAPIOutputs(ctx, resolved)
-	if err != nil {
-		return r.fail(start, SourceFile, "reload: %w", err)
-	}
-
 	if diff.IsEmpty() && !rawChanged && len(rotated) == 0 {
+		if len(rotationFailures) > 0 {
+			return r.rotationRejected(ctx, start, trigger, filesKey, key, rotationFailures)
+		}
 		r.logger.Debug("reload: no output config changes detected")
 		r.metrics.recordNoop(SourceFile)
-		return nil
+		r.applied, r.rejected, r.pending = key, "", ""
+		return OutcomeApplied, nil
 	}
 
 	// One concurrent build of every added and changed output; a failure leaves the running set untouched.
@@ -422,20 +465,23 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	maps.Copy(toBuild, diff.Changed)
 	built, err := r.createOutputs(ctx, toBuild)
 	if err != nil {
-		return r.fail(start, SourceFile, "reload create: %w", err)
+		return r.inputFailed(ctx, start, trigger, filesKey, key, fmt.Errorf("reload create: %w", err))
 	}
 
 	// A stored API output whose secret file changed is rebuilt; one that does not build keeps running as it was.
-	rebuilt, rotationFailures := pipeline.BuildEach(ctx, r.catalog, rotated, r.runtimeDefaults, r.deps)
-	for name, failure := range rotationFailures {
-		r.logger.Warn("reload: stored output keeps its previous secret", "output", name, "error", failure)
+	rebuilt, buildFailures := pipeline.BuildEach(ctx, r.catalog, rotated, r.runtimeDefaults, r.deps)
+	for name, failure := range buildFailures {
+		rotationFailures[name] = fmt.Errorf("output %q: %w", name, failure)
+	}
+	if diff.IsEmpty() && !rawChanged && len(rebuilt) == 0 {
+		return r.rotationRejected(ctx, start, trigger, filesKey, key, rotationFailures)
 	}
 	maps.Copy(built, rebuilt)
 
 	if r.database != nil {
 		if err := r.database.Provision(ctx, &core.ProvisionRequest{Outputs: outsCfg.Outputs}); err != nil {
 			closeOutputs(built)
-			return r.fail(start, SourceFile, "reload provision: %w", databaseError(err))
+			return r.inputFailed(ctx, start, trigger, filesKey, key, fmt.Errorf("reload provision: %w", databaseError(err)))
 		}
 	}
 
@@ -447,7 +493,7 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	if err := r.dispatcher.Apply(retireCtx, workerRunCtx, built, diff.Removed); err != nil {
 		if errors.Is(err, pipeline.ErrDispatcherStopped) {
 			closeOutputs(built)
-			return r.fail(start, SourceFile, "reload abandoned: dispatcher stopped during apply")
+			return r.inputFailed(ctx, start, trigger, filesKey, key, fmt.Errorf("reload abandoned: %w", err))
 		}
 		retireWarning = true
 		r.logger.Warn("reload: retire timeout, replacements active", "error", err)
@@ -459,23 +505,35 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 	for name := range rebuilt {
 		r.apiState[name] = rotated[name]
 		r.apiDigests[name] = rotatedDigests[name]
+		delete(r.rotationFailed, name)
 	}
 	for name := range resolved {
 		r.forgetAPIOutput(name)
 	}
+	r.reportRotationFailures(rotationFailures)
 	duration := time.Since(start)
 
-	if retireWarning {
+	switch {
+	case len(rotationFailures) > 0, retireWarning:
+		// A retire timeout leaves the replacements active, so the input is applied; a failed rotation is rejected.
+		if len(rotationFailures) > 0 {
+			r.applied, r.rejected = "", key
+		} else {
+			r.applied, r.rejected = key, ""
+		}
+		r.pending = ""
 		r.metrics.recordPartialSuccess(duration, SourceFile)
 		r.logger.Warn("reload partial",
 			"added", len(diff.Added),
 			"changed", len(diff.Changed),
 			"removed", len(diff.Removed),
 			"rotated", len(rebuilt),
+			"rotation_failed", len(rotationFailures),
 			"retire_warning", retireWarning,
 			"duration", duration,
 		)
-	} else {
+	default:
+		r.applied, r.rejected, r.pending = key, "", ""
 		r.metrics.recordSuccess(duration, SourceFile)
 		r.logger.Info("reload complete",
 			"added", len(diff.Added),
@@ -485,14 +543,104 @@ func (r *Reloader) Reload(ctx, workerRunCtx context.Context, retireTimeout time.
 			"duration", duration,
 		)
 	}
-	return nil
+	return OutcomeApplied, nil
+}
+
+// fileDiff returns the delta from the running file outputs to resolved; changed File field files and
+// a name already running from the API count as changes.
+func (r *Reloader) fileDiff(resolved map[string]map[string]any, digests map[string]string) DiffResult {
+	diff := DiffOutputConfigs(r.fileState, resolved)
+	for name, cfg := range resolved {
+		_, running := r.fileState[name]
+		if _, changed := diff.Changed[name]; running && !changed && digests[name] != r.fileDigests[name] {
+			diff.Changed[name] = cfg
+		}
+	}
+	for _, name := range r.dispatcher.OutputNames() {
+		if cfg, added := diff.Added[name]; added {
+			diff.Changed[name] = cfg
+			delete(diff.Added, name)
+		}
+	}
+	return diff
+}
+
+// loadFiles parses the output files and resolves their secret and File field files, so a rotated
+// file is a change; the database gets the configs as written.
+func (r *Reloader) loadFiles() (outsCfg *config.OutputsConfig, resolved map[string]map[string]any, digests map[string]string, err error) {
+	outsCfg, err = config.LoadOutputs(r.outputPaths)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("reload parse: %w", err)
+	}
+	if r.rejectInline {
+		if err := config.CheckNoInlineSecrets(outsCfg.Outputs, r.catalog); err != nil {
+			return nil, nil, nil, fmt.Errorf("reload secrets: %w", err)
+		}
+	}
+	resolved, err = config.ResolvedOutputs(outsCfg.Outputs, r.catalog)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("reload secrets: %w", err)
+	}
+	digests = make(map[string]string, len(resolved))
+	for _, name := range slices.Sorted(maps.Keys(resolved)) {
+		digest, err := r.digest(name, resolved[name])
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("reload files: %w", err)
+		}
+		digests[name] = digest
+	}
+	return outsCfg, resolved, digests, nil
+}
+
+// inputFailed records a failed file reconcile: a database failure leaves filesKey pending, a shutdown
+// records nothing, any other failure rejects key.
+func (r *Reloader) inputFailed(ctx context.Context, start time.Time, trigger Trigger, filesKey, key string, err error) (Outcome, error) {
+	switch {
+	case ctx.Err() != nil, errors.Is(err, pipeline.ErrDispatcherStopped):
+		r.metrics.recordFailure(time.Since(start), SourceFile)
+		return OutcomeStopped, err
+	case errors.Is(err, ErrDatabaseUnavailable):
+		r.pending, r.rejected = filesKey, ""
+		r.metrics.recordFailure(time.Since(start), SourceFile)
+		return OutcomeRetry, err
+	case trigger != TriggerForce && key == r.rejected:
+		r.pending = ""
+		return OutcomeSkipped, nil
+	}
+	r.rejected, r.pending = key, ""
+	r.metrics.recordFailure(time.Since(start), SourceFile)
+	return OutcomeRejected, err
+}
+
+// rotationRejected records a reconcile whose only changes were secret rotations that did not apply.
+func (r *Reloader) rotationRejected(
+	ctx context.Context, start time.Time, trigger Trigger, filesKey, key string, failures map[string]error,
+) (Outcome, error) {
+	r.reportRotationFailures(failures)
+	messages := make([]string, 0, len(failures))
+	for _, name := range slices.Sorted(maps.Keys(failures)) {
+		messages = append(messages, failures[name].Error())
+	}
+	return r.inputFailed(ctx, start, trigger, filesKey, key,
+		fmt.Errorf("reload: secret rotation not applied: %s", strings.Join(messages, "; ")))
+}
+
+// reportRotationFailures warns each output of its failed rotation; it keeps running with its previous secret.
+func (r *Reloader) reportRotationFailures(failures map[string]error) {
+	for _, name := range slices.Sorted(maps.Keys(failures)) {
+		r.logger.Warn("reload: stored output keeps its previous secret", "output", name, "error", failures[name])
+		r.dispatcher.ReportUpdateFailure(name, pipeline.WarningRotation, "secret rotation not applied: "+failures[name].Error())
+		r.rotationFailed[name] = true
+	}
 }
 
 func (r *Reloader) forgetAPIOutput(name string) {
 	delete(r.apiState, name)
+	delete(r.apiRaw, name)
 	delete(r.apiDigests, name)
 	delete(r.apiVersions, name)
 	delete(r.apiFailed, name)
+	delete(r.rotationFailed, name)
 }
 
 // Reconcile applies the API outputs other instances changed in the database: it starts, replaces or
@@ -566,15 +714,19 @@ func (r *Reloader) Reconcile(ctx context.Context) error {
 	}
 	for name := range built {
 		r.apiState[name] = resolved[name]
+		r.apiRaw[name] = entries[name].Config
 		r.apiDigests[name] = digests[name]
 		r.apiVersions[name] = versions[name]
 		delete(r.apiFailed, name)
+		delete(r.rotationFailed, name)
 	}
 	for _, name := range removed {
 		r.forgetAPIOutput(name)
 	}
 	for name, failure := range failures {
-		r.dispatcher.ReportUpdateFailure(name, fmt.Sprintf("version %d not applied: %v", versions[name], failure))
+		// Forget the rotation so a later rotation check does not clear the version warning.
+		delete(r.rotationFailed, name)
+		r.dispatcher.ReportUpdateFailure(name, pipeline.WarningUpdate, fmt.Sprintf("version %d not applied: %v", versions[name], failure))
 		if r.apiFailed[name] != versions[name] {
 			r.logger.Warn("reconcile: stored output change not applied here", "output", name, "version", versions[name], "error", failure)
 		}
@@ -613,46 +765,49 @@ func (r *Reloader) resolveStored(name string, stored map[string]any) (cfg map[st
 }
 
 // rotatedAPIOutputs returns the running API outputs, not shadowed by a file output, whose secret files
-// or File field files now read differently, resolved again from their stored config, with the digest
-// of their File field files.
+// or File field files read differently, resolved again from their stored config, with their digests and
+// the failure of each whose files cannot be read; what it reads is added to snap.
 func (r *Reloader) rotatedAPIOutputs(
-	ctx context.Context, fileOutputs map[string]map[string]any,
-) (rotated map[string]map[string]any, digests map[string]string, err error) {
-	if r.database == nil || len(r.apiState) == 0 {
-		return nil, nil, nil
-	}
-	entries, err := r.database.GetOutputConfigs(ctx)
-	if err != nil {
-		return nil, nil, databaseError(err)
-	}
+	fileOutputs map[string]map[string]any, snap *snapshot,
+) (rotated map[string]map[string]any, digests map[string]string, failures map[string]error) {
 	rotated = make(map[string]map[string]any)
 	digests = make(map[string]string)
-	for name, running := range r.apiState {
-		entry, stored := entries[name]
-		// A new version is applied by Reconcile, which records it; here only the secret files changed.
-		if _, fromFile := fileOutputs[name]; fromFile || !stored || entry.Version != r.apiVersions[name] {
+	failures = make(map[string]error)
+	for _, name := range slices.Sorted(maps.Keys(r.apiState)) {
+		stored, ok := r.apiRaw[name]
+		if _, fromFile := fileOutputs[name]; fromFile || !ok {
 			continue
 		}
 		outputType, ok := r.catalog.Get(name)
 		if !ok {
 			continue
 		}
-		cfg := utils.DeepCopyMap(entry.Config)
+		snap.add(name, r.apiVersions[name])
+		cfg := utils.DeepCopyMap(stored)
 		if err := config.ResolveSecrets(name, cfg, outputType.Schema); err != nil {
-			r.logger.Warn("reload: stored output keeps its previous secret", "output", name, "error", err)
+			snap.add(err.Error())
+			failures[name] = err
 			continue
 		}
 		digest, err := fileFieldsDigest(name, cfg, outputType.Schema.Fields)
 		if err != nil {
-			r.logger.Warn("reload: stored output keeps its previous files", "output", name, "error", err)
+			snap.add(err.Error())
+			failures[name] = err
 			continue
 		}
-		if !reflect.DeepEqual(cfg, running) || digest != r.apiDigests[name] {
+		snap.add(cfg, digest)
+		if !reflect.DeepEqual(cfg, r.apiState[name]) || digest != r.apiDigests[name] {
 			rotated[name] = cfg
 			digests[name] = digest
+			continue
+		}
+		// The files match the running output again, so its rotation warning is stale.
+		if r.rotationFailed[name] {
+			delete(r.rotationFailed, name)
+			r.dispatcher.ClearUpdateFailure(name)
 		}
 	}
-	return rotated, digests, nil
+	return rotated, digests, failures
 }
 
 func (r *Reloader) createOutputs(ctx context.Context, configs map[string]map[string]any) (map[string]*pipeline.Output, error) {

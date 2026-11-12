@@ -163,18 +163,18 @@ func TestSMTPTextFormat(t *testing.T) {
 	assert.Contains(t, msg.Text, "e2e.marker: "+marker)
 }
 
-func TestSMTPWrongPasswordStopsStartup(t *testing.T) {
+func TestSMTPWrongPasswordStartsDegraded(t *testing.T) {
 	target := mailpit(t)
 	wrong := "wrong-" + newMarker(t)
-	logs := startSidekickFails(t, target.output(wrong, target.caFile, ""))
+	_, logs := startSidekickDegraded(t, "smtp", target.output(wrong, target.caFile, ""))
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "smtp connect: server replied 535")
 	assert.NotContains(t, logs, wrong)
 }
 
-func TestSMTPUnknownCAStopsStartup(t *testing.T) {
+func TestSMTPUnknownCAStartsDegraded(t *testing.T) {
 	target := mailpit(t)
-	logs := startSidekickFails(t, target.output(target.password, writeUnknownCA(t), ""))
+	_, logs := startSidekickDegraded(t, "smtp", target.output(target.password, writeUnknownCA(t), ""))
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "TLS certificate verification failed")
 	assert.NotContains(t, logs, target.password)

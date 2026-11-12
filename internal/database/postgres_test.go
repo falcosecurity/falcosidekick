@@ -17,6 +17,8 @@
 package database
 
 import (
+	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,6 +29,26 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 )
+
+func TestOpenPostgresErrorOmitsThePassword(t *testing.T) {
+	l, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	port := l.Addr().(*net.TCPAddr).Port
+	require.NoError(t, l.Close())
+	const password = "s3cr3t-pa55"
+	settings, err := PostgresSettings(&core.PostgresConfig{
+		Host: "127.0.0.1", Port: port, Database: "falco", User: "falco", Password: password,
+		SSLMode: core.PostgresSSLDisable, MaxConnections: 1, PollInterval: time.Second,
+	})
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	_, err = OpenPostgres(ctx, settings, 1)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "connection refused", "the cause is kept")
+	assert.NotContains(t, err.Error(), password)
+}
 
 func TestPostgresSettings(t *testing.T) {
 	passwordFile := filepath.Join(t.TempDir(), "pg")

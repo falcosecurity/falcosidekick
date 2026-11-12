@@ -203,16 +203,16 @@ func TestAWSS3DeliversBatchAsNDJSON(t *testing.T) {
 	assert.Zero(t, st.FailedTotal)
 }
 
-func TestAWSS3MissingBucketFailsStartup(t *testing.T) {
+func TestAWSS3MissingBucketStartsDegraded(t *testing.T) {
 	target := localstack(t)
-	logs := startSidekickFails(t, target.output("awss3", "bucket: fsk-e2e-absent-"+newMarker(t)+"\nuse_path_style: true\n"))
-	assert.Contains(t, logs, "health check: awss3 HeadBucket: HTTP 404 Not Found: NotFound")
+	_, logs := startSidekickDegraded(t, "awss3", target.output("awss3", "bucket: fsk-e2e-absent-"+newMarker(t)+"\nuse_path_style: true\n"))
+	assert.Contains(t, logs, "health check failed before start: awss3 HeadBucket: HTTP 404 Not Found: NotFound")
 	assert.NotContains(t, logs, target.secret)
 }
 
 // LocalStack community accepts any credentials, so a rejected key cannot be
 // produced here; the unit tests cover the classification.
-func TestAWSS3RejectedCredentialsFailStartup(t *testing.T) {
+func TestAWSS3RejectedCredentialsStartDegraded(t *testing.T) {
 	localstack(t)
 	t.Skip("LocalStack community does not validate credentials")
 }

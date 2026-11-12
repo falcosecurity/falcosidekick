@@ -180,6 +180,7 @@ func TestUIContractFixtures(t *testing.T) {
 		fixtures[c.name] = uiFixtureRequest(t, srv.app, http.MethodGet, c.path, "", http.StatusOK)
 	}
 	fixtures["errors"] = uiErrorFixtures(t, srv, cat)
+	fixtures["output-put-degraded"] = uiDegradedPutFixture(t, cat)
 	fixtures["config-postgres"] = uiPostgresConfigFixture(t, p, db, cat, cfg)
 
 	canonicalizeUIFixtures(fixtures, now)
@@ -235,7 +236,7 @@ func uiFixtureEvents(now time.Time) []map[string]any {
 func uiFixtureRuntimeDefaults() output.RuntimeConfig {
 	defaults := testutil.DefaultRuntimeConfig()
 	defaults.MinPriority = event.PriorityWarning
-	defaults.Batching = &output.BatchingConfig{Enabled: true, BatchSize: 50, FlushInterval: time.Second}
+	defaults.Batching = &output.BatchingConfig{Enabled: new(true), BatchSize: 50, FlushInterval: time.Second}
 	healthCheck := true
 	defaults.HealthCheck = &healthCheck
 	return defaults
@@ -313,7 +314,36 @@ func uiErrorFixtures(t *testing.T, srv *Server, cat *catalog.Catalog) map[string
 		Body: uiFixtureRequest(t, writable.app, http.MethodPut, "/api/v1/pipeline/outputs/slack",
 			`{"config":{"footer":"prod"},"version":0}`, http.StatusBadRequest),
 	}
+	cases["validation_range"] = uiErrorFixture{
+		Status: http.StatusBadRequest,
+		Body: uiFixtureRequest(t, writable.app, http.MethodPut, "/api/v1/pipeline/outputs/slack",
+			`{"config":{"secret_endpoint":"/services/T/B/X","runtime":{"workers":1000}},"version":0}`, http.StatusBadRequest),
+	}
+	cases["validation_type"] = uiErrorFixture{
+		Status: http.StatusBadRequest,
+		Body: uiFixtureRequest(t, writable.app, http.MethodPut, "/api/v1/pipeline/outputs/slack",
+			`{"config":{"secret_endpoint":"/services/T/B/X","runtime":{"queue_size":"many"}},"version":0}`, http.StatusBadRequest),
+	}
+	cases["validation_duration"] = uiErrorFixture{
+		Status: http.StatusBadRequest,
+		Body: uiFixtureRequest(t, writable.app, http.MethodPut, "/api/v1/pipeline/outputs/slack",
+			`{"config":{"secret_endpoint":"/services/T/B/X","runtime":{"retry":{"initial_interval":"soon"}}},"version":0}`,
+			http.StatusBadRequest),
+	}
 	return cases
+}
+
+// uiDegradedPutFixture is the reply to a saved change whose destination failed its probe.
+func uiDegradedPutFixture(t *testing.T, cat *catalog.Catalog) map[string]any {
+	t.Helper()
+	rig := buildMutationRig(t, database.NewMemory(), cat, true)
+	body := uiFixtureRequest(t, rig.Server.app, http.MethodPut, "/api/v1/pipeline/outputs/alertmanager",
+		`{"config":{"hosts":["http://127.0.0.1:1"]},"version":0}`, http.StatusOK)
+	status, ok := body["status"].(map[string]any)
+	require.True(t, ok, "the reply carries the status")
+	require.Equal(t, "degraded", status["status"])
+	require.Equal(t, "destination", status["warning_kind"])
+	return body
 }
 
 func uiFixtureRequest(t *testing.T, app *fiber.App, method, path, body string, wantStatus int) map[string]any {

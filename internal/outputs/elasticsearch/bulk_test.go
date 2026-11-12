@@ -36,6 +36,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
+	"github.com/falcosecurity/falcosidekick/internal/pipeline"
 )
 
 func TestSendBatchSafeErrorLogs(t *testing.T) {
@@ -58,7 +59,7 @@ func TestSendBatchSafeErrorLogs(t *testing.T) {
 			require.NoError(t, err)
 			events := []*event.Event{testutil.CreateValidEvent(), testutil.CreateValidEvent(), testutil.CreateValidEvent()}
 			err = d.(output.BatchSender).SendBatch(context.Background(), events)
-			require.EqualError(t, err, "elasticsearch response: bulk indexed 1/3, 2 failed")
+			require.EqualError(t, err, "elasticsearch response: bulk indexed 1/3, 1 rejected, 1 to retry")
 			for _, secret := range []string{"TYPE_SECRET", "REASON_SECRET", "PATH_SECRET"} {
 				assert.NotContains(t, logs.String(), secret)
 				assert.NotContains(t, err.Error(), secret)
@@ -272,31 +273,40 @@ func writeCreated(w http.ResponseWriter, body []byte) {
 	_, _ = w.Write([]byte(`{"errors":false,"items":[` + strings.Join(items, ",") + `]}`))
 }
 
+// A set alone naming every item, or a response short of items, fails the whole batch.
 func TestParseBulkResponseAccountsForEveryItem(t *testing.T) {
 	const (
-		created  = `{"create":{"status":201}}`
-		conflict = `{"create":{"status":409,"error":{"type":"version_conflict_engine_exception"}}}`
-		mapping  = `{"create":{"status":400,"error":{"type":"document_parsing_exception"}}}`
-		rejected = `{"create":{"status":429,"error":{"type":"es_rejected_execution_exception"}}}`
-		other409 = `{"create":{"status":409,"error":{"type":"other_exception"}}}`
+		created   = `{"create":{"status":201}}`
+		conflict  = `{"create":{"status":409,"error":{"type":"version_conflict_engine_exception"}}}`
+		mapping   = `{"create":{"status":400,"error":{"type":"document_parsing_exception"}}}`
+		throttled = `{"create":{"status":429,"error":{"type":"es_rejected_execution_exception"}}}`
+		server    = `{"create":{"status":503,"error":{"type":"unavailable_shards_exception"}}}`
+		other409  = `{"create":{"status":409,"error":{"type":"other_exception"}}}`
+		noCreate  = `{"index":{"status":201}}`
 	)
+	items := func(list ...string) string { return `{"errors":true,"items":[` + strings.Join(list, ",") + `]}` }
 	for _, tc := range []struct {
-		name, body, want string
-		expected         int
-		permanent        bool
+		name, body, want            string
+		wantRejected, wantRetryable []int
+		expected                    int
+		permanent, partial          bool
 	}{
 		{name: "all created", body: `{"errors":false,"items":[` + created + `,` + created + `]}`, expected: 2},
-		{name: "already indexed", body: `{"errors":true,"items":[` + conflict + `,` + conflict + `]}`, expected: 2},
-		{name: "created and already indexed", body: `{"errors":true,"items":[` + created + `,` + conflict + `]}`, expected: 2},
-		{name: "one mapping failure", body: `{"errors":true,"items":[` + created + `,` + mapping + `,` + created + `]}`, expected: 3, want: "elasticsearch response: bulk indexed 2/3, 1 failed", permanent: true},
-		{name: "rejected", body: `{"errors":true,"items":[` + rejected + `,` + conflict + `]}`, expected: 2, want: "elasticsearch response: bulk indexed 1/2, 1 failed"},
-		{name: "mapping and rejected", body: `{"errors":true,"items":[` + mapping + `,` + rejected + `]}`, expected: 2, want: "elasticsearch response: bulk indexed 0/2, 2 failed"},
-		{name: "conflict of another type", body: `{"errors":true,"items":[` + other409 + `]}`, expected: 1, want: "elasticsearch response: bulk indexed 0/1, 1 failed"},
-		{name: "item without create", body: `{"errors":true,"items":[{"index":{"status":201}}]}`, expected: 1, want: "elasticsearch response: bulk indexed 0/1, 1 failed"},
-		{name: "errors flag hidden", body: `{"items":[` + created + `]}`, expected: 1, want: "incomplete bulk response"},
-		{name: "missing items", body: `{"errors":false}`, expected: 1, want: "incomplete bulk response"},
-		{name: "short items", body: `{"errors":false,"items":[` + created + `]}`, expected: 2, want: "incomplete bulk response"},
-		{name: "empty body", body: ``, expected: 1, want: "invalid JSON"},
+		{name: "already indexed", body: items(conflict, conflict), expected: 2},
+		{name: "created and already indexed", body: items(created, conflict), expected: 2},
+		{name: "mapping failure rejected", body: items(created, mapping, created), expected: 3, want: "elasticsearch response: bulk indexed 2/3, 1 rejected", permanent: true, partial: true, wantRejected: []int{1}},
+		{name: "created, mapping, throttled, existing", body: items(created, mapping, throttled, conflict), expected: 4, want: "elasticsearch response: bulk indexed 2/4, 1 rejected, 1 to retry", partial: true, wantRejected: []int{1}, wantRetryable: []int{2}},
+		{name: "throttled retried", body: items(throttled, conflict), expected: 2, want: "elasticsearch response: bulk indexed 1/2, 1 to retry", partial: true, wantRetryable: []int{0}},
+		{name: "server error retried", body: items(created, server), expected: 2, want: "elasticsearch response: bulk indexed 1/2, 1 to retry", partial: true, wantRetryable: []int{1}},
+		{name: "mapping and throttled, nothing delivered", body: items(mapping, throttled), expected: 2, want: "elasticsearch response: bulk indexed 0/2, 1 rejected, 1 to retry", partial: true, wantRejected: []int{0}, wantRetryable: []int{1}},
+		{name: "every item rejected fails the batch", body: items(mapping, mapping), expected: 2, want: "elasticsearch response: bulk indexed 0/2, 2 rejected", permanent: true},
+		{name: "every item throttled retries the batch", body: items(throttled, throttled), expected: 2, want: "elasticsearch response: bulk indexed 0/2, 2 to retry"},
+		{name: "conflict of another type retried", body: items(other409), expected: 1, want: "elasticsearch response: bulk indexed 0/1, 1 to retry"},
+		{name: "item without create retried", body: items(created, noCreate), expected: 2, want: "elasticsearch response: bulk indexed 1/2, 1 to retry", partial: true, wantRetryable: []int{1}},
+		{name: "errors flag hidden", body: `{"items":[` + created + `]}`, expected: 1, want: "elasticsearch response: incomplete bulk response"},
+		{name: "missing items", body: `{"errors":false}`, expected: 1, want: "elasticsearch response: incomplete bulk response"},
+		{name: "short items", body: `{"errors":false,"items":[` + created + `]}`, expected: 2, want: "elasticsearch response: incomplete bulk response"},
+		{name: "empty body", body: ``, expected: 1, want: "elasticsearch response: invalid JSON"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d := &driver{logger: slog.New(slog.DiscardHandler)}
@@ -306,8 +316,12 @@ func TestParseBulkResponseAccountsForEveryItem(t *testing.T) {
 				return
 			}
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), tc.want)
-			assert.Equal(t, tc.permanent, output.IsPermanent(err), "permanent only when every failed item is")
+			assert.Equal(t, tc.want, err.Error())
+			assert.Equal(t, tc.permanent, output.IsPermanent(err), "permanent only when no item is left to retry")
+			rejected, retryable, ok := output.PartialEvents(err, tc.expected)
+			assert.Equal(t, tc.partial, ok, "partial only when the sets leave events delivered, or name both kinds")
+			assert.Equal(t, tc.wantRejected, rejected)
+			assert.Equal(t, tc.wantRetryable, retryable)
 		})
 	}
 }
@@ -362,7 +376,72 @@ func TestSendBatchRetryIndexesEachEventOnce(t *testing.T) {
 		events = append(events, evt)
 	}
 
-	require.EqualError(t, batch.SendBatch(context.Background(), events), "elasticsearch response: bulk indexed 2/3, 1 failed")
+	require.EqualError(t, batch.SendBatch(context.Background(), events), "elasticsearch response: bulk indexed 2/3, 1 to retry")
 	require.NoError(t, batch.SendBatch(context.Background(), events))
 	assert.Equal(t, map[string]int{"a": 1, "b": 1, "c": 1}, store.stored)
+}
+
+func TestPipelineResendsOnlyTheItemsToRetry(t *testing.T) {
+	var (
+		mu       sync.Mutex
+		requests [][]string // the _id of each item, per request
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+		var ids []string
+		for i := 0; i < len(lines); i += 2 {
+			var action struct {
+				Create struct {
+					ID string `json:"_id"`
+				} `json:"create"`
+			}
+			_ = json.Unmarshal([]byte(lines[i]), &action)
+			ids = append(ids, action.Create.ID)
+		}
+		mu.Lock()
+		requests = append(requests, ids)
+		first := len(requests) == 1
+		mu.Unlock()
+		if !first {
+			writeCreated(w, body)
+			return
+		}
+		_, _ = w.Write([]byte(`{"errors":true,"items":[
+			{"create":{"status":201}},
+			{"create":{"status":400,"error":{"type":"document_parsing_exception"}}},
+			{"create":{"status":429,"error":{"type":"es_rejected_execution_exception"}}},
+			{"create":{"status":409,"error":{"type":"version_conflict_engine_exception"}}}
+		]}`))
+	}))
+	t.Cleanup(server.Close)
+	d, err := createOutput(map[string]any{"host": server.URL}, output.Deps{Logger: slog.New(slog.DiscardHandler)})
+	require.NoError(t, err)
+	cfg := output.RuntimeConfig{
+		QueueSize: 10, Workers: 1,
+		Retry:          &output.RetryConfig{MaxAttempts: 3, InitialInterval: time.Millisecond, MaxInterval: time.Millisecond, Multiplier: 1},
+		CircuitBreaker: &output.CircuitBreakerConfig{FailureThreshold: 5, SuccessThreshold: 1, ResetTimeout: time.Second},
+		Batching:       &output.BatchingConfig{Enabled: new(true), BatchSize: 4, FlushInterval: time.Hour},
+	}
+	out := pipeline.NewOutput(d, &cfg, nil)
+	out.Start(context.Background())
+	for _, id := range []string{"a", "b", "c", "d"} {
+		evt := testutil.CreateValidEvent()
+		evt.UUID = id
+		out.Enqueue(evt)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, out.Retire(ctx))
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, [][]string{{"a", "b", "c", "d"}, {"c"}}, requests)
+	status := out.GetStatus()
+	assert.Equal(t, 3, status.SentTotal)
+	assert.Equal(t, 1, status.FailedTotal)
+	assert.Empty(t, status.LastError, "the batch was delivered")
+	assert.Equal(t, pipeline.HealthDegraded, status.Status)
+	assert.Equal(t, pipeline.WarningDestination, status.WarningKind)
+	assert.Equal(t, "elasticsearch response: bulk indexed 2/4, 1 rejected, 1 to retry", status.LastWarning)
 }

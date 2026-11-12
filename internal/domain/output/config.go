@@ -17,12 +17,29 @@
 package output
 
 import (
+	"fmt"
 	"math"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
+
+// Runtime bounds, shared by validation and the output schema.
+var (
+	WorkersRange       = utils.IntRange{Min: 1, Max: 256}
+	QueueSizeRange     = utils.IntRange{Min: 1, Max: 100_000}
+	BatchSizeRange     = utils.IntRange{Min: 1, Max: 10_000}
+	MaxAttemptsRange   = utils.IntRange{Min: 1, Max: 100}
+	ThresholdRange     = utils.IntRange{Min: 1, Max: 10_000}
+	MultiplierRange    = utils.FloatRange{Min: 1, Max: 10}
+	IntervalRange      = utils.DurationRange{Min: time.Millisecond, Max: time.Hour}
+	ResetTimeoutRange  = utils.DurationRange{Min: time.Second, Max: time.Hour}
+	FlushIntervalRange = utils.DurationRange{Min: 10 * time.Millisecond, Max: time.Hour}
+)
+
+// MaxBatchedEvents bounds workers × batch_size, the events the batch workers of one output hold.
+const MaxBatchedEvents = 100_000
 
 // RuntimeConfig holds runtime output settings; a nil field means not overridden.
 type RuntimeConfig struct {
@@ -39,12 +56,8 @@ type RuntimeConfig struct {
 func (c *RuntimeConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
 
-	if c.QueueSize <= 0 {
-		errs.Add("queue_size", "must be positive")
-	}
-	if c.Workers <= 0 {
-		errs.Add("workers", "must be positive")
-	}
+	QueueSizeRange.Check(&errs, "queue_size", c.QueueSize)
+	WorkersRange.Check(&errs, "workers", c.Workers)
 	if c.MinPriority != "" {
 		if _, err := event.ParsePriority(string(c.MinPriority)); err != nil {
 			errs.Add("minimum_priority", "must be a Falco priority")
@@ -61,7 +74,15 @@ func (c *RuntimeConfig) Validate() utils.ValidationErrors {
 		errs.Merge("circuit_breaker", c.CircuitBreaker.Validate())
 	}
 	if c.Batching != nil {
-		errs.Merge("batching", c.Batching.Validate())
+		batchErrs := c.Batching.Validate()
+		errs.Merge("batching", batchErrs)
+		// Division, not multiplication: the product of two unchecked ints can overflow.
+		if len(batchErrs) == 0 && c.Batching.IsEnabled() && WorkersRange.Contains(c.Workers) &&
+			c.Batching.BatchSize > MaxBatchedEvents/c.Workers {
+			errs.Add("batching.batch_size", fmt.Sprintf(
+				"must be at most %d with %d workers: workers × batch_size is limited to %d",
+				MaxBatchedEvents/c.Workers, c.Workers, MaxBatchedEvents))
+		}
 	}
 
 	if len(errs) > 0 {
@@ -83,6 +104,9 @@ func (c *RuntimeConfig) DeepCopy() RuntimeConfig {
 	}
 	if c.Batching != nil {
 		b := *c.Batching
+		if b.Enabled != nil {
+			b.Enabled = new(*b.Enabled)
+		}
 		cp.Batching = &b
 	}
 	if c.HealthCheck != nil {
@@ -106,29 +130,25 @@ type RetryConfig struct {
 // Validate checks retry settings for errors.
 func (r *RetryConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
-	if r.MaxAttempts <= 0 {
-		errs.Add("max_attempts", "must be > 0")
-	}
-	if r.InitialInterval <= 0 {
-		errs.Add("initial_interval", "must be > 0")
-	}
-	if r.MaxInterval <= 0 {
-		errs.Add("max_interval", "must be > 0")
-	}
-	if r.Multiplier <= 0 {
-		errs.Add("multiplier", "must be > 0")
-	}
+	MaxAttemptsRange.Check(&errs, "max_attempts", r.MaxAttempts)
+	IntervalRange.Check(&errs, "initial_interval", r.InitialInterval)
+	IntervalRange.Check(&errs, "max_interval", r.MaxInterval)
+	MultiplierRange.Check(&errs, "multiplier", r.Multiplier)
 	if len(errs) > 0 {
 		return errs
 	}
 	return nil
 }
 
-// ComputeBackoff returns the wait duration for the given attempt number.
+// ComputeBackoff returns the wait duration for the given attempt number, at most MaxInterval.
+// The cap is compared in float64: converting an overflowing float to a Duration is not defined.
 func (r *RetryConfig) ComputeBackoff(attempt int) time.Duration {
 	interval := float64(r.InitialInterval) * math.Pow(r.Multiplier, float64(attempt-1))
-	if time.Duration(interval) > r.MaxInterval {
+	if math.IsNaN(interval) || interval >= float64(r.MaxInterval) {
 		return r.MaxInterval
+	}
+	if interval < 0 {
+		return 0
 	}
 	return time.Duration(interval)
 }
@@ -143,15 +163,9 @@ type CircuitBreakerConfig struct {
 // Validate checks circuit breaker settings for errors.
 func (c *CircuitBreakerConfig) Validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
-	if c.FailureThreshold <= 0 {
-		errs.Add("failure_threshold", "must be > 0")
-	}
-	if c.SuccessThreshold <= 0 {
-		errs.Add("success_threshold", "must be > 0")
-	}
-	if c.ResetTimeout <= 0 {
-		errs.Add("reset_timeout", "must be > 0")
-	}
+	ThresholdRange.Check(&errs, "failure_threshold", c.FailureThreshold)
+	ThresholdRange.Check(&errs, "success_threshold", c.SuccessThreshold)
+	ResetTimeoutRange.Check(&errs, "reset_timeout", c.ResetTimeout)
 	if len(errs) > 0 {
 		return errs
 	}
@@ -160,23 +174,20 @@ func (c *CircuitBreakerConfig) Validate() utils.ValidationErrors {
 
 // BatchingConfig holds per-output batching settings.
 type BatchingConfig struct {
+	// Enabled is nil when omitted, so a per-output batching section inherits it from the defaults.
+	Enabled       *bool         `json:"enabled,omitempty" mapstructure:"enabled"`
 	FlushInterval time.Duration `json:"flush_interval" mapstructure:"flush_interval"`
 	BatchSize     int           `json:"batch_size" mapstructure:"batch_size"`
-	Enabled       bool          `json:"enabled" mapstructure:"enabled"`
 }
 
-// Validate checks batching settings for errors.
+// IsEnabled reports whether batching is set and enabled.
+func (c *BatchingConfig) IsEnabled() bool { return c != nil && c.Enabled != nil && *c.Enabled }
+
+// Validate checks batching settings, enabled or not: a disabled setting is enabled later by an output.
 func (c *BatchingConfig) Validate() utils.ValidationErrors {
-	if !c.Enabled {
-		return nil
-	}
 	var errs utils.ValidationErrors
-	if c.BatchSize <= 0 {
-		errs.Add("batch_size", "must be positive when enabled")
-	}
-	if c.FlushInterval <= 0 {
-		errs.Add("flush_interval", "must be positive when enabled")
-	}
+	BatchSizeRange.Check(&errs, "batch_size", c.BatchSize)
+	FlushIntervalRange.Check(&errs, "flush_interval", c.FlushInterval)
 	if len(errs) > 0 {
 		return errs
 	}

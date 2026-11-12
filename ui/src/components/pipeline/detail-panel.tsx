@@ -31,6 +31,7 @@ import { useOutputTypes } from "@/hooks/use-output-writes"
 import { usePipelineStatus } from "@/hooks/use-pipeline"
 import { errorMessage } from "@/lib/api-error"
 import { formatNumber } from "@/lib/format"
+import { problemLine, problemOf } from "@/lib/output-problem"
 import { withRuntimeDefaults } from "@/lib/runtime-defaults"
 import { driverOf, lastSuccessOf, PRIORITIES, statusOf, type CoreConfig, type OutputConfigEntry, type OutputStatus } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -219,7 +220,7 @@ function CoreDetail() {
                   </ItemMedia>
                   <ItemContent className="min-w-0">
                     <ItemTitle>{s.name}</ItemTitle>
-                    {(s.last_error || s.last_warning) && <ItemDescription className="truncate">{s.last_error || s.last_warning}</ItemDescription>}
+                    <ProblemLine status={s} />
                   </ItemContent>
                   <StatusBadge status={statusOf(s)} />
                 </Item>
@@ -378,6 +379,17 @@ function OutputDetail({
   )
 }
 
+function ProblemLine({ status }: { status: OutputStatus }) {
+  const problem = problemOf(status)
+  if (!problem) return null
+  const line = problemLine(problem)
+  return (
+    <ItemDescription className="truncate" title={line}>
+      {line}
+    </ItemDescription>
+  )
+}
+
 function HealthRow({ term, children }: { term: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
@@ -387,29 +399,17 @@ function HealthRow({ term, children }: { term: string; children: ReactNode }) {
   )
 }
 
-/**
- * The output's problem, one cause: the last delivery error, or the warning when there is no error.
- * The start-up check warning is added only when it says something the error does not.
- */
-export function problemOf(status: OutputStatus): { main: string; extra?: string } | null {
-  const error = status.last_error
-  const warning = status.last_warning
-  if (error) return warning && !warning.includes(error) ? { main: error, extra: warning } : { main: error }
-  if (warning) return { main: warning }
-  return null
-}
-
 function OutputProblem({ status }: { status: OutputStatus }) {
   const [expanded, setExpanded] = useState(false)
   const problem = problemOf(status)
   if (!problem) return null
-  const error = status.last_error !== ""
+  const error = problem.tone === "error"
   // A long error is cut to a few lines so the counters and the configuration stay in view.
   const long = problem.main.length + (problem.extra?.length ?? 0) > LONG_PROBLEM
   return (
     <Alert variant={error ? "destructive" : "default"} className={cn("mb-4", !error && "border-status-degraded/40 text-status-degraded-foreground")}>
       <AlertTriangle aria-hidden />
-      <AlertTitle>{error ? "Not delivering" : "Needs a look"}</AlertTitle>
+      <AlertTitle>{problem.title}</AlertTitle>
       <AlertDescription>
         <p className={cn("font-mono text-xs [overflow-wrap:anywhere]", long && !expanded && "line-clamp-4")}>{problem.main}</p>
         {problem.extra && (!long || expanded) && <p className="text-xs [overflow-wrap:anywhere]">Also: {problem.extra}</p>}

@@ -63,13 +63,23 @@ type DeliveryError struct {
 	Operation string
 	// Code is a fixed label or a code the client library recognized.
 	Code string
+	// Rejected and Retryable index the events of a batch the destination refused for good and those a
+	// retry may deliver; the others were delivered. Both empty means the whole batch failed.
+	Rejected  []int
+	Retryable []int
 	// Status is the HTTP status of the response, 0 without one.
 	Status int
 	// Permanent is set when the destination's protocol says a retry cannot succeed.
 	Permanent bool
-	// Misconfigured is set when a probe failure refuses the configuration.
+	// Misconfigured is set when the destination rejects the configuration; the output still starts, degraded.
 	Misconfigured bool
 }
+
+// RejectedEvents implements output.PartialBatchError.
+func (e *DeliveryError) RejectedEvents() []int { return e.Rejected }
+
+// RetryableEvents implements output.PartialBatchError.
+func (e *DeliveryError) RetryableEvents() []int { return e.Retryable }
 
 func (e *DeliveryError) Error() string {
 	return e.Output + " " + e.Operation + ": " + e.Reason()
@@ -100,7 +110,7 @@ func (e *DeliveryError) Reason() string {
 func (e *DeliveryError) Unwrap() error { return e.Cause }
 
 // Is matches output.ErrPermanent for failures a retry with the same event cannot fix,
-// and output.ErrMisconfigured for probe failures that refuse the configuration.
+// and output.ErrMisconfigured for failures by which the destination rejects the configuration.
 // Status alone decides nothing: the protocol that produced the error sets Permanent,
 // since a status such as AWS throttling's 400 can ask for a retry.
 func (e *DeliveryError) Is(target error) bool {

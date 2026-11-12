@@ -24,7 +24,9 @@ import (
 	"hash/fnv"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/semaphore"
@@ -36,6 +38,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
@@ -47,11 +50,9 @@ import (
 const (
 	name = "policyreport"
 
+	// defaultMaxResults is also the maximum; maxReportBytes usually keeps fewer.
 	defaultMaxResults = 1000
 	defaultNamespace  = "default"
-
-	// maxAttempts bounds read-modify-write retries against concurrent writers.
-	maxAttempts = 5
 
 	clientQPS   = 50
 	clientBurst = 100
@@ -60,6 +61,12 @@ const (
 	// writeStripes bounds the write locks; reports sharing a stripe are written one at a time.
 	writeStripes = 64
 )
+
+// maxResultsRange bounds max_results; maxReportBytes usually keeps fewer results.
+var maxResultsRange = utils.IntRange{Min: 1, Max: defaultMaxResults}
+
+// conflictBackoff spaces the read-modify-write retries against another writer: 10ms, 50ms, 250ms, 1.25s.
+var conflictBackoff = retry.DefaultBackoff
 
 var (
 	// serviceAccountNamespaceFile holds the namespace of the pod.
@@ -91,16 +98,17 @@ var OutputType = output.Type{
 				Description: "Namespace whose `Report` receives events naming a namespace that does not exist. " +
 					"Empty uses the pod namespace, else `default`.",
 			},
-			{
+			output.SchemaField{
 				Name: "max_results", Type: "int", Default: defaultMaxResults, Label: "Max results per report",
-				Description: "Results kept in each report, at least `1`, also set as `configuration.limits.maxResults`. " +
-					"Beyond it the oldest result is removed.",
-			},
+				Description: "Results kept in each report, from `1` to `1000`, also set as `configuration.limits.maxResults`. " +
+					"Beyond it the oldest result is removed. A report is also kept within 512 KiB encoded, " +
+					"which usually holds fewer results.",
+			}.WithIntRange(maxResultsRange),
 			{
 				Name: "prune_by_priority", Type: "bool", Default: false, Label: "Remove lowest severity results first",
 				Description: "When a report is full, removes the oldest result of the lowest severity instead of the oldest result.",
 			},
-		}, shared.RuntimeConfigSchemaFields()...),
+		}, shared.WithDefault(shared.BatchRuntimeConfigSchemaFields(), "runtime.batching.enabled", true)...),
 	},
 }
 
@@ -109,18 +117,20 @@ type driver struct {
 	discovery rest.Interface
 	logger    *slog.Logger
 	// stripes serialize writes to one report; namespaces come from events, so the set is fixed, not per report.
-	stripes  [writeStripes]*semaphore.Weighted
-	fallback string
-	cfg      config
+	stripes [writeStripes]*semaphore.Weighted
+	// sleep waits between conflict retries.
+	sleep func(ctx context.Context, d time.Duration) error
+	// budgetLogged holds the targets already logged as pruned by maxReportBytes.
+	budgetLogged sync.Map
+	fallback     string
+	cfg          config
 }
 
 func (d *driver) RuntimeConfig() output.RuntimeConfig { return d.cfg.Runtime }
 
 func (c *config) validate() utils.ValidationErrors {
 	var errs utils.ValidationErrors
-	if c.MaxResults < 1 {
-		errs.Add("max_results", "must be at least 1")
-	}
+	maxResultsRange.Check(&errs, "max_results", c.MaxResults)
 	if c.FallbackNamespace != "" && len(validation.IsDNS1123Label(c.FallbackNamespace)) > 0 {
 		errs.Add("fallback_namespace", "must be a valid namespace name")
 	}
@@ -135,22 +145,30 @@ func createOutput(raw map[string]any, deps output.Deps) (output.Driver, error) {
 	if err := shared.DecodeDriverConfig(raw, &cfg); err != nil {
 		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
-	if _, ok := raw["max_results"]; !ok {
+	if v, ok := raw["max_results"]; !ok || v == nil {
 		cfg.MaxResults = defaultMaxResults
 	}
-	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+	// Batching is on unless runtime.batching.enabled is set: one write per report per flush.
+	if cfg.Runtime.Batching == nil {
+		cfg.Runtime.Batching = &output.BatchingConfig{}
 	}
-	return newDriver(&cfg, nil, nil, deps.Logger), nil
+	if cfg.Runtime.Batching.Enabled == nil {
+		cfg.Runtime.Batching.Enabled = new(true)
+	}
+	if errs := cfg.validate(); len(errs) > 0 {
+		return nil, fmt.Errorf("%s: %w", name, errs)
+	}
+	return newDriver(&cfg, nil, deps.Logger), nil
 }
 
-func newDriver(cfg *config, client dynamic.Interface, disc rest.Interface, logger *slog.Logger) *driver {
+// newDriver takes an optional client; Init sets it and the discovery client otherwise.
+func newDriver(cfg *config, client dynamic.Interface, logger *slog.Logger) *driver {
 	d := &driver{
-		cfg:       *cfg,
-		client:    client,
-		discovery: disc,
-		logger:    shared.ResolveLogger(logger, name),
-		fallback:  fallbackNamespace(cfg.FallbackNamespace),
+		cfg:      *cfg,
+		client:   client,
+		logger:   shared.ResolveLogger(logger, name),
+		fallback: fallbackNamespace(cfg.FallbackNamespace),
+		sleep:    sleepContext,
 	}
 	for i := range d.stripes {
 		d.stripes[i] = semaphore.NewWeighted(1)
@@ -244,29 +262,93 @@ func (d *driver) Init(_ context.Context) error {
 
 func (d *driver) Close() error { return nil }
 
-// Send uses the fallback namespace when the event namespace does not exist.
+// Send writes one event; with batching disabled each event is one batch.
 func (d *driver) Send(ctx context.Context, evt *event.Event) error {
+	return d.SendBatch(ctx, []*event.Event{evt})
+}
+
+// SendBatch reads and writes each report at most once. A result that cannot fit within maxReportBytes
+// alone is left out and rejected (output.PartialBatchError); a missing namespace goes to the fallback one.
+func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	if d.client == nil {
 		return fmt.Errorf("%s: %w", name, core.ErrNotReady)
 	}
-	result, err := buildResult(evt)
-	if err != nil {
-		return shared.WrapDeliveryError(name, shared.OpMarshal, err)
+	groups := make(map[target][]map[string]any)
+	var tooLarge []int
+	for i, evt := range events {
+		result, err := buildResult(evt)
+		if err != nil {
+			return shared.WrapDeliveryError(name, shared.OpMarshal, err)
+		}
+		t := target{namespace: namespaceOf(evt.OutputFields)}
+		if _, err := merge(newReport(t), []map[string]any{result}, d.cfg.MaxResults, false); err != nil {
+			if !errors.Is(err, errResultTooLarge) {
+				return writeError(err)
+			}
+			tooLarge = append(tooLarge, i)
+			continue
+		}
+		groups[t] = append(groups[t], result)
 	}
-	t := target{namespace: namespaceOf(evt.OutputFields)}
-	err = d.apply(ctx, t, result)
-	if t.namespace != "" && t.namespace != d.fallback && isNamespaceNotFound(err) {
-		d.logger.Info("namespace not found, writing to the fallback namespace", "fallback", d.fallback)
-		err = d.apply(ctx, target{namespace: d.fallback}, result)
+	if len(tooLarge) == len(events) {
+		return errResultTooLarge
 	}
-	if err != nil {
-		return newDeliveryError(opWriteReport, err)
+	if err := d.write(ctx, groups); err != nil {
+		return err
+	}
+	if len(tooLarge) > 0 {
+		return resultsTooLarge(tooLarge, len(events))
 	}
 	return nil
 }
 
-// apply serializes local writes per report and retries when another writer changed it in between.
-func (d *driver) apply(ctx context.Context, t target, result map[string]any) error {
+// write applies each report's results, the fallback report last so it also takes the results of missing namespaces.
+func (d *driver) write(ctx context.Context, groups map[target][]map[string]any) error {
+	fallback := target{namespace: d.fallback}
+	targets := make([]target, 0, len(groups))
+	for t := range groups {
+		if t != fallback {
+			targets = append(targets, t)
+		}
+	}
+	slices.SortFunc(targets, func(a, b target) int { return strings.Compare(a.namespace, b.namespace) })
+	for _, t := range targets {
+		err := d.apply(ctx, t, groups[t])
+		if t.namespace != "" && isNamespaceNotFound(err) {
+			d.logger.Info("namespace not found, writing to the fallback namespace", "fallback", d.fallback)
+			groups[fallback] = append(groups[fallback], groups[t]...)
+			continue
+		}
+		if err != nil {
+			return writeError(err)
+		}
+	}
+	if results := groups[fallback]; len(results) > 0 {
+		if err := d.apply(ctx, fallback, results); err != nil {
+			return writeError(err)
+		}
+	}
+	return nil
+}
+
+// resultsTooLarge rejects the events at tooLarge, of a batch of total, whose results were left out.
+func resultsTooLarge(tooLarge []int, total int) error {
+	failure := *errResultTooLarge
+	failure.Code = fmt.Sprintf("%d of %d results %s", len(tooLarge), total, errResultTooLarge.Code)
+	failure.Rejected = tooLarge
+	return &failure
+}
+
+func writeError(err error) error {
+	if errors.Is(err, errResultTooLarge) {
+		return errResultTooLarge
+	}
+	return newDeliveryError(opWriteReport, err)
+}
+
+// apply serializes local writes per report and retries with backoff when another writer changed it;
+// returned to the pipeline, the conflict would count against the circuit breaker and retry the whole batch.
+func (d *driver) apply(ctx context.Context, t target, results []map[string]any) error {
 	stripe := d.stripe(t)
 	if err := stripe.Acquire(ctx, 1); err != nil {
 		return err
@@ -274,8 +356,17 @@ func (d *driver) apply(ctx context.Context, t target, result map[string]any) err
 	defer stripe.Release(1)
 
 	resource := d.resource(t)
+	backoff := conflictBackoff
 	var err error
-	for range maxAttempts {
+	for attempt := 0; ; attempt++ {
+		if attempt > 0 {
+			if backoff.Steps < 1 {
+				return err
+			}
+			if sleepErr := d.sleep(ctx, backoff.Step()); sleepErr != nil {
+				return sleepErr
+			}
+		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
@@ -288,17 +379,45 @@ func (d *driver) apply(ctx context.Context, t target, result map[string]any) err
 		case err != nil:
 			return err
 		}
-		addResult(obj, result, d.cfg.MaxResults, d.cfg.PruneByPriority)
-		if create {
+		m, mergeErr := merge(obj, results, d.cfg.MaxResults, d.cfg.PruneByPriority)
+		if mergeErr != nil {
+			return mergeErr
+		}
+		if m.budgetPruned > 0 {
+			d.logBudget(t, m.kept)
+		}
+		switch {
+		case create:
 			_, err = resource.Create(ctx, obj, metav1.CreateOptions{})
-		} else {
+		case m.changed:
 			_, err = resource.Update(ctx, obj, metav1.UpdateOptions{})
+		default:
+			return nil
 		}
 		if !apierrors.IsConflict(err) && !apierrors.IsAlreadyExists(err) {
 			return err
 		}
 	}
-	return err
+}
+
+// logBudget logs once per report that the byte budget, not max_results, sets its size.
+func (d *driver) logBudget(t target, kept int) {
+	if _, logged := d.budgetLogged.LoadOrStore(t, struct{}{}); logged {
+		return
+	}
+	d.logger.Info("report reached the byte limit, oldest results removed below max_results",
+		"namespace", t.namespace, "results", kept, "limit_bytes", maxReportBytes)
+}
+
+func sleepContext(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (d *driver) resource(t target) dynamic.ResourceInterface {

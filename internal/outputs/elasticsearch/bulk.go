@@ -78,7 +78,8 @@ func bulkAction(index, id string) ([]byte, error) {
 	return json.Marshal(map[string]meta{"create": {Index: index, ID: id}})
 }
 
-// parseBulkResponse counts an item that already exists from an earlier attempt as delivered.
+// parseBulkResponse counts a created or already existing (409) item as delivered, a permanent 4xx as
+// rejected and a 429, a 5xx or a missing result as retryable; a response short of items fails the whole batch.
 func (d *driver) parseBulkResponse(body []byte, expectedItems int) error {
 	var resp bulkResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
@@ -89,20 +90,22 @@ func (d *driver) parseBulkResponse(body []byte, expectedItems int) error {
 		return &shared.DeliveryError{Output: name, Operation: shared.OpResponse, Code: "incomplete bulk response"}
 	}
 
-	var failed, rejected, existing int
-	for _, item := range resp.Items {
+	var rejected, retryable []int
+	existing := 0
+	for i, item := range resp.Items {
 		r := item.Create
 		switch {
 		case r == nil:
-			failed++
+			retryable = append(retryable, i)
 			d.logger.Warn("bulk item failed", "status", 0, "error_type", "unknown error")
 		case r.Status == http.StatusConflict && r.Error.Type == conflictError:
 			existing++
 		case r.Status >= 200 && r.Status < 300 && r.Error.Type == "":
 		default:
-			failed++
 			if shared.IsPermanentHTTPStatus(r.Status) {
-				rejected++
+				rejected = append(rejected, i)
+			} else {
+				retryable = append(retryable, i)
 			}
 			d.logger.Warn("bulk item failed",
 				"status", r.Status,
@@ -114,22 +117,28 @@ func (d *driver) parseBulkResponse(body []byte, expectedItems int) error {
 		d.logger.Debug("bulk items already indexed", "count", existing)
 	}
 
-	if failed == 0 {
+	if len(rejected)+len(retryable) == 0 {
 		return nil
 	}
 
-	succeeded := expectedItems - failed
+	delivered := expectedItems - len(rejected) - len(retryable)
 	d.logger.Error("bulk request partial failure",
 		"total", expectedItems,
-		"failed", failed,
-		"succeeded", succeeded,
+		"delivered", delivered,
+		"rejected", len(rejected),
+		"retryable", len(retryable),
 	)
 
-	// A retry rewrites only the failed items: the others answer 409 and count as delivered.
+	code := fmt.Sprintf("bulk indexed %d/%d", delivered, expectedItems)
+	if len(rejected) > 0 {
+		code += fmt.Sprintf(", %d rejected", len(rejected))
+	}
+	if len(retryable) > 0 {
+		code += fmt.Sprintf(", %d to retry", len(retryable))
+	}
 	return &shared.DeliveryError{
-		Output: name, Operation: shared.OpResponse,
-		Code:      fmt.Sprintf("bulk indexed %d/%d, %d failed", succeeded, expectedItems, failed),
-		Permanent: rejected == failed,
+		Output: name, Operation: shared.OpResponse, Code: code,
+		Permanent: len(retryable) == 0, Rejected: rejected, Retryable: retryable,
 	}
 }
 

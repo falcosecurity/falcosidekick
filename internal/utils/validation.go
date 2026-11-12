@@ -30,7 +30,11 @@ type ValidationError struct {
 	Message string
 }
 
+// Error is "field: message", or the message alone for an error about the whole configuration.
 func (ve ValidationError) Error() string {
+	if ve.Field == "" {
+		return ve.Message
+	}
 	return fmt.Sprintf("%s: %s", ve.Field, ve.Message)
 }
 

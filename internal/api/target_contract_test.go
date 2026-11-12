@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/slack"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
+	"github.com/falcosecurity/falcosidekick/internal/pipeline"
 )
 
 func putOutput(t *testing.T, rig *mutationTestRig, name, body string) (status int, response string) {
@@ -83,13 +85,19 @@ func TestTargetSecretsStayOutOfAPIAndSurvivePartialPUT(t *testing.T) {
 	assert.Equal(t, "PUT", stored.Config["method"])
 }
 
-func TestPUTRejectsMisconfiguredDestination(t *testing.T) {
+// Delivery starts by itself once the destination accepts.
+func TestPUTSavesMisconfiguredDestinationDegraded(t *testing.T) {
+	var up atomic.Bool
 	pushes := make(chan string, 4)
 	loki := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/ready":
 			w.WriteHeader(http.StatusOK)
-		case "/loki/api/v1/push":
+		case "/missing/loki/api/v1/push":
+			if !up.Load() {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 			pushes <- r.URL.Path
 			w.WriteHeader(http.StatusNoContent)
 		default:
@@ -106,25 +114,33 @@ func TestPUTRejectsMisconfiguredDestination(t *testing.T) {
 	require.Equal(t, http.StatusOK, status, body)
 
 	status, body = putOutput(t, rig, "loki", `{"version":1,"config":{"base_path":"/missing"}}`)
-	assert.Equal(t, http.StatusBadRequest, status, body)
-	assert.Contains(t, body, "health check")
-	assert.Contains(t, body, "HTTP 404")
+	require.Equal(t, http.StatusOK, status, body)
+	var reply struct {
+		Config map[string]any        `json:"config"`
+		Status pipeline.OutputStatus `json:"status"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &reply))
+	assert.Equal(t, "/missing", reply.Config["base_path"])
+	assert.Equal(t, pipeline.HealthDegraded, reply.Status.Status)
+	assert.Equal(t, pipeline.WarningDestination, reply.Status.WarningKind)
+	assert.Contains(t, reply.Status.LastWarning, "health check failed before start")
+	assert.Contains(t, reply.Status.LastWarning, "HTTP 404")
 
 	stored, err := db.GetOutputConfig(t.Context(), "loki")
 	require.NoError(t, err)
 	require.NotNil(t, stored)
-	assert.NotContains(t, stored.Config, "base_path", "a rejected PUT is not persisted")
-	statuses := rig.Dispatcher.CollectStatus()
-	require.Len(t, statuses, 1, "the previous output keeps running")
-	assert.Equal(t, "loki", statuses[0].Name)
+	assert.Equal(t, "/missing", stored.Config["base_path"], "the change is saved")
 
+	up.Store(true)
 	rig.Server.pipeline.ProcessEvent(t.Context(), testutil.CreateValidEvent())
 	select {
 	case path := <-pushes:
-		assert.Equal(t, "/loki/api/v1/push", path, "the previous config still delivers")
+		assert.Equal(t, "/missing/loki/api/v1/push", path, "the saved config delivers once the destination accepts")
 	case <-time.After(5 * time.Second):
-		t.Fatal("the previous output did not deliver after the rejected PUT")
+		t.Fatal("the saved output did not deliver after the destination recovered")
 	}
+	assert.Eventually(t, func() bool { return rig.Dispatcher.CollectStatus()[0].LastWarning == "" },
+		5*time.Second, 10*time.Millisecond, "a delivery clears the warning")
 }
 
 func TestPUTRejectsTargetViolationsAs400(t *testing.T) {

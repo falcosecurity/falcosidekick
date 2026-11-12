@@ -243,7 +243,7 @@ func (s *SQL) Provision(ctx context.Context, req *core.ProvisionRequest) error {
 	})
 }
 
-// decodeConfig reads a stored config; integers come back as int64, without the precision a float64 loses.
+// decodeConfig keeps numbers as json.Number and nulls as written; the output decoder checks both.
 func decodeConfig(data []byte) (map[string]any, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
@@ -251,27 +251,7 @@ func decodeConfig(data []byte) (map[string]any, error) {
 	if err := dec.Decode(&cfg); err != nil {
 		return nil, err
 	}
-	return convertNumbers(cfg).(map[string]any), nil
-}
-
-func convertNumbers(value any) any {
-	switch v := value.(type) {
-	case map[string]any:
-		for k, item := range v {
-			v[k] = convertNumbers(item)
-		}
-	case []any:
-		for i, item := range v {
-			v[i] = convertNumbers(item)
-		}
-	case json.Number:
-		if n, err := v.Int64(); err == nil {
-			return n
-		}
-		f, _ := v.Float64()
-		return f
-	}
-	return value
+	return cfg, nil
 }
 
 type queryer interface {

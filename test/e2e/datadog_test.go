@@ -219,8 +219,7 @@ func TestDatadogReportsRejectedEvent(t *testing.T) {
 	assert.Len(t, events, 1, "max_attempts 1 sends exactly once")
 }
 
-// Datadog answers 403 to an invalid key, which stops startup.
-func TestDatadogRejectedKeyFailsStartup(t *testing.T) {
+func TestDatadogRejectedKeyStartsDegraded(t *testing.T) {
 	for _, tc := range []struct{ name, apiKey, appKey string }{
 		{name: "api key", apiKey: "wrongDatadogKey", appKey: datadogAppKey},
 		{name: "application key", apiKey: datadogAPIKey, appKey: "wrongDatadogAppKey"},
@@ -231,7 +230,7 @@ func TestDatadogRejectedKeyFailsStartup(t *testing.T) {
 			t.Cleanup(server.Close)
 			suffix := newMarker(t)
 
-			logs := startSidekickFails(t, datadogConfig(server.URL, tc.apiKey+suffix, tc.appKey+suffix))
+			_, logs := startSidekickDegraded(t, "datadog", datadogConfig(server.URL, tc.apiKey+suffix, tc.appKey+suffix))
 			assert.Contains(t, logs, "HTTP 403")
 			assert.NotContains(t, logs, suffix)
 

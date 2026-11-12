@@ -76,8 +76,17 @@ func ResolveSecrets(outputName string, cfg map[string]any, schema output.Schema)
 		}
 
 		fileKey := leafKey + "_file"
-		filePath, ok := parent[fileKey].(string)
-		if !ok || filePath == "" {
+		rawPath, present := parent[fileKey]
+		if !present {
+			continue
+		}
+		// A null or empty <name>_file is not set; a non-string one is left to the decoder to refuse.
+		filePath, ok := rawPath.(string)
+		if rawPath == nil || (ok && filePath == "") {
+			delete(parent, fileKey)
+			continue
+		}
+		if !ok {
 			continue
 		}
 
@@ -89,7 +98,8 @@ func ResolveSecrets(outputName string, cfg map[string]any, schema output.Schema)
 		// The error names the field, not the path or the OS error: the path can arrive through the API.
 		data, err := utils.ReadRegularFile(filePath)
 		if err != nil {
-			return fmt.Errorf("output %q: %s_file: %s", outputName, field.Name, utils.FileProblem(err))
+			return fmt.Errorf("output %q: %w", outputName,
+				utils.ValidationErrors{{Field: field.Name + "_file", Message: utils.FileProblem(err)}})
 		}
 
 		parent[leafKey] = strings.TrimRight(string(data), "\n\r")

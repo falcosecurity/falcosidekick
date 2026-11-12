@@ -19,6 +19,7 @@ package elasticsearch
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -34,6 +35,33 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
 )
+
+// provision creates the index template as the health check and the first delivery do.
+func provision(d output.Driver) error {
+	return d.(*driver).ensureTemplate(context.Background())
+}
+
+func TestInitDoesNotContactTheCluster(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.Method == http.MethodPut {
+			w.WriteHeader(http.StatusForbidden)
+		}
+		if r.Method == http.MethodHead {
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	d, err := createOutput(map[string]any{"host": server.URL, "create_index_template": true}, output.Deps{})
+	require.NoError(t, err)
+
+	require.NoError(t, d.Init(context.Background()))
+	assert.Zero(t, requests.Load())
+	err = d.HealthCheck(context.Background())
+	require.ErrorIs(t, err, output.ErrMisconfigured)
+	assert.Equal(t, "elasticsearch index template create: HTTP 403 Forbidden", err.Error())
+}
 
 func TestInitTemplateSafeRequestError(t *testing.T) {
 	d := &driver{cfg: config{
@@ -65,7 +93,7 @@ func TestInitTemplateSafeHTTPError(t *testing.T) {
 		"number_of_shards":      1,
 	}, output.Deps{})
 	require.NoError(t, err)
-	err = d.Init(context.Background())
+	err = provision(d)
 	require.ErrorIs(t, err, output.ErrMisconfigured)
 	assert.Equal(t, "elasticsearch index template create: HTTP 403 Forbidden", err.Error())
 	assert.NotContains(t, err.Error(), "TEMPLATE_RESPONSE_SECRET")
@@ -90,7 +118,7 @@ func TestInitTemplateAlreadyExists(t *testing.T) {
 	}, output.Deps{})
 	require.NoError(t, err)
 
-	require.NoError(t, driver.Init(context.Background()))
+	require.NoError(t, provision(driver))
 
 	assert.Contains(t, methods, http.MethodHead)
 	for _, m := range methods {
@@ -124,7 +152,7 @@ func TestInitTemplateCreated(t *testing.T) {
 	}, output.Deps{})
 	require.NoError(t, err)
 
-	require.NoError(t, driver.Init(context.Background()))
+	require.NoError(t, provision(driver))
 
 	assert.Contains(t, capturedURL, "_index_template", "must use composable _index_template API")
 	require.NotEmpty(t, capturedPutBody)
@@ -161,7 +189,7 @@ func TestInitTemplateSkipped(t *testing.T) {
 	}, output.Deps{})
 	require.NoError(t, err)
 
-	require.NoError(t, driver.Init(context.Background()))
+	require.NoError(t, provision(driver))
 	assert.False(t, called)
 }
 
@@ -204,7 +232,7 @@ func TestInitTemplateCreatesOnlyWhenAbsent(t *testing.T) {
 		{name: "exists", head: http.StatusOK},
 		{name: "absent", head: http.StatusNotFound, wantPut: true},
 		{name: "unauthorized", head: http.StatusUnauthorized, wantErr: "elasticsearch index template check: HTTP 401 Unauthorized"},
-		{name: "server error is left to the first delivery", head: http.StatusInternalServerError},
+		{name: "server error is retried", head: http.StatusInternalServerError, wantErr: "elasticsearch index template check: HTTP 500 Internal Server Error"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var puts int
@@ -219,9 +247,10 @@ func TestInitTemplateCreatesOnlyWhenAbsent(t *testing.T) {
 			d, err := createOutput(map[string]any{"host": server.URL, "create_index_template": true, "number_of_shards": 1}, output.Deps{})
 			require.NoError(t, err)
 
-			err = d.Init(context.Background())
+			err = provision(d)
 			if tc.wantErr != "" {
-				require.ErrorIs(t, err, output.ErrMisconfigured)
+				require.Error(t, err)
+				assert.Equal(t, tc.head != http.StatusInternalServerError, errors.Is(err, output.ErrMisconfigured))
 				assert.Contains(t, err.Error(), tc.wantErr)
 			} else {
 				require.NoError(t, err)
@@ -342,7 +371,7 @@ func TestInitTemplateShardSettings(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.NoError(t, d.Init(context.Background()))
+			require.NoError(t, provision(d))
 			require.Contains(t, template, "mappings")
 			if tc.wantSettings == nil {
 				assert.NotContains(t, template, "settings", "no settings: the cluster default applies")
@@ -381,7 +410,7 @@ func TestInitTemplateDataStream(t *testing.T) {
 			tc.config["create_index_template"] = true
 			d, err := createOutput(tc.config, output.Deps{})
 			require.NoError(t, err)
-			require.NoError(t, d.Init(context.Background()))
+			require.NoError(t, provision(d))
 
 			assert.Equal(t, tc.wantTemplate, path)
 			assert.Equal(t, []any{tc.wantPattern}, tmpl["index_patterns"])

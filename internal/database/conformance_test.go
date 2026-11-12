@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 // postgresDSNEnv names the postgres the conformance suite runs on; without it the postgres run is
@@ -165,7 +166,9 @@ func runConformance(t *testing.T, open openStore) {
 		assert.False(t, entry.Provisioned)
 		assert.False(t, entry.UpdatedAt.IsZero())
 		assert.True(t, sameConfig(cfg, entry.Config), "%v read back as %v", cfg, entry.Config)
-		assert.Equal(t, int64(1<<60+1), entry.Config["big"], "integers keep their precision")
+		big, err := utils.IntegerValue(entry.Config["big"])
+		require.NoError(t, err)
+		assert.Equal(t, int64(1<<60+1), big, "integers keep their precision")
 
 		all, err := s.GetOutputConfigs(ctx)
 		require.NoError(t, err)

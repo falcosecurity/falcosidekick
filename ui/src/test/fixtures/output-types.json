@@ -219,6 +219,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -227,6 +229,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -235,6 +239,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -243,6 +249,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -251,6 +259,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -259,6 +269,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -267,6 +279,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -275,6 +289,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -283,13 +299,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -344,7 +362,7 @@
             "type": "bool"
           },
           {
-            "description": "AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`) or from the resource.",
+            "description": "AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`); SNS and SQS then use the region of the topic ARN or the queue URL, while S3 has no fallback and needs one.",
             "label": "AWS Region (default from the environment or the resource)",
             "name": "region",
             "required": false,
@@ -455,6 +473,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -463,6 +483,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -471,6 +493,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -479,6 +503,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -487,6 +513,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -495,6 +523,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -503,6 +533,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -511,6 +543,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -519,13 +553,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -543,6 +579,8 @@
             "default": 500,
             "description": "Most events in one group.",
             "label": "Batch Size",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.batching.batch_size",
             "required": false,
             "type": "int"
@@ -551,6 +589,8 @@
             "default": "1s",
             "description": "Longest time an incomplete group waits before it is sent, as a duration.",
             "label": "Batch Flush Interval",
+            "max": "1h",
+            "min": "10ms",
             "name": "runtime.batching.flush_interval",
             "required": false,
             "type": "string"
@@ -598,7 +638,7 @@
             "type": "string[]"
           },
           {
-            "description": "AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`) or from the resource.",
+            "description": "AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`); SNS and SQS then use the region of the topic ARN or the queue URL, while S3 has no fallback and needs one.",
             "label": "AWS Region (default from the environment or the resource)",
             "name": "region",
             "required": false,
@@ -709,6 +749,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -717,6 +759,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -725,6 +769,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -733,6 +779,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -741,6 +789,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -749,6 +799,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -757,6 +809,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -765,6 +819,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -773,13 +829,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -802,7 +860,7 @@
             "type": "string"
           },
           {
-            "description": "AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`) or from the resource.",
+            "description": "AWS region, such as `eu-west-1`. Empty takes it from the environment (`AWS_REGION`); SNS and SQS then use the region of the topic ARN or the queue URL, while S3 has no fallback and needs one.",
             "label": "AWS Region (default from the environment or the resource)",
             "name": "region",
             "required": false,
@@ -913,6 +971,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -921,6 +981,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -929,6 +991,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -937,6 +1001,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -945,6 +1011,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -953,6 +1021,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -961,6 +1031,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -969,6 +1041,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -977,13 +1051,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -1001,6 +1077,8 @@
             "default": 500,
             "description": "Most events in one group.",
             "label": "Batch Size",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.batching.batch_size",
             "required": false,
             "type": "int"
@@ -1009,6 +1087,8 @@
             "default": "1s",
             "description": "Longest time an incomplete group waits before it is sent, as a duration.",
             "label": "Batch Flush Interval",
+            "max": "1h",
+            "min": "10ms",
             "name": "runtime.batching.flush_interval",
             "required": false,
             "type": "string"
@@ -1214,6 +1294,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -1222,6 +1304,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -1230,6 +1314,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -1238,6 +1324,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -1246,6 +1334,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -1254,6 +1344,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -1262,6 +1354,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -1270,6 +1364,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -1278,13 +1374,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -1495,6 +1593,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -1503,6 +1603,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -1511,6 +1613,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -1519,6 +1623,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -1527,6 +1633,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -1535,6 +1643,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -1543,6 +1653,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -1551,6 +1663,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -1559,13 +1673,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -1758,6 +1874,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -1766,6 +1884,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -1774,6 +1894,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -1782,6 +1904,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -1790,6 +1914,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -1798,6 +1924,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -1806,6 +1934,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -1814,6 +1944,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -1822,13 +1954,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -2079,6 +2213,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -2087,6 +2223,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -2095,6 +2233,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -2103,6 +2243,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -2111,6 +2253,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -2119,6 +2263,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -2127,6 +2273,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -2135,6 +2283,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -2143,13 +2293,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -2167,6 +2319,8 @@
             "default": 500,
             "description": "Most events in one group.",
             "label": "Batch Size",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.batching.batch_size",
             "required": false,
             "type": "int"
@@ -2175,6 +2329,8 @@
             "default": "1s",
             "description": "Longest time an incomplete group waits before it is sent, as a duration.",
             "label": "Batch Flush Interval",
+            "max": "1h",
+            "min": "10ms",
             "name": "runtime.batching.flush_interval",
             "required": false,
             "type": "string"
@@ -2266,6 +2422,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -2274,6 +2432,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -2282,6 +2442,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -2290,6 +2452,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -2298,6 +2462,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -2306,6 +2472,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -2314,6 +2482,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -2322,6 +2492,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -2330,13 +2502,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -2354,6 +2528,8 @@
             "default": 500,
             "description": "Most events in one group.",
             "label": "Batch Size",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.batching.batch_size",
             "required": false,
             "type": "int"
@@ -2362,6 +2538,8 @@
             "default": "1s",
             "description": "Longest time an incomplete group waits before it is sent, as a duration.",
             "label": "Batch Flush Interval",
+            "max": "1h",
+            "min": "10ms",
             "name": "runtime.batching.flush_interval",
             "required": false,
             "type": "string"
@@ -2544,6 +2722,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -2552,6 +2732,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -2560,6 +2742,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -2568,6 +2752,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -2576,6 +2762,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -2584,6 +2772,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -2592,6 +2782,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -2600,6 +2792,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -2608,13 +2802,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -2631,8 +2827,10 @@
         "fields": [
           {
             "default": 10000,
-            "description": "Number of events kept in memory; once full, each new event replaces the oldest. `0` uses the default.",
+            "description": "Number of events kept in memory; once full, each new event replaces the oldest.",
             "label": "Max Events",
+            "max": 100000,
+            "min": 1,
             "name": "capacity",
             "required": true,
             "type": "int"
@@ -2674,6 +2872,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -2682,6 +2882,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -2690,6 +2892,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -2698,6 +2902,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -2706,6 +2912,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -2714,6 +2922,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -2722,6 +2932,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -2730,6 +2942,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -2738,13 +2952,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -2767,7 +2983,7 @@
             "type": "string[]"
           },
           {
-            "description": "Topic for events without a `topic_field` value. Startup checks that it exists and is writable.",
+            "description": "Topic for events without a `topic_field` value. Startup checks that it exists, not that the client may write to it.",
             "label": "Default topic",
             "name": "topic",
             "required": true,
@@ -2807,14 +3023,14 @@
             ]
           },
           {
-            "description": "User for SASL authentication.",
+            "description": "User for SASL authentication. Requires `auth.sasl`.",
             "label": "SASL Username",
             "name": "auth.username",
             "required": false,
             "type": "string"
           },
           {
-            "description": "Password for SASL authentication.",
+            "description": "Password for SASL authentication. Requires `auth.sasl`.",
             "label": "SASL Password",
             "name": "auth.password",
             "required": false,
@@ -2866,7 +3082,7 @@
           },
           {
             "default": "10s",
-            "description": "Go duration, such as `10s`, bounding the delivery of each record, client retries included, and the flush on shutdown. At least `1s`.",
+            "description": "Go duration, such as `10s`, bounding each delivery attempt, client retries included, and the flush on shutdown. At least `1s`.",
             "label": "Delivery Timeout",
             "name": "producer.delivery_timeout",
             "required": false,
@@ -2940,6 +3156,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -2948,6 +3166,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -2956,6 +3176,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -2964,6 +3186,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -2972,6 +3196,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -2980,6 +3206,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -2988,6 +3216,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -2996,6 +3226,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -3004,13 +3236,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -3028,6 +3262,8 @@
             "default": 500,
             "description": "Most events in one group.",
             "label": "Batch Size",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.batching.batch_size",
             "required": false,
             "type": "int"
@@ -3036,6 +3272,8 @@
             "default": "1s",
             "description": "Longest time an incomplete group waits before it is sent, as a duration.",
             "label": "Batch Flush Interval",
+            "max": "1h",
+            "min": "10ms",
             "name": "runtime.batching.flush_interval",
             "required": false,
             "type": "string"
@@ -3252,6 +3490,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -3260,6 +3500,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -3268,6 +3510,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -3276,6 +3520,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -3284,6 +3530,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -3292,6 +3540,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -3300,6 +3550,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -3308,6 +3560,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -3316,13 +3570,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -3340,6 +3596,8 @@
             "default": 500,
             "description": "Most events in one group.",
             "label": "Batch Size",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.batching.batch_size",
             "required": false,
             "type": "int"
@@ -3348,6 +3606,8 @@
             "default": "1s",
             "description": "Longest time an incomplete group waits before it is sent, as a duration.",
             "label": "Batch Flush Interval",
+            "max": "1h",
+            "min": "10ms",
             "name": "runtime.batching.flush_interval",
             "required": false,
             "type": "string"
@@ -3542,6 +3802,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -3550,6 +3812,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -3558,6 +3822,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -3566,6 +3832,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -3574,6 +3842,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -3582,6 +3852,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -3590,6 +3862,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -3598,6 +3872,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -3606,13 +3882,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -3875,6 +4153,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -3883,6 +4163,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -3891,6 +4173,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -3899,6 +4183,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -3907,6 +4193,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -3915,6 +4203,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -3923,6 +4213,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -3931,6 +4223,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -3939,13 +4233,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -3963,6 +4259,8 @@
             "default": 500,
             "description": "Most events in one group.",
             "label": "Batch Size",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.batching.batch_size",
             "required": false,
             "type": "int"
@@ -3971,6 +4269,8 @@
             "default": "1s",
             "description": "Longest time an incomplete group waits before it is sent, as a duration.",
             "label": "Batch Flush Interval",
+            "max": "1h",
+            "min": "10ms",
             "name": "runtime.batching.flush_interval",
             "required": false,
             "type": "string"
@@ -4165,6 +4465,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -4173,6 +4475,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -4181,6 +4485,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -4189,6 +4495,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -4197,6 +4505,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -4205,6 +4515,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -4213,6 +4525,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -4221,6 +4535,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -4229,13 +4545,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -4267,8 +4585,10 @@
           },
           {
             "default": 1000,
-            "description": "Results kept in each report, at least `1`, also set as `configuration.limits.maxResults`. Beyond it the oldest result is removed.",
+            "description": "Results kept in each report, from `1` to `1000`, also set as `configuration.limits.maxResults`. Beyond it the oldest result is removed. A report is also kept within 512 KiB encoded, which usually holds fewer results.",
             "label": "Max results per report",
+            "max": 1000,
+            "min": 1,
             "name": "max_results",
             "required": false,
             "type": "int"
@@ -4302,6 +4622,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -4310,6 +4632,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -4318,6 +4642,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -4326,6 +4652,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -4334,6 +4662,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -4342,6 +4672,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -4350,6 +4682,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -4358,6 +4692,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -4366,17 +4702,48 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
             "type": "bool"
+          },
+          {
+            "default": true,
+            "description": "Sends events in groups, one request per group.",
+            "label": "Enable Batching",
+            "name": "runtime.batching.enabled",
+            "output_default": true,
+            "required": false,
+            "type": "bool"
+          },
+          {
+            "default": 500,
+            "description": "Most events in one group.",
+            "label": "Batch Size",
+            "max": 10000,
+            "min": 1,
+            "name": "runtime.batching.batch_size",
+            "required": false,
+            "type": "int"
+          },
+          {
+            "default": "1s",
+            "description": "Longest time an incomplete group waits before it is sent, as a duration.",
+            "label": "Batch Flush Interval",
+            "max": "1h",
+            "min": "10ms",
+            "name": "runtime.batching.flush_interval",
+            "required": false,
+            "type": "string"
           }
         ]
       }
@@ -4514,6 +4881,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -4522,6 +4891,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -4530,6 +4901,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -4538,6 +4911,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -4546,6 +4921,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -4554,6 +4931,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -4562,6 +4941,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -4570,6 +4951,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -4578,13 +4961,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -4602,6 +4987,8 @@
             "default": 500,
             "description": "Most events in one group.",
             "label": "Batch Size",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.batching.batch_size",
             "required": false,
             "type": "int"
@@ -4610,6 +4997,8 @@
             "default": "1s",
             "description": "Longest time an incomplete group waits before it is sent, as a duration.",
             "label": "Batch Flush Interval",
+            "max": "1h",
+            "min": "10ms",
             "name": "runtime.batching.flush_interval",
             "required": false,
             "type": "string"
@@ -4821,6 +5210,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -4829,6 +5220,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -4837,6 +5230,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -4845,6 +5240,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -4853,6 +5250,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -4861,6 +5260,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -4869,6 +5270,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -4877,6 +5280,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -4885,13 +5290,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -5056,6 +5463,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -5064,6 +5473,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -5072,6 +5483,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -5080,6 +5493,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -5088,6 +5503,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -5096,6 +5513,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -5104,6 +5523,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -5112,6 +5533,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -5120,13 +5543,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -5277,6 +5702,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -5285,6 +5712,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -5293,6 +5722,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -5301,6 +5732,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -5309,6 +5742,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -5317,6 +5752,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -5325,6 +5762,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -5333,6 +5772,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -5341,13 +5782,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -5539,6 +5982,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -5547,6 +5992,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -5555,6 +6002,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -5563,6 +6012,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -5571,6 +6022,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -5579,6 +6032,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -5587,6 +6042,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -5595,6 +6052,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -5603,13 +6062,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -5814,6 +6275,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -5822,6 +6285,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -5830,6 +6295,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -5838,6 +6305,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -5846,6 +6315,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -5854,6 +6325,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -5862,6 +6335,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -5870,6 +6345,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -5878,13 +6355,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,
@@ -6088,6 +6567,8 @@
             "default": 1000,
             "description": "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
             "label": "Queue Size",
+            "max": 100000,
+            "min": 1,
             "name": "runtime.queue_size",
             "required": false,
             "type": "int"
@@ -6096,6 +6577,8 @@
             "default": 2,
             "description": "Deliveries this output runs at the same time.",
             "label": "Worker Count",
+            "max": 256,
+            "min": 1,
             "name": "runtime.workers",
             "required": false,
             "type": "int"
@@ -6104,6 +6587,8 @@
             "default": 3,
             "description": "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
             "label": "Max Retry Attempts",
+            "max": 100,
+            "min": 1,
             "name": "runtime.retry.max_attempts",
             "required": false,
             "type": "int"
@@ -6112,6 +6597,8 @@
             "default": "1s",
             "description": "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
             "label": "Retry Initial Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.initial_interval",
             "required": false,
             "type": "string"
@@ -6120,6 +6607,8 @@
             "default": "30s",
             "description": "Longest wait between two attempts, as a duration.",
             "label": "Retry Max Interval",
+            "max": "1h",
+            "min": "1ms",
             "name": "runtime.retry.max_interval",
             "required": false,
             "type": "string"
@@ -6128,6 +6617,8 @@
             "default": 2,
             "description": "Factor applied to the wait after each failed attempt, up to the longest wait.",
             "label": "Retry Backoff Multiplier",
+            "max": 10,
+            "min": 1,
             "name": "runtime.retry.multiplier",
             "required": false,
             "type": "float"
@@ -6136,6 +6627,8 @@
             "default": 5,
             "description": "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
             "label": "Circuit Breaker Failure Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.failure_threshold",
             "required": false,
             "type": "int"
@@ -6144,6 +6637,8 @@
             "default": 2,
             "description": "Successful deliveries in a row that close the circuit again after the reset timeout.",
             "label": "Circuit Breaker Success Threshold",
+            "max": 10000,
+            "min": 1,
             "name": "runtime.circuit_breaker.success_threshold",
             "required": false,
             "type": "int"
@@ -6152,13 +6647,15 @@
             "default": "30s",
             "description": "Time the circuit stays open before a trial delivery, as a duration.",
             "label": "Circuit Breaker Reset Timeout",
+            "max": "1h",
+            "min": "1s",
             "name": "runtime.circuit_breaker.reset_timeout",
             "required": false,
             "type": "string"
           },
           {
             "default": true,
-            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. Rejected credentials or a wrong address stop startup or refuse the change.",
+            "description": "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. A failure, such as rejected credentials or a missing resource, does not refuse the configuration: the output starts degraded with the reason in its status and delivers once the destination accepts.",
             "label": "Probe the destination before starting",
             "name": "runtime.health_check",
             "required": false,

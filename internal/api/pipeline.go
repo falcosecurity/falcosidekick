@@ -142,15 +142,14 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 
 	var body outputPutRequest
 	if err := decodeStrict(c.Body(), &body); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request: " + err.Error()})
+		return writeChangeError(c, fiber.StatusBadRequest, phaseValidate, "invalid request: "+err.Error(), nil)
 	}
 	if body.Config == nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "config must be an object"})
+		return writeChangeError(c, fiber.StatusBadRequest, phaseValidate, "config must be an object", nil)
 	}
 	if body.Version == nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "version is required: send the version read with GET, or 0 to create the output",
-		})
+		return writeChangeError(c, fiber.StatusBadRequest, phaseValidate,
+			"version is required: send the version read with GET, or 0 to create the output", nil)
 	}
 
 	existing, handled := s.loadOutputEntryForMutation(c, name)
@@ -168,25 +167,29 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 	}
 
 	if field := containsSecretPlaceholder(body.Config, &t); field != "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "field '" + field + "' is a secret placeholder; omit the key to keep the existing value",
-		})
+		const reason = "is a secret placeholder; omit the key to keep the existing value"
+		return writeChangeError(c, fiber.StatusBadRequest, phaseValidate, "field '"+field+"' "+reason,
+			utils.ValidationErrors{{Field: field, Message: reason}})
 	}
 	stored, merged, err := mergeOutputConfigForSchema(existingCfg, body.Config, t.Schema)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return writeChangeError(c, fiber.StatusBadRequest, phaseValidate, err.Error(), err)
 	}
 	if s.rejectInlineSecrets {
 		if found := output.InlineSecrets(merged, t.Schema.Fields); len(found) > 0 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": found[0].String()})
+			errs := make(utils.ValidationErrors, len(found))
+			for i, secret := range found {
+				errs[i] = utils.ValidationError{Field: secret.Path, Message: "secrets cannot be stored; use " + secret.Use}
+			}
+			return writeChangeError(c, fiber.StatusBadRequest, phaseValidate, found[0].String(), errs)
 		}
 	}
 	if err := checkFilePaths(stored, merged, t.Schema.Fields, s.secretDirs); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return writeChangeError(c, fiber.StatusBadRequest, phaseValidate, err.Error(), err)
 	}
 	if t.CheckAPIWrite != nil {
 		if err := t.CheckAPIWrite(body.Config); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return writeChangeError(c, fiber.StatusBadRequest, phaseValidate, err.Error(), err)
 		}
 	}
 
@@ -196,7 +199,23 @@ func (s *Server) handlePipelineOutputPut(c fiber.Ctx) error {
 	}
 	// Answered from what was stored, not read back: a later write may already have replaced it.
 	saved := &core.OutputConfigEntry{Name: name, Config: merged, Version: version, UpdatedAt: time.Now().UTC(), Provisioned: existing != nil && existing.Provisioned}
-	return c.Status(fiber.StatusOK).JSON(maskOutputConfig(saved, &t))
+	return c.Status(fiber.StatusOK).JSON(outputPutResponse{outputConfigResponse: maskOutputConfig(saved, &t), Status: s.outputStatus(name)})
+}
+
+// outputPutResponse is the saved output with the status of the running output; a failed probe shows as "degraded".
+type outputPutResponse struct {
+	*outputConfigResponse
+	Status *pipeline.OutputStatus `json:"status,omitempty"`
+}
+
+func (s *Server) outputStatus(name string) *pipeline.OutputStatus {
+	statuses := s.pipeline.CollectOutputStatus()
+	for i := range statuses {
+		if statuses[i].Name == name {
+			return &statuses[i]
+		}
+	}
+	return nil
 }
 
 // outputPutRequest is the body of PUT /api/v1/pipeline/outputs/:name.
@@ -211,6 +230,8 @@ type outputPutRequest struct {
 func decodeStrict(body []byte, v any) error {
 	dec := json.NewDecoder(bytes.NewReader(body))
 	dec.DisallowUnknownFields()
+	// Numbers stay exact; the output decoder refuses those that do not fit their field.
+	dec.UseNumber()
 	if err := dec.Decode(v); err != nil {
 		if strings.HasPrefix(err.Error(), "json: unknown field ") {
 			return errors.New("unknown field")
@@ -224,9 +245,8 @@ func decodeStrict(body []byte, v any) error {
 }
 
 func writeVersionConflict(c fiber.Ctx, name string) error {
-	return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-		"error": "output '" + name + "' changed since the version sent; read it again and retry",
-	})
+	return writeChangeError(c, fiber.StatusConflict, phaseStore,
+		"output '"+name+"' changed since the version sent; read it again and retry", nil)
 }
 
 func (s *Server) handlePipelineOutputDelete(c fiber.Ctx) error {
@@ -341,14 +361,14 @@ func (s *Server) writeMutationError(c fiber.Ctx, name, verb string, err error) e
 	case errors.Is(err, core.ErrVersionConflict):
 		return writeVersionConflict(c, name)
 	case errors.Is(err, pipeline.ErrInvalidOutputConfig):
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": verb + " output: " + err.Error()})
+		return writeChangeError(c, fiber.StatusBadRequest, pipeline.ConfigPhase(err), verb+" output: "+err.Error(), err)
 	case errors.Is(err, core.ErrOutcomeUnknown):
 		s.logger.Error("database write unconfirmed", "subject", name, "error", err)
-		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error": "database unavailable: the change may have been applied; read the output again",
-		})
+		return writeChangeError(c, fiber.StatusServiceUnavailable, phaseStore,
+			"database unavailable: the change may have been applied; read the output again", nil)
 	case errors.Is(err, reload.ErrDatabaseUnavailable):
-		return s.databaseUnavailable(c, name, err)
+		s.logger.Error("database request failed", "subject", name, "error", err)
+		return writeChangeError(c, fiber.StatusServiceUnavailable, phaseStore, "database unavailable", nil)
 	default:
 		// The error can carry destination or backend details a client must not see.
 		s.logger.Error("output change failed", "output", name, "operation", verb, "error", err)
@@ -358,12 +378,13 @@ func (s *Server) writeMutationError(c fiber.Ctx, name, verb string, err error) e
 	}
 }
 
-// mergeOutputConfig deep-merges patch into a copy of existing so keys absent from a PUT keep their stored value.
+// mergeOutputConfig applies patch to a copy of existing as an RFC 7386 merge patch, so no null is stored.
 func mergeOutputConfig(existing, patch map[string]any) map[string]any {
 	result := utils.DeepCopyMap(existing)
 	if result == nil {
 		result = make(map[string]any, len(patch))
 	}
-	utils.DeepMergeMap(result, utils.DeepCopyMap(patch))
+	utils.DropNulls(result)
+	utils.MergePatch(result, patch)
 	return result
 }

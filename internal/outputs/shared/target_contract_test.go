@@ -294,7 +294,9 @@ func TestBatchAndTemplateRoutes(t *testing.T) {
 		}, output.Deps{})
 		require.NoError(t, err)
 		require.NoError(t, driver.Init(context.Background()))
-		assert.Equal(t, []string{"HEAD /es/_index_template/falco?" + wantQuery}, log.uris)
+		assert.Empty(t, log.uris, "Init does not contact the cluster")
+		require.NoError(t, driver.HealthCheck(context.Background()))
+		assert.Equal(t, "HEAD /es/_index_template/falco?"+wantQuery, log.uris[len(log.uris)-1])
 	})
 
 	t.Run("alertmanager fan-out", func(t *testing.T) {

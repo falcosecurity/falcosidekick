@@ -17,6 +17,8 @@
 package shared
 
 import (
+	"slices"
+
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 )
 
@@ -29,46 +31,47 @@ func RuntimeConfigSchemaFields() []output.SchemaField {
 			Values:      []string{"debug", "informational", "notice", "warning", "error", "critical", "alert", "emergency"},
 			Description: "Events below this priority are not sent to this output. Empty sends every priority.",
 		},
-		{
+		output.SchemaField{
 			Name: "runtime.queue_size", Type: "int", Default: 1000, Label: "Queue Size",
 			Description: "Events this output holds while they wait for delivery. When the queue is full, new events for this output are dropped and counted as dropped.",
-		},
-		{
+		}.WithIntRange(output.QueueSizeRange),
+		output.SchemaField{
 			Name: "runtime.workers", Type: "int", Default: 2, Label: "Worker Count",
 			Description: "Deliveries this output runs at the same time.",
-		},
-		{
+		}.WithIntRange(output.WorkersRange),
+		output.SchemaField{
 			Name: "runtime.retry.max_attempts", Type: "int", Default: 3, Label: "Max Retry Attempts",
 			Description: "Delivery attempts per event, the first one included. A permanent error, such as rejected credentials, is not retried.",
-		},
-		{
+		}.WithIntRange(output.MaxAttemptsRange),
+		output.SchemaField{
 			Name: "runtime.retry.initial_interval", Type: "string", Default: "1s", Label: "Retry Initial Interval",
 			Description: "Wait before the second attempt, as a duration such as `500ms` or `2s`.",
-		},
-		{
+		}.WithDurationRange(output.IntervalRange),
+		output.SchemaField{
 			Name: "runtime.retry.max_interval", Type: "string", Default: "30s", Label: "Retry Max Interval",
 			Description: "Longest wait between two attempts, as a duration.",
-		},
-		{
+		}.WithDurationRange(output.IntervalRange),
+		output.SchemaField{
 			Name: "runtime.retry.multiplier", Type: "float", Default: 2.0, Label: "Retry Backoff Multiplier",
 			Description: "Factor applied to the wait after each failed attempt, up to the longest wait.",
-		},
-		{
+		}.WithFloatRange(output.MultiplierRange),
+		output.SchemaField{
 			Name: "runtime.circuit_breaker.failure_threshold", Type: "int", Default: 5, Label: "Circuit Breaker Failure Threshold",
 			Description: "Consecutive failed deliveries that open the circuit. While it is open the output sends nothing and new events wait in the queue.",
-		},
-		{
+		}.WithIntRange(output.ThresholdRange),
+		output.SchemaField{
 			Name: "runtime.circuit_breaker.success_threshold", Type: "int", Default: 2, Label: "Circuit Breaker Success Threshold",
 			Description: "Successful deliveries in a row that close the circuit again after the reset timeout.",
-		},
-		{
+		}.WithIntRange(output.ThresholdRange),
+		output.SchemaField{
 			Name: "runtime.circuit_breaker.reset_timeout", Type: "string", Default: "30s", Label: "Circuit Breaker Reset Timeout",
 			Description: "Time the circuit stays open before a trial delivery, as a duration.",
-		},
+		}.WithDurationRange(output.ResetTimeoutRange),
 		{
 			Name: "runtime.health_check", Type: "bool", Default: true, Label: "Probe the destination before starting",
 			Description: "Checks the destination at startup, on reload and on API changes, for up to 5 seconds. " +
-				"Rejected credentials or a wrong address stop startup or refuse the change.",
+				"A failure, such as rejected credentials or a missing resource, does not refuse the configuration: " +
+				"the output starts degraded with the reason in its status and delivers once the destination accepts.",
 		},
 	}
 }
@@ -84,10 +87,24 @@ func BatchRuntimeConfigSchemaFields() []output.SchemaField {
 		output.SchemaField{
 			Name: "runtime.batching.batch_size", Type: "int", Default: 500, Label: "Batch Size",
 			Description: "Most events in one group.",
-		},
+		}.WithIntRange(output.BatchSizeRange),
 		output.SchemaField{
 			Name: "runtime.batching.flush_interval", Type: "string", Default: "1s", Label: "Batch Flush Interval",
 			Description: "Longest time an incomplete group waits before it is sent, as a duration.",
-		},
+		}.WithDurationRange(output.FlushIntervalRange),
 	)
+}
+
+// WithDefault returns a copy of fields with the field called name given this output's own default and
+// marked OutputDefault; it panics when no field has that name.
+func WithDefault(fields []output.SchemaField, name string, value any) []output.SchemaField {
+	out := slices.Clone(fields)
+	for i := range out {
+		if out[i].Name == name {
+			out[i].Default = value
+			out[i].OutputDefault = true
+			return out
+		}
+	}
+	panic("shared.WithDefault: no field " + name)
 }

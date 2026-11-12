@@ -303,9 +303,9 @@ func TestSyslogReconnects(t *testing.T) {
 	assert.Equal(t, 1, receiver.connections())
 }
 
-func TestSyslogUnknownCAStopsStartup(t *testing.T) {
+func TestSyslogUnknownCAStartsDegraded(t *testing.T) {
 	_, port, _ := startSyslogReceiver(t, "tls")
-	logs := startSidekickFails(t, syslogOutput(port, "tcp", fmt.Sprintf("tls:\n  enabled: true\n  ca_file: %q\n", writeUnknownCA(t))))
+	_, logs := startSidekickDegraded(t, "syslog", syslogOutput(port, "tcp", fmt.Sprintf("tls:\n  enabled: true\n  ca_file: %q\n", writeUnknownCA(t))))
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "TLS certificate verification failed")
 }

@@ -13,5 +13,5 @@ release numbering uses [semantic versioning](http://semver.org). The chart for F
 * Optional management Service, ServiceMonitor, Policy Report RBAC and PodDisruptionBudget.
 * Rendering fails on credentials written in the values, on incoherent TLS or postgres settings, on `config` keys that contradict the values, and on `extraEnv` variables of the settings the chart reads.
 * `extraOutputConfigMaps` adds output files from existing ConfigMaps; a `helm test` pod calls `/readyz`; a `startupProbe` covers `database.connect_timeout`.
-* The sqlite claim is kept on uninstall; the PodDisruptionBudget defaults to `maxUnavailable: 1`; the pod requests 50m CPU and 64Mi of memory, without limits.
+* The sqlite claim is kept on uninstall; the PodDisruptionBudget defaults to `maxUnavailable: 1`; the pod requests 50m CPU and 64Mi of memory, with a 512Mi memory limit and no CPU limit.
 * Runs as UID and GID 65532 with a read-only root filesystem, no capabilities and the `RuntimeDefault` seccomp profile.

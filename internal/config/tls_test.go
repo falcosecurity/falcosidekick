@@ -79,3 +79,30 @@ func TestValidateTLSServerMutualTLSRequiresCA(t *testing.T) {
 	}
 	assert.True(t, found, "expected cacertfile error for server mutual TLS, got: %v", errs)
 }
+
+func TestValidateTLSSettingsNeedTLSEnabled(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		want string
+		tls  core.TLSConfig
+	}{
+		{name: "nothing set", tls: core.TLSConfig{}},
+		{name: "mutual tls", tls: core.TLSConfig{MutualTLS: true}, want: "tls.mutual_tls: needs tls.enabled"},
+		{name: "cert", tls: core.TLSConfig{CertFile: "/c.pem"}, want: "tls.cert_file: needs tls.enabled"},
+		{name: "key", tls: core.TLSConfig{KeyFile: "/k.pem"}, want: "tls.key_file: needs tls.enabled"},
+		{name: "ca", tls: core.TLSConfig{CACertFile: "/ca.pem"}, want: "tls.ca_file: needs tls.enabled"},
+		{name: "all", tls: core.TLSConfig{MutualTLS: true, CertFile: "/c", KeyFile: "/k", CACertFile: "/ca"},
+			want: "tls.mutual_tls: needs tls.enabled; tls.cert_file: needs tls.enabled; tls.key_file: needs tls.enabled; tls.ca_file: needs tls.enabled"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := loadDefaults(t)
+			cfg.TLS = &tt.tls
+			errs := cfg.Validate()
+			if tt.want == "" {
+				assert.Empty(t, errs)
+				return
+			}
+			assert.Equal(t, tt.want, errs.Error())
+		})
+	}
+}

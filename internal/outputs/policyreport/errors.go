@@ -18,6 +18,7 @@ package policyreport
 
 import (
 	"errors"
+	"fmt"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -28,7 +29,14 @@ const (
 	opWriteReport       = "write report"
 	opDiscovery         = "discovery"
 	opReadClusterReport = "read clusterreport"
+	opResult            = "result"
 )
+
+// errResultTooLarge refuses a result that does not fit in a report holding only it.
+var errResultTooLarge = &shared.DeliveryError{
+	Output: name, Operation: opResult, Permanent: true,
+	Code: fmt.Sprintf("cannot fit within the %d-byte report limit", maxReportBytes),
+}
 
 // newDeliveryError keeps only the API status: the server message names users and objects.
 // The Kubernetes API follows HTTP semantics, so a 4xx other than a conflict or throttling is permanent.

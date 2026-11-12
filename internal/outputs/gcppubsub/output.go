@@ -308,21 +308,24 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 		return nil, fmt.Errorf("%s config: %w", name, err)
 	}
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+		return nil, fmt.Errorf("%s: %w", name, errs)
 	}
 	return &driver{cfg: cfg, topic: "projects/" + cfg.ProjectID + "/topics/" + cfg.Topic, timeout: requestTimeout}, nil
 }
 
+// clientOptions caps the gRPC reconnection backoff for the emulator and for Google Cloud alike.
 func (d *driver) clientOptions() []option.ClientOption {
+	reconnect := option.WithGRPCDialOption(shared.GRPCReconnect)
 	if d.cfg.EmulatorHost != "" {
 		return []option.ClientOption{
 			option.WithEndpoint(d.cfg.EmulatorHost),
 			option.WithGRPCDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
 			option.WithoutAuthentication(),
 			option.WithTelemetryDisabled(),
+			reconnect,
 		}
 	}
-	var opts []option.ClientOption
+	opts := []option.ClientOption{reconnect}
 	if d.cfg.Endpoint != "" {
 		opts = append(opts, option.WithEndpoint(d.cfg.Endpoint))
 	}

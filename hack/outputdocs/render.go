@@ -124,8 +124,10 @@ func settings(t *output.Type, groups []group) string {
 	for _, g := range groups {
 		if covers(t.Schema.Fields, g.fields) {
 			links = append(links, g.link())
+			// A field whose default this output overrides stays in its own table.
 			for i := range g.fields {
-				covered[g.fields[i].Name] = true
+				j := slices.IndexFunc(t.Schema.Fields, func(f output.SchemaField) bool { return f.Name == g.fields[i].Name })
+				covered[g.fields[i].Name] = reflect.DeepEqual(t.Schema.Fields[j].Default, g.fields[i].Default)
 			}
 		}
 	}
@@ -147,15 +149,20 @@ func settings(t *output.Type, groups []group) string {
 	return text
 }
 
-// covers reports whether fields holds every field of set exactly as the shared builder defines it.
+// covers reports whether fields holds every field of set as the shared builder defines it, overridden defaults aside.
 func covers(fields, set []output.SchemaField) bool {
 	if len(set) == 0 {
 		return false
 	}
 	for j := range set {
-		want := &set[j]
+		want := set[j]
 		i := slices.IndexFunc(fields, func(f output.SchemaField) bool { return f.Name == want.Name })
-		if i < 0 || !reflect.DeepEqual(&fields[i], want) {
+		if i < 0 {
+			return false
+		}
+		got := fields[i]
+		got.Default, got.OutputDefault = want.Default, want.OutputDefault
+		if !reflect.DeepEqual(&got, &want) {
 			return false
 		}
 	}

@@ -19,6 +19,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -33,6 +34,20 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
 )
+
+func TestDecodeConfigKeepsNumbersAndNulls(t *testing.T) {
+	cfg, err := decodeConfig([]byte(`{"workers":4,"huge":99999999999999999999,"ratio":1.9,"gone":null,` +
+		`"runtime":{"retry":{"max_attempts":null,"multiplier":2}},"list":[null,{"a":null,"b":1}]}`))
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"workers": json.Number("4"),
+		"huge":    json.Number("99999999999999999999"),
+		"ratio":   json.Number("1.9"),
+		"gone":    nil,
+		"runtime": map[string]any{"retry": map[string]any{"max_attempts": nil, "multiplier": json.Number("2")}},
+		"list":    []any{nil, map[string]any{"a": nil, "b": json.Number("1")}},
+	}, cfg)
+}
 
 func TestDialectPlaceholders(t *testing.T) {
 	query := "UPDATE t SET a = {json}, b = ? WHERE c = ?"

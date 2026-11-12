@@ -191,7 +191,8 @@ func TestAddResultRotation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			obj := newReport(target{})
 			for _, r := range tt.results {
-				addResult(obj, r, 3, tt.prune)
+				_, err := merge(obj, []map[string]any{r}, 3, tt.prune)
+				require.NoError(t, err)
 			}
 			results, _ := obj.Object["results"].([]any)
 			got := make([]string, len(results))
@@ -206,9 +207,8 @@ func TestAddResultRotation(t *testing.T) {
 func TestAddResultSummary(t *testing.T) {
 	obj := newReport(target{namespace: "ns"})
 	obj.Object["results"] = []any{resultWith("info", "pass"), resultWith("info", "error"), "not a result"}
-	addResult(obj, resultWith("high", "fail"), 10, false)
-	addResult(obj, resultWith("medium", "warn"), 10, false)
-	addResult(obj, resultWith("low", "skip"), 10, false)
+	_, err := merge(obj, []map[string]any{resultWith("high", "fail"), resultWith("medium", "warn"), resultWith("low", "skip")}, 10, false)
+	require.NoError(t, err)
 	assert.Equal(t, map[string]any{
 		"pass": int64(1), "fail": int64(1), "warn": int64(1), "error": int64(1), "skip": int64(1),
 	}, obj.Object["summary"])

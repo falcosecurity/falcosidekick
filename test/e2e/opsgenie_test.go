@@ -192,12 +192,12 @@ func TestOpsgenieReportsRejectedAlert(t *testing.T) {
 	assert.Len(t, alerts, 1, "max_attempts 1 sends exactly once")
 }
 
-func TestOpsgenieRejectedKeyFailsStartup(t *testing.T) {
+func TestOpsgenieRejectedKeyStartsDegraded(t *testing.T) {
 	fake := &opsgenieAPI{healthStatus: http.StatusOK, alertStatus: http.StatusAccepted}
 	server := httptest.NewServer(fake)
 	t.Cleanup(server.Close)
 	wrong := "wrong-" + newMarker(t)
-	logs := startSidekickFails(t, opsgenieOutput(server.URL, wrong))
+	_, logs := startSidekickDegraded(t, "opsgenie", opsgenieOutput(server.URL, wrong))
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "HTTP 401")
 	assert.NotContains(t, logs, wrong)

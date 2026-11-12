@@ -42,6 +42,10 @@ func Load(configPath string) (*Config, error) {
 		if err != nil {
 			return nil, err
 		}
+		// viper drops null keys: decode the file alone first, so a null under an unknown key is refused.
+		if err := checkFileKeys(settings); err != nil {
+			return nil, err
+		}
 		if err := v.MergeConfigMap(settings); err != nil {
 			return nil, fmt.Errorf("config read %q: %w", configPath, err)
 		}
@@ -55,13 +59,9 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	var cfg Config
-	if err := v.Unmarshal(&cfg, viper.DecodeHook(
-		mapstructure.ComposeDecodeHookFunc(
-			mapstructure.StringToTimeDurationHookFunc(),
-			mapstructure.StringToSliceHookFunc(","),
-		),
-	), func(dc *mapstructure.DecoderConfig) {
+	if err := v.Unmarshal(&cfg, viper.DecodeHook(decodeHook()), func(dc *mapstructure.DecoderConfig) {
 		dc.ErrorUnused = true
+		dc.WeaklyTypedInput = false
 	}); err != nil {
 		return nil, fmt.Errorf("config: %w", utils.SafeDecodeError(err, reflect.TypeFor[Config]()))
 	}
@@ -112,4 +112,29 @@ func readCoreConfig(path string) (map[string]any, error) {
 		return nil, fmt.Errorf("config read %q: %w", path, safeYAMLError(err))
 	}
 	return settings, nil
+}
+
+// decodeHook splits a comma-separated list, the form the environment gives one, before the shared type hooks.
+func decodeHook() mapstructure.DecodeHookFunc {
+	return mapstructure.ComposeDecodeHookFunc(
+		mapstructure.StringToSliceHookFunc(","),
+		utils.TypeHooks(),
+	)
+}
+
+// checkFileKeys decodes the core file alone, nulls included, and reports unknown keys and invalid values as Load does.
+func checkFileKeys(settings map[string]any) error {
+	var cfg Config
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		DecodeHook:  decodeHook(),
+		ErrorUnused: true,
+		Result:      &cfg,
+	})
+	if err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+	if err := dec.Decode(settings); err != nil {
+		return fmt.Errorf("config: %w", utils.SafeDecodeError(err, reflect.TypeFor[Config]()))
+	}
+	return nil
 }

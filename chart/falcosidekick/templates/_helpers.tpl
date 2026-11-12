@@ -222,8 +222,10 @@ Refuses values the chart cannot deploy, with every problem in one message.
 {{- if .Values.tls.secretName }}
 {{- $errs = append $errs "tls.secretName is set but config.tls.enabled is not true" }}
 {{- end }}
-{{- if $tls.mutual_tls }}
-{{- $errs = append $errs "config.tls.mutual_tls needs config.tls.enabled" }}
+{{- range $field := list "mutual_tls" "cert_file" "key_file" "ca_file" }}
+{{- if get $tls $field }}
+{{- $errs = append $errs (printf "config.tls.%s: needs config.tls.enabled" $field) }}
+{{- end }}
 {{- end }}
 {{- end }}
 

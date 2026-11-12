@@ -18,6 +18,7 @@ package pipeline_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync/atomic"
@@ -32,7 +33,9 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/testutil"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/webhook"
 	"github.com/falcosecurity/falcosidekick/internal/pipeline"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 const builderTestName = "slack"
@@ -113,9 +116,154 @@ func TestBuildOutput_InitError(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, out)
 	assert.ErrorIs(t, err, initErr)
-	assert.NotErrorIs(t, err, pipeline.ErrInvalidOutputConfig, "init failures are not config rejections")
+	assert.ErrorIs(t, err, pipeline.ErrInvalidOutputConfig, "Init reads only local state, so its failure refuses the config")
+	assert.Equal(t, pipeline.PhaseBuild, pipeline.ConfigPhase(err))
 	assert.Contains(t, err.Error(), "init:")
 	assert.Equal(t, int32(1), closeCalls.Load(), "driver must be closed on Init failure")
+}
+
+// The panic value never reaches the error, and a panic in BuildEach's goroutines does not crash the process.
+func TestBuildOutput_PanicIsABuildError(t *testing.T) {
+	const secretCanary = "PANIC-CANARY-1f3a"
+	const value = "makechan: size out of range " + secretCanary
+	for _, tc := range []struct {
+		name string
+		typ  output.Type
+	}{
+		{name: "new", typ: output.Type{
+			Name: builderTestName, Schema: output.Schema{Fields: []output.SchemaField{}},
+			New: func(map[string]any, output.Deps) (output.Driver, error) { panic(value) },
+		}},
+		{name: "init", typ: newMockDriverType(&testutil.MockDriver{
+			DriverName: builderTestName, InitFunc: func(context.Context) error { panic(value) },
+		})},
+		{name: "probe", typ: newMockDriverType(&testutil.MockDriver{
+			DriverName: builderTestName, HealthCheckFunc: func(context.Context) error { panic(value) },
+		})},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cat, err := catalog.New([]output.Type{tc.typ})
+			require.NoError(t, err)
+			outs, failures := pipeline.BuildEach(context.Background(), cat,
+				map[string]map[string]any{builderTestName: {}}, testutil.DefaultRuntimeConfig(), output.Deps{})
+			assert.Empty(t, outs)
+			require.ErrorIs(t, failures[builderTestName], pipeline.ErrBuildPanicked)
+			assert.NotErrorIs(t, failures[builderTestName], pipeline.ErrInvalidOutputConfig)
+			assert.NotContains(t, failures[builderTestName].Error(), secretCanary)
+		})
+	}
+}
+
+// An explicit 0 or a negative value is refused once, by the schema, with the range in the message.
+func TestBuildOutput_RefusesRuntimeValuesOutOfRange(t *testing.T) {
+	cat, err := catalog.New([]output.Type{webhook.OutputType})
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		runtime map[string]any
+		name    string
+		want    string
+	}{
+		{name: "queue size negative", runtime: map[string]any{"queue_size": -1}, want: "runtime.queue_size: must be an integer between 1 and 100000"},
+		{name: "queue size zero", runtime: map[string]any{"queue_size": 0}, want: "runtime.queue_size: must be an integer between 1 and 100000"},
+		{name: "workers negative", runtime: map[string]any{"workers": -2}, want: "runtime.workers: must be an integer between 1 and 256"},
+		{name: "workers above max", runtime: map[string]any{"workers": 257}, want: "runtime.workers: must be an integer between 1 and 256"},
+		{name: "attempts negative", runtime: map[string]any{"retry": map[string]any{"max_attempts": -1}},
+			want: "runtime.retry.max_attempts: must be an integer between 1 and 100"},
+		{name: "interval negative", runtime: map[string]any{"retry": map[string]any{"initial_interval": "-1s"}},
+			want: "runtime.retry.initial_interval: must be a duration between 1ms and 1h"},
+		{name: "interval zero text", runtime: map[string]any{"retry": map[string]any{"initial_interval": "0s"}},
+			want: "runtime.retry.initial_interval: must be a duration between 1ms and 1h"},
+		{name: "interval integer zero", runtime: map[string]any{"retry": map[string]any{"initial_interval": 0}},
+			want: "runtime.retry.initial_interval: must be a duration between 1ms and 1h"},
+		{name: "interval json zero", runtime: map[string]any{"retry": map[string]any{"initial_interval": json.Number("0")}},
+			want: "runtime.retry.initial_interval: must be a duration between 1ms and 1h"},
+		{name: "max interval integer zero", runtime: map[string]any{"retry": map[string]any{"max_interval": 0}},
+			want: "runtime.retry.max_interval: must be a duration between 1ms and 1h"},
+		{name: "multiplier zero", runtime: map[string]any{"retry": map[string]any{"multiplier": 0}},
+			want: "runtime.retry.multiplier: must be a number between 1 and 10"},
+		{name: "threshold zero", runtime: map[string]any{"circuit_breaker": map[string]any{"failure_threshold": 0}},
+			want: "runtime.circuit_breaker.failure_threshold: must be an integer between 1 and 10000"},
+		{name: "reset timeout negative", runtime: map[string]any{"circuit_breaker": map[string]any{"reset_timeout": "-1s"}},
+			want: "runtime.circuit_breaker.reset_timeout: must be a duration between 1s and 1h"},
+		{name: "reset timeout integer zero", runtime: map[string]any{"circuit_breaker": map[string]any{"reset_timeout": 0}},
+			want: "runtime.circuit_breaker.reset_timeout: must be a duration between 1s and 1h"},
+		{name: "reset timeout json zero", runtime: map[string]any{"circuit_breaker": map[string]any{"reset_timeout": json.Number("0")}},
+			want: "runtime.circuit_breaker.reset_timeout: must be a duration between 1s and 1h"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := map[string]any{"host": "http://127.0.0.1:1", "runtime": tc.runtime}
+			_, err := pipeline.BuildOutput(context.Background(), cat, "webhook", raw, testutil.DefaultRuntimeConfig(), output.Deps{})
+			require.ErrorIs(t, err, pipeline.ErrInvalidOutputConfig)
+			assert.Equal(t, pipeline.PhaseValidate, pipeline.ConfigPhase(err))
+			fields, ok := errors.AsType[utils.ValidationErrors](err)
+			require.True(t, ok)
+			assert.Equal(t, tc.want, fields.Error())
+		})
+	}
+}
+
+func TestConfigPhase(t *testing.T) {
+	assert.Equal(t, pipeline.PhaseValidate, pipeline.ConfigPhase(errors.New("other")))
+	assert.Equal(t, pipeline.PhaseValidate, pipeline.ConfigPhase(fmt.Errorf("secrets: %w", pipeline.ErrInvalidOutputConfig)))
+	cat, err := catalog.New([]output.Type{newFailingCreateType(errors.New("bad field"))})
+	require.NoError(t, err)
+	_, err = pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{}, testutil.DefaultRuntimeConfig(), output.Deps{})
+	assert.Equal(t, pipeline.PhaseValidate, pipeline.ConfigPhase(fmt.Errorf("apply: %w", err)))
+}
+
+func TestBuildOutput_RuntimeMergeRunsBeforeInit(t *testing.T) {
+	var initCalls atomic.Int32
+	driver := &testutil.MockDriver{
+		DriverName: "slack",
+		InitFunc:   func(context.Context) error { initCalls.Add(1); return nil },
+		RuntimeConfigFunc: func() output.RuntimeConfig {
+			return output.RuntimeConfig{Workers: 1000}
+		},
+	}
+	cat, err := catalog.New([]output.Type{newMockDriverType(driver)})
+	require.NoError(t, err)
+
+	_, err = pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{}, testutil.DefaultRuntimeConfig(), output.Deps{})
+	require.ErrorIs(t, err, pipeline.ErrInvalidOutputConfig)
+	assert.Zero(t, initCalls.Load())
+	fields, ok := errors.AsType[utils.ValidationErrors](err)
+	require.True(t, ok, "the field errors stay in the chain")
+	assert.Equal(t, "runtime.workers", fields[0].Field)
+}
+
+type batchMock struct{ testutil.MockDriver }
+
+func (*batchMock) SendBatch(context.Context, []*event.Event) error { return nil }
+
+func TestBuildOutput_InheritedBatchingOnlyBoundsBatchSenders(t *testing.T) {
+	defaults := testutil.DefaultRuntimeConfig()
+	defaults.Workers = 256
+	defaults.Batching = &output.BatchingConfig{Enabled: new(true), BatchSize: 10_000, FlushInterval: time.Second}
+	for _, tc := range []struct {
+		driver  output.Driver
+		name    string
+		refused bool
+	}{
+		{name: "single sender", driver: &testutil.MockDriver{DriverName: "slack"}},
+		{name: "batch sender", driver: &batchMock{testutil.MockDriver{DriverName: "slack"}}, refused: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cat, err := catalog.New([]output.Type{{
+				Name: builderTestName, Schema: output.Schema{Fields: []output.SchemaField{}},
+				New: func(map[string]any, output.Deps) (output.Driver, error) { return tc.driver, nil },
+			}})
+			require.NoError(t, err)
+			out, err := pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{}, defaults, output.Deps{})
+			if tc.refused {
+				require.ErrorIs(t, err, pipeline.ErrInvalidOutputConfig)
+				assert.Contains(t, err.Error(), "workers × batch_size is limited to 100000")
+				return
+			}
+			require.NoError(t, err)
+			_ = out.Close()
+			assert.True(t, defaults.Batching.IsEnabled(), "the shared defaults are not changed")
+		})
+	}
 }
 
 func TestBuildOutput_RuntimeMergeError(t *testing.T) {
@@ -141,7 +289,8 @@ func TestBuildOutput_RuntimeMergeError(t *testing.T) {
 	assert.Equal(t, int32(1), closeCalls.Load(), "driver must be closed on merge failure")
 }
 
-func TestBuildOutput_MisconfiguredDestinationIsRejected(t *testing.T) {
+// The first delivery clears the warning.
+func TestBuildOutput_MisconfiguredDestinationStartsDegraded(t *testing.T) {
 	var closeCalls atomic.Int32
 	driver := &testutil.MockDriver{
 		DriverName: "slack",
@@ -157,13 +306,12 @@ func TestBuildOutput_MisconfiguredDestinationIsRejected(t *testing.T) {
 	require.NoError(t, err)
 
 	out, err := pipeline.BuildOutput(context.Background(), cat, "slack", map[string]any{}, testutil.DefaultRuntimeConfig(), output.Deps{})
-	require.Error(t, err)
-	assert.Nil(t, out)
-	assert.ErrorIs(t, err, pipeline.ErrInvalidOutputConfig)
-	assert.ErrorIs(t, err, output.ErrMisconfigured)
-	assert.Contains(t, err.Error(), "health check:")
-	assert.Contains(t, err.Error(), "HTTP 404")
-	assert.Equal(t, int32(1), closeCalls.Load(), "driver must be closed when the destination rejects the config")
+	require.NoError(t, err)
+	status := out.GetStatus()
+	assert.Equal(t, pipeline.HealthDegraded, status.Status)
+	assert.Equal(t, "health check failed before start: destination rejects the configuration: slack response: HTTP 404 Not Found", status.LastWarning)
+	assert.Equal(t, pipeline.WarningDestination, status.WarningKind)
+	assert.Zero(t, closeCalls.Load(), "the output runs")
 }
 
 func TestBuildOutput_UnreachableDestinationStartsDegraded(t *testing.T) {
@@ -244,8 +392,12 @@ func TestBuildOutputs_ProbesRunConcurrently(t *testing.T) {
 func TestBuildOutputs_FailureClosesTheOthers(t *testing.T) {
 	var closed atomic.Int32
 	ok := func(context.Context) error { return nil }
-	bad := func(context.Context) error { return fmt.Errorf("%w: HTTP 401", output.ErrMisconfigured) }
-	cat, err := catalog.New([]output.Type{probeType("a", ok, &closed), probeType("b", bad, &closed), probeType("c", ok, &closed)})
+	bad := probeType("b", ok, &closed)
+	bad.New = func(map[string]any, output.Deps) (output.Driver, error) {
+		return &testutil.MockDriver{DriverName: "b", InitFunc: func(context.Context) error { return errors.New("bad key file") },
+			CloseFunc: func() error { closed.Add(1); return nil }}, nil
+	}
+	cat, err := catalog.New([]output.Type{probeType("a", ok, &closed), bad, probeType("c", ok, &closed)})
 	require.NoError(t, err)
 
 	outs, err := pipeline.BuildOutputs(context.Background(), cat,
@@ -254,6 +406,24 @@ func TestBuildOutputs_FailureClosesTheOthers(t *testing.T) {
 	assert.Nil(t, outs)
 	assert.Contains(t, err.Error(), `output "b"`)
 	assert.Equal(t, int32(3), closed.Load(), "the failed driver and both built outputs are closed")
+}
+
+func TestBuildOutputs_ProbeFailureKeepsSiblings(t *testing.T) {
+	var closed atomic.Int32
+	ok := func(context.Context) error { return nil }
+	bad := func(context.Context) error { return fmt.Errorf("%w: HTTP 401", output.ErrMisconfigured) }
+	cat, err := catalog.New([]output.Type{probeType("a", ok, &closed), probeType("b", bad, &closed)})
+	require.NoError(t, err)
+
+	outs, err := pipeline.BuildOutputs(context.Background(), cat,
+		map[string]map[string]any{"a": {}, "b": {}}, testutil.DefaultRuntimeConfig(), output.Deps{})
+	require.NoError(t, err)
+	require.Len(t, outs, 2)
+	assert.Equal(t, pipeline.HealthIdle, outs["a"].GetStatus().Status)
+	assert.Equal(t, pipeline.HealthDegraded, outs["b"].GetStatus().Status)
+	for _, out := range outs {
+		_ = out.Close()
+	}
 }
 
 func TestBuildOutput_MisconfiguredInitIsInvalidConfig(t *testing.T) {

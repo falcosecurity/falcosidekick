@@ -40,7 +40,10 @@ func TestMetricsConfigValidate(t *testing.T) {
 		{name: "empty", labels: []string{""}, wantErr: "not a valid label name"},
 		{name: "built-in label", labels: []string{"rule"}, wantErr: "collides with a built-in label"},
 		{name: "same label twice", labels: []string{"k8s.ns.name", "k8s_ns_name"}, wantErr: "map to the same label"},
-		{name: "no label values", maxValues: -1, wantErr: "max_label_values: must be at least 1"},
+		{name: "no label values", maxValues: -1, wantErr: "max_label_values: must be an integer between 1 and 10000"},
+		{name: "label values min", maxValues: 1},
+		{name: "label values max", maxValues: 10_000},
+		{name: "label values above max", maxValues: 10_001, wantErr: "max_label_values: must be an integer between 1 and 10000"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -256,7 +259,10 @@ func TestDatabaseConfigValidate(t *testing.T) {
 			want: "postgres.sslmode: must be disable/require/verify-ca/verify-full"},
 		{name: "postgres CA without verification", cfg: postgres(func(p *PostgresConfig) { p.SSLMode, p.TLS.CAFile = PostgresSSLRequire, "/ca" }),
 			want: "postgres.tls.ca_file: is used only with sslmode verify-ca or verify-full"},
-		{name: "postgres no connections", cfg: postgres(func(p *PostgresConfig) { p.MaxConnections = 0 }), want: "postgres.max_connections: must be >= 1"},
+		{name: "postgres no connections", cfg: postgres(func(p *PostgresConfig) { p.MaxConnections = 0 }), want: "postgres.max_connections: must be an integer between 1 and 1000"},
+		{name: "postgres connections min", cfg: postgres(func(p *PostgresConfig) { p.MaxConnections = 1 })},
+		{name: "postgres connections max", cfg: postgres(func(p *PostgresConfig) { p.MaxConnections = 1000 })},
+		{name: "postgres connections above max", cfg: postgres(func(p *PostgresConfig) { p.MaxConnections = 1001 }), want: "postgres.max_connections: must be an integer between 1 and 1000"},
 		{name: "postgres no poll", cfg: postgres(func(p *PostgresConfig) { p.PollInterval = 0 }), want: "postgres.poll_interval: must be > 0"},
 		{name: "postgres settings ignored by sqlite", cfg: DatabaseConfig{Backend: DatabaseSQLite, ConnectTimeout: time.Second,
 			SQLite: SQLiteConfig{Path: "db"}, Postgres: PostgresConfig{Port: -1}}},

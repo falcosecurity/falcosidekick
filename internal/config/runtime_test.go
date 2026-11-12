@@ -25,6 +25,7 @@ import (
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
+	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
 )
 
 func TestValidateDelegatesRetry(t *testing.T) {
@@ -140,25 +141,50 @@ func TestMergeRuntimeConfigNormalizesPriority(t *testing.T) {
 	}
 }
 
-func TestMergeRuntimeConfigRejectsNegativeOverrides(t *testing.T) {
+func TestMergeRuntimeConfigRejectsOverridesOutOfRange(t *testing.T) {
 	cfg := loadDefaults(t)
+	retry := func(r output.RetryConfig) output.RuntimeConfig { return output.RuntimeConfig{Retry: &r} }
+	breaker := func(cb output.CircuitBreakerConfig) output.RuntimeConfig {
+		return output.RuntimeConfig{CircuitBreaker: &cb}
+	}
+	batching := func(b output.BatchingConfig) output.RuntimeConfig { return output.RuntimeConfig{Batching: &b} }
 	for _, tc := range []struct {
 		name      string
-		want      string
+		want      string // empty: accepted
 		perOutput output.RuntimeConfig
 	}{
-		{name: "queue size", perOutput: output.RuntimeConfig{QueueSize: -1}, want: "runtime.queue_size: must not be negative"},
-		{name: "workers", perOutput: output.RuntimeConfig{Workers: -2}, want: "runtime.workers: must not be negative"},
-		{name: "retry", perOutput: output.RuntimeConfig{Retry: &output.RetryConfig{MaxAttempts: -1, InitialInterval: -time.Second}},
-			want: "runtime.retry.max_attempts: must not be negative; runtime.retry.initial_interval: must not be negative"},
-		{name: "circuit breaker", perOutput: output.RuntimeConfig{CircuitBreaker: &output.CircuitBreakerConfig{ResetTimeout: -time.Second}},
-			want: "runtime.circuit_breaker.reset_timeout: must not be negative"},
-		{name: "batching", perOutput: output.RuntimeConfig{Batching: &output.BatchingConfig{Enabled: true, BatchSize: -5}},
-			want: "runtime.batching.batch_size: must not be negative"},
+		// A typed value below 1 is an omitted one; the schema refuses it in the raw config.
+		{name: "queue size negative keeps the default", perOutput: output.RuntimeConfig{QueueSize: -1}},
+		{name: "queue size min", perOutput: output.RuntimeConfig{QueueSize: 1}},
+		{name: "queue size max", perOutput: output.RuntimeConfig{QueueSize: 100_000}},
+		{name: "queue size above max", perOutput: output.RuntimeConfig{QueueSize: 100_001}, want: "runtime.queue_size: must be an integer between 1 and 100000"},
+		{name: "workers max", perOutput: output.RuntimeConfig{Workers: 256}},
+		{name: "workers above max", perOutput: output.RuntimeConfig{Workers: 257}, want: "runtime.workers: must be an integer between 1 and 256"},
+		{name: "attempts above max", perOutput: retry(output.RetryConfig{MaxAttempts: 101}), want: "runtime.retry.max_attempts: must be an integer between 1 and 100"},
+		{name: "attempts max", perOutput: retry(output.RetryConfig{MaxAttempts: 100})},
+		{name: "interval above max", perOutput: retry(output.RetryConfig{MaxInterval: time.Hour + 1}), want: "runtime.retry.max_interval: must be a duration between 1ms and 1h"},
+		{name: "multiplier below min", perOutput: retry(output.RetryConfig{Multiplier: 0.5}), want: "runtime.retry.multiplier: must be a number between 1 and 10"},
+		{name: "multiplier above max", perOutput: retry(output.RetryConfig{Multiplier: 10.5}), want: "runtime.retry.multiplier: must be a number between 1 and 10"},
+		{name: "threshold above max", perOutput: breaker(output.CircuitBreakerConfig{FailureThreshold: 10_001}),
+			want: "runtime.circuit_breaker.failure_threshold: must be an integer between 1 and 10000"},
+		{name: "reset timeout above max", perOutput: breaker(output.CircuitBreakerConfig{ResetTimeout: time.Hour + time.Second}),
+			want: "runtime.circuit_breaker.reset_timeout: must be a duration between 1s and 1h"},
+		{name: "batch size above max", perOutput: batching(output.BatchingConfig{Enabled: new(true), BatchSize: 10_001}),
+			want: "runtime.batching.batch_size: must be an integer between 1 and 10000"},
+		{name: "flush interval below min", perOutput: batching(output.BatchingConfig{FlushInterval: time.Millisecond}),
+			want: "runtime.batching.flush_interval: must be a duration between 10ms and 1h"},
+		{name: "batched events at the limit", perOutput: output.RuntimeConfig{Workers: 10, Batching: &output.BatchingConfig{Enabled: new(true), BatchSize: 10_000}}},
+		{name: "batched events above the limit", perOutput: output.RuntimeConfig{Workers: 11, Batching: &output.BatchingConfig{Enabled: new(true), BatchSize: 10_000}},
+			want: "runtime.batching.batch_size: must be at most 9090 with 11 workers: workers × batch_size is limited to 100000"},
+		{name: "batched events ignored while batching is off", perOutput: output.RuntimeConfig{Workers: 256, Batching: &output.BatchingConfig{BatchSize: 10_000}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := MergeRuntimeConfig(cfg.RuntimeDefaults, "webhook", tc.perOutput)
-			require.EqualError(t, err, `output "webhook": `+tc.want, "a negative value is a mistake, not a request for the default")
+			if tc.want == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, `output "webhook": `+tc.want, "a value out of range is a mistake, not a request for the default")
 		})
 	}
 }
@@ -167,13 +193,13 @@ func TestMergeRuntimeConfigBatchingOverrides(t *testing.T) {
 	cfg := loadDefaults(t)
 	perOutput := output.RuntimeConfig{
 		Batching: &output.BatchingConfig{
-			Enabled:   true,
+			Enabled:   new(true),
 			BatchSize: 1000,
 		},
 	}
 
 	resolved, _ := MergeRuntimeConfig(cfg.RuntimeDefaults, "es", perOutput)
-	assert.True(t, resolved.Batching.Enabled)
+	assert.True(t, resolved.Batching.IsEnabled())
 	assert.Equal(t, 1000, resolved.Batching.BatchSize)
 }
 
@@ -181,7 +207,7 @@ func TestMergeRuntimeConfigBatchingFlushInterval(t *testing.T) {
 	cfg := loadDefaults(t)
 	perOutput := output.RuntimeConfig{
 		Batching: &output.BatchingConfig{
-			Enabled:       true,
+			Enabled:       new(true),
 			FlushInterval: 5 * time.Second,
 		},
 	}
@@ -213,13 +239,13 @@ func TestMergeRuntimeConfigInvalidPriority(t *testing.T) {
 func TestMergeRuntimeConfigInvalidBatchingOverride(t *testing.T) {
 	cfg := loadDefaults(t)
 	cfg.RuntimeDefaults.Batching = &output.BatchingConfig{
-		Enabled:       true,
+		Enabled:       new(true),
 		BatchSize:     0,
 		FlushInterval: time.Second,
 	}
 	perOutput := output.RuntimeConfig{
 		Batching: &output.BatchingConfig{
-			Enabled: true,
+			Enabled: new(true),
 		},
 	}
 
@@ -230,7 +256,7 @@ func TestMergeRuntimeConfigInvalidBatchingOverride(t *testing.T) {
 
 func TestValidateDelegatesBatching(t *testing.T) {
 	cfg := loadDefaults(t)
-	cfg.RuntimeDefaults.Batching = &output.BatchingConfig{Enabled: true, BatchSize: -1}
+	cfg.RuntimeDefaults.Batching = &output.BatchingConfig{Enabled: new(true), BatchSize: -1}
 
 	errs := cfg.Validate()
 	require.NotEmpty(t, errs)
@@ -272,22 +298,81 @@ func TestMergeRuntimeConfigCircuitBreakerOverride(t *testing.T) {
 	assert.Equal(t, 60*time.Second, resolved.CircuitBreaker.ResetTimeout)
 }
 
+func TestMergeRuntimeConfigBatchingEnabledPresence(t *testing.T) {
+	cfg := loadDefaults(t)
+	for _, tc := range []struct {
+		inherited *bool
+		set       *bool
+		name      string
+		want      bool
+	}{
+		{name: "omitted inherits true", inherited: new(true), want: true},
+		{name: "omitted inherits false", inherited: new(false), want: false},
+		{name: "explicit false disables", inherited: new(true), set: new(false), want: false},
+		{name: "explicit true enables", inherited: new(false), set: new(true), want: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defaults := cfg.RuntimeDefaults.DeepCopy()
+			defaults.Batching.Enabled = tc.inherited
+			perOutput := output.RuntimeConfig{Batching: &output.BatchingConfig{Enabled: tc.set, BatchSize: 100}}
+			resolved, err := MergeRuntimeConfig(defaults, "webhook", perOutput)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, resolved.Batching.IsEnabled())
+			assert.Equal(t, 100, resolved.Batching.BatchSize)
+			assert.Equal(t, defaults.Batching.FlushInterval, resolved.Batching.FlushInterval)
+			assert.Equal(t, tc.inherited, defaults.Batching.Enabled, "the defaults are not changed")
+		})
+	}
+}
+
+func TestMergeRuntimeConfigBatchingWithoutDefaults(t *testing.T) {
+	cfg := loadDefaults(t)
+	defaults := cfg.RuntimeDefaults.DeepCopy()
+	defaults.Batching = nil
+	resolved, err := MergeRuntimeConfig(defaults, "webhook", output.RuntimeConfig{
+		Batching: &output.BatchingConfig{Enabled: new(true), BatchSize: 10, FlushInterval: time.Second},
+	})
+	require.NoError(t, err)
+	assert.True(t, resolved.Batching.IsEnabled())
+}
+
+func TestBatchingEnabledDecodesPresence(t *testing.T) {
+	for _, tc := range []struct {
+		raw  map[string]any
+		want *bool
+		name string
+	}{
+		{name: "absent", raw: map[string]any{"batch_size": 10}},
+		{name: "null", raw: map[string]any{"enabled": nil}},
+		{name: "false", raw: map[string]any{"enabled": false}, want: new(false)},
+		{name: "true", raw: map[string]any{"enabled": true}, want: new(true)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var target struct {
+				Runtime output.RuntimeConfig `mapstructure:"runtime"`
+			}
+			require.NoError(t, shared.DecodeDriverConfig(map[string]any{"runtime": map[string]any{"batching": tc.raw}}, &target))
+			assert.Equal(t, tc.want, target.Runtime.Batching.Enabled)
+		})
+	}
+}
+
 func TestMergeRuntimeConfigDisableBatching(t *testing.T) {
 	cfg := loadDefaults(t)
 	cfg.RuntimeDefaults.Batching = &output.BatchingConfig{
-		Enabled:       true,
+		Enabled:       new(true),
 		BatchSize:     500,
 		FlushInterval: time.Second,
 	}
 	perOutput := output.RuntimeConfig{
 		Batching: &output.BatchingConfig{
-			Enabled: false,
+			Enabled: new(false),
 		},
 	}
 
 	resolved, err := MergeRuntimeConfig(cfg.RuntimeDefaults, "webhook", perOutput)
 	require.NoError(t, err)
-	assert.False(t, resolved.Batching.Enabled, "per-output batching.enabled=false must override runtime default")
+	assert.False(t, resolved.Batching.IsEnabled(), "per-output batching.enabled=false must override runtime default")
 }
 
 func TestMergeRuntimeConfigPartialRetryOverride(t *testing.T) {
@@ -324,13 +409,13 @@ func TestMergeRuntimeConfigPartialCircuitBreakerOverride(t *testing.T) {
 func TestMergeRuntimeConfigPartialBatchingOverride(t *testing.T) {
 	cfg := loadDefaults(t)
 	cfg.RuntimeDefaults.Batching = &output.BatchingConfig{
-		Enabled:       true,
+		Enabled:       new(true),
 		BatchSize:     500,
 		FlushInterval: time.Second,
 	}
 	perOutput := output.RuntimeConfig{
 		Batching: &output.BatchingConfig{
-			Enabled:   true,
+			Enabled:   new(true),
 			BatchSize: 2000,
 		},
 	}
@@ -339,7 +424,7 @@ func TestMergeRuntimeConfigPartialBatchingOverride(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resolved.Batching)
 	assert.Equal(t, 2000, resolved.Batching.BatchSize, "overridden field must change")
-	assert.True(t, resolved.Batching.Enabled, "enabled must be preserved when explicitly set")
+	assert.True(t, resolved.Batching.IsEnabled(), "enabled must be preserved when explicitly set")
 	assert.Equal(t, time.Second, resolved.Batching.FlushInterval, "non-overridden flush_interval must keep default")
 }
 

@@ -5,11 +5,11 @@ Publishes the event JSON to `topic` in `project_id`, with message attributes tha
 - `attributes` are static, the same on every message. `message_attributes` names event values sent as attributes, by default `priority`, `rule`, `source`, `tags` and `hostname`; other names are output fields, sent when the event has a string or number value of at most 1024 bytes. A name listed twice, a name also in `attributes`, and more than 100 attributes in all are refused at startup. An empty list sends none.
 - `credentials` is the credentials JSON document itself; base64 is refused. Without `credentials` the output uses Application Default Credentials, which covers GKE Workload Identity.
 - Through the API, inline `credentials` with a `credential_source` (Workload Identity Federation) are refused, since the library would read the file or URL it names and send it to the document's `token_url`; set them in an output file or as `credentials_file` inside `api.secret_dirs`.
-- Startup reads the topic: a missing topic or rejected credentials stop startup; without `pubsub.topics.get` the output starts degraded.
+- Startup reads the topic: a missing topic, rejected credentials or a missing `pubsub.topics.get` permission start the output degraded with the reason. Credentials that do not load locally refuse the configuration.
 - `emulator_host` targets the emulator without TLS or authentication. The `PUBSUB_EMULATOR_HOST` environment variable, when set in the process, overrides the client for every Pub/Sub output.
 - Each publish is one request with no client-side buffering or retry, bounded at 30s; a batch is split into requests of at most 1000 messages and 10 MB, counted as encoded. Every request is sent even when an earlier one fails; a failed request fails the batch, so a retry can publish again the messages other requests delivered.
 - A failed TLS handshake is retried, and at startup it leaves the output degraded: gRPC reports an untrusted certificate and a connection reset during the handshake the same way.
-- gRPC follows `HTTPS_PROXY`.
+- gRPC follows `HTTPS_PROXY`. A lost connection is redialed with exponential backoff capped at 15s, so an endpoint that comes back is used again within about 15s plus the circuit's reset timeout.
 
 Tested with the emulator from google-cloud-cli 592.0.0.
 

@@ -28,6 +28,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 	"github.com/falcosecurity/falcosidekick/internal/domain/output"
 	"github.com/falcosecurity/falcosidekick/internal/outputs/shared"
+	"github.com/falcosecurity/falcosidekick/internal/utils"
 )
 
 const (
@@ -57,8 +58,11 @@ type signal struct {
 }
 
 type driver struct {
-	signals []signal
-	cfg     config
+	// logsSettings and metricsSettings are built at create, so a bad TLS file refuses the configuration.
+	logsSettings    *exporterSettings
+	metricsSettings *exporterSettings
+	signals         []signal
+	cfg             config
 }
 
 func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
@@ -68,9 +72,32 @@ func createOutput(raw map[string]any, _ output.Deps) (output.Driver, error) {
 	}
 	cfg.applyDefaults()
 	if errs := cfg.validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+		return nil, fmt.Errorf("%s: %w", name, errs)
 	}
-	return &driver{cfg: cfg}, nil
+	d := &driver{cfg: cfg}
+	var err error
+	if c := d.cfg.Logs; c != nil {
+		if d.logsSettings, err = newExporterSettings(c, "/v1/logs"); err != nil {
+			return nil, signalError(signalLogs, err)
+		}
+	}
+	if c := d.cfg.Metrics; c != nil {
+		if d.metricsSettings, err = newExporterSettings(&c.signalConfig, "/v1/metrics"); err != nil {
+			d.logsSettings.closeIdleConnections()
+			return nil, signalError(signalMetrics, err)
+		}
+	}
+	return d, nil
+}
+
+// signalError names the field of a signal's setting, such as logs.tls.ca_file.
+func signalError(signal string, err error) error {
+	if errs, ok := errors.AsType[utils.ValidationErrors](err); ok {
+		var prefixed utils.ValidationErrors
+		prefixed.Merge(signal, errs)
+		return fmt.Errorf("%s: %w", name, prefixed)
+	}
+	return fmt.Errorf("%s %s: %w", name, signal, err)
 }
 
 func (d *driver) Name() string { return name }
@@ -87,11 +114,7 @@ func (d *driver) Init(ctx context.Context) error {
 }
 
 func (d *driver) init(ctx context.Context, res *sdkresource.Resource) error {
-	if c := d.cfg.Logs; c != nil {
-		settings, err := newExporterSettings(c, "/v1/logs")
-		if err != nil {
-			return fmt.Errorf("%s %s: %w", name, signalLogs, err)
-		}
+	if c, settings := d.cfg.Logs, d.logsSettings; c != nil {
 		exporter, err := newLogExporter(ctx, settings)
 		if err != nil {
 			return fmt.Errorf("%s %s: %w", name, signalLogs, err)
@@ -101,11 +124,7 @@ func (d *driver) init(ctx context.Context, res *sdkresource.Resource) error {
 			name: signalLogs, export: s.export, shutdown: s.shutdown, closeIdle: settings.closeIdleConnections, timeout: c.Timeout,
 		})
 	}
-	if c := d.cfg.Metrics; c != nil {
-		settings, err := newExporterSettings(&c.signalConfig, "/v1/metrics")
-		if err != nil {
-			return fmt.Errorf("%s %s: %w", name, signalMetrics, err)
-		}
+	if c, settings := d.cfg.Metrics, d.metricsSettings; c != nil {
 		exporter, err := newMetricExporter(ctx, settings)
 		if err != nil {
 			return fmt.Errorf("%s %s: %w", name, signalMetrics, err)

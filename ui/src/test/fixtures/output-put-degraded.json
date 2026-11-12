@@ -1,0 +1,26 @@
+{
+  "config": {
+    "hosts": [
+      "http://127.0.0.1:1"
+    ]
+  },
+  "name": "alertmanager",
+  "provisioned": false,
+  "status": {
+    "circuit_state": "closed",
+    "dropped_total": 0,
+    "events_per_minute": 0,
+    "failed_total": 0,
+    "last_error": "",
+    "last_success": "0001-01-01T00:00:00Z",
+    "last_warning": "health check failed before start: alertmanager healthcheck: 1 of 1 hosts unreachable",
+    "name": "alertmanager",
+    "queue_capacity": 100,
+    "queue_depth": 0,
+    "sent_total": 0,
+    "status": "degraded",
+    "warning_kind": "destination"
+  },
+  "updated_at": "2026-11-08T12:00:00Z",
+  "version": 1
+}

@@ -11,12 +11,14 @@ import {
   type PipelineWire,
   type StatusListWire,
 } from "@/lib/api-client"
+import type { ErrorPhase, FieldProblem } from "@/lib/api-error"
 import type {
   CountByResponse,
   Event,
   HistogramResult,
   MaskedConfig,
   OutputConfigEntry,
+  SavedOutput,
   SearchResult,
   VersionInfo,
 } from "@/lib/types"
@@ -34,12 +36,13 @@ import layoutJson from "./fixtures/layout.json"
 import outputTypeJson from "./fixtures/output-type.json"
 import outputTypesJson from "./fixtures/output-types.json"
 import outputJson from "./fixtures/output.json"
+import outputPutDegradedJson from "./fixtures/output-put-degraded.json"
 import outputsJson from "./fixtures/outputs.json"
 import pipelineStatusJson from "./fixtures/pipeline-status.json"
 import pipelineJson from "./fixtures/pipeline.json"
 import versionJson from "./fixtures/version.json"
 
-type ErrorCase = { status: number; body: { error: string } }
+type ErrorCase = { status: number; body: { error: string; phase?: ErrorPhase; fields?: FieldProblem[] } }
 
 // Golden responses written by internal/api/ui_contract_test.go (`go test ./internal/api/ -run
 // TestUIContractFixtures -update`). JSON imports widen string unions, so each is cast to its wire type.
@@ -51,6 +54,7 @@ export const fixtures = {
   pipelineStatus: pipelineStatusJson as unknown as StatusListWire,
   outputs: outputsJson as unknown as OutputsWire,
   output: outputJson as unknown as OutputConfigEntry,
+  outputPutDegraded: outputPutDegradedJson as unknown as SavedOutput,
   outputTypes: outputTypesJson as unknown as OutputTypesWire,
   outputType: outputTypeJson as unknown as OutputTypeWire,
   layout: layoutJson as LayoutWire,

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/falcosecurity/falcosidekick/internal/domain/core"
@@ -28,6 +29,7 @@ import (
 )
 
 // Driver represents the send implementation for one output type.
+// Init reads only local state; remote work belongs to HealthCheck, whose failure starts the output degraded.
 type Driver interface {
 	Name() string
 	Init(ctx context.Context) error
@@ -48,7 +50,7 @@ type WarningReporter interface {
 	SetWarningHandler(handler func(warning string))
 }
 
-// ErrMisconfigured marks a HealthCheck failure that a retry cannot fix, so the configuration is refused.
+// ErrMisconfigured marks a destination answer a retry with the same configuration cannot fix; such a delivery is not retried.
 var ErrMisconfigured = errors.New("destination rejects the configuration")
 
 // ErrPermanent marks a delivery failure that a retry cannot fix.
@@ -57,6 +59,37 @@ var ErrPermanent = errors.New("destination rejects the delivery")
 // IsPermanent reports whether retrying err cannot succeed.
 func IsPermanent(err error) bool {
 	return errors.Is(err, ErrPermanent) || errors.Is(err, ErrMisconfigured)
+}
+
+// PartialBatchError is a SendBatch error naming, as indexes into the batch, the events a retry cannot
+// deliver and those it may; the others were delivered. Its sets alone decide its handling, not ErrPermanent.
+type PartialBatchError interface {
+	error
+	RejectedEvents() []int
+	RetryableEvents() []int
+}
+
+// PartialEvents returns the sorted rejected and retryable sets of a PartialBatchError on count events.
+// ok is false when err is none or its sets are invalid: out of range, overlapping, both empty, or one naming every event.
+func PartialEvents(err error, count int) (rejected, retryable []int, ok bool) {
+	partial, isPartial := errors.AsType[PartialBatchError](err)
+	if !isPartial {
+		return nil, nil, false
+	}
+	rejected, retryable = partial.RejectedEvents(), partial.RetryableEvents()
+	if len(rejected)+len(retryable) == 0 || len(rejected) == count || len(retryable) == count {
+		return nil, nil, false
+	}
+	named := make([]bool, count)
+	for _, set := range [][]int{rejected, retryable} {
+		for _, i := range set {
+			if i < 0 || i >= count || named[i] {
+				return nil, nil, false
+			}
+			named[i] = true
+		}
+	}
+	return slices.Sorted(slices.Values(rejected)), slices.Sorted(slices.Values(retryable)), true
 }
 
 // ErrEmptyUUID indicates an empty UUID passed to GetEvent.
@@ -164,10 +197,13 @@ type SchemaField struct {
 	EntryFields []SchemaField `json:"entry_fields,omitempty"`
 	Default     any           `json:"default,omitempty"`
 	// Suggested is a value the UI and the docs propose for a field that has no default.
-	Suggested any    `json:"suggested,omitempty"`
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	Label     string `json:"label"`
+	Suggested any `json:"suggested,omitempty"`
+	// Min and Max bound a present value, inclusive, in the field's type (duration strings for a duration); NormalizeConfig enforces them.
+	Min   any    `json:"min,omitempty"`
+	Max   any    `json:"max,omitempty"`
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Label string `json:"label"`
 	// Description says what the value does, its format and units; shown in the UI and the docs.
 	Description string   `json:"description,omitempty"`
 	Values      []string `json:"values,omitempty"`
@@ -175,10 +211,15 @@ type SchemaField struct {
 	Secret      bool     `json:"secret,omitempty"`
 	// File marks a path, or a list of paths, the output reads; secret strings take theirs as <name>_file.
 	File bool `json:"file,omitempty"`
+	// OutputDefault marks a runtime field whose Default is the output's own; runtime_defaults does not replace it.
+	OutputDefault bool `json:"output_default,omitempty"`
 }
 
 // HasFileVariant reports whether the field also accepts <name>_file, the path of a file holding the value.
-func (f *SchemaField) HasFileVariant() bool { return f.Secret && f.Type == "string" }
+func (f *SchemaField) HasFileVariant() bool { return f.Secret && f.Type == typeString }
+
+// typeString is the schema type of a text field, durations included.
+const typeString = "string"
 
 // IsMap reports whether the field holds an object keyed by names, such as headers.
 func (f *SchemaField) IsMap() bool { return f != nil && (f.Type == "map" || len(f.EntryFields) > 0) }

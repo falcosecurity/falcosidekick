@@ -19,7 +19,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useConfig, useVersion } from "@/hooks/use-config"
 import { errorMessage } from "@/lib/api-error"
 import { AUTH_UNAVAILABLE_MESSAGE } from "@/lib/auth"
-import { formatAbsoluteTime, formatGoDuration } from "@/lib/format"
+import { formatAbsoluteTime, parseGoDuration } from "@/lib/format"
 import type { CoreConfig, VersionInfo } from "@/lib/types"
 
 const SECTIONS = {
@@ -35,6 +35,11 @@ const SECTIONS = {
 export function address(host: string, port: number): string {
   if (!host) return `:${port}`
   return host.includes(":") ? `[${host}]:${port}` : `${host}:${port}`
+}
+
+/** A zero or missing duration turns the setting off. */
+function isSet(duration: string): boolean {
+  return (parseGoDuration(duration) ?? 0) > 0
 }
 
 function PathOrNone({ path, none = "Not set" }: { path: string | undefined; none?: string }) {
@@ -80,7 +85,7 @@ function ListenersSection({ cfg }: { cfg: CoreConfig }) {
         label="Shutdown delay"
         hint="After SIGTERM, /readyz fails while events are still accepted for this long, so Kubernetes stops routing first."
       >
-        {cfg.shutdown_delay > 0 ? formatGoDuration(cfg.shutdown_delay) : <NoValue>None</NoValue>}
+        {isSet(cfg.shutdown_delay) ? cfg.shutdown_delay : <NoValue>None</NoValue>}
       </SettingRow>
       <SettingRow
         label="Ingestion TLS"
@@ -163,10 +168,10 @@ function DatabaseSection({ cfg }: { cfg: CoreConfig }) {
           up to {pg.max_connections}
         </SettingRow>,
         <SettingRow key="sync" label="Instance sync" hint="How often this instance checks for changes made by other instances.">
-          every {formatGoDuration(pg.poll_interval)}
+          every {pg.poll_interval}
         </SettingRow>,
       ]}
-      {db.backend !== "inmemory" && <SettingRow label="Connect timeout">{formatGoDuration(db.connect_timeout)}</SettingRow>}
+      {db.backend !== "inmemory" && <SettingRow label="Connect timeout">{db.connect_timeout}</SettingRow>}
     </SettingsSection>
   )
 }
@@ -194,10 +199,10 @@ function ReloadSection({ cfg }: { cfg: CoreConfig }) {
   return (
     <SettingsSection {...SECTIONS.reload} description="How output files and secret files are followed.">
       <SettingRow label="File change poll" hint="Catches changes the file watcher misses, such as Kubernetes volume swaps.">
-        {cfg.reload.poll_interval > 0 ? `every ${formatGoDuration(cfg.reload.poll_interval)}` : <NoValue>Off</NoValue>}
+        {isSet(cfg.reload.poll_interval) ? `every ${cfg.reload.poll_interval}` : <NoValue>Off</NoValue>}
       </SettingRow>
       <SettingRow label="Drain on reload" hint="Longest wait for replaced and removed outputs to deliver what they hold.">
-        {formatGoDuration(cfg.reload.retire_timeout)}
+        {cfg.reload.retire_timeout}
       </SettingRow>
     </SettingsSection>
   )

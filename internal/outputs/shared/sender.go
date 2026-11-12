@@ -49,7 +49,7 @@ type Sender struct {
 // NewSender creates a Sender and rechecks headers, header files, authentication and TLS.
 func NewSender(name string, cfg *HTTPConfig) (*Sender, error) {
 	if errs := cfg.Validate(); len(errs) > 0 {
-		return nil, fmt.Errorf("%s: %s", name, errs.Error())
+		return nil, fmt.Errorf("%s: %w", name, errs)
 	}
 	client, err := BuildHTTPClient(cfg)
 	if err != nil {

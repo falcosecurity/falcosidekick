@@ -237,10 +237,10 @@ func TestDiscordDeliversEvent(t *testing.T) {
 	assert.NotContains(t, sk.logs.String(), discordToken)
 }
 
-// The health check only reads the webhook, so a rejected token stops startup before any post.
-func TestDiscordInvalidTokenFailsStartup(t *testing.T) {
+// The health check reads the webhook, so a rejected token is seen before any post.
+func TestDiscordInvalidTokenStartsDegraded(t *testing.T) {
 	hook, outputs := newDiscord(t, http.StatusUnauthorized, http.StatusUnauthorized)
-	logs := startSidekickFails(t, outputs)
+	_, logs := startSidekickDegraded(t, "discord", outputs)
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "HTTP 401")
 	assert.NotContains(t, logs, discordToken)

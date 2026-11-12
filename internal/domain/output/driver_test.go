@@ -17,6 +17,8 @@
 package output
 
 import (
+	"errors"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -24,6 +26,46 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type partialBatchError struct {
+	rejected, retryable []int
+}
+
+func (e partialBatchError) Error() string          { return "partial" }
+func (e partialBatchError) RejectedEvents() []int  { return e.rejected }
+func (e partialBatchError) RetryableEvents() []int { return e.retryable }
+
+func TestPartialEvents(t *testing.T) {
+	for _, tc := range []struct {
+		err                         error
+		name                        string
+		wantRejected, wantRetryable []int
+		ok                          bool
+	}{
+		{name: "plain error fails the batch", err: errors.New("x")},
+		{name: "rejected only", err: partialBatchError{rejected: []int{1}}, wantRejected: []int{1}, ok: true},
+		{name: "retryable only", err: partialBatchError{retryable: []int{3, 0}}, wantRetryable: []int{0, 3}, ok: true},
+		{name: "wrapped, both sets, sorted", err: fmt.Errorf("send: %w", partialBatchError{rejected: []int{2, 0}, retryable: []int{1}}), wantRejected: []int{0, 2}, wantRetryable: []int{1}, ok: true},
+		{name: "both sets covering the batch", err: partialBatchError{rejected: []int{0, 1}, retryable: []int{2, 3}}, wantRejected: []int{0, 1}, wantRetryable: []int{2, 3}, ok: true},
+		{name: "both empty fails the batch", err: partialBatchError{}},
+		{name: "every event rejected fails the batch", err: partialBatchError{rejected: []int{0, 1, 2, 3}}},
+		{name: "every event retryable fails the batch", err: partialBatchError{retryable: []int{3, 2, 1, 0}}},
+		{name: "index out of range fails the batch", err: partialBatchError{rejected: []int{4}}},
+		{name: "negative index fails the batch", err: partialBatchError{retryable: []int{-1}}},
+		{name: "duplicate fails the batch", err: partialBatchError{retryable: []int{1, 1}}},
+		{name: "overlap fails the batch", err: partialBatchError{rejected: []int{1}, retryable: []int{1}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rejected, retryable, ok := PartialEvents(tc.err, 4)
+			assert.Equal(t, tc.ok, ok)
+			assert.Equal(t, tc.wantRejected, rejected)
+			assert.Equal(t, tc.wantRetryable, retryable)
+		})
+	}
+	// A single event cannot fail in part: one set names the whole batch.
+	_, _, ok := PartialEvents(partialBatchError{rejected: []int{0}}, 1)
+	assert.False(t, ok)
+}
 
 func TestSearchQueryNormalize(t *testing.T) {
 	tests := []struct {

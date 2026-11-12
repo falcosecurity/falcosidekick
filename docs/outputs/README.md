@@ -25,7 +25,7 @@ The settings tables are generated from the schema the code defines, the same one
 | [Opsgenie](opsgenie.md) | `opsgenie` | Alerting and on-call | no | no |
 | [OpenTelemetry (OTLP)](otlp.md) | `otlp` | Observability | no | yes |
 | [PagerDuty](pagerduty.md) | `pagerduty` | Alerting and on-call | no | no |
-| [Policy Report](policyreport.md) | `policyreport` | Other | no | no |
+| [Policy Report](policyreport.md) | `policyreport` | Other | no | yes |
 | [Redis](redis.md) | `redis` | Storage | no | yes |
 | [Slack](slack.md) | `slack` | Chat | no | no |
 | [Email (SMTP)](smtp.md) | `smtp` | Email | no | no |

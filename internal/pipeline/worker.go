@@ -38,8 +38,8 @@ func (o *Output) runWorker(ctx context.Context) {
 				o.recordDrop()
 				return
 			}
-			o.executeWithRetry(ctx, 1, func(ctx context.Context) error {
-				return o.driver.Send(ctx, evt)
+			o.executeWithRetry(ctx, []*event.Event{evt}, func(ctx context.Context, events []*event.Event) error {
+				return o.driver.Send(ctx, events[0])
 			})
 		}
 	}
@@ -87,9 +87,8 @@ func (o *Output) flushBatch(ctx context.Context, buffer []*event.Event) []*event
 	snapshot := make([]*event.Event, len(buffer))
 	copy(snapshot, buffer)
 
-	count := int64(len(snapshot))
-	o.executeWithRetry(ctx, count, func(ctx context.Context) error {
-		return o.batchSender.SendBatch(ctx, snapshot)
+	o.executeWithRetry(ctx, snapshot, func(ctx context.Context, events []*event.Event) error {
+		return o.batchSender.SendBatch(ctx, events)
 	})
 
 	return buffer[:0]

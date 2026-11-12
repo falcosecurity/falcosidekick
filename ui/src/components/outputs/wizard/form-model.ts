@@ -1,3 +1,5 @@
+import type { FieldProblem } from "@/lib/api-error"
+import { parseGoDuration } from "@/lib/format"
 import type { OutputConfigEntry, SchemaField } from "@/lib/types"
 
 // The wizard keeps every field as text the user edits, then turns it into the PUT patch. The API
@@ -162,6 +164,49 @@ export function initialState(fields: readonly SchemaField[], entry?: OutputConfi
   return state
 }
 
+/** A duration is a string field whose bounds are duration strings. */
+export function isDurationField(field: SchemaField): boolean {
+  return field.type === "string" && (typeof field.min === "string" || typeof field.max === "string")
+}
+
+const DURATION_FORMAT = "must be a duration such as 30s or 1m"
+
+/**
+ * Why a typed number or duration is refused, worded as the server words it; null when it is
+ * accepted. Integers must also be exact in JSON, so a value past 2^53 is out of range here.
+ */
+export function valueProblem(field: SchemaField, text: string): string | null {
+  if (field.type === "int") {
+    if (!/^-?\d+$/.test(text)) return "must be an integer"
+    const n = Number(text)
+    if (!Number.isSafeInteger(n)) return typeof field.min === "number" || typeof field.max === "number" ? rangeMessage("an integer", field) : "is out of range"
+    if ((typeof field.min === "number" && n < field.min) || (typeof field.max === "number" && n > field.max)) return rangeMessage("an integer", field)
+    return null
+  }
+  if (field.type === "float") {
+    const n = Number(text)
+    if (!/^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(text) || !Number.isFinite(n)) return "must be a number"
+    if ((typeof field.min === "number" && n < field.min) || (typeof field.max === "number" && n > field.max)) {
+      return rangeMessage("a number", field)
+    }
+    return null
+  }
+  if (isDurationField(field)) {
+    const ns = parseGoDuration(text)
+    if (ns === null) return DURATION_FORMAT
+    const lo = typeof field.min === "string" ? parseGoDuration(field.min) : null
+    const hi = typeof field.max === "string" ? parseGoDuration(field.max) : null
+    if ((lo !== null && ns < lo) || (hi !== null && ns > hi)) return `must be a duration between ${field.min} and ${field.max}`
+  }
+  return null
+}
+
+function rangeMessage(what: string, field: SchemaField): string {
+  if (typeof field.min === "number" && typeof field.max === "number") return `must be ${what} between ${field.min} and ${field.max}`
+  if (typeof field.min === "number") return `must be ${what} of at least ${field.min}`
+  return `must be ${what} of at most ${field.max}`
+}
+
 export interface ValidationOptions {
   /** The database refuses inline secrets: a secret can only be a file. */
   filesOnly: boolean
@@ -179,9 +224,9 @@ export function validate(
     if (!value) continue
     if (value.kind === "text") {
       const text = value.text.trim()
+      const problem = text === "" ? null : valueProblem(field, text)
       if (field.required && text === "") errors[field.name] = "Required"
-      else if (text !== "" && field.type === "int" && !/^-?\d+$/.test(text)) errors[field.name] = "Must be a whole number"
-      else if (text !== "" && field.type === "float" && Number.isNaN(Number(text))) errors[field.name] = "Must be a number"
+      else if (problem) errors[field.name] = problem
       else if (text !== "" && field.type === "enum" && field.values && !field.values.includes(text)) {
         errors[field.name] = `Must be one of ${field.values.join(", ")}`
       }
@@ -224,8 +269,7 @@ export function validate(
 function parsedText(field: SchemaField, text: string): unknown {
   const trimmed = text.trim()
   if (trimmed === "") return undefined
-  if (field.type === "int") return Number.parseInt(trimmed, 10)
-  if (field.type === "float") return Number(trimmed)
+  if (field.type === "int" || field.type === "float") return Number(trimmed)
   if (field.type === "string[]") {
     return trimmed
       .split("\n")
@@ -347,22 +391,85 @@ export function buildPatch(
   return patch
 }
 
-/**
- * Finds the field a backend 400 message names. Messages start with the location: "password_file: ...",
- * "tls.ca_file: ...", `headers["X"].files[0]: ...`.
- */
-export function fieldOfError(fields: readonly SchemaField[], message: string): string | null {
-  const location = message.split(":")[0]?.trim() ?? ""
+/** The id of a field's control, for its label, its error and the focus after a refused save. */
+export function fieldInputId(name: string): string {
+  return `field-${name.replace(/[^\w-]/g, "-")}`
+}
+
+/** The schema field a configuration path names: "password_file", "tls.ca_file", `headers["X"].files[0]`. */
+export function fieldOfPath(fields: readonly SchemaField[], path: string): string | null {
   let best: string | null = null
   for (const field of fields) {
     const names = [field.name]
     if (isSecretString(field)) names.push(`${field.name}_file`)
     for (const name of names) {
-      const matches = location === name || location.startsWith(`${name}[`) || location.startsWith(`${name}.`)
+      const matches = path === name || path.startsWith(`${name}[`) || path.startsWith(`${name}.`)
       if (matches && (best === null || field.name.length > best.length)) best = field.name
     }
   }
   return best
+}
+
+/**
+ * Finds the field a backend 400 message names. Messages put the location before the reason, after
+ * any wrapping: "password_file: ...", "apply output: ...: slack: tls.ca_file: ...".
+ */
+export function fieldOfError(fields: readonly SchemaField[], message: string): { field: string; message: string } | null {
+  const parts = message.split(": ")
+  for (let i = 0; i < parts.length - 1; i++) {
+    const field = fieldOfPath(fields, parts[i]!.trim())
+    if (field) return { field, message: parts.slice(i + 1).join(": ").trim() || message }
+  }
+  return null
+}
+
+export interface RefusedSave {
+  /** Field name to message, for the fields the form shows. */
+  byField: Record<string, string>
+  /** What no field of the form holds, as short lines. */
+  other: string[]
+}
+
+/**
+ * Splits a 400 into messages on the form's fields and the rest. The structured fields win; a body
+ * without them falls back to the location at the front of the message.
+ */
+export function refusedSave(fields: readonly SchemaField[], driver: string, message: string, problems?: readonly FieldProblem[]): RefusedSave {
+  const byField: Record<string, string> = {}
+  const other: string[] = []
+  if (problems && problems.length > 0) {
+    for (const problem of problems) {
+      const path = withoutDriver(problem.path.trim(), driver)
+      const field = fieldOfPath(fields, path)
+      if (field) byField[field] ??= problem.message
+      else other.push(path ? `${path}: ${problem.message}` : problem.message)
+    }
+    return { byField, other }
+  }
+  const found = fieldOfError(fields, message)
+  if (found) byField[found.field] = found.message
+  else other.push(conciseError(message, driver))
+  return { byField, other }
+}
+
+function withoutDriver(path: string, driver: string): string {
+  return path.startsWith(`${driver}.`) ? path.slice(driver.length + 1) : path
+}
+
+// Wrapping the server adds on its way up: "apply output", "apply create", "catalog", `create "slack"`, "slack config".
+const WRAPPER = /^(apply( \w+)?|catalog|(create|update|build|init|replace|restore)( "[^"]*")?|output( "[^"]*")?|[\w-]+ config)$/
+
+/** The message without the server's wrapping prefixes, so the reason comes first. */
+export function conciseError(message: string, driver: string): string {
+  const parts = message.split(": ")
+  let i = 0
+  while (i < parts.length - 1 && (WRAPPER.test(parts[i]!.trim()) || parts[i]!.trim() === driver)) i++
+  return parts.slice(i).join(": ")
+}
+
+/** The fields with errors in the order the form shows them; the first is the one to focus. */
+export function erroredInOrder(order: readonly string[], errors: Record<string, string>): string[] {
+  return order.filter((name) => errors[name])
 }
 
 /** Counts the fields that hold a value, for the section headers. */

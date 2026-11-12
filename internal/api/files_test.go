@@ -109,7 +109,7 @@ func TestPUTFilePathsMustResolveInsideSecretDirs(t *testing.T) {
 	}
 }
 
-func TestPUTFilePathsInListShapedMapsAreChecked(t *testing.T) {
+func TestPUTListShapedMapsAreRefusedBeforeAnyFileIsRead(t *testing.T) {
 	outside := filepath.Join(t.TempDir(), "token")
 	require.NoError(t, os.WriteFile(outside, []byte("outside-private"), 0o600))
 	cat, err := catalog.New([]output.Type{webhook.OutputType})
@@ -121,6 +121,7 @@ func TestPUTFilePathsInListShapedMapsAreChecked(t *testing.T) {
 			raw := requestSecretContract(t, rig.Server, http.MethodPut, "/api/v1/pipeline/outputs/webhook",
 				`{"version":0,"config":{"host":"https://example.invalid","`+field+`":[{"X-Leak":{"files":["`+outside+`"]}}]}}`,
 				http.StatusBadRequest)
+			assert.Contains(t, responseError(t, raw), field+": invalid type, expected map")
 			assert.NotContains(t, string(raw), "outside-private")
 			stored, err := db.GetOutputConfig(t.Context(), "webhook")
 			require.NoError(t, err)
@@ -129,27 +130,44 @@ func TestPUTFilePathsInListShapedMapsAreChecked(t *testing.T) {
 	}
 }
 
-// The decoder accepts a list for a map field; the API must read it the same way, or a path
-// written in the list shape escapes the check.
-func TestListShapeIsReadLikeTheDecoder(t *testing.T) {
+// The list is kept as sent, so the file check finds no path in it and the decoder refuses it unread.
+func TestListShapeIsRefusedLikeTheDecoder(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "b")
 	require.NoError(t, os.WriteFile(file, []byte("b"), 0o600))
-	object := `{"host":"https://h","headers":{"X-A":{"values":["a"]},"X-B":{"FILES":["` + file + `"]}}}`
-	list := `{"host":"https://h","headers":[{"X-A":{"values":["old"]}},[{"X-A":{"values":["a"]}}],null,{"X-B":{"FILES":["` + file + `"]}}]}`
-	normalized := make([]map[string]any, 0, 2)
-	for _, raw := range []string{object, list} {
-		var cfg map[string]any
-		require.NoError(t, json.Unmarshal([]byte(raw), &cfg))
-		_, err := webhook.OutputType.New(utils.DeepCopyMap(cfg), output.Deps{})
-		require.NoError(t, err, "the decoder accepts %s", raw)
-		_, merged, err := mergeOutputConfigForSchema(nil, cfg, webhook.OutputType.Schema)
-		require.NoError(t, err)
-		paths := make(map[string]string)
-		require.NoError(t, output.CollectFilePaths(merged, webhook.OutputType.Schema.Fields, paths))
-		assert.Equal(t, map[string]string{`headers["X-B"].files[0]`: file}, paths)
-		normalized = append(normalized, merged)
+	for name, tc := range map[string]struct {
+		paths map[string]string
+		raw   string
+		want  string
+	}{
+		"object": {
+			raw:   `{"host":"https://h","headers":{"X-A":{"values":["a"]},"X-B":{"FILES":["` + file + `"]}}}`,
+			paths: map[string]string{`headers["X-B"].files[0]`: file},
+		},
+		"list": {
+			raw:   `{"host":"https://h","headers":[{"X-A":{"values":["old"]}},[{"X-A":{"values":["a"]}}],null,{"X-B":{"FILES":["` + file + `"]}}]}`,
+			want:  "headers: invalid type, expected map",
+			paths: map[string]string{},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var cfg map[string]any
+			require.NoError(t, json.Unmarshal([]byte(tc.raw), &cfg))
+			_, err := webhook.OutputType.New(utils.DeepCopyMap(cfg), output.Deps{})
+			if tc.want == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.want)
+			}
+			_, merged, err := mergeOutputConfigForSchema(nil, cfg, webhook.OutputType.Schema)
+			require.NoError(t, err)
+			paths := make(map[string]string)
+			require.NoError(t, output.CollectFilePaths(merged, webhook.OutputType.Schema.Fields, paths))
+			assert.Equal(t, tc.paths, paths)
+			if tc.want != "" {
+				assert.IsType(t, []any{}, merged["headers"], "the list is kept for the decoder to refuse")
+			}
+		})
 	}
-	assert.Equal(t, normalized[0], normalized[1], "both shapes become the same object")
 }
 
 // Paths already stored came from an output file or an earlier check; moving one elsewhere is new.

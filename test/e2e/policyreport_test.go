@@ -246,7 +246,7 @@ func TestPolicyReportFallsBackForMissingNamespace(t *testing.T) {
 	assert.Equal(t, "absent-"+marker, resources[0].(map[string]any)["namespace"])
 }
 
-func TestPolicyReportMissingCRDFailsStartup(t *testing.T) {
+func TestPolicyReportMissingCRDStartsDegraded(t *testing.T) {
 	k := kubeCluster(t)
 	const crdName = "clusterreports.openreports.io"
 	crd, err := k.client.Resource(crdsGVR).Get(context.Background(), crdName, metav1.GetOptions{})
@@ -255,7 +255,7 @@ func TestPolicyReportMissingCRDFailsStartup(t *testing.T) {
 	t.Cleanup(func() { restoreCRD(t, k, crd) })
 	eventuallyf(t, func() bool { return !servesResource(k, clusterReportsGVR) }, "%s still served", crdName)
 
-	logs := startSidekickFails(t, policyReportOutput(k.kubeconfig, "default"))
+	_, logs := startSidekickDegraded(t, "policyreport", policyReportOutput(k.kubeconfig, "default"))
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "openreports.io/v1alpha1 does not serve clusterreports")
 }
@@ -308,10 +308,10 @@ func kubeconfigWithToken(t *testing.T, k kubeTarget, server, token string) strin
 	return path
 }
 
-func TestPolicyReportRejectedTokenFailsStartup(t *testing.T) {
+func TestPolicyReportRejectedTokenStartsDegraded(t *testing.T) {
 	k := kubeCluster(t)
 	const token = "e2e-rejected-kube-token"
-	logs := startSidekickFails(t, policyReportOutput(kubeconfigWithToken(t, k, "", token), "default"))
+	_, logs := startSidekickDegraded(t, "policyreport", policyReportOutput(kubeconfigWithToken(t, k, "", token), "default"))
 	assert.Contains(t, logs, "health check")
 	assert.Contains(t, logs, "HTTP 401")
 	assert.NotContains(t, logs, token)

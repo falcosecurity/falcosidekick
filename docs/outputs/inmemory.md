@@ -21,7 +21,7 @@ Key in the output file: `inmemory`. Category: Storage. UI event source: yes. Bat
 
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
-| `capacity` | integer, **required** | `10000` | Number of events kept in memory; once full, each new event replaces the oldest. `0` uses the default. |
+| `capacity` | integer, **required** | `10000` | Number of events kept in memory; once full, each new event replaces the oldest. |
 | `ttl` | string | `0` | Go duration, such as `24h`, after which an event is removed, measured from the event time. `0` keeps events until replaced. |
 | `gc_interval` | string | `10s` | Go duration, such as `10s`, between removals of expired events; refused without `ttl`. `0` uses the default. |
 

@@ -107,7 +107,7 @@ func TestValidation(t *testing.T) {
 		{name: "bad from", config: with(base, "from", "not an address"), want: "from: must be one RFC 5322 address"},
 		{name: "header injection in from", config: with(base, "from", "a@b.c\r\nBcc: x@y.z"), want: "from"},
 		{name: "missing to", config: with(base, "to", nil), want: "to: is required"},
-		{name: "comma list", config: with(base, "to", "a@example.com, b@example.com"), want: "to[0]: must be one RFC 5322 address"},
+		{name: "comma list", config: with(base, "to", "a@example.com, b@example.com"), want: "to: must be a list"},
 		{name: "bad to", config: with(base, "to", []string{"ok@example.com", "nope"}), want: "to[1]"},
 		{name: "plain without password", config: with(base, "password", nil), want: "password: is required with auth_mechanism plain"},
 		{name: "plain without username", config: with(base, "username", nil), want: "username: is required with auth_mechanism plain"},

@@ -45,20 +45,39 @@ const (
 	HealthOK Health = "ok"
 )
 
+// WarningKind says what LastWarning is about.
+type WarningKind string
+
+// Warning kinds; empty without a warning.
+const (
+	// WarningDestination means the destination failed its probe before start or fails in part.
+	WarningDestination WarningKind = "destination"
+	// WarningUpdate means a stored change of this output was not applied; the output runs as before.
+	WarningUpdate WarningKind = "update"
+	// WarningRotation means a renewed secret file was not applied; the output keeps its previous secret.
+	WarningRotation WarningKind = "rotation"
+)
+
+type warning struct {
+	text string
+	kind WarningKind
+}
+
 // OutputStatus holds observable counters and state for one output.
 type OutputStatus struct {
-	LastSuccess     time.Time `json:"last_success"`
-	Name            string    `json:"name"`
-	Status          Health    `json:"status"`
-	CircuitState    string    `json:"circuit_state"`
-	LastError       string    `json:"last_error"`
-	LastWarning     string    `json:"last_warning"`
-	QueueDepth      int       `json:"queue_depth"`
-	QueueCapacity   int       `json:"queue_capacity"`
-	SentTotal       int       `json:"sent_total"`
-	DroppedTotal    int       `json:"dropped_total"`
-	FailedTotal     int       `json:"failed_total"`
-	EventsPerMinute float64   `json:"events_per_minute"`
+	LastSuccess     time.Time   `json:"last_success"`
+	Name            string      `json:"name"`
+	Status          Health      `json:"status"`
+	CircuitState    string      `json:"circuit_state"`
+	LastError       string      `json:"last_error"`
+	LastWarning     string      `json:"last_warning"`
+	WarningKind     WarningKind `json:"warning_kind"`
+	QueueDepth      int         `json:"queue_depth"`
+	QueueCapacity   int         `json:"queue_capacity"`
+	SentTotal       int         `json:"sent_total"`
+	DroppedTotal    int         `json:"dropped_total"`
+	FailedTotal     int         `json:"failed_total"`
+	EventsPerMinute float64     `json:"events_per_minute"`
 }
 
 func deriveStatusToken(circuit, lastError, lastWarning string, sentTotal int) Health {
@@ -80,16 +99,17 @@ func deriveStatusToken(circuit, lastError, lastWarning string, sentTotal int) He
 
 // Output is the runtime delivery unit for one output destination.
 type Output struct {
-	// updateWarning names a stored change this output could not be replaced with; a replacement clears it.
-	updateWarning  atomic.Value
-	driverWarning  atomic.Value
-	healthWarning  atomic.Value
-	batchSender    output.BatchSender
-	metrics        core.MetricsCollector
-	driver         output.Driver
-	queue          chan *event.Event
-	cancel         context.CancelFunc
-	circuitBreaker *CircuitBreaker
+	// updateWarning names a stored change or secret rotation this output could not be replaced with; a replacement clears it.
+	updateWarning atomic.Value
+	driverWarning atomic.Value
+	// destinationWarning names a failed probe or a batch delivered in part; a clean delivery clears it.
+	destinationWarning atomic.Value
+	batchSender        output.BatchSender
+	metrics            core.MetricsCollector
+	driver             output.Driver
+	queue              chan *event.Event
+	cancel             context.CancelFunc
+	circuitBreaker     *CircuitBreaker
 	// retired is closed once Retire's workers exited and the driver closed, even past Retire's deadline.
 	retired chan struct{}
 	// outcome is shared with every output this one replaced, see inherit.
@@ -127,6 +147,12 @@ func (r *outcome) succeeded(count int64, now time.Time) {
 func (r *outcome) failedWith(count int64, err error) {
 	r.mu.Lock()
 	r.lastError = err.Error()
+	r.failed += count
+	r.mu.Unlock()
+}
+
+func (r *outcome) failedN(count int64) {
+	r.mu.Lock()
 	r.failed += count
 	r.mu.Unlock()
 }
@@ -207,13 +233,13 @@ func NewOutput(driver output.Driver, cfg *output.RuntimeConfig, metrics core.Met
 		metrics:        metrics,
 		retired:        make(chan struct{}),
 	}
-	if bs, ok := driver.(output.BatchSender); ok && cfg.Batching != nil && cfg.Batching.Enabled {
+	if bs, ok := driver.(output.BatchSender); ok && cfg.Batching.IsEnabled() {
 		o.batchSender = bs
 	}
 	o.outcome.Store(&outcome{})
-	o.updateWarning.Store("")
+	o.updateWarning.Store(warning{})
 	o.driverWarning.Store("")
-	o.healthWarning.Store("")
+	o.destinationWarning.Store("")
 	if reporter, ok := driver.(output.WarningReporter); ok {
 		reporter.SetWarningHandler(func(warning string) { o.driverWarning.Store(warning) })
 	}
@@ -327,10 +353,10 @@ func (o *Output) GetStatus() OutputStatus {
 	record := o.outcome.Load()
 	s := record.snapshot()
 	circuit := o.circuitBreaker.GetState().String()
-	warning := o.lastWarning()
+	current := o.lastWarning()
 	return OutputStatus{
 		Name:            o.driver.Name(),
-		Status:          deriveStatusToken(circuit, s.lastError, warning, int(s.sent)),
+		Status:          deriveStatusToken(circuit, s.lastError, current.text, int(s.sent)),
 		QueueDepth:      len(o.queue),
 		QueueCapacity:   o.config.QueueSize,
 		SentTotal:       int(s.sent),
@@ -339,40 +365,54 @@ func (o *Output) GetStatus() OutputStatus {
 		CircuitState:    circuit,
 		LastSuccess:     s.lastSuccess,
 		LastError:       s.lastError,
-		LastWarning:     warning,
+		LastWarning:     current.text,
+		WarningKind:     current.kind,
 		EventsPerMinute: record.rate.rate(time.Now().Unix()),
 	}
 }
 
 // SetHealthWarning records a destination problem found before the first successful delivery.
 func (o *Output) SetHealthWarning(warning string) {
-	o.healthWarning.Store(warning)
+	o.destinationWarning.Store(warning)
 }
 
-func (o *Output) lastWarning() string {
-	if warning := o.updateWarning.Load().(string); warning != "" {
-		return warning
+// setUpdateWarning records a change this output was not replaced with; an empty text clears it.
+func (o *Output) setUpdateWarning(kind WarningKind, text string) {
+	if text == "" {
+		kind = ""
 	}
-	if warning := o.driverWarning.Load().(string); warning != "" {
-		return warning
-	}
-	return o.healthWarning.Load().(string)
+	o.updateWarning.Store(warning{text: text, kind: kind})
 }
 
-// executeWithRetry counts cancellation during backoff as a failure.
-func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc func(ctx context.Context) error) {
+func (o *Output) lastWarning() warning {
+	if update := o.updateWarning.Load().(warning); update.text != "" {
+		return update
+	}
+	if text := o.driverWarning.Load().(string); text != "" {
+		return warning{text: text, kind: WarningDestination}
+	}
+	if text := o.destinationWarning.Load().(string); text != "" {
+		return warning{text: text, kind: WarningDestination}
+	}
+	return warning{}
+}
+
+// executeWithRetry delivers events through send, retrying with backoff; cancellation during backoff
+// fails the undelivered events. A partial batch error accounts its events at once and retries only the retryable ones.
+func (o *Output) executeWithRetry(ctx context.Context, events []*event.Event, send func(ctx context.Context, events []*event.Event) error) {
 	// Events a stopped worker still holds were never attempted.
 	if ctx.Err() != nil {
-		o.recordDrops(count)
+		o.recordDrops(int64(len(events)))
 		return
 	}
-	var lastErr error
+	var lastErr, rejection error
 	for attempt := 0; attempt < o.config.Retry.MaxAttempts; attempt++ {
 		if attempt > 0 {
 			backoff := o.config.Retry.ComputeBackoff(attempt)
 			select {
 			case <-ctx.Done():
-				o.recordFailure(ctx, count, lastErr)
+				o.recordFailure(ctx, int64(len(events)), lastErr)
+				o.warnRejection(rejection)
 				return
 			case <-time.After(backoff):
 			}
@@ -382,7 +422,7 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 		// Before the first attempt the events wait for the circuit; once attempted, a refused retry ends them.
 		for !allowed && lastErr == nil {
 			if o.circuitBreaker.Wait(ctx) != nil {
-				o.recordDrops(count)
+				o.recordDrops(int64(len(events)))
 				return
 			}
 			complete, allowed = o.circuitBreaker.AllowRequest()
@@ -392,35 +432,82 @@ func (o *Output) executeWithRetry(ctx context.Context, count int64, sendFunc fun
 		}
 
 		start := time.Now()
-		err := sendFunc(ctx)
+		err := send(ctx, events)
 		if o.metrics != nil {
 			o.metrics.ObserveRequest(ctx, o.driver.Name(), time.Since(start))
 		}
-		permanent := err != nil && output.IsPermanent(err)
-		// A permanent rejection proves the destination answers, so it does not count against the circuit.
-		complete(err == nil || permanent)
-
 		if err == nil {
-			o.outcome.Load().succeeded(count, time.Now())
-			o.healthWarning.Store("")
-			if o.metrics != nil {
-				o.metrics.RecordOutput(ctx, o.driver.Name(), "ok", count)
-			}
+			complete(true)
+			o.recordSuccess(ctx, int64(len(events)))
+			o.warnRejection(rejection)
 			return
 		}
-
 		lastErr = err
+
+		if rejected, retryable, ok := output.PartialEvents(err, len(events)); ok {
+			// The destination answered: only a remainder it may still take counts against the circuit.
+			complete(len(retryable) == 0)
+			if delivered := len(events) - len(rejected) - len(retryable); delivered > 0 {
+				o.recordSuccess(ctx, int64(delivered))
+			}
+			if len(rejected) > 0 {
+				o.recordRejected(ctx, int64(len(rejected)))
+				rejection = err
+			}
+			if len(retryable) == 0 {
+				o.warnRejection(rejection)
+				return
+			}
+			events = pick(events, retryable)
+			continue
+		}
+
+		permanent := output.IsPermanent(err)
+		// A permanent rejection proves the destination answers, so it does not count against the circuit.
+		complete(permanent)
 		if permanent {
 			break
 		}
 	}
 
-	o.recordFailure(ctx, count, lastErr)
+	o.recordFailure(ctx, int64(len(events)), lastErr)
+	o.warnRejection(rejection)
+}
+
+func pick(events []*event.Event, indexes []int) []*event.Event {
+	picked := make([]*event.Event, len(indexes))
+	for i, index := range indexes {
+		picked[i] = events[index]
+	}
+	return picked
+}
+
+func (o *Output) recordSuccess(ctx context.Context, count int64) {
+	o.outcome.Load().succeeded(count, time.Now())
+	o.destinationWarning.Store("")
+	if o.metrics != nil {
+		o.metrics.RecordOutput(ctx, o.driver.Name(), "ok", count)
+	}
 }
 
 func (o *Output) recordFailure(ctx context.Context, count int64, err error) {
 	o.outcome.Load().failedWith(count, err)
 	if o.metrics != nil {
 		o.metrics.RecordOutput(ctx, o.driver.Name(), "error", count)
+	}
+}
+
+// recordRejected fails count events without touching last_error: the delivery did not fail.
+func (o *Output) recordRejected(ctx context.Context, count int64) {
+	o.outcome.Load().failedN(count)
+	if o.metrics != nil {
+		o.metrics.RecordOutput(ctx, o.driver.Name(), "error", count)
+	}
+}
+
+// warnRejection sets the destination warning after the deliveries of the same call cleared it; nil leaves it.
+func (o *Output) warnRejection(err error) {
+	if err != nil {
+		o.destinationWarning.Store(err.Error())
 	}
 }

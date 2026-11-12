@@ -36,6 +36,7 @@ import { StatusBadge } from "@/components/common/status-badge"
 import { formatNumber } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import type { OutputHealth, OutputStatus, PipelineComposite } from "@/lib/types"
+import { problemLine, problemOf } from "@/lib/output-problem"
 import { isFlowing, statusOf } from "@/lib/types"
 
 import { centerOnCore } from "./center-on-core"
@@ -130,10 +131,27 @@ function NodeCard({
             <StatusBadge status={statusOf(status)} />
           </div>
         )}
+        {status && <NodeProblem status={status} />}
       </div>
       {sourceHandle && <Handle type="source" position={Position.Right} style={HIDDEN_HANDLE} />}
       {children}
     </button>
+  )
+}
+
+/** The reason of a node's status, on one line; the whole text is in its tooltip and the detail panel. */
+function NodeProblem({ status }: { status: OutputStatus }) {
+  const problem = problemOf(status)
+  if (!problem) return null
+  const line = problemLine(problem)
+  return (
+    <div
+      className={cn("mt-1 truncate text-xs", problem.tone === "error" ? "text-status-error-foreground" : "text-status-degraded-foreground")}
+      title={line}
+      data-problem
+    >
+      {line}
+    </div>
   )
 }
 

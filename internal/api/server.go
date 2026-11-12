@@ -147,7 +147,10 @@ const (
 	idleTimeout  = 2 * time.Minute
 )
 
-func newApp() *fiber.App {
+// maxBodySize bounds a request body on both listeners; a larger one is answered 413 before any handler runs.
+const maxBodySize = 4 << 20
+
+func newApp(errorHandler fiber.ErrorHandler) *fiber.App {
 	app := fiber.New(fiber.Config{
 		// Request values, such as the :name parameter kept as a map key, are copied out of the
 		// connection buffer that fasthttp reuses for the next request.
@@ -155,6 +158,8 @@ func newApp() *fiber.App {
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 		IdleTimeout:  idleTimeout,
+		BodyLimit:    maxBodySize,
+		ErrorHandler: errorHandler,
 	})
 	app.Use(recover.New())
 	app.Use(compress.New())
@@ -164,6 +169,7 @@ func newApp() *fiber.App {
 // Probe and scrape routes of the ingestion listener; with mutual TLS they need no client certificate,
 // since kubelet probes and most scrapers present none.
 const (
+	routeIngest  = "/"
 	routeLive    = "/livez"
 	routeReady   = "/readyz"
 	routeMetrics = "/metrics"
@@ -171,11 +177,11 @@ const (
 
 // mountIngestion serves what Falco, Kubernetes probes and Prometheus reach from other hosts.
 func (s *Server) mountIngestion(registry *prometheus.Registry) *fiber.App {
-	app := newApp()
+	app := newApp(s.errorHandler(true))
 	if s.tls != nil && s.tls.Enabled && s.tls.MutualTLS {
 		app.Use(requireClientCertificate)
 	}
-	app.Post("/", s.handlePostEvent)
+	app.Post(routeIngest, s.handlePostEvent)
 	app.Get(routeLive, s.handleGetLive)
 	app.Get(routeReady, s.handleGetReady)
 	if registry != nil {
@@ -200,7 +206,7 @@ func requireClientCertificate(c fiber.Ctx) error {
 
 // mountManagement declares static segments before :name so Fiber matches the literals first.
 func (s *Server) mountManagement() *fiber.App {
-	app := newApp()
+	app := newApp(s.errorHandler(false))
 
 	v1 := app.Group("/api/v1", s.boundOperation)
 

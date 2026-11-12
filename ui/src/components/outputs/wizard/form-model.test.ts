@@ -1,8 +1,22 @@
 import { describe, expect, test } from "bun:test"
 
 import type { OutputConfigEntry, SchemaField } from "@/lib/types"
+import { fixtures } from "@/test/fixtures"
 
-import { buildPatch, countSet, fieldOfError, initialState, newRow, validate, type FormState, type MapRow } from "./form-model"
+import {
+  buildPatch,
+  conciseError,
+  countSet,
+  erroredInOrder,
+  fieldOfError,
+  initialState,
+  newRow,
+  refusedSave,
+  validate,
+  valueProblem,
+  type FormState,
+  type MapRow,
+} from "./form-model"
 
 const ENTRY = [
   { name: "values", type: "string[]", label: "Values", required: false },
@@ -19,8 +33,10 @@ const FIELDS: SchemaField[] = [
   { name: "labels", type: "map", label: "Labels", required: false },
   { name: "tls.ca_file", type: "string", label: "CA file", required: false, file: true },
   { name: "tls.insecure_skip_verify", type: "bool", label: "Skip verify", required: false, default: false },
-  { name: "runtime.workers", type: "int", label: "Workers", required: false, default: 2 },
-  { name: "runtime.retry.multiplier", type: "float", label: "Multiplier", required: false, default: 2 },
+  { name: "runtime.workers", type: "int", label: "Workers", required: false, default: 2, min: 1, max: 256 },
+  { name: "runtime.retry.multiplier", type: "float", label: "Multiplier", required: false, default: 2, min: 1, max: 10 },
+  { name: "runtime.retry.initial_interval", type: "string", label: "Initial interval", required: false, default: "1s", min: "1ms", max: "1h" },
+  { name: "timeout", type: "int", label: "Timeout", required: false },
   { name: "brokers", type: "string[]", label: "Brokers", required: false },
 ]
 
@@ -77,8 +93,8 @@ describe("validate", () => {
   const options = { filesOnly: true }
   test.each([
     ["host", "", "Required"],
-    ["runtime.workers", "2.5", "Must be a whole number"],
-    ["runtime.retry.multiplier", "x", "Must be a number"],
+    ["runtime.workers", "2.5", "must be an integer"],
+    ["runtime.retry.multiplier", "x", "must be a number"],
     ["method", "GET", "Must be one of POST, PUT"],
   ])("%s = %p: %s", (name, text, message) => {
     const state = setText(setText(initialState(FIELDS), "host", "https://h"), name, text)
@@ -244,14 +260,133 @@ describe("buildPatch", () => {
 
 describe("fieldOfError", () => {
   test.each([
-    ["password_file: must name a regular file of at most 1 MiB inside api.secret_dirs", "password"],
-    ['headers["X-Key"].files[1]: must name a regular file', "headers"],
-    ["tls.ca_file: must name a regular file", "tls.ca_file"],
-    ["host: must be a valid URL", "host"],
-    ["output \"webhook\": unknown problem", null],
-  ])("%s -> %p", (message, field) => {
-    expect(fieldOfError(FIELDS, message)).toBe(field)
+    ["password_file: must name a regular file of at most 1 MiB inside api.secret_dirs", "password", "must name a regular file of at most 1 MiB inside api.secret_dirs"],
+    ['headers["X-Key"].files[1]: must name a regular file', "headers", "must name a regular file"],
+    ["tls.ca_file: must name a regular file", "tls.ca_file", "must name a regular file"],
+    ["host: must be a valid URL", "host", "must be a valid URL"],
+    ['apply output: apply create: catalog: create "webhook": webhook: runtime.workers: must be an integer between 1 and 256', "runtime.workers", "must be an integer between 1 and 256"],
+  ])("%s -> %p", (message, field, reason) => {
+    expect(fieldOfError(FIELDS, message)).toEqual({ field, message: reason })
   })
+
+  test("a message that names no field maps to none", () => {
+    expect(fieldOfError(FIELDS, 'output "webhook": unknown problem')).toBeNull()
+  })
+})
+
+describe("refusedSave", () => {
+  test.each([
+    ["top-level", "host", "host"],
+    ["nested runtime", "runtime.workers", "runtime.workers"],
+    ["driver field under the output name", "webhook.tls.ca_file", "tls.ca_file"],
+    ["header entry", 'headers["X-Key"].files[0]', "headers"],
+    ["header entry, dotted", "headers.X-Key.files", "headers"],
+    ["secret file", "password_file", "password"],
+  ])("a %s path goes to its field", (_, path, field) => {
+    const refused = refusedSave(FIELDS, "webhook", "invalid configuration", [{ path, message: "must be fixed" }])
+    expect(refused).toEqual({ byField: { [field]: "must be fixed" }, other: [] })
+  })
+
+  test("paths the form does not hold become summary lines; the first message on a field wins", () => {
+    const refused = refusedSave(FIELDS, "webhook", "invalid configuration", [
+      { path: "runtime.workers", message: "must be an integer between 1 and 256" },
+      { path: "runtime.workers", message: "second" },
+      { path: "runtime", message: "workers × batch_size must be at most 100000" },
+      { path: "", message: "something without a place" },
+    ])
+    expect(refused).toEqual({
+      byField: { "runtime.workers": "must be an integer between 1 and 256" },
+      other: ["runtime: workers × batch_size must be at most 100000", "something without a place"],
+    })
+  })
+
+  test("a body without fields falls back to the message, without the server's wrapping", () => {
+    expect(refusedSave(FIELDS, "slack", 'apply output: apply create: catalog: create "slack": slack: password_file: is required')).toEqual({
+      byField: { password: "is required" },
+      other: [],
+    })
+    expect(refusedSave(FIELDS, "slack", 'apply output: apply create: catalog: create "slack": slack: dial tcp: refused')).toEqual({
+      byField: {},
+      other: ["dial tcp: refused"],
+    })
+  })
+})
+
+describe("refusedSave against the server's fixtures and catalog", () => {
+  const schema = (driver: string) => fixtures.outputTypes.types!.find((t) => t.name === driver)!.schema.fields!
+
+  test.each(["validation", "validation_range", "validation_type", "validation_duration"] as const)("%s maps to its slack field", (name) => {
+    const { body } = fixtures.errors[name]
+    const problem = body.fields![0]!
+    expect(body.phase).toBe("validate")
+    expect(refusedSave(schema("slack"), "slack", body.error, body.fields)).toEqual({ byField: { [problem.path]: problem.message }, other: [] })
+  })
+
+  test.each([
+    ["otlp", "logs.tls.ca_file", "logs.tls.ca_file"],
+    ["kafka", "auth.sasl", "auth.sasl"],
+    ["webhook", 'headers["X-Token"]', "headers"],
+    ["webhook", "password_file", "password"],
+  ])("%s %s goes to %s", (driver, path, field) => {
+    expect(refusedSave(schema(driver), driver, "invalid configuration", [{ path, message: "m" }]).byField).toEqual({ [field]: "m" })
+  })
+
+  test("without its fields, the message alone still finds the field behind the server's wrapping", () => {
+    const { body } = fixtures.errors.validation_range
+    expect(refusedSave(schema("slack"), "slack", body.error)).toEqual({ byField: { "runtime.workers": "must be an integer between 1 and 256" }, other: [] })
+  })
+})
+
+test("conciseError drops only the wrapping in front of the reason", () => {
+  expect(conciseError('apply output: apply create: catalog: create "slack": slack: secret_endpoint: is required', "slack")).toBe(
+    "secret_endpoint: is required",
+  )
+  expect(conciseError('apply output: apply create: catalog: create "slack": slack config: workers × batch_size must be at most 100000', "slack")).toBe(
+    "workers × batch_size must be at most 100000",
+  )
+  expect(conciseError("API writes are disabled (set api.allow_writes to enable)", "slack")).toBe(
+    "API writes are disabled (set api.allow_writes to enable)",
+  )
+})
+
+test("erroredInOrder follows the form, not the order the errors came in", () => {
+  expect(erroredInOrder(["host", "tls.ca_file", "runtime.workers"], { "runtime.workers": "x", host: "y" })).toEqual(["host", "runtime.workers"])
+})
+
+describe("valueProblem", () => {
+  const field = (name: string) => FIELDS.find((f) => f.name === name)!
+  test.each([
+    ["runtime.workers", "1", null],
+    ["runtime.workers", "256", null],
+    ["runtime.workers", "0", "must be an integer between 1 and 256"],
+    ["runtime.workers", "257", "must be an integer between 1 and 256"],
+    ["runtime.workers", "99999999999999999999", "must be an integer between 1 and 256"],
+    ["runtime.workers", "1e3", "must be an integer"],
+    ["runtime.workers", "4.0", "must be an integer"],
+    ["timeout", "99999999999999999999", "is out of range"],
+    ["timeout", "-5", null],
+    ["runtime.retry.multiplier", "1.5", null],
+    ["runtime.retry.multiplier", "0.5", "must be a number between 1 and 10"],
+    ["runtime.retry.multiplier", "Infinity", "must be a number"],
+    ["runtime.retry.multiplier", "1e400", "must be a number"],
+    ["runtime.retry.initial_interval", "500ms", null],
+    ["runtime.retry.initial_interval", "1h", null],
+    ["runtime.retry.initial_interval", "30", "must be a duration such as 30s or 1m"],
+    ["runtime.retry.initial_interval", "soon", "must be a duration such as 30s or 1m"],
+    ["runtime.retry.initial_interval", "2h", "must be a duration between 1ms and 1h"],
+    ["runtime.retry.initial_interval", "0s", "must be a duration between 1ms and 1h"],
+    ["host", "anything", null],
+  ])("%s = %p: %p", (name, text, want) => {
+    expect(valueProblem(field(name), text)).toBe(want)
+  })
+})
+
+test("integers are sent as JSON integers, floats as numbers", () => {
+  let state = setText(initialState(FIELDS), "host", "https://h")
+  state = setText(setText(state, "runtime.workers", "16"), "runtime.retry.multiplier", "1.5")
+  const body = JSON.stringify(buildPatch(FIELDS, state, null))
+  expect(body).toContain('"workers":16')
+  expect(body).toContain('"multiplier":1.5')
 })
 
 test("countSet counts the fields holding a value", () => {
