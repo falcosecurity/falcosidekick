@@ -101,9 +101,8 @@ func (d *Dispatcher) DispatchEvent(evt *event.Event) {
 	}
 }
 
-// Shutdown drains all outputs, then closes their drivers in parallel, both bounded by ctx.
-// It also awaits the outputs still retiring after a reload, which close their own drivers.
-// On deadline it calls stopWorkers and closes drivers in the background once workers exit.
+// Shutdown drains all outputs, then closes their drivers in parallel, both bounded by ctx, and awaits the outputs still retiring after
+// a reload, which close their own drivers. On deadline it calls stopWorkers and closes the drivers in the background once the workers exit.
 func (d *Dispatcher) Shutdown(ctx context.Context, stopWorkers context.CancelFunc) error {
 	d.mu.Lock()
 	if d.stopping {
@@ -169,11 +168,9 @@ func closeAll(outputs []*Output) <-chan struct{} {
 	return closed
 }
 
-// Apply starts the outputs in set on runCtx, replacing the running ones with the same name, and removes
-// the names in remove, in one step. Then it retires every predecessor concurrently, bounded by retireCtx,
-// and returns the retirements that missed it. A successor shares its predecessor's delivery record, so
-// what the predecessor does while it retires, even late, is counted. On ErrDispatcherStopped the caller
-// still owns set and must close it.
+// Apply starts the outputs in set on runCtx, replacing those with the same name, removes the names in remove, then retires every
+// predecessor concurrently, bounded by retireCtx, returning the retirements that missed it; a successor shares its predecessor's delivery
+// record, so what it does while retiring, even late, is counted. On ErrDispatcherStopped the caller still owns set and must close it.
 func (d *Dispatcher) Apply(retireCtx, runCtx context.Context, set map[string]*Output, remove []string) error {
 	d.mu.Lock()
 	if d.stopping {

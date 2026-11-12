@@ -1,6 +1,5 @@
-// Shapes of the JSON served under /api/v1, as encoded by internal/domain, internal/pipeline,
-// internal/api and internal/version. The fixtures under src/test/fixtures are produced by the
-// Go handlers and pin this contract.
+// Shapes of the JSON served under /api/v1, as encoded by internal/domain, internal/pipeline, internal/api and internal/version;
+// the fixtures under src/test/fixtures, written by the Go handlers, pin this contract.
 
 export type Priority =
   | "emergency"
@@ -111,7 +110,7 @@ export function lastSuccessOf(s: OutputStatus): string | null {
   return isZeroTime(s.last_success) ? null : s.last_success
 }
 
-/** v3 runs one output per driver, so an output's name is also its driver type. */
+/** One output per driver: an output's name is also its driver type. */
 export function driverOf(output: { name: string }): string {
   return output.name
 }

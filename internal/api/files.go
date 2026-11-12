@@ -33,9 +33,8 @@ var (
 	errFileOutsideDirs   = errors.New("must name a regular file of at most 1 MiB inside api.secret_dirs")
 )
 
-// checkFilePaths refuses a file path the request adds or changes unless it resolves, after symlinks,
-// to a regular file of at most utils.MaxFileSize inside api.secret_dirs. Paths already stored at the
-// same place were accepted before, from an output file or an earlier request.
+// checkFilePaths refuses a file path the request adds or changes unless it resolves, after symlinks, to a regular file of at most
+// utils.MaxFileSize inside api.secret_dirs; a path already stored at the same place was accepted before, from a file or an earlier request.
 func checkFilePaths(stored, merged map[string]any, fields []output.SchemaField, secretDirs []string) error {
 	before := make(map[string]string)
 	_ = output.CollectFilePaths(stored, fields, before)

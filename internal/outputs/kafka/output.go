@@ -342,11 +342,8 @@ func newDeliveryError(operation string, err error) *shared.DeliveryError {
 	return shared.NewDeliveryError(name, operation, err)
 }
 
-// forgetRecreatedTopic lets the next attempt reach a deleted and recreated topic:
-// franz-go otherwise keeps failing it with UNKNOWN_TOPIC_ID.
-// A record produced before the last purge of its topic fails from the old topic ID and
-// does not purge again: that would drop records already queued for the recreated topic.
-// franz-go sets Timestamp when the record is produced.
+// forgetRecreatedTopic lets the next attempt reach a deleted and recreated topic; franz-go otherwise keeps failing it with UNKNOWN_TOPIC_ID.
+// A record produced (its Timestamp) before the last purge of its topic failed from the old ID; purging again would drop records queued since.
 func (d *driver) forgetRecreatedTopic(record *kgo.Record, err error) {
 	if record == nil || !errors.Is(err, kerr.UnknownTopicID) {
 		return

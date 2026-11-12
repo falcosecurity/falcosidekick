@@ -53,9 +53,8 @@ const (
 // DeliveryError is the error every output returns for a failed delivery or probe.
 // Its text holds only fixed labels, a recognized code and an HTTP status, never server text or submitted values.
 type DeliveryError struct {
-	// Cause is the original failure, reachable through errors.Is and errors.As; it is never formatted.
-	// An error that sums up several failures holds only the context error they share, if any:
-	// errors.Is would otherwise match output.ErrPermanent on one part while the others can still succeed.
+	// Cause is the original failure, reachable through errors.Is and errors.As, never formatted. An error summing up several failures
+	// holds only the context error they share: errors.Is would otherwise match output.ErrPermanent on one part while others can still succeed.
 	Cause error
 	// Output is the output package's name constant.
 	Output string
@@ -109,10 +108,8 @@ func (e *DeliveryError) Reason() string {
 // Unwrap returns Cause for programmatic inspection.
 func (e *DeliveryError) Unwrap() error { return e.Cause }
 
-// Is matches output.ErrPermanent for failures a retry with the same event cannot fix,
-// and output.ErrMisconfigured for failures by which the destination rejects the configuration.
-// Status alone decides nothing: the protocol that produced the error sets Permanent,
-// since a status such as AWS throttling's 400 can ask for a retry.
+// Is matches output.ErrPermanent for failures a retry with the same event cannot fix, and output.ErrMisconfigured for failures by
+// which the destination rejects the configuration. The protocol that produced the error sets Permanent: AWS throttling's 400 asks for a retry.
 func (e *DeliveryError) Is(target error) bool {
 	switch target {
 	case output.ErrMisconfigured:
@@ -179,9 +176,8 @@ func NewDeliveryError(outputName, operation string, cause error) *DeliveryError 
 	return &DeliveryError{Output: outputName, Operation: operation, Code: classifyDeliveryError(cause, operation), Cause: cause}
 }
 
-// JoinDeliveryErrors sums up the failed parts of a batch of total units, failed of which did not go through.
-// The result is permanent only when every failure is, and holds only ctx.Err() as Cause (see DeliveryError.Cause).
-// When one failure covers the whole batch, that failure is returned as is.
+// JoinDeliveryErrors sums up the failed parts of a batch of total units, failed of which did not go through; a failure that covers
+// the whole batch is returned as is. The result is permanent only when every failure is, and holds only ctx.Err() as Cause.
 func JoinDeliveryErrors(
 	ctx context.Context, outputName, operation string, failures []*DeliveryError, failed, total int, unit string,
 ) error {

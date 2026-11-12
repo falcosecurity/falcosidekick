@@ -152,7 +152,7 @@ func TestSendRetryAfterLostAnswerAddsOneResult(t *testing.T) {
 	assert.Equal(t, []string{"r1", "r2"}, rules(t, getReport(t, client, "prod")))
 }
 
-// A custom field named uuid used to replace the event UUID, so every later event looked like a retry.
+// A custom field named uuid must not replace the event UUID, or every later event looks like a retry.
 func TestOutputFieldNamedUUIDDoesNotMergeEvents(t *testing.T) {
 	d, client := newFakeDriver(t, nil)
 	ctx := context.Background()

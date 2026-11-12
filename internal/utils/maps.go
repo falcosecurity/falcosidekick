@@ -76,11 +76,8 @@ func copyReflected(v reflect.Value, elem reflect.Type) reflect.Value {
 	return reflect.ValueOf(deepCopyValue(v.Interface())).Convert(elem)
 }
 
-// NavigateMap traverses a nested map by dot-separated path segments and
-// returns the parent map containing the leaf key, plus the leaf key.
-// For "auth.password" with cfg["auth"] a map, returns (authMap, "password").
-// For "password", returns (cfg, "password"). Returns (nil, "") if any
-// intermediate segment is missing or not a map.
+// NavigateMap follows a dotted path through nested maps and returns the map holding the leaf key and that key: (authMap, "password")
+// for "auth.password", (m, "password") for "password", and (nil, "") when a segment before the leaf is missing or not a map.
 func NavigateMap(m map[string]any, path string) (parent map[string]any, leafKey string) {
 	parts := strings.Split(path, ".")
 	current := m

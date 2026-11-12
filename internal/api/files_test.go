@@ -227,7 +227,7 @@ func TestPUTSecretFileReplacesStoredValue(t *testing.T) {
 	assert.Equal(t, map[string]any{"password_file": file}, mustMerge(t, map[string]any{"password": "old"}, `{"password_file":"`+file+`"}`))
 }
 
-// D9: an output type can refuse values only output files may hold.
+// An output type can refuse values only output files may hold.
 func TestPUTRunsTheOutputAPIWriteCheck(t *testing.T) {
 	cat, err := catalog.New([]output.Type{gcppubsub.OutputType})
 	require.NoError(t, err)

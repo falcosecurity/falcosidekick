@@ -363,11 +363,9 @@ func uiFixtureRequest(t *testing.T, app *fiber.App, method, path, body string, w
 	return decoded
 }
 
-// canonicalizeUIFixtures replaces what changes between runs while keeping every shape and relation:
-// times move to the fixture clock at their offset from now, to the minute (events keep their spacing,
-// times taken during the run land on the clock itself), histogram instants keep their spacing, UUIDs
-// stay distinct and lists of named entries are sorted by name. Nothing depends on how many distinct
-// instants a run happened to produce.
+// canonicalizeUIFixtures replaces what changes between runs while keeping every shape and relation: times move to the fixture clock
+// at their offset from now, to the minute (events keep their spacing, times taken during the run land on the clock itself), histogram
+// instants keep their spacing, UUIDs stay distinct and lists of named entries are sorted by name.
 func canonicalizeUIFixtures(fixtures map[string]any, now time.Time) {
 	var epochs []float64
 	uuids := map[string]string{}

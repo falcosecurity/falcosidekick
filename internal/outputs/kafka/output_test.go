@@ -198,7 +198,7 @@ func TestBalancerIsRefused(t *testing.T) {
 	assert.False(t, slices.ContainsFunc(OutputType.Schema.Fields, func(f output.SchemaField) bool { return f.Name == "producer.balancer" }))
 }
 
-// The pipeline queues and retries events, so producer.async is gone.
+// producer.async is refused: the pipeline queues and retries events.
 func TestAsyncIsRefused(t *testing.T) {
 	_, err := createOutput(map[string]any{
 		"brokers":  []string{"localhost:9092"},

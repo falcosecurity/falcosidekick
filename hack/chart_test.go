@@ -572,9 +572,8 @@ func mountedAt(container *k8sContainer, file string) bool {
 	return false
 }
 
-// loadWithRuntime runs the rendered files through the process's own loaders: every file a setting
-// names must sit under a mount, and is replaced by a fixture so the strict loader and the
-// validation see real files.
+// loadWithRuntime runs the rendered files through the process's own loaders: every file a setting names must sit under a mount, and
+// is replaced by a fixture so the strict loader and the validation see real files.
 func (f *runtimeFixture) loadWithRuntime(ch *checker, data map[string]string, container *k8sContainer) {
 	var sidekick map[string]any
 	if err := yaml.Unmarshal([]byte(data["sidekick.yaml"]), &sidekick); err != nil {
@@ -1017,9 +1016,8 @@ func (c *chartCase) checkTestPod(ch *checker, r chartRender, tls bool) {
 		"test Pod: want the container security context")
 }
 
-// TestChartRendersEveryCombination renders the cartesian product of the chart axes, checks the
-// invariants of each valid combination, runs its files through the process's loaders, and checks
-// the refusal of each invalid one.
+// TestChartRendersEveryCombination renders the cartesian product of the chart axes, checks the invariants of each valid combination,
+// runs its files through the process's loaders, and checks the refusal of each invalid one.
 func TestChartRendersEveryCombination(t *testing.T) {
 	helm := requireHelm(t)
 	appVersion := chartAppVersion(t)

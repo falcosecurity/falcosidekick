@@ -163,7 +163,7 @@ func TestEveryOutputKeepsEchoedSecretsOut(t *testing.T) {
 		{name: "awssns", want: "HTTP 403", destination: hostileSNSServer, config: func(h string) map[string]any {
 			return awsHostileConfig(h, map[string]any{"topic_arn": "arn:aws:sns:us-east-1:1:t"})
 		}},
-		// The emulator takes no credentials; gcppubsub.TestInitRejectsUnusableCredentials covers that secret.
+		// The emulator takes no credentials: only the destination can echo the secret.
 		{name: "gcppubsub", want: "PermissionDenied", destination: func(t *testing.T) string {
 			return hostilePubSubServer(t, status.Error(codes.PermissionDenied, "user not authorized: "+echoedSecret)).host
 		}, config: func(h string) map[string]any {

@@ -1063,7 +1063,7 @@ func TestHandlePipelineOutputPut_DispatcherStoppedReturns503(t *testing.T) {
 
 func TestHandlePipelineOutputPut_ReloaderNotBoundReturns503(t *testing.T) {
 	db := database.NewMemory()
-	// bindReloader=false exercises the unbound-Reloader path.
+	// bindReloader=false leaves the Reloader unbound.
 	rig := buildMutationRig(t, db, newMutationTestCatalog(t), false)
 
 	body := bytes.NewReader([]byte(`{"version":0,"config":{"secret_endpoint":"x"}}`))

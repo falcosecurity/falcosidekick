@@ -149,7 +149,7 @@ func TestLokiTextFormatWithLabelFields(t *testing.T) {
 	assert.Equal(t, "e2e event "+marker, stream.Values[0][1])
 }
 
-// extra_labels was renamed to label_fields, and a field that does not make a label name is refused.
+// extra_labels is refused as unknown, and so is a label_fields entry that does not make a label name.
 func TestLokiRefusesOldAndInvalidLabels(t *testing.T) {
 	base := requireEnv(t, lokiURLEnv)
 	logs := startSidekickFails(t, fmt.Sprintf("loki:\n  host: %q\n  extra_labels: proc.name\n", base))

@@ -191,10 +191,8 @@ func (s *SQL) nextVersion(ctx context.Context, tx *sql.Tx) (int64, error) {
 	return v, nil
 }
 
-// Provision stores the outputs from files as provisioned, rewriting only those whose settings
-// changed, and deletes the provisioned outputs missing from them. API outputs are kept, unless the
-// files define the same name. Each write is an upsert, so an API write committed after the read
-// cannot make it fail or be lost.
+// Provision stores the file outputs as provisioned, rewriting only those that changed, and deletes the provisioned ones the files no longer
+// define; an API output is kept unless the files name it. Each write is an upsert, so an API write committed meanwhile neither fails it nor is lost.
 func (s *SQL) Provision(ctx context.Context, req *core.ProvisionRequest) error {
 	if req == nil {
 		return errors.New("database: provision request is nil")

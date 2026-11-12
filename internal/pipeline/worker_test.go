@@ -649,7 +649,7 @@ func TestWorkerRetryCanProbeAfterResetTimeout(t *testing.T) {
 	})
 }
 
-// D1: while the circuit is open the queue waits for the destination instead of failing its events.
+// While the circuit is open the queue waits for the destination instead of failing its events.
 func TestOpenCircuitPausesTheQueue(t *testing.T) {
 	for _, batch := range []bool{false, true} {
 		t.Run(fmt.Sprintf("batch_%t", batch), func(t *testing.T) {

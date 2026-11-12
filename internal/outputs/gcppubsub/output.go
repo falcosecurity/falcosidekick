@@ -262,10 +262,8 @@ func parseCredentials(value string) (data []byte, typ option.CredentialsType, er
 	return data, typ, nil
 }
 
-// checkAPIWrite refuses inline credentials with a credential_source: the Google library reads the
-// file, URL, metadata server or certificate it names and sends the result to the document's token_url,
-// so an API write could read local resources out. Output files and credentials_file inside
-// api.secret_dirs are written by the operator and keep them.
+// checkAPIWrite refuses inline credentials with a credential_source: the Google library reads the file, URL, metadata server or
+// certificate it names and sends the result to the document's token_url, so an API write could read local resources out.
 func checkAPIWrite(patch map[string]any) error {
 	for key, value := range patch {
 		text, ok := value.(string)
@@ -384,9 +382,8 @@ func (d *driver) SendBatch(ctx context.Context, events []*event.Event) error {
 	return shared.JoinDeliveryErrors(ctx, name, opPublish, failures, failed, len(messages), "messages")
 }
 
-// splitRequests groups messages in order into requests of at most maxRequestMessages and maxRequestBytes,
-// counting the encoded request: the topic field and each message with its field tag and length.
-// A message larger than the limit goes alone and the service rejects it.
+// splitRequests groups messages in order into requests within maxRequestMessages and maxRequestBytes, counting the encoded request:
+// the topic field and each message with its field tag and length. A message over the limit goes alone, for the service to reject.
 func splitRequests(topic string, messages []*pubsubpb.PubsubMessage) [][]*pubsubpb.PubsubMessage {
 	var chunks [][]*pubsubpb.PubsubMessage
 	current := make([]*pubsubpb.PubsubMessage, 0, min(len(messages), maxRequestMessages))
@@ -421,9 +418,8 @@ func (d *driver) HealthCheck(ctx context.Context) error {
 	return diagnostic
 }
 
-// newDeliveryError names a failure by its gRPC code; the status message can quote credentials or token responses.
-// A failed TLS handshake is Unavailable and retried: grpc-go reports an untrusted certificate and a connection
-// reset during the handshake with the same status and no typed cause.
+// newDeliveryError names a failure by its gRPC code; the status message can quote credentials or token responses. A failed TLS handshake
+// is Unavailable and retried: grpc-go reports an untrusted certificate and a reset during the handshake alike, with no typed cause.
 func newDeliveryError(operation string, err error) *shared.DeliveryError {
 	st, ok := status.FromError(err)
 	switch {
