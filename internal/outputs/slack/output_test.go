@@ -100,7 +100,7 @@ func TestSlackCreateValidation(t *testing.T) {
 	assert.Error(t, err, "missing secret_endpoint must fail")
 }
 
-// Slack-app webhooks ignore the sender overrides, and message_format is now message_template.
+// The sender overrides, which Slack-app webhooks ignore, and message_format are refused.
 func TestSlackRemovedKeysAreRefused(t *testing.T) {
 	for key, value := range map[string]any{
 		"channel": "#alerts", "bot_username": "FalcoBot", "icon_url": shared.FalcosidekickIconURL,

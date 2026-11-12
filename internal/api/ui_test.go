@@ -61,7 +61,6 @@ func TestRegisterStaticUI_NoAssets_NoInterception(t *testing.T) {
 	assert.Equal(t, http.StatusOK, ver.StatusCode)
 }
 
-// D2: ingestion serves Falco, probes and Prometheus; management serves the API and the UI; neither serves the other.
 // Without read and idle deadlines a client that never finishes its request holds a connection
 // forever, and Shutdown does not close idle keep-alive connections.
 func TestListenersBoundSlowClients(t *testing.T) {
@@ -75,6 +74,7 @@ func TestListenersBoundSlowClients(t *testing.T) {
 	}
 }
 
+// Ingestion serves Falco, probes and Prometheus; management serves the API and the UI; neither serves the other.
 func TestListenersAreSeparate(t *testing.T) {
 	srv := buildUITestServer(t, newUITestFS(), prometheus.NewRegistry())
 	status := func(app *fiber.App, method, path string) int {

@@ -34,7 +34,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// D2: the API answers only on the management listener; ingestion keeps events, health and metrics.
+// The API answers only on the management listener; ingestion keeps events, health and metrics.
 func TestManagementListenerIsSeparate(t *testing.T) {
 	sk := startSidekick(t, outputYAML("inmemory", "capacity: 10"))
 	for _, tc := range []struct {
@@ -55,8 +55,8 @@ func TestManagementListenerIsSeparate(t *testing.T) {
 	assert.Contains(t, sk.logs.String(), `"management_address":"127.0.0.1:`, "the API listens on loopback by default")
 }
 
-// D3: an API write may name a secret file only inside api.secret_dirs, and a write based on an old
-// version is refused instead of overwriting the newer one.
+// An API write may name a secret file only inside api.secret_dirs; a write based on an old version
+// is refused and never overwrites the newer one.
 func TestAPIWriteReadsSecretsOnlyFromSecretDirs(t *testing.T) {
 	tokens := make(chan string, 4)
 	receiver := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -103,7 +103,7 @@ func TestAPIWriteReadsSecretsOnlyFromSecretDirs(t *testing.T) {
 	assert.NotContains(t, sk.logs.String(), "outside-private")
 }
 
-// minimum_priority accepts any case; before, an unknown spelling ranked lowest and filtered nothing.
+// minimum_priority accepts any case.
 func TestMinimumPriorityIgnoresCase(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
 	t.Cleanup(server.Close)
@@ -150,7 +150,7 @@ func TestReloadCarriesStatusToTheReplacement(t *testing.T) {
 	assert.Equal(t, int32(1), oldCalls.Load(), "the old destination gets nothing after the reload")
 }
 
-// D8: rule values beyond metrics.max_label_values share the "other" series.
+// Rule values beyond metrics.max_label_values share the "other" series.
 func TestMetricLabelsAreBounded(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
 	t.Cleanup(server.Close)

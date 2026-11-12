@@ -15,9 +15,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Command outputdocs writes docs/outputs from the output schema: a page per output type, the
-// settings several outputs share and an index. Only the blocks between the generated markers
-// change; the text around them is written by hand and kept. Run it from the repository root; with
-// -check it writes nothing and fails when a document is out of date.
+// settings several outputs share and an index. Only the blocks between the generated markers change.
+// Run it from the repository root; with -check it writes nothing and fails when a document is out of date.
 package main
 
 import (

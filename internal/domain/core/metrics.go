@@ -23,7 +23,7 @@ import (
 	"github.com/falcosecurity/falcosidekick/internal/domain/event"
 )
 
-// MetricsCollector defines unified observability operations.
+// MetricsCollector records the pipeline metrics.
 // RecordOutput and RecordDrop count events, so a batch adds its size.
 type MetricsCollector interface {
 	// RecordRequest counts a request to the ingestion endpoint: IngestAccepted or IngestInvalid.

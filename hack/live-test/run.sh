@@ -70,8 +70,7 @@ log "4/9 waiting for webhook-receiver + falcosidekick to be Ready (timeout $TIME
 kctl -n "$NAMESPACE" rollout status deployment/webhook-receiver --timeout="$TIMEOUT_READY" \
   || { fail "webhook-receiver did not become Ready"; exit 1; }
 
-# The falco-operator reconciles the Component CR into a Deployment asynchronously,
-# so the pod may not exist immediately. Poll for its existence, then wait for Ready.
+# The operator creates the Deployment asynchronously, so the pod may not exist yet.
 sidekick_deadline=$(( $(date +%s) + ${TIMEOUT_READY%s} ))
 while true; do
   if kctl -n "$NAMESPACE" get pod -l app.kubernetes.io/name=falcosidekick 2>/dev/null | grep -q falcosidekick; then
@@ -146,7 +145,6 @@ else
   fail "/api/v1/config unexpected: $body"
 fi
 
-# Baseline metric counter before any events.
 metrics_before=$(curl_ok "http://127.0.0.1:$LOCAL_PORT/metrics" || echo "")
 baseline_total=$(extract_input_total "$metrics_before")
 log "  baseline falcosidekick_events_total{source=syscall} = $baseline_total"
@@ -185,10 +183,8 @@ else
 fi
 
 log "8/9 real Falco rule trigger (read /etc/shadow in a pod)"
-# Capture baseline BEFORE launching the trigger. `kubectl run --rm` blocks ~13s
-# waiting for the pod to exit + be garbage-collected; Falco's event fires and
-# reaches falcosidekick during that window. If we capture the baseline after
-# the run, we miss the very delivery we're trying to detect.
+# kubectl run --rm returns only once the pod is gone, and the delivery happens meanwhile:
+# the baseline must be taken first.
 post_trigger_webhook=$(webhook_sent_total)
 log "  webhook sent_total baseline before trigger = $post_trigger_webhook"
 kctl run -n default --rm -i --restart=Never --image=alpine:3.22 "$TRIGGER_POD" -- \

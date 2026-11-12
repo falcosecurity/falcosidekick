@@ -109,8 +109,7 @@ func buildEvent(evt *event.Event, routingKey string) eventRequest {
 	return req
 }
 
-// containerName returns container.name, or "" for an event outside a container, which Falco names
-// "host".
+// containerName returns container.name, or "" for an event outside a container.
 func containerName(evt *event.Event) string {
 	if v := fieldString(evt, "container.name"); v != hostContainerName {
 		return v

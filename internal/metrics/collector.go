@@ -126,7 +126,7 @@ func buildInfo() prometheus.Collector {
 	return gauge
 }
 
-// Registry returns the Prometheus registry for HTTP handler setup.
+// Registry returns the Prometheus registry.
 func (c *Collector) Registry() *prometheus.Registry {
 	return c.reg
 }

@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 #
-# One-shot dev loop: build the UI image, load it into a kind cluster,
-# deploy falcosidekick via the falco-operator Component CR (same manifests
-# the live-test uses), port-forward the service, and start `bun run dev`
-# with FALCOSIDEKICK_BACKEND pointing at the forward.
+# Dev loop: build the UI image, load it into a kind cluster, deploy falcosidekick through the
+# falco-operator Component CR, port-forward the service, and start `bun run dev` with
+# FALCOSIDEKICK_BACKEND pointing at the forward.
 #
-# It acts only on the selected kind cluster and stops if the manifests target
-# resources it does not own. On exit (Ctrl-C / dev-server quit) the dev server and
-# port-forward are stopped. Cluster resources stay deployed for fast iteration.
+# It acts only on the selected kind cluster and stops if the manifests target resources it does
+# not own. On exit the dev server and port-forward are stopped; cluster resources stay deployed.
 #
 # Usage:
 #   ./hack/ui-dev-cluster.sh [options]

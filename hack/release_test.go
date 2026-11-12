@@ -344,7 +344,7 @@ func TestReleaseChecksIncludeUITestsAndLint(t *testing.T) {
 	require.Equal(t, "check", check.With["args"], "goreleaser reads the default .goreleaser.yml")
 }
 
-// Pull requests build the release images, as v2 did with its build-image check, without publishing.
+// Pull requests build the release images without publishing them.
 func TestPullRequestsBuildTheImages(t *testing.T) {
 	var build releaseWorkflow
 	readReleaseYAML(t, ".github/workflows/build-image.yml", &build)
@@ -429,7 +429,7 @@ printf 'cosign %s\n' "$*" >> "$CALLS"
 	}
 }
 
-// SLSA provenance for the release files, as v2 published it.
+// SLSA provenance covers the release files.
 func TestReleaseProvenance(t *testing.T) {
 	workflow := readWorkflow(t, "release.yml")
 	release, provenance := workflow.Jobs["release"], workflow.Jobs["provenance"]

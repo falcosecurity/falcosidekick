@@ -44,7 +44,6 @@ done
 
 command -v curl >/dev/null 2>&1 || { echo "curl not found" >&2; exit 1; }
 
-# Strip trailing slash for the readiness probe
 BASE="${URL%/}"
 if ! curl -sf --max-time 3 "${BASE}/readyz" >/dev/null 2>&1; then
   echo "[ingest] falcosidekick not ready at ${BASE}/readyz" >&2
@@ -52,8 +51,7 @@ if ! curl -sf --max-time 3 "${BASE}/readyz" >/dev/null 2>&1; then
   exit 1
 fi
 
-# The emitter is exported as an env-visible function. xargs spawns bash -c and
-# invokes it per event; RANDOM is re-seeded per subshell so each event is unique.
+# xargs runs emit_event in a new bash per event, so it is exported.
 # shellcheck disable=SC2329 # invoked through xargs and export -f
 emit_event() {
   # Rule catalog: rule|source|tag1,tag2
@@ -96,13 +94,9 @@ emit_event() {
   local window="${WINDOW:-86400}"
   local url="${URL:-http://localhost:2801/}"
 
-  # Re-seed RANDOM per subshell so parallel workers don't collide.
-  # Bash already seeds $RANDOM per subshell; adding $$ + iteration keeps it
-  # stable under fast xargs spawn loops. Avoid date +%N (BSD-only + leading
-  # zeros trip bash's base-10 parser).
+  # Workers spawned in quick succession would share a seed; $$ and the iteration separate them.
   RANDOM=$((RANDOM + $$ + ${1:-0}))
 
-  # Pick weighted priority. Rare emergency/alert/critical, mostly warning/notice/info.
   local r=$((RANDOM % 1000))
   local priority
   if   (( r < 2   )); then priority="emergency"
@@ -127,9 +121,8 @@ emit_event() {
   local cont="${containers[$((RANDOM % ${#containers[@]}))]}"
   local user="${users[$((RANDOM % ${#users[@]}))]}"
 
-  # Random offset in the past $window seconds
   local offset=$((RANDOM * window / 32767))
-  # macOS date syntax (BSD); falls back to plain now on Linux coreutils.
+  # BSD date, then coreutils date; failing both, the event is stamped now.
   local ts
   ts=$(date -u -v-"${offset}"S +%Y-%m-%dT%H:%M:%S.000Z 2>/dev/null \
        || date -u -d "@$(( $(date +%s) - offset ))" +%Y-%m-%dT%H:%M:%S.000Z 2>/dev/null \
@@ -137,7 +130,6 @@ emit_event() {
 
   local pid=$((RANDOM + 1000))
 
-  # Comma-separated tags -> JSON array
   local tags_json='['
   local first=1
   local IFS=','
@@ -149,7 +141,6 @@ emit_event() {
   tags_json+=']'
   unset IFS
 
-  # Escape quotes in string fields defensively.
   local rule_esc="${rule//\"/\\\"}"
 
   local body

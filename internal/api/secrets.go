@@ -129,7 +129,7 @@ func configPointer(path []string) string {
 	return strings.Join(segments, "/")
 }
 
-// Normalize map and slice types without JSON round-tripping numeric values.
+// copyConfigValue deep-copies maps and slices; numbers keep their Go type.
 func copyConfigValue(value any) any {
 	if value == nil {
 		return nil
