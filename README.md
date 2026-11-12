@@ -12,7 +12,7 @@ This branch holds Falcosidekick v3, currently in beta. The v3 image includes a b
 
 | Version | Branch | Status | Image tags |
 | --- | --- | --- | --- |
-| v3 | `master` | Beta | `v3-*` |
+| v3 | `master` | Beta | `3.*` releases, `v3-main` builds of `master` |
 | v2 | [`2.x`](https://github.com/falcosecurity/falcosidekick/tree/2.x) | Maintenance, security and critical fixes only | `latest`, `2.*` |
 
 v2 configuration is not compatible with v3.

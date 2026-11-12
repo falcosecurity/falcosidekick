@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.0.0-beta.1
+#### New
+- First beta of Falcosidekick v3, a rewrite with a new configuration that v2 files do not load into: see [Migrate from v2](docs/migration.md)
+- Core file (`-c`) and output files (`-o`), with output files reloaded on change, `SIGHUP` or poll
+- Per-output queue, retry with backoff, circuit breaker and optional batching, with bounded settings: workers, queue, batch, retry, circuit and the `inmemory` capacity are refused outside their range, `capacity: 0` included (see [configuration](docs/configuration.md#output-runtime))
+- Management API and built-in web UI on a separate port bound to `127.0.0.1`, read-only by default; outputs created through the API kept in memory, sqlite or postgres
+- Distroless image running as user 65532, `-slim` variant without the UI, and the `1.0.0-beta.1` Helm chart, installed with `--devel`
+- Install guide in [docs/install.md](docs/install.md) and beta limits in [docs/known-limits.md](docs/known-limits.md)
+
 ## 2.35.0 - 2026-08-31
 #### Enhancement
 - Add a `TLS` field and allow to set the CA cert for the `OTLP Traces`/`OTLP Metrics`/`OTLP Logs` outputs ([PR#1389](https://github.com/falcosecurity/falcosidekick/pull/1389) thanks to [@AleksandarSavchev](https://github.com/AleksandarSavchev))
