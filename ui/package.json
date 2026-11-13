@@ -39,7 +39,7 @@
     "zustand": "^5"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "^10.0.1",
     "@happy-dom/global-registrator": "^20.9.0",
     "@testing-library/jest-dom": "^6",
     "@testing-library/react": "^16",
