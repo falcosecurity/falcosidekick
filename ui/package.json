@@ -41,7 +41,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@happy-dom/global-registrator": "^20.9.0",
-    "@testing-library/jest-dom": "^6",
+    "@testing-library/jest-dom": "^7",
     "@testing-library/react": "^16",
     "@testing-library/user-event": "^14",
     "@types/bun": "latest",
