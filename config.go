@@ -351,6 +351,9 @@ var outputDefaults = map[string]map[string]any{
 		"Port":            "",
 		"Protocol":        "",
 		"Format":          "json",
+		"TLS":             false,
+		"CheckCert":       true,
+		"MutualTLS":       false,
 		"MinimumPriority": "",
 	},
 	"MQTT": {

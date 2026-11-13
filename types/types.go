@@ -714,11 +714,17 @@ type YandexDataStreamsConfig struct {
 // Host: the remote syslog host. It can be either an IP address or a domain.
 // Port: the remote port address. Ex: 514.
 // Protocol: the type of transfer protocol to use. It should be either "tcp" or "udp".
+// TLS: send the events over TLS (RFC 5425), only valid with the "tcp" protocol.
+// CheckCert: verify the certificate of the syslog server, only used if TLS is enabled.
+// MutualTLS: present a client certificate to the syslog server, only used if TLS is enabled.
 type SyslogConfig struct {
 	Host            string
 	Port            string
 	Protocol        string
 	Format          string
+	TLS             bool
+	CheckCert       bool
+	MutualTLS       bool
 	MinimumPriority string
 }
 
