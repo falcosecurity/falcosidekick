@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-go/v5/statsd"
 	sasl "github.com/emersion/go-sasl"
 	smtp "github.com/emersion/go-smtp"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/falcosecurity/falcosidekick/internal/pkg/utils"
 	otlpmetrics "github.com/falcosecurity/falcosidekick/outputs/otlp_metrics"
@@ -23,6 +24,8 @@ import (
 )
 
 const rfc2822 = "Mon, 02 Jan 2006 15:04:05 -0700"
+
+const smtpDestination = "smtp"
 
 // SMTPPayload is payload for SMTP Output
 type SMTPPayload struct {
@@ -102,6 +105,9 @@ func newSMTPPayload(falcopayload types.FalcoPayload, config *types.Configuration
 func (c *Client) ReportErr(message string, err error) {
 	go c.CountMetric("outputs", 1, []string{"output:smtp", "status:error"})
 	c.Stats.SMTP.Add(Error, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": smtpDestination, "status": Error}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", smtpDestination),
+		attribute.String("status", Error)).Inc()
 	utils.Log(utils.ErrorLvl, c.OutputType, fmt.Sprintf("%s : %v", message, err))
 }
 
@@ -187,4 +193,7 @@ func (c *Client) SendMail(falcopayload types.FalcoPayload) {
 	utils.Log(utils.InfoLvl, c.OutputType, " SMTP - Sent OK\n")
 	go c.CountMetric("outputs", 1, []string{"output:smtp", "status:ok"})
 	c.Stats.SMTP.Add(OK, 1)
+	c.PromStats.Outputs.With(map[string]string{"destination": smtpDestination, "status": OK}).Inc()
+	c.OTLPMetrics.Outputs.With(attribute.String("destination", smtpDestination),
+		attribute.String("status", OK)).Inc()
 }
