@@ -3,4 +3,4 @@ plugins = ["bun-plugin-tailwind"]
 env = "BUN_PUBLIC_*"
 
 [test]
-preload = ["./src/test/setup.ts"]
+preload = ["./src/test/happydom.ts", "./src/test/setup.ts"]
