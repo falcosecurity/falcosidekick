@@ -116,11 +116,13 @@ func (c *Client) RedisPost(falcopayload types.FalcoPayload) {
 		_, err := c.RedisClient.HSet(context.Background(), c.Config.Redis.Key, falcopayload.UUID, redisPayload).Result()
 		if err != nil {
 			c.ReportError(err)
+			return
 		}
 	} else {
 		_, err := c.RedisClient.RPush(context.Background(), c.Config.Redis.Key, redisPayload).Result()
 		if err != nil {
 			c.ReportError(err)
+			return
 		}
 	}
 
