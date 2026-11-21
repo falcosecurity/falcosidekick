@@ -446,6 +446,9 @@ syslog:
   # port: "" # Syslog endpoint port number
   # protocol: "" # Syslog transport protocol. It can be either "tcp" or "udp" (default: tcp)
   # format: "" # Syslog payload format. It can be either "json" or "cef" (default: json)
+  # tls: false # Send the events over TLS (RFC 5425), requires the "tcp" protocol (default: false)
+  # checkcert: true # check if the TLS certificate of the Syslog server is valid, only used if tls is true (default: true)
+  # mutualtls: false # authenticate with the client certificate of the mutualtlsclient settings, only used if tls is true (default: false)
   # minimumpriority: "debug" # minimum priority of event for using this output, order is emergency|alert|critical|error|warning|notice|informational|debug or "" (default)
 
 mqtt:
