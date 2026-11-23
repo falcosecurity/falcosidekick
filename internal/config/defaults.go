@@ -63,6 +63,9 @@ func applyDefaults(v *viper.Viper) {
 	// Truncation drops evidence, so it is opt-in; the field threshold applies once it is enabled.
 	v.SetDefault("enricher.truncate_event_threshold", 0)
 	v.SetDefault("enricher.truncate_field_threshold", 512)
+	v.SetDefault("enricher.redaction.enabled", false)
+	v.SetDefault("enricher.redaction.builtin_rules", true)
+	v.SetDefault("enricher.redaction.mask", "[REDACTED]")
 
 	v.SetDefault("reload.poll_interval", 30*time.Second)
 	v.SetDefault("reload.retire_timeout", 10*time.Second)

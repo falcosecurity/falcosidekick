@@ -136,6 +136,30 @@ Sidekick reads the JSON of Falco's `http_output` (`json_output: true`).
 | `custom_tags` | tags added to every event |
 | `bracket_replacer` | replaces `[` and `]` in output field names |
 | `truncate_event_threshold` | off by default (`0`): above this event JSON size, string fields longer than `truncate_field_threshold` are cut. Cutting loses evidence, so set it only for a destination with a size limit |
+| `redaction` | off by default: masks secrets in `output` and the string output fields, see below |
+
+`enricher.redaction` masks secrets, such as a password in a command line, before the event reaches any output. Falco itself still sees and logs the full values, so they stay available for an investigation.
+
+| Key | Effect |
+| --- | --- |
+| `enabled` | `false` by default |
+| `builtin_rules` | `true` by default: the patterns of [portcullis](https://github.com/docker/portcullis) for cloud credentials, API tokens and database connection-string passwords |
+| `mask` | the text a secret is replaced with, `[REDACTED]` by default |
+| `rules` | extra rules, each with a `name` and a regular expression `pattern`. When the pattern has a capture group, only the first group is masked; otherwise the whole match is. `keep` leaves the first characters of the secret in place, to tell secrets apart; a secret not longer than `keep` is masked whole |
+
+The rules run on the event once its custom and templated fields are set, so a templated field that copies a secret is masked too. They run before truncation.
+
+```yaml
+enricher:
+  redaction:
+    enabled: true
+    rules:
+      - name: postgres-password
+        pattern: 'postgresql://[^:/]+:([^@]+)@'
+        keep: 2
+```
+
+With this rule, `psql postgresql://app:EAzndiaZ@db:5432/appdb` is sent as `psql postgresql://app:EA[REDACTED]@db:5432/appdb`.
 
 ## Metrics
 
