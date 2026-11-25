@@ -126,7 +126,7 @@ type Client struct {
 	KubernetesClient  kubernetes.Interface
 	RabbitmqClient    *amqp.Channel
 	WavefrontSender   *wavefront.Sender
-	Crdclient         *crdClient.Clientset
+	Crdclient         crdClient.Interface
 	MQTTClient        mqtt.Client
 	TimescaleDBClient *timescaledb.Pool
 	RedisClient       *redis.Client
