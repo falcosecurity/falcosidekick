@@ -35,11 +35,12 @@ const truncateFieldSuffix = "[...]"
 // Enricher adds custom fields, tags, UUID, and applies transformations to events.
 type Enricher struct {
 	templatedFields map[string]*template.Template
+	redactor        *redactor
 	cfg             output.EnricherConfig
 }
 
 // NewEnricher creates an Enricher from configuration.
-func NewEnricher(cfg output.EnricherConfig) (*Enricher, error) {
+func NewEnricher(cfg output.EnricherConfig) (*Enricher, error) { //nolint:gocritic // the enricher keeps its own copy of cfg
 	templates := make(map[string]*template.Template, len(cfg.TemplatedFields))
 	for k, v := range cfg.TemplatedFields {
 		tmpl, err := template.New(k).Parse(v)
@@ -49,9 +50,15 @@ func NewEnricher(cfg output.EnricherConfig) (*Enricher, error) {
 		templates[k] = tmpl
 	}
 
+	redactor, err := newRedactor(cfg.Redaction)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Enricher{
 		cfg:             cfg,
 		templatedFields: templates,
+		redactor:        redactor,
 	}, nil
 }
 
@@ -63,6 +70,11 @@ func (e *Enricher) Enrich(evt *event.Event) {
 	e.evaluateTemplatedFields(evt)
 	e.injectCustomTags(evt)
 	e.replaceBrackets(evt)
+	// Redact after the custom and templated fields, which can copy a secret, and before truncation,
+	// which could cut a secret so that no rule matches it anymore.
+	if e.redactor != nil {
+		e.redactor.redactEvent(evt)
+	}
 	e.truncateIfNeeded(evt)
 }
 

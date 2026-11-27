@@ -146,3 +146,27 @@ func TestValidateTLSNilPassesCleanly(t *testing.T) {
 	errs := cfg.Validate()
 	assert.Empty(t, errs)
 }
+
+func TestDefaultRedactionFromConfig(t *testing.T) {
+	cfg := loadDefaults(t)
+
+	assert.False(t, cfg.Enricher.Redaction.Enabled, "redaction is opt-in")
+	assert.True(t, cfg.Enricher.Redaction.BuiltinRules)
+	assert.Equal(t, "[REDACTED]", cfg.Enricher.Redaction.Mask)
+}
+
+func TestRedactionFromFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sidekick.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("enricher:\n  redaction:\n    enabled: true\n    mask: '*****'\n"+
+		"    rules:\n      - name: pg\n        pattern: 'postgresql://[^:/]+:([^@]+)@'\n        keep: 2\n"), 0o600))
+	cfg, err := Load(path)
+	require.NoError(t, err)
+	r := cfg.Enricher.Redaction
+	assert.True(t, r.Enabled)
+	assert.True(t, r.BuiltinRules, "builtin rules stay on unless turned off")
+	assert.Equal(t, "*****", r.Mask)
+	require.Len(t, r.Rules, 1)
+	assert.Equal(t, "pg", r.Rules[0].Name)
+	assert.Equal(t, 2, r.Rules[0].Keep)
+	assert.Empty(t, cfg.Enricher.Validate())
+}

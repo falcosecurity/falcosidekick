@@ -110,6 +110,14 @@ database:
 #   bracket_replacer: "_"                # replace [ and ] in field names
 #   truncate_event_threshold: 0          # off by default; above this event JSON size, long fields are cut
 #   truncate_field_threshold: 512        # length a field is cut to once event truncation is on (> 5)
+#   redaction:                           # mask secrets in the output and string output fields, before any output sees them
+#     enabled: false                     # off by default
+#     builtin_rules: true                # cloud keys, tokens, connection-string passwords... (github.com/docker/portcullis)
+#     mask: "[REDACTED]"
+#     rules:                             # extra regular expressions; with a capture group only the group is masked
+#       - name: db-password
+#         pattern: '--password=(\S+)'
+#         keep: 2                        # keep the first 2 characters of the secret
 
 # =============================================================================
 # Hot-Reload
