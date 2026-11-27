@@ -20,12 +20,11 @@
 #     health_check: true               # false skips the destination probe
 #
 # Health check: at startup, on reload and on API PUT each output probes its
-# destination for at most 5s, all outputs concurrently. Rejected credentials (401/403), a wrong path
-# (404), an untrusted certificate or a Kafka SASL failure stop startup or
-# reject the change. Elasticsearch treats 403 as transient, since GET / needs
-# the monitor privilege. Any other failure starts the output as "degraded"
-# with last_warning until the first delivery. Webhook and Slack are not
-# probed: their endpoint accepts only POST.
+# destination for at most 5s, all outputs concurrently. A failed probe
+# (unreachable, rejected credentials, a wrong path, an untrusted certificate,
+# a Kafka SASL failure) never stops startup or rejects the change: the output
+# starts as "degraded" with last_warning until the first delivery. Webhook and
+# Slack are not probed: their endpoint accepts only POST.
 #
 # Target fields (available to all HTTP-based outputs unless noted):
 #   host:                 scheme, host and port only, e.g. https://collector:8443
@@ -268,8 +267,9 @@ outputs:
   #   # endpoint: "europe-west1-pubsub.googleapis.com:443"   # gRPC host:port, TLS
   #   # emulator_host: "localhost:8085"  # plaintext, no authentication; not with endpoint or credentials
   #   # The health check reads the topic: it needs pubsub.topics.get (for example
-  #   # roles/pubsub.viewer) besides pubsub.topics.publish. Without it the output
-  #   # starts degraded; a missing topic or rejected credentials stop startup.
+  #   # roles/pubsub.viewer) besides pubsub.topics.publish. Without it, with a
+  #   # missing topic or with rejected credentials the output starts degraded;
+  #   # credentials that cannot be loaded stop startup.
 
   # ===========================================================================
   # PolicyReport (openreports.io/v1alpha1 Report and ClusterReport)
@@ -285,8 +285,9 @@ outputs:
   #   # "falcosidekick". A namespace that does not exist uses fallback_namespace.
   #   # Results are fail from Error up, warn below.
   #   # The openreports.io CRDs must be installed. RBAC: get, create and update
-  #   # on reports and clusterreports.openreports.io. The health check stops
-  #   # startup when the API is not served or access is rejected.
+  #   # on reports and clusterreports.openreports.io. When the API is not served
+  #   # or access is rejected, the output starts degraded; a kubeconfig that
+  #   # does not load stops startup.
 
   # ===========================================================================
   # AWS outputs (S3, SQS, SNS): shared fields
@@ -307,9 +308,9 @@ outputs:
   #                                    # endpoint; set AWS_ENDPOINT_URL_STS to change it.
   #   tls:                             # for the custom endpoint: ca_file, client cert
   #   # Each API call is attempted once and bounded to 30s; runtime.retry retries.
-  #   # The health check stops startup when AWS rejects the credentials or the
-  #   # bucket, queue or topic does not exist. It reads the resource: without
-  #   # that read permission (AccessDenied) the output starts degraded.
+  #   # The health check reads the bucket, queue or topic: when AWS rejects the
+  #   # credentials, the resource does not exist or the read permission is
+  #   # missing (AccessDenied), the output starts degraded.
 
   # ===========================================================================
   # AWS S3
@@ -375,7 +376,8 @@ outputs:
   #   # HOSTNAME from the event (else this host), APP-NAME "falco". TCP and TLS
   #   # frame messages with octet counting (RFC 6587) and keep one connection,
   #   # reconnecting when the receiver closes it. The health check dials TCP and
-  #   # TLS receivers (an untrusted certificate stops startup); UDP has no probe.
+  #   # TLS receivers (with an untrusted certificate the output starts degraded);
+  #   # UDP has no probe.
 
   # ===========================================================================
   # SMTP (one email per event)
@@ -396,9 +398,9 @@ outputs:
   #   format: html                       # html (multipart with a text part, default) or text
   #   # Credentials are sent only over TLS, or in clear to localhost; xoauth2
   #   # needs tls_mode starttls or implicit. The health check connects,
-  #   # negotiates TLS and authenticates without sending mail: rejected
+  #   # negotiates TLS and authenticates without sending mail: with rejected
   #   # credentials, a missing STARTTLS, AUTH or mechanism, or an untrusted
-  #   # certificate stop startup.
+  #   # certificate the output starts degraded.
 
   # ===========================================================================
   # Redis
@@ -417,8 +419,9 @@ outputs:
   #   #   enabled: true
   #   #   ca_file: /etc/ssl/redis-ca.pem
   #   # Values are the event JSON. Batches are sent in one pipeline. The health
-  #   # check sends PING: rejected credentials (WRONGPASS, NOAUTH), missing ACL
-  #   # permissions, an unknown database or an untrusted certificate stop startup.
+  #   # check sends PING: with rejected credentials (WRONGPASS, NOAUTH), missing
+  #   # ACL permissions, an unknown database or an untrusted certificate the
+  #   # output starts degraded.
 
   # ===========================================================================
   # OpenTelemetry (OTLP logs and metrics)

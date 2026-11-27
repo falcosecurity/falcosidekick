@@ -175,7 +175,7 @@ ui:
   event_source: inmemory
 ```
 
-The UI is served on the management port, 2802, with the API. In Kubernetes reach it with `kubectl port-forward deploy/falcosidekick 2802`, which works with the default `127.0.0.1`. To expose it through a Service instead, set `management.listen_address: "::"` and restrict that Service to trusted clients: the API has no authentication. The UI only reads: outputs are created and changed through the API, which needs `api.allow_writes: true`.
+The UI is served on the management port, 2802, with the API. In Kubernetes reach it with `kubectl port-forward deploy/falcosidekick 2802`, which works with the default `127.0.0.1`. To expose it through a Service instead, set `management.listen_address: "::"` and restrict that Service to trusted clients: the API has no authentication. The UI is read-only by default. With `api.allow_writes: true` it creates, edits and deletes outputs; outputs from the output files stay read-only unless `provisioning.allow_ui_updates: true`.
 
 ## Keep API outputs across restarts
 
