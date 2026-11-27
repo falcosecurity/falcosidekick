@@ -76,7 +76,7 @@ v2 also added hostname, Kubernetes namespace and pod, custom fields and template
 
 ## Behavior to check
 
-- Startup now fails when a destination rejects credentials, answers 404 on its probe or presents an untrusted certificate. v2 started anyway.
+- A destination that rejects credentials, answers 404 on its probe or presents an untrusted certificate no longer goes unnoticed: the output starts as `degraded`, with the reason in its status and in the log, and delivers once the destination accepts. Invalid configuration in an output file, such as a missing secret file, stops startup.
 - Delivery retries only failures that a later attempt can fix; a rejected event (for example HTTP 400 or 401) fails at once. See [configuration](configuration.md).
 - Alertmanager label values, including `alertname`, are sent unchanged, as in v2. The `rule` label, a copy of `alertname`, is gone, and invalid `extra_labels` names are refused instead of rewritten.
 - Elasticsearch documents use the event UUID as id.
